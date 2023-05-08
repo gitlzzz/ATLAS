@@ -35,19 +35,21 @@ PHASES = [
 # base structure
 
 # Number of replacement percentages to be computed per base structure
-NUM_STRUCT = 30
+NUM_STRUCT = 50
 
 # Number of random replacements to be done for a single percentage
 NUM_REPEAT = 5
 
 RELAX_STRUCT_PATH = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/relaxed_structures"
-SAVE_PATH = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db"
+SAVE_PATH = (
+    "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db"
+)
 
 current_time = time.strftime("%d%m%Y-%H%M%S")
 db_name = "initial-database_" + current_time
 
 structures = indb.CuZnInitialDatabase(
-    database_name=db_name, use_offset=True, max_num_atoms=128
+    database_name=db_name, use_offset=True, max_num_atoms=64
 )
 
 
@@ -78,23 +80,23 @@ print()
 
 # Checking for duplicate structures, and deleting the ones that are repeated.
 structures.find_repeat_structures(delete=True)
-ut.custom_print(structures, 'info')
+ut.custom_print(structures, "info")
 print()
 
 # Displacing structures around PES minima by modifying the
 # relaxed cell lattice parameters.
-structures.perturb_min_displacement(frac_max=0.05, repeat=50)
+structures.perturb_min_displacement(frac_max=0.05, repeat=40)
 
 ut.custom_print("Displacements around minimum done.", "done")
-ut.custom_print(structures, 'info')
+ut.custom_print(structures, "info")
 print()
 
 # Adding a random perturbation to structures.
 structures.perturb_gauss(center=0.04, repeat=7)
 
 ut.custom_print("Random perturbation done.", "done")
-ut.custom_print(structures, 'info')
+ut.custom_print(structures, "info")
 print()
 
 # Saving database
-structures.save_database(path=SAVE_PATH, suffix="main_structs")
+structures.save_database(path=SAVE_PATH, suffix="main_structs_small")

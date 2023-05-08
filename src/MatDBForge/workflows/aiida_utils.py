@@ -4,10 +4,10 @@ import os
 import aiida_tim.utils as ut
 import ase.data as ad
 import numpy as np
-import pymatgen.io.vasp as pyvasp
+# import pymatgen.io.vasp as pyvasp
 from aiida import load_profile
 from aiida.engine import submit
-from aiida.orm import Bool, Code, Dict, Float, Int, Str, StructureData
+from aiida.orm import Bool, Code, Dict, Int, Str, StructureData
 from aiida.plugins import WorkflowFactory
 from aiida_tim import MODULEROOT as AT_MODULEROOT
 from aiida_vasp.utils.aiida_utils import get_data_node
@@ -229,6 +229,67 @@ def choose_queue(node_type: int, tot_procs: int = None):
         }
 
     return OPTIONS, CODE_STRING
+
+
+
+def choose_queue_from_struct(structure, assign_dict: dict):
+    """
+    Choose the scheduler and aiida's computer and code options according
+    to the size of the structure.
+
+    Parameters
+    ----------
+    structure : pymatgen.core.structure.Structure
+        Structure
+    assign_dict : dict
+        Dictionary specifying which queue gets assigned to every atom
+        interval.
+    Returns
+    -------
+    dict
+        The OPTIONS dict is aiida jobfile equivalent
+    str
+        The CODE_STRING str is aiida code identifier.
+    """
+
+    num_atom = len(structure.sites)
+    # Jobfile equivalent
+    # In OPTIONS, we typically set scheduler options. See:
+    # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
+    OPTIONS = {}
+    OPTIONS["account"] = ""
+    OPTIONS["qos"] = ""
+    OPTIONS["max_wallclock_seconds"] = 117280000
+    OPTIONS["max_memory_kb"] = 102400000
+
+    # Code_string is chosen among the list given by 'verdi code list'
+    keys_list = list(assign_dict.keys())
+    keys_list.append(num_atom)
+    keys_list = sorted(keys_list)
+    num_atom_posc = keys_list.index(num_atom)
+
+    # If our target structure is larger than the maximum
+    if num_atom_posc == (len(keys_list)-1):
+        next_val = keys_list[num_atom_posc-1]
+    # Every other case
+    else:
+        next_val = keys_list[num_atom_posc+1]
+
+    # Getting our data for the correct queue or
+    # if not possible, the largest queue.
+    queue_data = assign_dict.get(next_val, keys_list[-1])
+    
+    # Getting code string
+    CODE_STRING = queue_data["code_string"]
+    OPTIONS["resources"] = queue_data["options_resources"]
+
+    # Getting options
+    node_cpus = queue_data["node_cpus"]
+    mult_nodes = queue_data["multiple"]
+    OPTIONS["resources"]["tot_num_mpiprocs"] = node_cpus*mult_nodes
+    
+    return OPTIONS, CODE_STRING
+
 
 
 def select_kspacing(incar: dict, phase: str, kspacing: dict):
