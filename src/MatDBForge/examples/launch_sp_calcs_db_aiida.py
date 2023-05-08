@@ -34,6 +34,35 @@ KSPACING = {
     "m4": 0.0948760981384118,
 }
 
+QUEUE_DICT = {
+    10: {
+        "node_cpus": 12,
+        "code_string": "vasp-5.4.4@tekla2",
+        "options_resources": {
+            "parallel_env": "c12m48ib_mpi",
+            "tot_num_mpiprocs": 12,
+        },
+        "multiple": 1,
+    },
+    20: {
+        "node_cpus": 28,
+        "code_string": "vasp-5.4.4_28core@tekla2",
+        "options_resources": {
+            "parallel_env": "c28m128ib_mpi",
+            "tot_num_mpiprocs": 28,
+        },
+        "multiple": 1,
+    },
+    500: {
+        "node_cpus": 28,
+        "code_string": "vasp-5.4.4_28core@tekla2",
+        "options_resources": {
+            "parallel_env": "c28m128ib_mpi",
+            "tot_num_mpiprocs": 28,
+        },
+        "multiple": 1,
+    },
+}
 
 # POTCAR equivalent
 # Potential_family is chosen among the list given by
@@ -46,14 +75,13 @@ POTENTIAL_FAMILY = "vasp-5.4-PBE-2023"
 # every atom.
 POTENTIAL_MAPPING = aut.generate_potential_mapping()
 
-# Jobfile equivalent
-# In options, we typically set scheduler options. See:
-# https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
-OPTIONS, CODE_STRING = aut.choose_queue(28)
-
+# Paths for the source and target dataframe.
 SOURCE_DF = "/tmp/twoitem_df_test.pkl"
 TARGET_DF = "/tmp/twoitem_df_test_results.pkl"
-CALC_TYPE = 'SP'
+
+# Which calculation to run.
+# As of now, either "sp" or "relax".
+CALC_TYPE = "SP"
 
 if __name__ == "__main__":
     # ID for the entire batch
@@ -73,7 +101,6 @@ if __name__ == "__main__":
         # Generate INCAR with correct kspacing
         incar = aut.generate_incar(phase=phase, calc_type=CALC_TYPE, kspacing=KSPACING)
 
-
         # Dictionary containing metadata for the calculation
         metadata_dict = {
             "label": f"{phase}-{struct_formula}-{it}_relaxation-bb_{batch_id}",
@@ -90,6 +117,13 @@ if __name__ == "__main__":
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
         # print("kpoints_data: ", kpoints_data.get_kpoints_mesh())
         # quit()
+
+        # Jobfile equivalent
+        # In options, we typically set scheduler options. See:
+        # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
+        OPTIONS, CODE_STRING = aut.choose_queue_from_struct(
+            structure=target_structure, assign_dict=QUEUE_DICT
+        )
 
         # Defining the vasp.relax workchain object
         workchain = WorkflowFactory("vasp.relax")
@@ -113,13 +147,12 @@ if __name__ == "__main__":
         builder["kpoints"] = kpoints_data
 
         if CALC_TYPE.lower() == "sp":
-            builder['perform_static'] = Bool(True)
-            builder['relax']['perform'] = Bool(False)
+            builder["perform_static"] = Bool(True)
+            builder["relax"]["perform"] = Bool(False)
 
         elif CALC_TYPE.lower() == "relax":
-            builder['perform_static'] = Bool(False)
-            builder['relax']['perform'] = Bool(True)
-
+            builder["perform_static"] = Bool(False)
+            builder["relax"]["perform"] = Bool(True)
 
         # builder["settings"]
 
