@@ -23,8 +23,6 @@ PHASES = [
     "alpha",
     "m1",
     "beta-prime",
-    "m2",
-    "gamma",
     "m3",
     "epsilon",
     "m4",
@@ -65,7 +63,7 @@ for phase in PHASES:
     ut.custom_print(f"Generating structures for '{phase}' phase.", "info")
 
     # Generating NUM_STRUCT*NUM_REPEAT structures for the given phase.
-    structures.generate_phase_structures(
+    structures.generate_bulk_structures(
         prototype=props.get("prototype", None),
         phase=phase,
         num_struct=NUM_STRUCT,

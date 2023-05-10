@@ -649,72 +649,72 @@ class CuZnInitialDatabase(InitialDatabase):
             curr_phase = self._get_phase_from_id(idx)
             self.df.at[idx, "phase"] = curr_phase
 
-    def create_alpha_alloys(self, num_structures, num_replacements):
-        # Querying CuZn alpha prototype structure
-        with MPRester(self.secrets["API_KEY"]) as mpr:
-            query_result = mpr.summary.search(material_ids=[self.CU_ALPHA_STRUCT])[0]
+    # def create_alpha_alloys(self, num_structures, num_replacements):
+    #     # Querying CuZn alpha prototype structure
+    #     with MPRester(self.secrets["API_KEY"]) as mpr:
+    #         query_result = mpr.summary.search(material_ids=[self.CU_ALPHA_STRUCT])[0]
 
-            # Create supercell
-            structure = query_result.structure
+    #         # Create supercell
+    #         structure = query_result.structure
 
-            # Getting conventional cell
-            sga = SpacegroupAnalyzer(structure)
-            structure = sga.get_conventional_standard_structure()
+    #         # Getting conventional cell
+    #         sga = SpacegroupAnalyzer(structure)
+    #         structure = sga.get_conventional_standard_structure()
 
-            # This supercell will result in a large cell, consider which value to use.
-            structure.make_supercell([3, 3, 3], to_unit_cell=False)
+    #         # This supercell will result in a large cell, consider which value to use.
+    #         structure.make_supercell([3, 3, 3], to_unit_cell=False)
 
-            # TODO: Replace atoms here if necessary
-            # e.g. replace Mg atoms with Cu for the eta phase
+    #         # TODO: Replace atoms here if necessary
+    #         # e.g. replace Mg atoms with Cu for the eta phase
 
-            new_row = pd.Series(
-                {
-                    "material_id": str(query_result.material_id),
-                    "structure": structure,
-                    "temperature": np.nan,
-                    "perturb": False,
-                }
-            )
-            self.df = self.df.astype({"perturb": bool, "base": bool})
-            self.df = pd.concat([self.df, new_row.to_frame().T], ignore_index=True)
+    #         new_row = pd.Series(
+    #             {
+    #                 "material_id": str(query_result.material_id),
+    #                 "structure": structure,
+    #                 "temperature": np.nan,
+    #                 "perturb": False,
+    #             }
+    #         )
+    #         self.df = self.df.astype({"perturb": bool, "base": bool})
+    #         self.df = pd.concat([self.df, new_row.to_frame().T], ignore_index=True)
 
-        # Randomly generating Zn percentages for the new structures
-        max_zn = 1 - self.CUZN_PHASES["alpha"]["cu_comp_min"]
-        min_zn = 1 - self.CUZN_PHASES["alpha"]["cu_comp_max"]
-        subst_zn_perc = (min_zn - max_zn) * np.random.ranf(size=num_structures) + max_zn
+    #     # Randomly generating Zn percentages for the new structures
+    #     max_zn = 1 - self.CUZN_PHASES["alpha"]["cu_comp_min"]
+    #     min_zn = 1 - self.CUZN_PHASES["alpha"]["cu_comp_max"]
+    #     subst_zn_perc = (min_zn - max_zn) * np.random.ranf(size=num_structures) + max_zn
 
-        # Choosing the amount of atoms to replace with Zn in the Cu struct
-        n_at_replacement = [int(len(structure.sites) * stct) for stct in subst_zn_perc]
-        n_at_replacement = [n + 1 if n == 0 else n for n in n_at_replacement]
+    #     # Choosing the amount of atoms to replace with Zn in the Cu struct
+    #     n_at_replacement = [int(len(structure.sites) * stct) for stct in subst_zn_perc]
+    #     n_at_replacement = [n + 1 if n == 0 else n for n in n_at_replacement]
 
-        # TODO: Generate aprox. 'num_replacements' structures for each percentage
-        # Replace the atoms
-        for str_ind, n_atoms in enumerate(n_at_replacement):
-            for repl in range(num_replacements):
-                # Getting which indices to replace
-                idx_replace = np.random.choice(
-                    a=len(structure.sites),
-                    size=(n_atoms,),
-                )
+    #     # TODO: Generate aprox. 'num_replacements' structures for each percentage
+    #     # Replace the atoms
+    #     for str_ind, n_atoms in enumerate(n_at_replacement):
+    #         for repl in range(num_replacements):
+    #             # Getting which indices to replace
+    #             idx_replace = np.random.choice(
+    #                 a=len(structure.sites),
+    #                 size=(n_atoms,),
+    #             )
 
-                # Creating a new structure using the base one as a template
-                new_structure = structure.copy(sanitize=True)
+    #             # Creating a new structure using the base one as a template
+    #             new_structure = structure.copy(sanitize=True)
 
-                # Replacing Cu atoms in the structures
-                for ind in idx_replace:
-                    new_structure.replace(ind, Species("Zn"))
+    #             # Replacing Cu atoms in the structures
+    #             for ind in idx_replace:
+    #                 new_structure.replace(ind, Species("Zn"))
 
-                # Storing the modified structure inside the list
-                # perturb_struct_list.append(new_structure)
-                new_row = pd.Series(
-                    {
-                        "material_id": f"{self.CU_ALPHA_STRUCT}_{str_ind+1}_{repl+1}",
-                        "structure": new_structure,
-                        "temperature": np.nan,
-                        "perturb": True,
-                    }
-                )
-                self.df = pd.concat([self.df, new_row.to_frame().T], ignore_index=True)
+    #             # Storing the modified structure inside the list
+    #             # perturb_struct_list.append(new_structure)
+    #             new_row = pd.Series(
+    #                 {
+    #                     "material_id": f"{self.CU_ALPHA_STRUCT}_{str_ind+1}_{repl+1}",
+    #                     "structure": new_structure,
+    #                     "temperature": np.nan,
+    #                     "perturb": True,
+    #                 }
+    #             )
+    #             self.df = pd.concat([self.df, new_row.to_frame().T], ignore_index=True)
 
     def create_alloys_prototype(
         self,
@@ -1092,7 +1092,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
         return subst_zn_perc
 
-    def generate_phase_structures(
+    def generate_bulk_structures(
         self,
         prototype: str,
         phase: str,
