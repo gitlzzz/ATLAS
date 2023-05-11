@@ -18,6 +18,7 @@ from dscribe.descriptors import SOAP
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.core.structure import Species, Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.core.surface import SlabGenerator
 
 from MatDBForge.core import utils as ut
 
@@ -1021,31 +1022,21 @@ class CuZnInitialDatabase(InitialDatabase):
         base_atom_set = list(self.ALLOY_SET - {curr_phase_atom})
 
         new_structure = structure.copy(sanitize=True)
-        # print('structure: ', structure)
         # Replacing atoms in the structures
         # itertools.
-        # for ind in range(0, len(structure._sites)):
-        # gene_sites = range(1, structure.num_sites + 1)
-        #  for site, add in zip(gene_sites, it.cycle([2, 3, 2, 1])):
         ind = 2
         sum_ind = 0
         sum_list = (2, 1, 2, 3)
 
         while ind < structure.num_sites:
-            # if ind < structure.num_sites:
-            # print("replacing site: ", ind)
             new_structure.replace(ind - 1, Species(base_atom_set[0]))
             ind = ind + sum_list[sum_ind]
-            #     print("ind: ", ind)
 
             if sum_ind == 3:
                 sum_ind = 0
             else:
                 sum_ind += 1
 
-        # print('structure: ', new_structure)
-        # new_structure.to("/tmp/POSCAR", fmt="poscar")
-        # quit()
 
         if read:
             material_id_prefix = query_result.material_id.values[0]
@@ -1184,31 +1175,112 @@ class CuZnInitialDatabase(InitialDatabase):
                     for ind in idx_replace:
                         new_structure.replace(ind, repl_spec)
 
-                    # Storing the modified structure inside the list
-                    # perturb_struct_list.append(new_structure)
-                    # if perturb_flag:
-                    #     for strategy in perturb:
-                    #         if strategy.lower() == "gauss":
-                    #             for repeat in range(perturb.get("gauss", 1)):
-                    #                 new_struct_perturb = self._perturb_gauss(
-                    #                     struct=new_structure, temp=300.0
-                    #                 )
+                    self._save_row(
+                        prototype,
+                        phase,
+                        supr_idx,
+                        new_structure,
+                        str_ind,
+                        repl,
+                    )
 
-                    #                 self._save_row(
-                    #                     prototype,
-                    #                     phase,
-                    #                     supr_idx,
-                    #                     new_struct_perturb,
-                    #                     str_ind,
-                    #                     repl,
-                    #                     new_structure,
-                    #                     strategy,
-                    #                     perturb_repeat=repeat,
-                    #                 )
+    def generate_surface_structures_pure(atom:str, ):
+        ...
 
-                    #         else:
-                    #             new_struct_perturb = new_structure
-                    #             strategy = "unk_perturb_strategy"
+
+    def generate_surface_structures_replace(
+        self,
+        prototype: str,
+        phase: str,
+        num_struct: int,
+        num_repeats: int,
+        get_different_supercells: bool,
+        read: bool = True,
+    ):
+        """
+        This method allows to create several variations of a certain surface
+        structure by randomly replacing atoms in the base structure.
+
+        Parameters
+        ----------
+        prototype : str
+            Materials project id of the prototype structure to be used as template.
+        phase : str
+            Name of the phase to be used.
+        num_struct : int
+            Number of different atomic compositions to be generated.
+        num_repeats : int
+            Number of random replacements done for each atomic composition.
+        get_different_supercells : bool
+            Whether to store just a single supercell or several of them.
+            If False, a single supercell is chosen so that the resulting structure
+            has a total number of atoms under a certain threshold.
+            If True, the same structure is chosen, but additionally, any possible
+            structure with smaller supercells is also added.
+        read: bool
+            Whether to read structures from the db or use the MP API to get them, by
+            default True.
+
+        Raises
+        ------
+        KeyError
+            Raised if the given phase is not found. All of the available phases
+            are given on the self.CUZN_PHASES dictionary. More phases could be added
+            there if necessary.
+        """
+
+        # Getting the prototype structure
+        # First, the structure is either gathered from the MP or the initial database,
+        # then all atoms are replaced with Cu. Next, the conventional cell is obtained
+        # and finally a supercell is created. Depending on the setting, one or more
+        # supercells can be returned.
+        structure_list, query_result, idx_list = self._gather_prototype_structure(
+            get_different_supercells=get_different_supercells,
+            prototype=prototype,
+            phase=phase,
+            read=read,
+        )
+
+        for structure, supr_idx in zip(structure_list, idx_list):
+
+            # Replacing some atoms using symmetry
+            structure = self._create_symmetrical_prototype(
+                structure=structure, phase=phase, query_result=query_result, read=read
+            )
+
+            # Randomly generating Zn percentages for the new structures
+            subst_zn_perc = self._gen_zn_perc(phase, num_struct)
+
+            # Choosing the amount of atoms to replace with Zn in the Cu struct
+            n_at_replacement = [
+                int(round(len(structure.species) * stct, 0)) for stct in subst_zn_perc
+            ]
+
+            # Replacing the atoms and generate 'num_replacements'
+            # structures for each percentage
+            for str_ind, n_atoms in enumerate(n_at_replacement):
+                for repl in range(num_repeats):
+
+                    # Getting which indices to replace
+                    idx_replace = np.random.choice(
+                        a=len(structure.species),
+                        size=(n_atoms,),
+                        replace=False,
+                    )
+
+                    # Creating a new structure using the base one as a template
+                    new_structure = structure.copy(sanitize=True)
+
+                    # Getting which species to replace with
+                    curr_main = self.CUZN_PHASES.get(phase).get("base_elem", "Cu")
+                    repl_spec = Species(list(self.ALLOY_SET - {curr_main})[0])
+
+                    # Replacing Cu atoms in the structures
+                    for ind in idx_replace:
+                        new_structure.replace(ind, repl_spec)
+
+                    # Generating surface
+                    slab_generator = SlabGenerator(new_structure)
 
                     self._save_row(
                         prototype,
@@ -1218,6 +1290,7 @@ class CuZnInitialDatabase(InitialDatabase):
                         str_ind,
                         repl,
                     )
+
 
     def _save_row(
         self,

@@ -6,31 +6,18 @@ import time
 from MatDBForge.core import utils as ut
 from MatDBForge.core import initial_db_utils as indb
 
-# List containing the MP ids for the target structures
-# to be included and perturbed.
-TARGET_STRUCTURES = [
-    "mp-30",  # Fm3-m, Cu alpha
-    "mp-987",  # Pm-3m space group, beta' phase
-    "mp-1368",  # I-43m, gamma phase
-    "mp-1216020",  # P1 space group, gamma-epsilon (m3) phase
-    "mp-972042",  # P6₃/mmc space group, epsilon phas
-    "mp-1215518",  # P-6m2, narrow phase at high T above alpha?
-    "mp-1215401",  # P-3m1, beta-derived
-    "mp-79",  # P6₃/mmc, Zn eta
-]
-
+# Desired phases
 PHASES = [
     "alpha",
-    "m1",
     "beta-prime",
-    "m3",
+    "gamma",
+    "delta",
     "epsilon",
-    "m4",
     "eta",
 ]
 
-# Number of structures to be generated from each
-# base structure
+# The following parameters will set the number of structures
+# to be generated from each base structure
 
 # Number of replacement percentages to be computed per base structure
 NUM_STRUCT = 50
@@ -38,7 +25,10 @@ NUM_STRUCT = 50
 # Number of random replacements to be done for a single percentage
 NUM_REPEAT = 5
 
+# Where the optimized base structures are located
 RELAX_STRUCT_PATH = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/relaxed_structures"
+
+# Where to store the initial database once ready
 SAVE_PATH = (
     "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db"
 )
