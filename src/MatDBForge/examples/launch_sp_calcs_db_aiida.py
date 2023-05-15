@@ -5,18 +5,12 @@ import uuid
 import ase.data as ad
 import numpy as np
 import pandas as pd
-
-# import pymatgen.io.vasp as pyvasp
-# from aiida import load_profile
 from aiida.engine import submit
 from aiida.orm import Bool, Code, Dict, Float, Int, Str, StructureData
-from aiida.plugins import WorkflowFactory
 from aiida.orm.nodes.data.array.kpoints import KpointsData
-
-# from aiida_vasp.utils.aiida_utils import get_data_node
+from aiida.plugins import DataFactory, WorkflowFactory
 from MatDBForge.core import utils as ut
 from MatDBForge.workflows import aiida_utils as aut
-from aiida.plugins import DataFactory
 
 # quit()
 
@@ -32,12 +26,13 @@ KSPACING = {
     "epsilon": 0.105557513160617,
     "eta": 0.0993371597065093,
     "m4": 0.0948760981384118,
+    "delta": 0.0994491889005363,
 }
 
 QUEUE_DICT = {
     10: {
         "node_cpus": 12,
-        "code_string": "vasp-5.4.4@tekla2",
+        "code_string": "vasp-std-5.4.4@tekla2",
         "options_resources": {
             "parallel_env": "c12m48ib_mpi",
             "tot_num_mpiprocs": 12,
@@ -53,14 +48,14 @@ QUEUE_DICT = {
         },
         "multiple": 1,
     },
-    500: {
+    80: {
         "node_cpus": 28,
         "code_string": "vasp-5.4.4_28core@tekla2",
         "options_resources": {
             "parallel_env": "c28m128ib_mpi",
             "tot_num_mpiprocs": 28,
         },
-        "multiple": 1,
+        "multiple": 2,
     },
 }
 
@@ -76,8 +71,8 @@ POTENTIAL_FAMILY = "vasp-5.4-PBE-2023"
 POTENTIAL_MAPPING = aut.generate_potential_mapping()
 
 # Paths for the source and target dataframe.
-SOURCE_DF = "/tmp/twoitem_df_test.pkl"
-TARGET_DF = "/tmp/twoitem_df_test_results.pkl"
+SOURCE_DF = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db/initial-database_11052023-153657_final.pkl"
+TARGET_DF = "/WAREHOUSE/sp_database.pkl"
 
 # Which calculation to run.
 # As of now, either "sp" or "relax".
@@ -93,7 +88,7 @@ if __name__ == "__main__":
     # vasp workchain for all of them.
     for it, target_row in src_df.iterrows():
         # Getting current structure, phase and formula.
-        target_structure = target_row.structure
+        target_structure = target_row.structure.get_sorted_structure()
         phase = target_row.phase
         struct_formula = target_structure.formula.replace(" ", "")
         kspacing = KSPACING[phase]
@@ -103,11 +98,11 @@ if __name__ == "__main__":
 
         # Dictionary containing metadata for the calculation
         metadata_dict = {
-            "label": f"{phase}-{struct_formula}-{it}_relaxation-bb_{batch_id}",
+            "label": f"{phase}-{struct_formula}-{it}_{CALC_TYPE}-bb_{batch_id}",
             "description": f"Relaxation for {struct_formula} in CuZn initial database.",
         }
 
-        # Getting structure as a pymatgen structure
+        # Getting structure as an aiida structure from pymatgen.
         structure = StructureData(pymatgen=target_structure)
 
         # Get kpoints for aiida:
@@ -115,15 +110,18 @@ if __name__ == "__main__":
         kpoints_data = KpointsData()
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
-        # print("kpoints_data: ", kpoints_data.get_kpoints_mesh())
-        # quit()
 
         # Jobfile equivalent
         # In options, we typically set scheduler options. See:
         # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
-        OPTIONS, CODE_STRING = aut.choose_queue_from_struct(
+        OPTIONS, CODE_STRING, mult = aut.choose_queue_from_struct(
             structure=target_structure, assign_dict=QUEUE_DICT
         )
+
+        # Removing kpar for multinode calculations
+        incar["incar"]["kpar"] = 4
+        if mult > 1:
+            incar["incar"].pop("kpar")
 
         # Defining the vasp.relax workchain object
         workchain = WorkflowFactory("vasp.relax")
