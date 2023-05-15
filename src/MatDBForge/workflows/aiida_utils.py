@@ -4,6 +4,7 @@ import os
 import aiida_tim.utils as ut
 import ase.data as ad
 import numpy as np
+
 # import pymatgen.io.vasp as pyvasp
 from aiida import load_profile
 from aiida.engine import submit
@@ -34,18 +35,19 @@ INCAR_SP = {
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
-        "lorbit": 11,
+        #"lorbit": 11,
         ## electronic steps:
         "encut": 450,
         "ediff": 1e-6,
         "ismear": 0,
         "sigma": 0.03,
-        "algo": "Fast",
+        # "algo": "Fast",
+        "algo": "Normal",
         "lreal": "Auto",
         "nelm": 60,
         ## ionic steps:
         "ibrion": -1,
-        "nsw": 2,
+        "nsw": 1,
         "ediffg": -0.03,
         "isif": 2,
         "potim": 0.3,
@@ -70,7 +72,7 @@ INCAR_RELAX = {
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
-        "lorbit": 11,
+        #"lorbit": 11,
         ## electronic steps:
         "encut": 450,
         "ediff": 1e-6,
@@ -231,7 +233,6 @@ def choose_queue(node_type: int, tot_procs: int = None):
     return OPTIONS, CODE_STRING
 
 
-
 def choose_queue_from_struct(structure, assign_dict: dict):
     """
     Choose the scheduler and aiida's computer and code options according
@@ -264,21 +265,26 @@ def choose_queue_from_struct(structure, assign_dict: dict):
 
     # Code_string is chosen among the list given by 'verdi code list'
     keys_list = list(assign_dict.keys())
-    keys_list.append(num_atom)
-    keys_list = sorted(keys_list)
-    num_atom_posc = keys_list.index(num_atom)
+    sort_keys_list = keys_list.copy()
+    sort_keys_list.append(num_atom)
+    sort_keys_list = sorted(sort_keys_list)
+    num_atom_posc = sort_keys_list.index(num_atom)
 
     # If our target structure is larger than the maximum
-    if num_atom_posc == (len(keys_list)-1):
-        next_val = keys_list[num_atom_posc-1]
-    # Every other case
-    else:
-        next_val = keys_list[num_atom_posc+1]
+    if num_atom_posc == (len(sort_keys_list) - 1):
+        next_val = keys_list[num_atom_posc - 1]
 
-    # Getting our data for the correct queue or
-    # if not possible, the largest queue.
+    # Every other case
+    elif num_atom_posc == 0:
+        next_val = keys_list[0]
+    else:
+        next_val = keys_list[num_atom_posc - 1]
+
+    # Getting our data for the the largest queue
     queue_data = assign_dict.get(next_val, keys_list[-1])
-    
+
+    # print('next_val: ', next_val)
+
     # Getting code string
     CODE_STRING = queue_data["code_string"]
     OPTIONS["resources"] = queue_data["options_resources"]
@@ -286,10 +292,9 @@ def choose_queue_from_struct(structure, assign_dict: dict):
     # Getting options
     node_cpus = queue_data["node_cpus"]
     mult_nodes = queue_data["multiple"]
-    OPTIONS["resources"]["tot_num_mpiprocs"] = node_cpus*mult_nodes
-    
-    return OPTIONS, CODE_STRING
+    OPTIONS["resources"]["tot_num_mpiprocs"] = node_cpus * mult_nodes
 
+    return OPTIONS, CODE_STRING, mult_nodes
 
 
 def select_kspacing(incar: dict, phase: str, kspacing: dict):
@@ -440,67 +445,68 @@ def get_vdw_params(structure, incar):
 
 
 if __name__ == "__main__":
-    # TODO: Prepare a test dataframe with one structure from alpha and other from beta-prime
-    # TODO: Read the structures from the dataframe.
-    # TODO: Prepare INCAR. It should use the correct parameters. KSPACING inside.
-    # TODO: Prepare dft-d3.
+    ut.custom_print("This file is not intented to be run as a script.", "error")
+    # # TODO: Prepare a test dataframe with one structure from alpha and other from beta-prime
+    # # TODO: Read the structures from the dataframe.
+    # # TODO: Prepare INCAR. It should use the correct parameters. KSPACING inside.
+    # # TODO: Prepare dft-d3.
 
-    # Iterating over the target structures and launching a separate
-    # vasp workchain for all of them.
-    for it, target_structure in enumerate(target_structures):
-        # TODO: Set phase correctly
-        phase = "Cu"
+    # # Iterating over the target structures and launching a separate
+    # # vasp workchain for all of them.
+    # for it, target_structure in enumerate(target_structures):
+    #     # TODO: Set phase correctly
+    #     phase = "Cu"
 
-        # Appending VDW parameters to INCAR
-        INCAR = get_vdw_params(target_structure, INCAR)
+    #     # Appending VDW parameters to INCAR
+    #     INCAR = get_vdw_params(target_structure, INCAR)
 
-        # Dictionary containing metadata for the calculation
-        metadata_dict = {
-            "label": f"Cu2-{it}-relaxation",
-            "description": "Testing convergence workchain using two Cu atoms.",
-        }
+    #     # Dictionary containing metadata for the calculation
+    #     metadata_dict = {
+    #         "label": f"Cu2-{it}-relaxation",
+    #         "description": "Testing convergence workchain using two Cu atoms.",
+    #     }
 
-        # Getting structure as a pymatgen structure
-        structure = StructureData(pymatgen=target_structure)
+    #     # Getting structure as a pymatgen structure
+    #     structure = StructureData(pymatgen=target_structure)
 
-        # Defining the vasp.relax workchain object
-        workchain = WorkflowFactory("vasp.converge")
+    #     # Defining the vasp.relax workchain object
+    #     workchain = WorkflowFactory("vasp.converge")
 
-        # Preparing a builder object to be able to submit the workchain
-        # and pass inputs to it
-        builder = workchain.get_builder()
+    #     # Preparing a builder object to be able to submit the workchain
+    #     # and pass inputs to it
+    #     builder = workchain.get_builder()
 
-        # Checking if the current phase is one that needs relaxation
-        if phase in ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]:
-            CONVERGE["relax"] = Bool(True)
-        else:
-            CONVERGE["relax"] = Bool(False)
+    #     # Checking if the current phase is one that needs relaxation
+    #     if phase in ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]:
+    #         CONVERGE["relax"] = Bool(True)
+    #     else:
+    #         CONVERGE["relax"] = Bool(False)
 
-        # Passing the all inputs to the builder object
-        builder["code"] = Code.get_from_string(CODE_STRING)
-        builder["converge"] = CONVERGE
-        # builder["dynamics"] = SEL_DYNAMICS
-        builder["options"] = Dict(OPTIONS)
-        builder["parameters"] = Dict(INCAR)
-        builder["potential_family"] = Str(POTENTIAL_FAMILY)
-        builder["potential_mapping"] = Dict(POTENTIAL_MAPPING)
-        builder["structure"] = structure
-        builder["metadata"] = metadata_dict
-        builder["max_iterations"] = Int(500)
-        builder["verbose"] = Bool(True)
-        # builder["kpoints"] = KMESH
+    #     # Passing the all inputs to the builder object
+    #     builder["code"] = Code.get_from_string(CODE_STRING)
+    #     builder["converge"] = CONVERGE
+    #     # builder["dynamics"] = SEL_DYNAMICS
+    #     builder["options"] = Dict(OPTIONS)
+    #     builder["parameters"] = Dict(INCAR)
+    #     builder["potential_family"] = Str(POTENTIAL_FAMILY)
+    #     builder["potential_mapping"] = Dict(POTENTIAL_MAPPING)
+    #     builder["structure"] = structure
+    #     builder["metadata"] = metadata_dict
+    #     builder["max_iterations"] = Int(500)
+    #     builder["verbose"] = Bool(True)
+    #     # builder["kpoints"] = KMESH
 
-        # builder["settings"]
+    #     # builder["settings"]
 
-        # # Passing the relax inputs to the builder object
-        # for key in relax_dict.keys():
-        #     builder[key] = relax_dict[key]
+    #     # # Passing the relax inputs to the builder object
+    #     # for key in relax_dict.keys():
+    #     #     builder[key] = relax_dict[key]
 
-        # Submitting the calculation.
-        # Aiida should handle the scheduler, ssh connection and result
-        # retrieval if everything is configured
-        node = submit(builder)
+    #     # Submitting the calculation.
+    #     # Aiida should handle the scheduler, ssh connection and result
+    #     # retrieval if everything is configured
+    #     node = submit(builder)
 
-        ut.custom_print(
-            f"Launched workchain for Cu2-{it} structure - {node.id}", "debug"
-        )
+    #     ut.custom_print(
+    #         f"Launched workchain for Cu2-{it} structure - {node.id}", "debug"
+    #     )
