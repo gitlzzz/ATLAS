@@ -47,7 +47,7 @@ INCAR_SP = {
         "nelm": 60,
         ## ionic steps:
         "ibrion": -1,
-        "nsw": 1,
+        "nsw": 2,
         "ediffg": -0.03,
         "isif": 2,
         "potim": 0.3,
