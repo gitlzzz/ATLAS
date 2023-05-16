@@ -1,5 +1,6 @@
 import copy
 import os
+import time
 import uuid
 
 import ase.data as ad
@@ -78,95 +79,144 @@ TARGET_DF = "/WAREHOUSE/sp_database.pkl"
 # As of now, either "sp" or "relax".
 CALC_TYPE = "SP"
 
+# Maximum size of each calculation batch.
+# A maximum of MAX_BATCH calculations will run at once.
+MAX_BATCH = 300
+
+
 if __name__ == "__main__":
     # ID for the entire batch
     batch_id = str(uuid.uuid4().hex)
     ut.custom_print(f'Batch identifier: "{batch_id}"', "info")
     src_df = pd.read_pickle(SOURCE_DF)
 
-    # Iterating over the target structures and launching a separate
-    # vasp workchain for all of them.
-    for it, target_row in src_df.iterrows():
-        # Getting current structure, phase and formula.
-        target_structure = target_row.structure.get_sorted_structure()
-        phase = target_row.phase
-        struct_formula = target_structure.formula.replace(" ", "")
-        kspacing = KSPACING[phase]
+    # Starting calculation index
+    curr_ind = 0
 
-        # Generate INCAR with correct kspacing
-        incar = aut.generate_incar(phase=phase, calc_type=CALC_TYPE, kspacing=KSPACING)
+    # Splitting the initial database in chunks of size
+    # MAX_BATCH
+    num_chunks = len(src_df) // MAX_BATCH
 
-        # Dictionary containing metadata for the calculation
-        metadata_dict = {
-            "label": f"{phase}-{struct_formula}-{it}_{CALC_TYPE}-bb_{batch_id}",
-            "description": f"Relaxation for {struct_formula} in CuZn initial database.",
-        }
+    ut.custom_print(
+        f"Splitting database with {len(src_df)} entries into {num_chunks} chunks.",
+        "info",
+    )
 
-        # Getting structure as an aiida structure from pymatgen.
-        structure = StructureData(pymatgen=target_structure)
+    # Iterating over every chunk.
+    for chunk_id, chunk in enumerate(np.array_split(src_df, num_chunks)):
+        ut.custom_print(f"Working on chunk {chunk_id}...", "info")
+        chunk_node_list = []
 
-        # Get kpoints for aiida:
-        # kpoints_data = DataFactory("core.array.kpoints")
-        kpoints_data = KpointsData()
-        kpoints_data.set_cell_from_structure(structuredata=structure)
-        kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
+        # Iterating over the chunk and launching a separate
+        # vasp workchain for every structure contained.
+        for it, target_row in chunk.iterrows():
+            # Getting current structure, phase and formula.
+            target_structure = target_row.structure.get_sorted_structure()
+            phase = target_row.phase
+            struct_formula = target_structure.formula.replace(" ", "")
+            kspacing = KSPACING[phase]
 
-        # Jobfile equivalent
-        # In options, we typically set scheduler options. See:
-        # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
-        OPTIONS, CODE_STRING, mult = aut.choose_queue_from_struct(
-            structure=target_structure, assign_dict=QUEUE_DICT
-        )
+            # Generate INCAR with correct kspacing
+            incar = aut.generate_incar(
+                phase=phase, calc_type=CALC_TYPE, kspacing=KSPACING
+            )
 
-        # Removing kpar for multinode calculations
-        incar["incar"]["kpar"] = 4
-        if mult > 1:
-            incar["incar"].pop("kpar")
+            # Dictionary containing metadata for the calculation
+            metadata_dict = {
+                "label": f"{phase}-{struct_formula}-{it}_{CALC_TYPE}-bb_{batch_id}",
+                "description": f"Relaxation for {struct_formula} in CuZn initial database.",
+            }
 
-        # Defining the vasp.relax workchain object
-        workchain = WorkflowFactory("vasp.relax")
+            # Getting structure as an aiida structure from pymatgen.
+            structure = StructureData(pymatgen=target_structure)
 
-        # Preparing a builder object to be able to submit the workchain
-        # and pass inputs to it
-        builder = workchain.get_builder()
+            # Get kpoints for aiida:
+            # kpoints_data = DataFactory("core.array.kpoints")
+            kpoints_data = KpointsData()
+            kpoints_data.set_cell_from_structure(structuredata=structure)
+            kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
 
-        # Passing the all inputs to the builder object
-        builder["code"] = Code.get_from_string(CODE_STRING)
-        # builder["converge"] = CONVERGE
-        # builder["dynamics"] = SEL_DYNAMICS
-        builder["options"] = Dict(OPTIONS)
-        builder["parameters"] = Dict(incar)
-        builder["potential_family"] = Str(POTENTIAL_FAMILY)
-        builder["potential_mapping"] = Dict(POTENTIAL_MAPPING)
-        builder["structure"] = structure
-        builder["metadata"] = metadata_dict
-        builder["max_iterations"] = Int(2)
-        builder["verbose"] = Bool(True)
-        builder["kpoints"] = kpoints_data
+            # Jobfile equivalent
+            # In options, we typically set scheduler options. See:
+            # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
+            OPTIONS, CODE_STRING, mult = aut.choose_queue_from_struct(
+                structure=target_structure, assign_dict=QUEUE_DICT
+            )
 
-        if CALC_TYPE.lower() == "sp":
-            builder["perform_static"] = Bool(True)
-            builder["relax"]["perform"] = Bool(False)
+            # Removing kpar for multinode calculations
+            incar["incar"]["kpar"] = 4
+            if mult > 1:
+                incar["incar"].pop("kpar")
 
-        elif CALC_TYPE.lower() == "relax":
-            builder["perform_static"] = Bool(False)
-            builder["relax"]["perform"] = Bool(True)
+            # Defining the vasp.relax workchain object
+            workchain = WorkflowFactory("vasp.relax")
 
-        # builder["settings"]
+            # Preparing a builder object to be able to submit the workchain
+            # and pass inputs to it
+            builder = workchain.get_builder()
 
-        # # Passing the relax inputs to the builder object
-        # for key in relax_dict.keys():
-        #     builder[key] = relax_dict[key]
+            # Passing the all inputs to the builder object
+            builder["code"] = Code.get_from_string(CODE_STRING)
+            # builder["converge"] = CONVERGE
+            # builder["dynamics"] = SEL_DYNAMICS
+            builder["options"] = Dict(OPTIONS)
+            builder["parameters"] = Dict(incar)
+            builder["potential_family"] = Str(POTENTIAL_FAMILY)
+            builder["potential_mapping"] = Dict(POTENTIAL_MAPPING)
+            builder["structure"] = structure
+            builder["metadata"] = metadata_dict
+            builder["max_iterations"] = Int(2)
+            builder["verbose"] = Bool(True)
+            builder["kpoints"] = kpoints_data
 
-        # Submitting the calculation.
-        # Aiida should handle the scheduler, ssh connection and result
-        # retrieval if everything is configured
-        node = submit(builder)
+            if CALC_TYPE.lower() == "sp":
+                builder["perform_static"] = Bool(True)
+                builder["relax"]["perform"] = Bool(False)
 
-        ut.custom_print(
-            f"Launched workchain for structure {it}: '{struct_formula}' ({phase}) - node id: {node.id}",
-            "debug",
-        )
+            elif CALC_TYPE.lower() == "relax":
+                builder["perform_static"] = Bool(False)
+                builder["relax"]["perform"] = Bool(True)
 
-    ut.custom_print("All calculations launched.", "done")
+            # Submitting the calculation.
+            # Aiida should handle the scheduler, ssh connection and result
+            # retrieval if everything is configured
+            node = submit(builder)
+            chunk_node_list.append(node)
+
+            ut.custom_print(
+                f"Launched workchain for structure {it}: '{struct_formula}' ({phase}) - node id: {node.id}",
+                "debug",
+            )
+
+        # Waiting until the current chunk's calculations
+        # are done.
+        chunk_finished = False
+        while not chunk_finished:
+            ut.custom_print(
+                f"({time.strftime('%H:%M:%S')}) Waiting for calculations from chunk {chunk_id} to be finished...",
+                "info",
+            )
+            node_status_list = []
+            for nod in chunk_node_list:
+                # Some interesting options with dir(i):
+                # 'is_excepted', 'is_failed', 'is_finished',
+                # 'is_finished_ok', 'is_killed', 'is_sealed', 'is_stored', 'is_terminated',
+                # 'process_status', exception
+                node_status_list.append(nod.is_finished)
+
+            if all(node_status_list):
+                chunk_finished = True
+
+                for nod in chunk_node_list:
+                    ut.custom_print(
+                        f"VaspCalculation {nod.id} finished: {nod.exit_status} - {nod.exit_message}",
+                        "debug",
+                    )
+
+            else:
+                time.sleep(500)
+
+        ut.custom_print(f"Chunk {chunk_id} done!", "done")
+
+    ut.custom_print("All calculations finished!", "done")
     ut.custom_print("Check 'verdi process list' for more information", "info.")
