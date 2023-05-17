@@ -64,6 +64,7 @@ QUEUE_DICT = {
             "tot_num_mpiprocs": 48,
         },
         "multiple": 1,
+    },
 }
 
 # POTCAR equivalent
