@@ -41,23 +41,29 @@ QUEUE_DICT = {
         "multiple": 1,
     },
     20: {
-        "node_cpus": 28,
-        "code_string": "vasp-5.4.4_28core@tekla2",
+        # "node_cpus": 28,
+        # "code_string": "vasp-5.4.4_28core@tekla2",
+        # "options_resources": {
+        #     "parallel_env": "c28m128ib_mpi",
+        #     "tot_num_mpiprocs": 28,
+        # },
+        # "multiple": 1,
+        "node_cpus": 48,
+        "code_string": "vasp-5.4.4_mn@marenostrum1",
         "options_resources": {
-            "parallel_env": "c28m128ib_mpi",
-            "tot_num_mpiprocs": 28,
+            "parallel_env": "class_a",
+            "tot_num_mpiprocs": 48,
         },
         "multiple": 1,
     },
     80: {
-        "node_cpus": 28,
-        "code_string": "vasp-5.4.4_28core@tekla2",
+        "node_cpus": 48,
+        "code_string": "vasp-5.4.4_mn@marenostrum1",
         "options_resources": {
-            "parallel_env": "c28m128ib_mpi",
-            "tot_num_mpiprocs": 28,
+            "parallel_env": "class_a",
+            "tot_num_mpiprocs": 48,
         },
-        "multiple": 2,
-    },
+        "multiple": 1,
 }
 
 # POTCAR equivalent
@@ -110,6 +116,11 @@ if __name__ == "__main__":
     # Iterating over every chunk.
     for chunk_id, chunk in enumerate(np.array_split(src_df, num_chunks)):
         ut.custom_print(f"Working on chunk {chunk_id}...", "info")
+
+        # Sorting chunk so smallest structures are run first
+        aut.sort_chunk_size(chunk)
+
+        # Creating list for storing the nodes once submitted
         chunk_node_list = []
 
         # Iterating over the chunk and launching a separate
@@ -117,6 +128,8 @@ if __name__ == "__main__":
         for it, target_row in chunk.iterrows():
             # Getting current structure, phase and formula.
             target_structure = target_row.structure.get_sorted_structure()
+
+            # Getting the phase, formula and kspacing.
             phase = target_row.phase
             struct_formula = target_structure.formula.replace(" ", "")
             kspacing = KSPACING[phase]

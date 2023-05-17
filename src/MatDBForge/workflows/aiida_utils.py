@@ -315,6 +315,25 @@ def select_kspacing(incar: dict, phase: str, kspacing: dict):
     return incar
 
 
+def sort_chunk_size(chunk):
+    # Creating list for storing the number of atoms
+    size_list = []
+
+    # Gathering the number of atoms for every structure
+    # and adding it to the size_list
+    for it, row in chunk.iterrows():
+        size_list.append(len(row.structure.sites))
+
+    # Creating a new column for the atom number
+    chunk["num_atoms"] = size_list
+
+    # Sorting the chunk using the atom number, from
+    # small to large.
+    chunk.sort_values(by=["num_atoms"], inplace=True)
+
+    return chunk
+
+
 def generate_incar(phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT):
     """
     Generate an incar file using depending on the calculation type.
