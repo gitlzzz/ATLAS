@@ -1,11 +1,10 @@
 import copy
 import os
+from strenum import StrEnum
 
 import aiida_tim.utils as ut
 import ase.data as ad
 import numpy as np
-
-# import pymatgen.io.vasp as pyvasp
 from aiida import load_profile
 from aiida.engine import submit
 from aiida.orm import Bool, Code, Dict, Int, Str, StructureData
@@ -13,14 +12,12 @@ from aiida.plugins import WorkflowFactory
 from aiida_tim import MODULEROOT as AT_MODULEROOT
 from aiida_vasp.utils.aiida_utils import get_data_node
 
-
 DATAPATH = f"{AT_MODULEROOT}/tests/input_files"
 struct_files = [file for file in os.listdir(DATAPATH)]
 VDW_DATA_PATH = "/home/psanz/Documents/phd-iciq/Projects/P2-Cu/forpol/vdw-data"
 
 # Loading default aiida user profile
 load_profile()
-
 
 # DB_NAME = "aiida/test_database/test.db"
 # DB_NAME = f"{os.getcwd()}/small_fragment_adsorption.db"
@@ -35,7 +32,7 @@ INCAR_SP = {
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
-        #"lorbit": 11,
+        # "lorbit": 11,
         ## electronic steps:
         "encut": 450,
         "ediff": 1e-6,
@@ -72,7 +69,7 @@ INCAR_RELAX = {
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
-        #"lorbit": 11,
+        # "lorbit": 11,
         ## electronic steps:
         "encut": 450,
         "ediff": 1e-6,
@@ -173,6 +170,21 @@ KSPACING_DEFAULT = {
     "eta": 0.0948760981384118,
     "m4": 0.0948760981384118,
 }
+
+
+class CalcType(StrEnum):
+    """
+    Class representing the available calculation types for vasp
+    Here, the term relaxation signifies ionic relaxation and can be
+    called by either relaxation or relax.
+
+    """
+
+    relax = "relax"
+    relaxation = "relax"
+    single_point = "sp"
+    sp = "sp"
+    static = "sp"
 
 
 def choose_queue(node_type: int, tot_procs: int = None):
@@ -322,10 +334,10 @@ def generate_incar(phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT
         dictionary representation of the INCAR
     """
 
-    if calc_type.lower() == "relax":
+    if calc_type == "relax":
         incar = INCAR_RELAX
 
-    elif calc_type.lower() == "sp":
+    elif calc_type == "sp":
         incar = INCAR_SP
 
     incar = select_kspacing(incar, phase, kspacing)

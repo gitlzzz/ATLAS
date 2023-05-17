@@ -7,7 +7,7 @@ import ase.data as ad
 import numpy as np
 import pandas as pd
 from aiida.engine import submit
-from aiida.orm import Bool, Code, Dict, Float, Int, Str, StructureData
+from aiida.orm import Bool, Code, Dict, Float, Int, Str, StructureData, Group
 from aiida.orm.nodes.data.array.kpoints import KpointsData
 from aiida.plugins import DataFactory, WorkflowFactory
 from MatDBForge.core import utils as ut
@@ -76,18 +76,23 @@ SOURCE_DF = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb
 TARGET_DF = "/WAREHOUSE/sp_database.pkl"
 
 # Which calculation to run.
-# As of now, either "sp" or "relax".
-CALC_TYPE = "SP"
+# Refer to the CalcType class for more information.
+# CALC_TYPE = "SP"
+CALC_TYPE = aut.CalcType.single_point
 
 # Maximum size of each calculation batch.
 # A maximum of MAX_BATCH calculations will run at once.
-MAX_BATCH = 300
+MAX_BATCH = 30
 
 
 if __name__ == "__main__":
-    # ID for the entire batch
-    batch_id = str(uuid.uuid4().hex)
-    ut.custom_print(f'Batch identifier: "{batch_id}"', "info")
+    # Creating a new aiida group for the calculations.
+    # It will provide an ID for the entire batch
+    group = Group(label=f"{CALC_TYPE}_batch_{time.strftime('%Y%m%dT%H%M%S')}")
+    group.store()
+    ut.custom_print(f'Group identifier: "{group.uuid}"', "info")
+
+    # Loading the initial structures dataframe
     src_df = pd.read_pickle(SOURCE_DF)
 
     # Starting calculation index
@@ -123,7 +128,7 @@ if __name__ == "__main__":
 
             # Dictionary containing metadata for the calculation
             metadata_dict = {
-                "label": f"{phase}-{struct_formula}-{it}_{CALC_TYPE}-bb_{batch_id}",
+                "label": f"{target_row.material_id}-{struct_formula}-{it}_{CALC_TYPE}",
                 "description": f"Relaxation for {struct_formula} in CuZn initial database.",
             }
 
@@ -177,10 +182,12 @@ if __name__ == "__main__":
                 builder["perform_static"] = Bool(False)
                 builder["relax"]["perform"] = Bool(True)
 
+            # quit()
             # Submitting the calculation.
             # Aiida should handle the scheduler, ssh connection and result
             # retrieval if everything is configured
             node = submit(builder)
+            group.add_nodes(node)
             chunk_node_list.append(node)
 
             ut.custom_print(
