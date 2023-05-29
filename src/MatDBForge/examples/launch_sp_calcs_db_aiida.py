@@ -1,19 +1,14 @@
-import copy
-import os
+import logging
 import time
-import uuid
 
-import ase.data as ad
 import numpy as np
 import pandas as pd
 from aiida.engine import submit
-from aiida.orm import Bool, Code, Dict, Float, Int, Str, StructureData, Group
+from aiida.orm import Bool, Code, Dict, Group, Int, Str, StructureData
 from aiida.orm.nodes.data.array.kpoints import KpointsData
-from aiida.plugins import DataFactory, WorkflowFactory
+from aiida.plugins import WorkflowFactory
 from MatDBForge.core import utils as ut
 from MatDBForge.workflows import aiida_utils as aut
-
-# quit()
 
 # k-spacing values for every phase to be
 # included in the INCAR
@@ -30,8 +25,50 @@ KSPACING = {
     "delta": 0.0994491889005363,
 }
 
+parser_dict = {
+    "add_misc": False,
+    "add_kpoints": False,
+    "add_structure": False,
+    "add_poscar-structure": False,
+    "add_trajectory": False,
+    "add_forces": False,
+    "add_stress": False,
+    "add_bands": False,
+    "add_dos": False,
+    "add_energies": False,
+    "add_projectors": False,
+    "add_born_charges": False,
+    "add_dielectrics": False,
+    "add_hessian": False,
+    "add_dynmat": False,
+    "add_charge_density": False,
+    "add_wavecar": False,
+    "add_site_magnetization": False,
+    "add_maximum_force": False,
+    "add_maximum_stress": False,
+    "add_total_energies": False,
+}
+
+# Dictionary containing settings for selecting aiida's computer and code.
+# Example:
+#
+# QUEUE_DICT = {
+#    20: {
+#     "node_cpus": 48,
+#     "code_string": "vasp-5.4.4_mn@marenostrum1",
+#     "qos": "class_a",
+#     "max_wallclock_seconds": 3600,
+#     "max_memory_kb": 96000000,
+#     "options_resources": {
+#         "parallel_env": "class_a",
+#         "tot_num_mpiprocs": 48,
+#     },
+#     "multiple": 1,
+# },
+#
 QUEUE_DICT = {
     10: {
+        "type": "sge",
         "node_cpus": 12,
         "code_string": "vasp-std-5.4.4@tekla2",
         "options_resources": {
@@ -41,26 +78,25 @@ QUEUE_DICT = {
         "multiple": 1,
     },
     20: {
-        # "node_cpus": 28,
-        # "code_string": "vasp-5.4.4_28core@tekla2",
-        # "options_resources": {
-        #     "parallel_env": "c28m128ib_mpi",
-        #     "tot_num_mpiprocs": 28,
-        # },
-        # "multiple": 1,
+        "type": "slurm",
         "node_cpus": 48,
         "code_string": "vasp-5.4.4_mn@marenostrum1",
+        "qos": "class_a",
+        "max_wallclock_seconds": 7800,
+        "max_memory_kb": 96000000,
         "options_resources": {
-            "parallel_env": "class_a",
             "tot_num_mpiprocs": 48,
         },
         "multiple": 1,
     },
     80: {
+        "type": "slurm",
         "node_cpus": 48,
         "code_string": "vasp-5.4.4_mn@marenostrum1",
+        "qos": "class_a",
+        "max_wallclock_seconds": 24600,
+        "max_memory_kb": 96000000,
         "options_resources": {
-            "parallel_env": "class_a",
             "tot_num_mpiprocs": 48,
         },
         "multiple": 1,
@@ -79,7 +115,7 @@ POTENTIAL_FAMILY = "vasp-5.4-PBE-2023"
 POTENTIAL_MAPPING = aut.generate_potential_mapping()
 
 # Paths for the source and target dataframe.
-SOURCE_DF = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db/initial-database_11052023-153657_final.pkl"
+SOURCE_DF = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db/initial-database_19052023-165058_final.pkl"
 TARGET_DF = "/WAREHOUSE/sp_database.pkl"
 
 # Which calculation to run.
@@ -89,15 +125,33 @@ CALC_TYPE = aut.CalcType.single_point
 
 # Maximum size of each calculation batch.
 # A maximum of MAX_BATCH calculations will run at once.
-MAX_BATCH = 30
+MAX_BATCH = 300
+
+# Skip all chunks from 0 up to the the chunk number set in START_ON.
+START_ON = 6
 
 
 if __name__ == "__main__":
+    # Getting current time
+    ctime = time.strftime("%Y%m%dT%H%M%S")
+
+    # Configuring logger
+    logging.basicConfig(
+        filename=f"/tmp/run_{ctime}.log",
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%d/%m/%Y %H:%M:%S",
+    )
+
+    ut.custom_print(f"Started logging on '/tmp/run_{ctime}.log'", "info")
+
     # Creating a new aiida group for the calculations.
     # It will provide an ID for the entire batch
-    group = Group(label=f"{CALC_TYPE}_batch_{time.strftime('%Y%m%dT%H%M%S')}")
+    group_label = f"{CALC_TYPE}_batch_{ctime}"
+    group = Group(label=group_label)
     group.store()
     ut.custom_print(f'Group identifier: "{group.uuid}"', "info")
+    ut.custom_print(f"Group label: {group_label}", "info")
 
     # Loading the initial structures dataframe
     src_df = pd.read_pickle(SOURCE_DF)
@@ -116,6 +170,10 @@ if __name__ == "__main__":
 
     # Iterating over every chunk.
     for chunk_id, chunk in enumerate(np.array_split(src_df, num_chunks)):
+        # Skipping unwanted chunks
+        if chunk_id < START_ON:
+            continue
+
         ut.custom_print(f"Working on chunk {chunk_id}...", "info")
 
         # Sorting chunk so smallest structures are run first
@@ -163,9 +221,9 @@ if __name__ == "__main__":
             )
 
             # Removing kpar for multinode calculations
-            incar["incar"]["kpar"] = 4
-            if mult > 1:
-                incar["incar"].pop("kpar")
+            # incar["incar"]["kpar"] = 4
+            # if mult > 1:
+            #     incar["incar"].pop("kpar")
 
             # Defining the vasp.relax workchain object
             workchain = WorkflowFactory("vasp.relax")
@@ -188,6 +246,13 @@ if __name__ == "__main__":
             builder["verbose"] = Bool(True)
             builder["kpoints"] = kpoints_data
 
+            builder["monitors"] = {
+                "monitor_1": Dict({"entry_point": "monitor.davwarning"}),
+            }
+
+            # Setting parser options
+            builder["settings"] = Dict(parser_dict)
+
             if CALC_TYPE.lower() == "sp":
                 builder["perform_static"] = Bool(True)
                 builder["relax"]["perform"] = Bool(False)
@@ -196,7 +261,6 @@ if __name__ == "__main__":
                 builder["perform_static"] = Bool(False)
                 builder["relax"]["perform"] = Bool(True)
 
-            # quit()
             # Submitting the calculation.
             # Aiida should handle the scheduler, ssh connection and result
             # retrieval if everything is configured

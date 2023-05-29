@@ -10,4 +10,9 @@ setup(
     author_email="me@polsanz.xyz",
     package_dir={"": "src"},
     packages=find_packages("src"),
+    entry_points={
+        "aiida.calculations.monitors": [
+            "monitor.davwarning = MatDBForge.workflows.monitors:output_monitor"
+        ]
+    },
 )
