@@ -15,6 +15,37 @@ VDW_DATA_PATH = "/home/psanz/Documents/phd-iciq/Projects/P2-Cu/forpol/vdw-data"
 # Loading default aiida user profile
 load_profile()
 
+PARSER_DICT = {
+    "parser_settings": {
+        "add_misc": [
+            "notifications",
+            "run_status",
+            "run_stats",
+            "version",
+        ],
+        "add_kpoints": False,
+        "add_structure": False,
+        "add_poscar-structure": False,
+        "add_trajectory": False,
+        "add_forces": False,
+        "add_stress": False,
+        "add_bands": False,
+        "add_dos": False,
+        "add_energies": False,
+        "add_projectors": False,
+        "add_born_charges": False,
+        "add_dielectrics": False,
+        "add_hessian": False,
+        "add_dynmat": False,
+        "add_charge_density": False,
+        "add_wavecar": False,
+        "add_site_magnetization": False,
+        "add_maximum_force": False,
+        "add_maximum_stress": False,
+        "add_total_energies": False,
+    }
+}
+
 # DB_NAME = "aiida/test_database/test.db"
 # DB_NAME = f"{os.getcwd()}/small_fragment_adsorption.db"
 SEL_DYNAMICS = None

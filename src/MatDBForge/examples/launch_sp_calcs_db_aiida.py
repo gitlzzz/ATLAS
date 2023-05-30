@@ -25,30 +25,6 @@ KSPACING = {
     "delta": 0.0994491889005363,
 }
 
-parser_dict = {
-    "add_misc": False,
-    "add_kpoints": False,
-    "add_structure": False,
-    "add_poscar-structure": False,
-    "add_trajectory": False,
-    "add_forces": False,
-    "add_stress": False,
-    "add_bands": False,
-    "add_dos": False,
-    "add_energies": False,
-    "add_projectors": False,
-    "add_born_charges": False,
-    "add_dielectrics": False,
-    "add_hessian": False,
-    "add_dynmat": False,
-    "add_charge_density": False,
-    "add_wavecar": False,
-    "add_site_magnetization": False,
-    "add_maximum_force": False,
-    "add_maximum_stress": False,
-    "add_total_energies": False,
-}
-
 # Dictionary containing settings for selecting aiida's computer and code.
 # Example:
 #
@@ -128,7 +104,7 @@ CALC_TYPE = aut.CalcType.single_point
 MAX_BATCH = 300
 
 # Skip all chunks from 0 up to the the chunk number set in START_ON.
-START_ON = 6
+START_ON = 7
 
 
 if __name__ == "__main__":
@@ -251,7 +227,7 @@ if __name__ == "__main__":
             }
 
             # Setting parser options
-            builder["settings"] = Dict(parser_dict)
+            builder["settings"] = Dict(aut.PARSER_DICT)
 
             if CALC_TYPE.lower() == "sp":
                 builder["perform_static"] = Bool(True)
