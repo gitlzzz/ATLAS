@@ -18,10 +18,11 @@ from dscribe.descriptors import SOAP
 from mp_api.client import MPRester
 from pymatgen.core.periodic_table import Element, Species
 from pymatgen.core.structure import Structure
-from pymatgen.core.surface import generate_all_slabs
+from pymatgen.core.surface import Slab, generate_all_slabs
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
+from MatDBForge.core import exceptions as mdbex
 from MatDBForge.core import utils as ut
 
 warnings.filterwarnings("ignore", category=vasp.outputs.UnconvergedVASPWarning)
@@ -44,11 +45,15 @@ class BinaryPhaseDiagram:
 
     def __init__(self, material: str, *phases: "Phase"):
         self.phases = []
+        self.phase_names = []
         self.material = material
         self.phase_dict = {}
 
         for phase in phases:
             self.add_phase(phase)
+
+        for phase in self.phases:
+            self.phase_names.append(phase.name)
 
     def add_phase(self, phase):
         """Add a phase to the phase diagram.
@@ -179,6 +184,8 @@ class InitialDatabase:
         Object containing secrets related to the materials project database.
     database_name : str
         Orientative name for the database. Will be used for saving it into a file.
+    max_num_atoms: int
+        Maximum number of atoms present in any structure generated.
 
 
     Notes
@@ -319,22 +326,34 @@ class InitialDatabase:
         structure,
         get_different_supercells,
         max_atoms,
+        initial_supercell_size=5,
     ):
         # Initial supercell size
-        idx = 5
+        idx = initial_supercell_size
 
         # Copying structure
         new_structure = structure.copy(sanitize=True)
 
-        # Creating initial supercell
-        new_structure.make_supercell([idx, idx, idx], to_unit_cell=False)
+        # Setting different supercell geometry for slabs and bulks.
+        if isinstance(structure, Slab):
+            supercell_vec = [idx, idx, 1]
+        else:
+            supercell_vec = [idx, idx, idx]
+
+        new_structure.make_supercell(supercell_vec, to_unit_cell=False)
 
         # Number of atoms of the supercell
         struct_size = len(new_structure.species)
         while struct_size > max_atoms:
             new_structure = structure.copy(sanitize=True)
             idx -= 1
-            new_structure.make_supercell([idx, idx, idx], to_unit_cell=False)
+
+            if isinstance(structure, Slab):
+                supercell_vec = [idx, idx, 1]
+            else:
+                supercell_vec = [idx, idx, idx]
+
+            new_structure.make_supercell(supercell_vec, to_unit_cell=False)
             struct_size = len(new_structure.species)
 
         structure_list = []
@@ -350,9 +369,13 @@ class InitialDatabase:
         if get_different_supercells:
             for idx_smaller in range(idx - 1, 0, -1):
                 new_structure = structure.copy(sanitize=True)
-                new_structure.make_supercell(
-                    [idx_smaller, idx_smaller, idx_smaller], to_unit_cell=False
-                )
+
+                if isinstance(structure, Slab):
+                    supercell_vec = [idx_smaller, idx_smaller, 1]
+                else:
+                    supercell_vec = [idx_smaller, idx_smaller, idx_smaller]
+
+                new_structure.make_supercell(supercell_vec, to_unit_cell=False)
                 structure_list.append(new_structure)
                 idx_list.append(idx_smaller)
 
@@ -706,7 +729,19 @@ class CuZnInitialDatabase(InitialDatabase):
     Returns
     -------
     CuZnInitialDatabase
-        Object containing the database and methods
+        Object containing the database and methods.
+
+    Parameters
+    ----------
+    database_name : str
+        Name for the database. Will be used for internal reference and as a filename for
+        saving the dataframe.
+    use_offset : bool, optional
+        Use an offset for the phase ratios to allow them to overlap, by default True.
+    max_num_atoms : int
+        Maximum number of atoms present in any structure generated, by default 64.
+    secrets : dict
+        Object containing secrets related to the materials project database.
 
     Raises
     ------
@@ -714,19 +749,7 @@ class CuZnInitialDatabase(InitialDatabase):
         This error is raised when a wrong phase is given.
     """
 
-    # Phase diagram
-    # Approx for Diagram at 300K?
-    # alpha_phase = Phase("alpha", "Cu", 1, 0.6105, "mp-30", 0.03)
-    # m1 = Phase("m1", "Cu", 0.627, 0.533, "mp-30", 0.03)
-    # beta_prime = Phase("beta-prime", "Cu", 0.545, 0.493, "mp-987", 0.05)
-    # m2 = Phase("m2", "Zn", 0.51, 0.404, "mp-987", 0.05)
-    # gamma = Phase("gamma", "Zn", 0.423, 0.294, "mp-1368", 0.03)
-    # m3 = Phase("m3", "Zn", 0.33, 0.208, "mp-1216020", 0.05)
-    # delta = Phase("delta", "Zn", 1, 0.6105, "mp-1215518", 0.05)
-    # epsilon = Phase("epsilon", "Zn", 0.215, 0.117, "mp-972042", 0.05)
-    # m4 = Phase("m4", "Zn", 0.135, 0.018, "mp-79", 0.01)
-    # eta = Phase("eta", "Zn", 0.0275, 0, "mp-79", 0.01)
-
+    # CuZn alloy phase diagram data
     alpha_phase = Phase(
         name="alpha",
         base_elem="Zn",
@@ -746,8 +769,8 @@ class CuZnInitialDatabase(InitialDatabase):
     beta_prime = Phase(
         name="beta-prime",
         base_elem="Zn",
-        base_elem_comp_min=0.507,
-        base_elem_comp_max=0.455,
+        base_elem_comp_min=0.455,
+        base_elem_comp_max=0.507,
         prototype="mp-987",
         offset=0.05,
     )
@@ -812,11 +835,14 @@ class CuZnInitialDatabase(InitialDatabase):
         "CuZn", alpha_phase, m1, beta_prime, m2, gamma, m3, delta, epsilon, m4, eta
     )
 
+    # Which atoms are involved in the alloy.
     ALLOY_SET = {"Cu", "Zn"}
 
     def __init__(self, database_name, use_offset=True, **kwargs):
+        # Initializing the class' parent
         super().__init__(database_name, **kwargs)
 
+        # Using the offset
         if use_offset:
             ut.custom_print(
                 "Using an offset for computing the phases concentrations.", "info"
@@ -848,20 +874,10 @@ class CuZnInitialDatabase(InitialDatabase):
             A phase of the CuZn phase diagram
         """
 
-        # Getting which key (corresponding to a phase) contains the
-        # given materials project id
-        # phase_list = [
-        #     key
-        #     for key in self.CUZN_PHASES.keys()
-        #     if self.CUZN_PHASES[key].get("prototype") == idx
-        # ]
-        # print('phase_list: ', phase_list)
-
+        # Creating a list of the phase diagram phase names
         phase_list = [
             phase.name for phase in self.CUZN_PHASES.phases if phase.prototype == idx
         ]
-        # print('phase_list: ', phase_list)
-        # quit()
 
         # Returning the key if found
         if len(phase_list) > 0:
@@ -1002,11 +1018,6 @@ class CuZnInitialDatabase(InitialDatabase):
 
             self.df = pd.concat([self.df, new_row_df], ignore_index=True)
 
-            # with pd.option_context(
-            #     "display.max_rows", None, "display.max_columns", None
-            # ):
-            #     print(self.df)
-
         return structure_list, query_result, idx_list
 
     def _create_symmetrical_prototype(
@@ -1085,11 +1096,46 @@ class CuZnInitialDatabase(InitialDatabase):
 
         return subst_base_elem_perc
 
-    def _apply_offset_replacements(self, phase, n_at_replacement, structure_len):
+    def _gen_perc_surfaces(self, phase, num_struct, current_perc):
+        print("\ncurrent_perc Zn: ", current_perc)
+
+        # Getting offset. If not found set to 0.
+        offset = phase.offset
+
+        # Randomly generating base_elem percentages for the new structures
+        max_base_elem = (phase.base_elem_comp_min) + offset
+        if max_base_elem > 1:
+            max_base_elem = 1
+
+        min_base_elem = (phase.base_elem_comp_max) - offset
+        if min_base_elem < 0:
+            min_base_elem = 0
+
+        subst_base_elem_perc = (min_base_elem - max_base_elem) * np.random.ranf(
+            size=num_struct
+        ) + max_base_elem
+
+        print("subst_base_elem_perc: ", subst_base_elem_perc)
+        adjusted_perc = [(per - current_perc) for per in subst_base_elem_perc]
+        print("adjusted_perc: ", adjusted_perc)
+
+        return adjusted_perc
+
+    def _apply_offset_replacements(self, phase, n_at_replacement, structure):
+        structure_len = len(structure.species)
+        base_elem = phase.base_elem
         offset_min = phase.base_elem_comp_min - phase.offset
         offset_max = phase.base_elem_comp_max + phase.offset
+        print("offset_min: ", offset_min)
+        print("offset_max: ", offset_max)
+
+        tot_base_at_struct = len(
+            [spc for spc in structure.species if spc.symbol == base_elem]
+        )
+
         n_at_replacement_upd = []
         for str_ind, n_at in enumerate(n_at_replacement):
+            print("n_at init: ", n_at)
             inPhase = False
 
             single_at_perc = 1 / structure_len
@@ -1101,43 +1147,83 @@ class CuZnInitialDatabase(InitialDatabase):
                 inPhase = True
 
             while not inPhase:
-                perc = n_at / structure_len
+                if n_at < 0:
+                    perc = (tot_base_at_struct - abs(n_at)) / structure_len
+                else:
+                    perc = (tot_base_at_struct + abs(n_at)) / structure_len
+
+                print("perc: ", perc)
                 if perc >= offset_max:
+                    print("n_at -= 1")
                     n_at -= 1
                 elif perc <= offset_min:
+                    print("n_at += 1")
                     n_at += 1
                 else:
                     inPhase = True
-
+            print("n_at modified: ", n_at)
             n_at_replacement_upd.append(n_at)
 
         return n_at_replacement_upd
 
     def _apply_replacement(self, structure, phase, structure_len, n_atoms, rng):
         # Getting which indices to replace
+
+        print("old structure: ", structure.formula)
+
+        # If negative, we want to decrease the main atom percentage.
+        # Thus, we find the main atoms in the structure and replace it
+        # with the other.
+        print("n_atoms: ", n_atoms)
+        if n_atoms < 0:
+            print("n_atoms < 0")
+            to_replace = Species(phase.base_elem)
+            repl_spec = Species(list(self.ALLOY_SET - {to_replace.symbol})[0])
+            repl_indexes = [
+                i
+                for i, x in enumerate(structure.species)
+                if x.symbol == to_replace.symbol
+            ]
+
+        # If positive, we want to increase the main atom percentage.
+        # Thus, we find all the occurences of the other atom and replace
+        # it with the main one.
+        else:
+            print("n_atoms > 0")
+            repl_spec = Species(phase.base_elem)
+            to_replace = Species(list(self.ALLOY_SET - {repl_spec.symbol})[0])
+            print("self.ALLOY_SET: ", self.ALLOY_SET)
+            print(
+                "list(self.ALLOY_SET - {repl_spec}: ",
+                list(self.ALLOY_SET - {repl_spec}),
+            )
+            repl_indexes = [
+                i
+                for i, x in enumerate(structure.species)
+                if x.symbol == to_replace.symbol
+            ]
+
+        print("repl_spec: ", repl_spec)
+        print("to_replace: ", to_replace)
+        print("repl_indexes: ", repl_indexes)
+
         idx_replace = rng.choice(
-            a=structure_len,
-            size=(n_atoms,),
+            a=repl_indexes,
+            size=(abs(n_atoms),),
             replace=False,
             shuffle=True,
         )
+        print("idx_replace: ", idx_replace)
 
         # Creating a new structure using the base one as a template
         new_structure = structure.copy(sanitize=True)
         # Getting which species to replace with
 
-        # curr_main = self.CUZN_PHASES.get_phase(phase).
-        # repl_spec = Species(list(self.ALLOY_SET - {curr_main})[0])
-        repl_spec = Species(phase.base_elem)
-        other_spec = Species(list(self.ALLOY_SET - {repl_spec})[0])
-
-        # Replacing everything with the opposite atom.
-        for atom in range(structure_len):
-            new_structure.replace(atom, other_spec)
-
         # Replacing atoms in the structures
         for ind in idx_replace:
             new_structure.replace(ind, repl_spec)
+
+        print("new_structure: ", new_structure.formula)
         return new_structure
 
     def generate_bulk_structures(
@@ -1227,26 +1313,32 @@ class CuZnInitialDatabase(InitialDatabase):
                         structure, phase, structure_len, n_atoms, rng
                     )
 
-                    # print(f"new structure formula: {new_structure.formula}")
-                    # print(f"{prototype}_{phase.name}_super-{supr_idx}_{str_ind+1}")
-                    # print(f"{len(idx_replace)}/{structure_len}")
-
                     self._save_row(
                         material_id=f"{prototype}_{phase.name}_super-{supr_idx}_{str_ind+1}_{repl+1}",
                         phase=phase,
                         structure=new_structure,
                     )
 
+    def _get_miller_index_str(self, slab):
+        curr_miller = str(slab.miller_index)
+
+        replace_chars = ["'", ",", " ", "(", ")"]
+        for char in replace_chars:
+            curr_miller = curr_miller.replace(char, "")
+
+        return curr_miller
+
     def generate_surfaces_pure(
         self,
         phase: Phase,
-        num_struct: int,
         num_repeats: int,
-        read: bool = True,
-        max_miller_index: int = 5,
-        min_slab_size: float = 10,
+        max_miller_index: int = 3,
+        min_slab_size: float = 3,
+        max_slab_size: float = 6,
         min_vacuum_size: float = 10,
+        get_supercells=False,
     ):
+        # Getting the current phase from the phase name.
         if isinstance(phase, str):
             phase = CuZnInitialDatabase.CUZN_PHASES.get_phase(phase)
 
@@ -1254,42 +1346,149 @@ class CuZnInitialDatabase(InitialDatabase):
         base_structs = self.df.loc[self.df.base]
         base_structs = base_structs.loc[self.df.phase == phase.name]
 
+        # Checking if there are any base structures for the current
+        # phase.
+        if len(base_structs) == 0:
+            err_msg = (
+                f"No base structure could be found for phase {phase}."
+                "\nThe database must contain base structures before "
+                "running this function."
+            )
+
+            raise mdbex.BaseStructureNotFound(err_msg)
+
+        # Generating an initial random slab size close to the minimum slab thickness
+        # given.
+        # rng = np.random.default_rng()
+        # init_value = rng.uniform(high=min_slab_size + 1, low=min_slab_size)
+
+        # Preparing equispaced points between initial random value and the
+        # maximum thickness value.
+        slab_sizes = np.linspace(min_slab_size, max_slab_size, num_repeats)
+
         for idx, row in base_structs.iterrows():
+            # Getting the current base structure
             curr_surface = row.structure
 
-            # Generating surfaces
-            slabs = generate_all_slabs(
-                structure=curr_surface,
-                max_index=max_miller_index,
-                min_slab_size=min_slab_size,  # in A
-                min_vacuum_size=min_vacuum_size,  # in A
-            )
-            # from pymatgen.io.vasp import Poscar
-            # for cnt, slab in enumerate(slabs):
-            # Poscar(slab).write_file(f'/tmp/surfaces_test/{cnt}_slab.poscar')
-            # quit()
+            for slab_size in slab_sizes:
+                # TODO: Test
+                slab_size = int(slab_size)
 
-            prototype = phase.prototype
-            extra = {"surface": True}
-            for idx, slab in enumerate(slabs):
-                curr_miller = str(slab.miller_index).replace(",", "").replace(" ", "")
-                material_id = (
-                    f"{prototype}_{phase.name}_pure_surface-{curr_miller}-{idx+1}"
+                # Generating surfaces using a method provided by pymatgen.
+                slabs = generate_all_slabs(
+                    structure=curr_surface,
+                    max_index=max_miller_index,
+                    min_slab_size=slab_size,  # in unit planes?
+                    min_vacuum_size=min_vacuum_size,  # in unit planes?
+                    # in_unit_planes=True,
+                    lll_reduce=True,
+                    # primitive=False,
+                    # max_normal_search=2, TODO
+                    # symmetrize=True, TODO
                 )
-                self._save_row(
-                    material_id=material_id,
-                    phase=phase,
-                    structure=slab,
-                    base=True,
-                    extra=extra,
-                )
+
+                prototype = phase.prototype
+                extra = {"surface": True}
+
+                # Getting only the slabs whose total size is smaller than the maximum
+                # given for the InitialDatabase.
+                slabs_size = [
+                    slab for slab in slabs if len(slab.sites) <= self.max_num_atoms
+                ]
+
+                # TODO: Check the slab vacuum size:
+                # Maybe use
+                # 1. get_slab_regions to find the vacuum size
+                # 
+
+                # Storing the remaining slabs.
+                for idx, slab in enumerate(slabs_size):
+                    # Getting the current slab's miller index
+                    curr_miller = self._get_miller_index_str(slab)
+
+                    # Preparing the structure name
+                    material_id = (
+                        f"{prototype}_{phase.name}_pure_surface"
+                        f"-{slab_size}_{curr_miller}-{idx+1}"
+                    )
+
+                    # Saving the structure in the database.
+                    self._save_row(
+                        material_id=material_id,
+                        phase=phase,
+                        structure=slab,
+                        base=True,
+                        extra=extra,
+                    )
+
+                # Getting supercells
+                if get_supercells:
+                    ut.custom_print("Generating supercells...", "debug")
+
+                    for slab in slabs_size:
+                        super_list, idx_list = self._find_supercell_indices(
+                            structure=slab,
+                            max_atoms=self.max_num_atoms,
+                            get_different_supercells=False,
+                            initial_supercell_size=3,
+                        )
+
+                        # Getting the current slab's miller index
+                        curr_miller = self._get_miller_index_str(slab)
+
+                        # Storing the supercells.
+                        for supercell, idx in zip(super_list, idx_list):
+                            # Preparing the structure name
+                            material_id = (
+                                f"{prototype}_{phase.name}_pure_surface-"
+                                f"{slab_size}_{curr_miller}-super-{idx+1}"
+                            )
+
+                            # Saving the supercell in the database.
+                            self._save_row(
+                                material_id=material_id,
+                                phase=phase,
+                                structure=supercell,
+                                base=True,
+                                extra=extra,
+                            )
+
+    def _get_main_elem_perc(self, phase: Phase, structure):
+        """
+        This function provides the percentage of the main element
+        for a given structure
+
+        Parameters
+        ----------
+        phase : Phase
+            Object describing the current phase
+        structure : _type_
+            Structure for which the percentage is to be calculated
+
+        Returns
+        -------
+        float
+            Percentage of main element in the structure
+        """
+        main_species = phase.base_elem
+        main_cnt = 0
+
+        species_list = structure.species
+        total_atoms = len(species_list)
+
+        for element in species_list:
+            if element.symbol == main_species:
+                main_cnt += 1
+                print("main_cnt: ", main_cnt)
+
+        perc = main_cnt / total_atoms
+        return perc
 
     def generate_surfaces_replacements(
         self,
         phase: Phase,
         num_struct: int,
         num_repeats: int,
-
     ):
         if isinstance(phase, str):
             phase = CuZnInitialDatabase.CUZN_PHASES.get_phase(phase)
@@ -1300,30 +1499,59 @@ class CuZnInitialDatabase(InitialDatabase):
         # Getting the base structures
         slabs_df = self.df.loc[self.df.surface]
         slabs_df = slabs_df.loc[self.df.base]
+        slabs_df = slabs_df.loc[self.df.phase == phase.name]
+        print("slabs_df: ", slabs_df)
 
         for idx, row in slabs_df.iterrows():
+            print("idx: ", idx)
             curr_surface = row.structure
 
             structure_len = len(curr_surface.species)
 
+            # Getting current percentage of main element
+            strct_perc = self._get_main_elem_perc(
+                phase=phase,
+                structure=curr_surface,
+            )
+
             # Randomly generating base elem percentages for the new structures
-            subst_base_elem_perc = self._gen_base_elem_perc(phase, num_struct)
+            subst_base_elem_perc = self._gen_perc_surfaces(
+                phase=phase,
+                num_struct=num_struct,
+                current_perc=strct_perc,
+            )
+
+            print("subst_base_elem_perc: ", subst_base_elem_perc)
 
             # Choosing the amount of atoms to replace with the base element in the
             # struct, which at this point will be completely replaced by atoms
             # of the remaining species of the alloy.
-            n_at_replacement = [
-                int(round(structure_len * stct, 0)) for stct in subst_base_elem_perc
-            ]
+            n_at_replacement = []
+            for stct in subst_base_elem_perc:
+                curr_repl = int(round(structure_len * abs(stct), 0))
+                if stct < 0:
+                    curr_repl *= -1
+                n_at_replacement.append(curr_repl)
+            print("n_at_replacement: ", n_at_replacement)
 
             # Attempting to fix any percentages outside of the
             # current phase ratios.
             n_at_replacement_upd = self._apply_offset_replacements(
-                phase, n_at_replacement, structure_len
+                phase,
+                n_at_replacement,
+                curr_surface,
             )
 
+            print("n_at_replacement_upd: ", n_at_replacement_upd)
+
+            # Adapting the replacement percentages generated to the
+            # percentage of the current structure
+            # n_at_replacement_final = self._adjust_replacements()
+
             for str_ind, n_atoms in enumerate(n_at_replacement_upd):
+                print("\nreplacement: ", str_ind)
                 for repl in range(num_repeats):
+                    print("\nreplicate: ", repl)
                     # Replacing atoms according to the current phase from the structure.
                     new_structure = self._apply_replacement(
                         curr_surface, phase, structure_len, n_atoms, rng
@@ -1343,6 +1571,11 @@ class CuZnInitialDatabase(InitialDatabase):
                     mat_id_name = f"{prototype}_{phase.name}"
                     mat_id_surf_data = f"_replacement-({curr_miller})-_{str_ind}-{repl}"
                     material_id = mat_id_name + mat_id_surf_data
+
+                    print("new", new_structure.formula)
+                    final_perc = self._get_main_elem_perc(phase, new_structure)
+                    print(phase)
+                    print("final_perc: ", final_perc)
 
                     # Saving the structure into the database.
                     self._save_row(
