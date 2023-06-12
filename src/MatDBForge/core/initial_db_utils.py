@@ -4,23 +4,43 @@ base (unperturbed) structures and a certain number of structures
 with an applied perturbation with respect to the temperature.
 """
 
+import itertools as it
 import json as js
 import os
 import pathlib
 import re
 import warnings
+from multiprocessing import Pool
+from typing import Union
 
+import catkit.gen.surface as cts
 import emmet
 import numpy as np
 import pandas as pd
 import pymatgen.io.vasp as vasp
+import ase.io as aseio
+from aiida import load_profile, orm
 from dscribe.descriptors import SOAP
 from mp_api.client import MPRester
 from pymatgen.core.periodic_table import Element, Species
-from pymatgen.core.structure import Structure
-from pymatgen.core.surface import Slab, generate_all_slabs
+from pymatgen.core.structure import Lattice, Structure
+from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from rich.console import Group
+from io import TextIOWrapper
+from rich.live import Live
+from rich.progress import (
+    BarColumn,
+    Column,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+    track,
+)
 
 from MatDBForge.core import exceptions as mdbex
 from MatDBForge.core import utils as ut
@@ -315,8 +335,6 @@ class InitialDatabase:
             ]
         )
 
-        # df = df.astype({"perturb": bool, "base": bool})
-
         ut.custom_print(f"Created database '{self.database_name}'.", "done")
 
         return df
@@ -327,6 +345,7 @@ class InitialDatabase:
         get_different_supercells,
         max_atoms,
         initial_supercell_size=5,
+        verbose=True,
     ):
         # Initial supercell size
         idx = initial_supercell_size
@@ -361,10 +380,11 @@ class InitialDatabase:
         structure_list.append(new_structure)
         idx_list.append(idx)
 
-        ut.custom_print(
-            f"Supercell generated - total atoms: {len(new_structure.species)}",
-            "debug",
-        )
+        if verbose:
+            ut.custom_print(
+                f"Supercell generated - total atoms: {len(new_structure.species)}",
+                "debug",
+            )
 
         if get_different_supercells:
             for idx_smaller in range(idx - 1, 0, -1):
@@ -379,10 +399,11 @@ class InitialDatabase:
                 structure_list.append(new_structure)
                 idx_list.append(idx_smaller)
 
-                ut.custom_print(
-                    f"Supercell generated - total atoms: {len(new_structure.species)}",
-                    "debug",
-                )
+                if verbose:
+                    ut.custom_print(
+                        f"Supercell generated - total atoms: {len(new_structure.species)}",
+                        "debug",
+                    )
 
         return structure_list, idx_list
 
@@ -1319,24 +1340,362 @@ class CuZnInitialDatabase(InitialDatabase):
                         structure=new_structure,
                     )
 
-    def _get_miller_index_str(self, slab):
-        curr_miller = str(slab.miller_index)
+    def _get_miller_index_str(self, miller_source):
+        if isinstance(miller_source, Slab):
+            curr_miller = str(miller_source.miller_index)
+        elif isinstance(miller_source, np.ndarray):
+            curr_miller = str(miller_source)
 
-        replace_chars = ["'", ",", " ", "(", ")"]
+        replace_chars = ["'", ",", " ", "(", ")", "[", "]"]
         for char in replace_chars:
             curr_miller = curr_miller.replace(char, "")
 
         return curr_miller
 
+    def _slab_to_bottom(
+        self,
+        slab: Union[Slab, Structure],
+        offset: int = 2,
+    ) -> Structure:
+        """
+        Move the slab towards the bottom of the cell, leaving a
+        offset wide margin at the bottom.
+
+        Parameters
+        ----------
+        slab : Union[Slab, Structure]
+            Target slab to move to the bottom.
+        miller: tuple
+            Miller index of the slab
+        offset : int, optional
+            Separation to be left between the bottom of the cell
+            and the slab, by default 2, in Angstrom.
+
+
+        Returns
+        -------
+        Structure
+            Pymatgen structure containing slab placed on the bottom,
+            with the same attributes as the original.
+        """
+
+        # Getting the position closest to the bottom
+        bottom = min(slab.cart_coords[:, 2])
+        bottom_arr = np.zeros(shape=slab.cart_coords.shape)
+
+        # Applying the offset
+        bottom_arr[:, 2] += bottom - offset
+
+        # Substracting the bottom position from the slab plus an offset
+        modified_coords = slab.cart_coords - bottom_arr
+
+        new_slab = Structure(
+            lattice=slab.lattice,
+            species=slab.species,
+            coords=modified_coords,
+            coords_are_cartesian=True,
+        )
+
+        return new_slab
+
+    def _check_correct_vacuum_size(
+        self,
+        slab: Union[Slab, Structure],
+        vacuum_size: float,
+        tolerance: float = 0.5,
+    ) -> bool:
+        # Getting 'c' size for the cell
+        vec_c = slab.lattice.c
+
+        # Getting position of the topmost layer
+        z_axis_max = max(slab.cart_coords[:, 2])
+
+        # Getting vacuum layer thickness by substracting
+        vac_layer_thickness = vec_c - z_axis_max
+
+        # Checking if layer is greater or equal than vacuum_size
+        if abs(vac_layer_thickness - vacuum_size) <= tolerance:
+            return True
+        else:
+            return False
+
+    def _adjust_vacuum(self, slab: Slab, vacuum_size: float) -> Slab:
+        # Getting 'c' vector for the cell
+        vec_c = slab.lattice.c
+
+        # Getting position of the topmost layer
+        z_axis_max = max(slab.cart_coords[:, 2])
+
+        #
+        current_vacuum_size = vec_c - z_axis_max
+
+        # Computing correct slab size
+        corr_slab_size = z_axis_max + vacuum_size
+
+        # Computing the difference between the correct slab
+        diff = vec_c - corr_slab_size
+        # print('vec_c: ', vec_c)
+        # print('top layer: ', z_axis_max)
+        # print('calculated distance:',vec_c-z_axis_max)
+        # print('corr_slab_size: ', corr_slab_size)
+
+        # Changing the 'c' vector
+        if current_vacuum_size > vacuum_size:
+            new_vec_c = vec_c - diff
+        elif current_vacuum_size < vacuum_size:
+            new_vec_c = vec_c + diff
+
+        # Creating a new abc vector
+        new_latt_abc = np.array(slab.lattice.abc)
+        new_latt_abc[-1] = new_vec_c
+
+        # Converting the abc vector into a 3x3 matrix
+        new_latt_matrix = np.zeros([3, 3])
+        diag = np.diag_indices(3)
+        new_latt_matrix[diag] = new_latt_abc
+
+        # Creating a lattice use the new matrix
+        new_lattice = Lattice(matrix=new_latt_matrix)
+
+        # Using the lattice to create a new slab
+        new_slab = Structure(
+            lattice=new_lattice,
+            species=slab.species,
+            coords=slab.cart_coords,
+            coords_are_cartesian=True,
+        )
+        return new_slab
+
+    def _make_clean_surf(
+        self,
+        bulk: Union[Structure, Slab],
+        max_num_at: float,
+        n_layers: int,
+        miller_list: list,
+        fixed: int,
+    ):
+        img_miller = []
+        images = []
+
+        for miller in miller_list:
+            gen = cts.SlabGenerator(
+                bulk,
+                miller_index=(miller),
+                layers=n_layers,
+                layer_type="angs",
+                fixed=fixed,
+                standardize_bulk="True",
+                vacuum=7.5,
+            )
+
+            # Getting unique terminations for the current
+            # surface
+            termination = gen.get_unique_terminations()
+
+            for ind, t in enumerate(termination):
+                img_miller.append(miller)
+                imgsize = gen.get_slab(iterm=ind).get_global_number_of_atoms()
+                slab_rep = int(max_num_at / imgsize)
+
+                try:
+                    slab = gen.get_slab(iterm=ind, size=slab_rep)
+                except Exception:
+                    break
+
+                images.append(slab)
+
+        return images, img_miller
+
+    def _gen_slab_pool(self, miller, bulk, max_num_at, n_layers, fixed):
+        img_miller = []
+        images = []
+
+        gen = cts.SlabGenerator(
+            bulk,
+            miller_index=(miller),
+            layers=n_layers,
+            layer_type="angs",
+            fixed=fixed,
+            standardize_bulk="True",
+            vacuum=7.5,
+        )
+
+        # Getting unique terminations for the current
+        # surface
+        termination = gen.get_unique_terminations()
+
+        for ind, t in enumerate(termination):
+            img_miller.append(miller)
+            imgsize = gen.get_slab(iterm=ind).get_global_number_of_atoms()
+            slab_rep = int(max_num_at / imgsize)
+
+            try:
+                slab = gen.get_slab(iterm=ind, size=slab_rep)
+            except Exception:
+                break
+
+            images.append(slab)
+
+        return images, img_miller
+
+    def _make_clean_surf_mp(
+        self,
+        bulk: Union[Structure, Slab],
+        max_num_at: float,
+        n_layers: int,
+        miller_list: list,
+        fixed: int,
+    ):
+        img_miller = []
+        images = []
+
+        # gen = make_generator_slab
+        # Original parameters:
+        # fixed = 3
+
+        with Pool() as p:
+            slabs_worker = p.starmap(
+                self._gen_slab_pool,
+                zip(
+                    miller_list,
+                    it.repeat(bulk),
+                    it.repeat(max_num_at),
+                    it.repeat(n_layers),
+                    it.repeat(fixed),
+                ),
+            )
+            for slb, mill in slabs_worker:
+                if isinstance(slb, list):
+                    for i in slb:
+                        images.append(i)
+                if isinstance(mill, list):
+                    for m in mill:
+                        img_miller.append(m)
+
+        return images, img_miller
+
+    def __gen_curr_surface(
+        self,
+        phase,
+        curr_bulk_ase,
+        n_layers,
+        n_at,
+        max_miller_index,
+        fixed_layers,
+        get_supercells,
+    ):
+        n_layers = int(n_layers)
+        n_at = int(n_at)
+
+        slabs = []
+
+        miller = cts.get_unique_indices(
+            bulk=curr_bulk_ase,
+            max_index=max_miller_index,
+        )
+
+        # prof = profile.Profile()
+        # print("function: _make_clean_surf")
+        # t1 = time.time()
+        # prof.enable()
+        slabs, miller_idx_slabs = self._make_clean_surf(
+            bulk=curr_bulk_ase,
+            n_layers=n_layers,
+            max_num_at=n_at,
+            miller_list=miller,
+            fixed=fixed_layers,
+        )
+
+        # Will contain tuples as such: (Structure, miller_index_string)
+        slabs_bottom = []
+        for ind, (slab, mill) in enumerate(zip(slabs, miller_idx_slabs)):
+            curr_surf_pymg = AseAtomsAdaptor().get_structure(slab)
+            slab = self._slab_to_bottom(curr_surf_pymg)
+            mill_str = self._get_miller_index_str(mill)
+
+            # TODO: The _adjust_vacuum function does not work correctly.
+            # As of now, the vacuum size is being defined during slab creation,
+            # I suspect it is related to the way pymatgen handles lattices.
+            #
+            # if not self._check_correct_vacuum_size(slab, min_vacuum_size):
+            #     slab = self._adjust_vacuum(slab, min_vacuum_size)
+
+            slabs_bottom.append((slab, mill_str))
+
+        prototype = phase.prototype
+        extra = {"surface": True}
+
+        # Getting only the slabs and their miller index whose total size
+        # is smaller than the maximum given for the InitialDatabase.
+        slabs_size = [
+            (slab, mill)
+            for slab, mill in slabs_bottom
+            if len(slab.sites) < self.max_num_atoms
+        ]
+
+        # Storing the remaining slabs.
+        for idx, (slab, mill) in enumerate(slabs_size):
+            # Getting the current slab's miller index
+            # curr_miller = self._get_miller_index_str(slab)
+
+            # Preparing the structure name
+            material_id = (
+                f"{prototype}_{phase.name}_pure_surface"
+                f"_{n_layers}-layers_{mill}-{idx+1}"
+            )
+
+            # Saving the structure in the database.
+            self._save_row(
+                material_id=material_id,
+                phase=phase,
+                structure=slab,
+                base=True,
+                extra=extra,
+            )
+
+        # Getting supercells
+        if get_supercells:
+            for idx, (slab, mill) in enumerate(slabs_size):
+                super_list, idx_list = self._find_supercell_indices(
+                    structure=curr_surf_pymg,
+                    max_atoms=self.max_num_atoms,
+                    get_different_supercells=True,
+                    initial_supercell_size=3,
+                    verbose=False,
+                )
+
+                # Storing the supercells.
+                for supercell, idx in zip(super_list, idx_list):
+                    if len(supercell.sites) <= self.max_num_atoms:
+                        # Dragging the slab to the bottom
+                        supercell_bottom = self._slab_to_bottom(curr_surf_pymg)
+
+                        # Preparing the structure name
+                        material_id = (
+                            f"{prototype}_{phase.name}_pure_surface-"
+                            f"{n_layers}-layers_{mill}-super-{idx+1}"
+                        )
+
+                        # Saving the supercell in the database.
+                        self._save_row(
+                            material_id=material_id,
+                            phase=phase,
+                            structure=supercell_bottom,
+                            base=True,
+                            extra=extra,
+                        )
+        return material_id
+
     def generate_surfaces_pure(
         self,
         phase: Phase,
         num_repeats: int,
-        max_miller_index: int = 3,
+        max_miller_index: int = 2,
         min_slab_size: float = 3,
         max_slab_size: float = 6,
         min_vacuum_size: float = 10,
         get_supercells=False,
+        fixed_layers: int = 0,
     ):
         # Getting the current phase from the phase name.
         if isinstance(phase, str):
@@ -1368,90 +1727,70 @@ class CuZnInitialDatabase(InitialDatabase):
 
         for idx, row in base_structs.iterrows():
             # Getting the current base structure
-            curr_surface = row.structure
+            curr_bulk = row.structure
 
-            for slab_size in slab_sizes:
-                # TODO: Test
-                slab_size = int(slab_size)
+            # Getting the number of atoms in the conventional cell
+            # of the bulk
+            curr_surf_nat = len(curr_bulk.species)
 
-                # Generating surfaces using a method provided by pymatgen.
-                slabs = generate_all_slabs(
-                    structure=curr_surface,
-                    max_index=max_miller_index,
-                    min_slab_size=slab_size,  # in unit planes?
-                    min_vacuum_size=min_vacuum_size,  # in unit planes?
-                    # in_unit_planes=True,
-                    lll_reduce=True,
-                    # primitive=False,
-                    # max_normal_search=2, TODO
-                    # symmetrize=True, TODO
-                )
+            # Getting a range of maximum number of atoms using the bulk
+            # atom number and the max atom number specified.
+            max_atom_num_list = np.linspace(curr_surf_nat, self.max_num_atoms, 6)
 
-                prototype = phase.prototype
-                extra = {"surface": True}
+            # Getting an ASE Atoms object
+            curr_bulk_ase = AseAtomsAdaptor().get_atoms(curr_bulk)
 
-                # Getting only the slabs whose total size is smaller than the maximum
-                # given for the InitialDatabase.
-                slabs_size = [
-                    slab for slab in slabs if len(slab.sites) <= self.max_num_atoms
-                ]
+            text_column = TextColumn(
+                "        {task.description}", table_column=Column()
+            )
+            bar_column = BarColumn(table_column=Column())
+            time_col = TimeElapsedColumn(table_column=Column())
+            spin_col = SpinnerColumn(table_column=Column())
+            remaining_col = MofNCompleteColumn(table_column=Column())
+            t_remaining_col = TimeRemainingColumn(table_column=Column())
+            empty_col = TextColumn("", table_column=Column(ratio=6))
 
-                # TODO: Check the slab vacuum size:
-                # Maybe use
-                # 1. get_slab_regions to find the vacuum size
-                # 
+            overall_progress = Progress(
+                TextColumn(" [···]  {task.description}", table_column=Column()),
+                bar_column,
+                time_col,
+                t_remaining_col,
+                remaining_col,
+            )
+            total_slabs = len(list(it.product(slab_sizes, max_atom_num_list[1:])))
+            main_task_descr = f"Generating {phase.name} slabs:"
+            overall_task = overall_progress.add_task(
+                main_task_descr, total=int(total_slabs)
+            )
 
-                # Storing the remaining slabs.
-                for idx, slab in enumerate(slabs_size):
-                    # Getting the current slab's miller index
-                    curr_miller = self._get_miller_index_str(slab)
+            job_progress = Progress(
+                text_column, bar_column, time_col, spin_col, empty_col, expand=True
+            )
 
-                    # Preparing the structure name
-                    material_id = (
-                        f"{prototype}_{phase.name}_pure_surface"
-                        f"-{slab_size}_{curr_miller}-{idx+1}"
-                    )
+            group = Group(overall_progress, job_progress)
+            live = Live(group, refresh_per_second=4)
 
-                    # Saving the structure in the database.
-                    self._save_row(
-                        material_id=material_id,
-                        phase=phase,
-                        structure=slab,
-                        base=True,
-                        extra=extra,
-                    )
-
-                # Getting supercells
-                if get_supercells:
-                    ut.custom_print("Generating supercells...", "debug")
-
-                    for slab in slabs_size:
-                        super_list, idx_list = self._find_supercell_indices(
-                            structure=slab,
-                            max_atoms=self.max_num_atoms,
-                            get_different_supercells=False,
-                            initial_supercell_size=3,
+            with live:
+                while not overall_progress.finished:
+                    for n_layers, n_at in it.product(slab_sizes, max_atom_num_list[1:]):
+                        sub_task = job_progress.add_task(
+                            description=f"{int(n_layers)} layers, {int(n_at)} atoms:",
+                            total=None,
                         )
 
-                        # Getting the current slab's miller index
-                        curr_miller = self._get_miller_index_str(slab)
+                        self.__gen_curr_surface(
+                            phase=phase,
+                            curr_bulk_ase=curr_bulk_ase,
+                            n_layers=n_layers,
+                            n_at=n_at,
+                            max_miller_index=max_miller_index,
+                            fixed_layers=fixed_layers,
+                            get_supercells=get_supercells,
+                        )
+                        job_progress.update(sub_task, total=1)
+                        job_progress.advance(sub_task, advance=1)
 
-                        # Storing the supercells.
-                        for supercell, idx in zip(super_list, idx_list):
-                            # Preparing the structure name
-                            material_id = (
-                                f"{prototype}_{phase.name}_pure_surface-"
-                                f"{slab_size}_{curr_miller}-super-{idx+1}"
-                            )
-
-                            # Saving the supercell in the database.
-                            self._save_row(
-                                material_id=material_id,
-                                phase=phase,
-                                structure=supercell,
-                                base=True,
-                                extra=extra,
-                            )
+                        overall_progress.advance(overall_task, advance=1)
 
     def _get_main_elem_perc(self, phase: Phase, structure):
         """
@@ -1681,6 +2020,137 @@ class CuZnInitialDatabase(InitialDatabase):
 
         return perturb_structure
 
+    def gather_aiida_group_structures(self, group_name: str):
+        # Loading aiida profile
+        load_profile()
+
+        gathered_nodes = []
+
+        # Getting group
+        group = orm.load_group(label=group_name)
+
+        # Storing every node contained in the group into a list
+        for node in group.nodes:
+            if isinstance(node, orm.CalcJobNode):
+                gathered_nodes.append(node)
+            else:
+                for descendant in node.called_descendants:
+                    if isinstance(descendant, orm.CalcJobNode):
+                        gathered_nodes.append(descendant)
+
+        return gathered_nodes
+
+    def _get_pot_energy_outcar_aiida_node(self, node=orm.nodes.Node) -> float:
+        retrieved = node.outputs.retrieved
+        outcar_str = retrieved.get_object_content("OUTCAR")
+
+        with open("/tmp/outcar.tmp", "w") as f:
+            f.write(outcar_str)
+
+        outcar = vasp.Outcar("/tmp/outcar.tmp")
+
+        energy = float(outcar.final_energy)
+        return energy
+
+    def _gather_n2p2_reqdata_from_node(self, node=orm.nodes.Node):
+        # Getting calculation name
+        name = node.label + '_aiida-uuid_' + node.uuid
+
+        # Getting potential energy
+        misc = node.outputs.misc.get_dict()
+        pot_energy = misc.get("total_energies", {}).get("energy_extrapolated")
+        if not pot_energy:
+            ut.custom_print("Using OUTCAR for energy")
+            pot_energy = self._get_pot_energy_outcar_aiida_node(node)
+
+        # Getting atomic positions
+        retrieved = node.outputs.retrieved
+        contcar_str = retrieved.get_object_content("CONTCAR")
+        contcar = vasp.Poscar.from_string(contcar_str)
+        lattice = contcar.structure.lattice
+        atoms = contcar.structure.sites
+
+        # Getting forces
+        vasprun_str = retrieved.get_object_content("vasprun.xml")
+        with open("/tmp/vasprun.tmp", "w") as f:
+            f.write(vasprun_str)
+        vasprun = aseio.read("/tmp/vasprun.tmp", format="vasp-xml")
+        forces = vasprun.get_forces()
+
+        # Setting charge to 0
+        charge = contcar.structure.charge
+
+        data_dict = {
+            "name": name,
+            "lattice": lattice,
+            "atoms": atoms,
+            "pot_energy": pot_energy,
+            "charge": charge,
+            "forces": forces,
+        }
+
+        return data_dict
+
+    def _add_entry_to_n2p2_input(self, buffer: TextIOWrapper, data_dict: dict):
+        # Writing begin keyword and structure name
+        buffer.write("begin\n")
+        buffer.write(f'comment {data_dict.get("name","no name found")}\n')
+
+        # Getting lattice parameters
+        lat_x = data_dict["lattice"].matrix[0]
+        lat_y = data_dict["lattice"].matrix[1]
+        lat_z = data_dict["lattice"].matrix[2]
+
+        # Writing lattice parameters
+        buffer.write(f"lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n")
+        buffer.write(f"lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n")
+        buffer.write(f"lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n")
+
+        # Writing information for every atom. Every atom line must contain:
+        # atom <x1> <y1> <z1> <e1> <c1> <n1> <fx1> <fy1> <fz1>
+        for at, frc in zip(data_dict["atoms"], data_dict["forces"]):
+            # Getting element from the current atom
+            ele = list(at.species.get_el_amt_dict().keys())[0]
+            # Preparing and writing the line
+            buffer.write(
+                f"atom {at.x:.6f} {at.y:.6f} {at.z:.6f} {ele} {0:.6f} {0:.6f} {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
+            )
+
+        # writing potential energy and charge
+        buffer.write(f'energy {data_dict["pot_energy"]:.6f}\n')
+        buffer.write(f'charge {data_dict["charge"]:.6f}\n')
+
+        # writing end keyword
+        buffer.write("end\n")
+
+    def generate_n2p2_input_aiida(self, aiida_group_list: list, path: str = None):
+        # Handling path
+        if path and isinstance(path, str):
+            path = pathlib.Path(path)
+        else:
+            path = pathlib.Path()
+
+        # Adding input.data filename to path
+        path = path / "input.data"
+
+        # Gathering nodes from the given group
+        ut.custom_print("Getting nodes...")
+        result_nodes = []
+        for group in aiida_group_list:
+            group_nodes = self.gather_aiida_group_structures(group)
+            result_nodes.extend(group_nodes)
+
+        # Writing the file
+        with open(path, "w") as curr_f:
+            # Checking every node
+            for node in track(result_nodes, description=" [ ⌛] Writing info..."):
+                # Gathering the information from each node
+                data_dict = self._gather_n2p2_reqdata_from_node(node=node)
+
+                # Writing the information to the buffer
+                self._add_entry_to_n2p2_input(buffer=curr_f, data_dict=data_dict)
+        ut.custom_print(f"All calculations saved in '{path}'.", 'done')
+
 
 def gather_secrets():
     """
@@ -1692,7 +2162,7 @@ def gather_secrets():
 
         {
             "API_KEY": "XXXXXX"
-        }
+        :.6f}
 
 
     Returns
