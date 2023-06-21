@@ -10,15 +10,19 @@ import os
 import pathlib
 import re
 import warnings
+from io import BytesIO, TextIOWrapper
+from aiida_vasp.calcs.vasp import VaspCalculation
 from multiprocessing import Pool
 from typing import Union
 
-import catkit.gen.surface as cts
+import ase.io as aseio
+
+# import ase.io as aseio
+# import catkit.gen.surface as cts
 import emmet
 import numpy as np
 import pandas as pd
 import pymatgen.io.vasp as vasp
-import ase.io as aseio
 from aiida import load_profile, orm
 from dscribe.descriptors import SOAP
 from mp_api.client import MPRester
@@ -28,7 +32,6 @@ from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from rich.console import Group
-from io import TextIOWrapper
 from rich.live import Live
 from rich.progress import (
     BarColumn,
@@ -221,6 +224,12 @@ class InitialDatabase:
 
     # Boltzmann constant in J/(Da*K)
     kB = 8.314
+
+    # Sourced from RuNNer
+    Bohr2Ang = 0.5291772109030  # CODATA 2018
+    Ang2Bohr = 1 / Bohr2Ang
+    Eh2eV = 27.211386245988  # CODATA 2018
+    eV2Eh = 1 / Eh2eV
 
     def __init__(self, database_name: str, max_num_atoms: int = 64) -> None:
         # Name of the database
@@ -677,7 +686,7 @@ class InitialDatabase:
                 by default None, which defaults to storing the file in the CWD.
         suffix : str, optional
 
-                String that will be added at the beggining of the filename.
+                String that will be added at the beginning of the filename.
         """
         if suffix:
             filename = self.database_name + f"_{suffix}.pkl"
@@ -2020,70 +2029,118 @@ class CuZnInitialDatabase(InitialDatabase):
 
         return perturb_structure
 
-    def gather_aiida_group_structures(self, group_name: str):
-        # Loading aiida profile
-        load_profile()
+    # def gather_aiida_group_structures(self, group_name: str):
+    #     # Loading aiida profile
+    #     load_profile()
 
-        gathered_nodes = []
+    #     gathered_nodes = []
 
-        # Getting group
-        group = orm.load_group(label=group_name)
+    #     # Getting group
+    #     group = orm.load_group(label=group_name)
 
-        # Storing every node contained in the group into a list
-        for node in group.nodes:
-            if isinstance(node, orm.CalcJobNode):
-                gathered_nodes.append(node)
-            else:
-                for descendant in node.called_descendants:
-                    if isinstance(descendant, orm.CalcJobNode):
-                        gathered_nodes.append(descendant)
+    #     # Storing every node contained in the group into a list
+    #     for node in group.nodes:
+    #         if isinstance(node, orm.CalcJobNode):
+    #             gathered_nodes.append(node)
+    #         else:
+    #             for descendant in node.called_descendants:
+    #                 if isinstance(descendant, orm.CalcJobNode):
+    #                     gathered_nodes.append(descendant)
 
-        return gathered_nodes
+    #     return gathered_nodes
 
-    def _get_pot_energy_outcar_aiida_node(self, node=orm.nodes.Node) -> float:
-        retrieved = node.outputs.retrieved
-        outcar_str = retrieved.get_object_content("OUTCAR")
+    # def _get_pot_energy_outcar_aiida_node(self, vasprun:vasp.Vasprun) -> float:
+    #     # retrieved = node.outputs.retrieved
+    #     # vasprun = retrieved.get_object_content("vasp_run.xml")
 
-        with open("/tmp/outcar.tmp", "w") as f:
-            f.write(outcar_str)
+    #     # with open("/tmp/vasprun.tmp", "w") as f:
+    #     #     f.write(vasprun)
 
-        outcar = vasp.Outcar("/tmp/outcar.tmp")
+    #     # vasprun = vasp.Vasprun("/tmp/vasprun.tmp")
 
-        energy = float(outcar.final_energy)
-        return energy
+    #     # Getting energy in eV
+    #     # This energy is given in VASP as: 'free energy TOTEN'
+    #     # n2p2 uses this energy
+    #     energy = float(vasprun.ionic_steps[-1]['e_fr_energy'])
+
+    #     # Converting to Ha
+    #     energy *= self.eV2Eh
+
+    #     return energy
 
     def _gather_n2p2_reqdata_from_node(self, node=orm.nodes.Node):
         # Getting calculation name
-        name = node.label + '_aiida-uuid_' + node.uuid
-
+        name = node.label + "_aiida-uuid_" + node.uuid
+        # WARNING:
         # Getting potential energy
-        misc = node.outputs.misc.get_dict()
-        pot_energy = misc.get("total_energies", {}).get("energy_extrapolated")
-        if not pot_energy:
-            ut.custom_print("Using OUTCAR for energy")
-            pot_energy = self._get_pot_energy_outcar_aiida_node(node)
+        # misc = node.outputs.misc.get_dict()
+        # The energy can be obtained from aiida-vasp, however, the energy provided by the
+        # parser is not the one used by n2p2.
+        # Getting potential energy from the aiida-vasp parser, in eV.
+        # Convert the aiida-vasp energy to Ha.
+        # pot_energy = misc.get("total_energies", {}).get("energy_extrapolated") * self.eV2Eh
+
+        # Writing the vasprun.xml file to a buffer.
+        retrieved = node.outputs.retrieved
+        vasprun_f = retrieved.get_object_content("vasprun.xml", "rb")
+        buffer = BytesIO(vasprun_f)
+
+        # Reading the file from the buffer and closing it
+        vasprun = aseio.read(buffer, format="vasp-xml", index="-1")
+        buffer.close()
+
+        # Getting properties from the vasprun
+        pot_energy = vasprun.get_potential_energy(force_consistent=True) * self.eV2Eh
+
+        # print(dir(vasprun))
+        # print(vasprun.calculator)
+        # quit()
+        # try:
+        #     vasprun = vasp.Vasprun("/tmp/parser_vasprun.tmp", parse_potcar_file=False)
+        # except Exception as e:
+        #     # TODO: If parsing the xml fails, and the calculation has converged,
+        #     # then read the energies and forces from the OUTCAR.
+        #     ut.custom_print(name, 'warn')
+        #     print(e)
+        # vasprun = aseio.read("/tmp/vasprun.tmp", format="vasp-xml")
 
         # Getting atomic positions
-        retrieved = node.outputs.retrieved
-        contcar_str = retrieved.get_object_content("CONTCAR")
-        contcar = vasp.Poscar.from_string(contcar_str)
-        lattice = contcar.structure.lattice
-        atoms = contcar.structure.sites
+        # Pymatgen treats coordinates in Ang.
+        # contcar_str = retrieved.get_object_content("CONTCAR")
+
+        # If the aiida-vasp parser is disabled, get the energy from the outcar itself.
+        # The energy returned by the function is already in Ha.
+        # pot_energy = self._get_pot_energy_outcar_aiida_node(vasprun=vasprun)
+        # pot_energy = float(vasprun.ionic_steps[-1]["e_fr_energy"]) * self.eV2Eh
 
         # Getting forces
-        vasprun_str = retrieved.get_object_content("vasprun.xml")
-        with open("/tmp/vasprun.tmp", "w") as f:
-            f.write(vasprun_str)
-        vasprun = aseio.read("/tmp/vasprun.tmp", format="vasp-xml")
-        forces = vasprun.get_forces()
+        # Reading forces from vasprun.xml, in eV/Ang and converting them to Ha/Bohr
+        forces = vasprun.get_forces() * self.eV2Eh * self.Bohr2Ang
+
+        # forces = (
+        #     np.array(vasprun.ionic_steps[-1]["forces"]) * self.eV2Eh * self.Bohr2Ang
+        # )
+
+        # contcar = vasp.Poscar.from_string(contcar_str)
+
+        lattice = vasprun.get_cell() * self.Ang2Bohr
+        structure = vasprun.get_positions() * self.Ang2Bohr
+        symbols = vasprun.get_chemical_symbols()
+        # print('structure: ', structure)
+
+        # print('lattice: ', lattice)
+        # print('atoms: ', atoms)
+        # quit()
 
         # Setting charge to 0
-        charge = contcar.structure.charge
+        # charge = contcar.structure.charge
+        charge = 0
 
         data_dict = {
             "name": name,
             "lattice": lattice,
-            "atoms": atoms,
+            "positions": structure,
+            "symbols": symbols,
             "pot_energy": pot_energy,
             "charge": charge,
             "forces": forces,
@@ -2096,10 +2153,10 @@ class CuZnInitialDatabase(InitialDatabase):
         buffer.write("begin\n")
         buffer.write(f'comment {data_dict.get("name","no name found")}\n')
 
-        # Getting lattice parameters
-        lat_x = data_dict["lattice"].matrix[0]
-        lat_y = data_dict["lattice"].matrix[1]
-        lat_z = data_dict["lattice"].matrix[2]
+        # Getting lattice parameters and converting them to Bohr
+        lat_x = data_dict["lattice"][0]
+        lat_y = data_dict["lattice"][1]
+        lat_z = data_dict["lattice"][2]
 
         # Writing lattice parameters
         buffer.write(f"lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n")
@@ -2108,22 +2165,33 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # Writing information for every atom. Every atom line must contain:
         # atom <x1> <y1> <z1> <e1> <c1> <n1> <fx1> <fy1> <fz1>
-        for at, frc in zip(data_dict["atoms"], data_dict["forces"]):
+        for idx, (at, frc) in enumerate(
+            zip(data_dict["positions"], data_dict["forces"])
+        ):
             # Getting element from the current atom
-            ele = list(at.species.get_el_amt_dict().keys())[0]
+            # ele = list(at.species.get_el_amt_dict().keys())[0]
             # Preparing and writing the line
             buffer.write(
-                f"atom {at.x:.6f} {at.y:.6f} {at.z:.6f} {ele} {0:.6f} {0:.6f} {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
+                (
+                    f"atom {at[0]:.6f} {at[1]:.6f}"
+                    f" {at[2]:.6f}"
+                    f" {data_dict['symbols'][idx]} {0:.6f} {0:.6f}"
+                    f" {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
+                )
             )
 
         # writing potential energy and charge
-        buffer.write(f'energy {data_dict["pot_energy"]:.6f}\n')
+        buffer.write(f'energy {data_dict["pot_energy"]:.8f}\n')
         buffer.write(f'charge {data_dict["charge"]:.6f}\n')
 
         # writing end keyword
         buffer.write("end\n")
 
-    def generate_n2p2_input_aiida(self, aiida_group_list: list, path: str = None):
+    def generate_n2p2_input_aiida(self, aiida_group_list: list, filter_dict: dict, path: str = None):
+
+        # Loading aiida profile
+        load_profile()
+
         # Handling path
         if path and isinstance(path, str):
             path = pathlib.Path(path)
@@ -2135,21 +2203,114 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # Gathering nodes from the given group
         ut.custom_print("Getting nodes...")
-        result_nodes = []
+
+        # Preparing a query in the aiida db
+        qb = orm.QueryBuilder()
+
+        # result_nodes = []
+
         for group in aiida_group_list:
-            group_nodes = self.gather_aiida_group_structures(group)
-            result_nodes.extend(group_nodes)
+            qb.append(orm.Group, filters={'label': group}, tag='group')
+            qb.append(
+                VaspCalculation,
+                with_group="group",
+                filters=filter_dict
+            ),
+
+        result_nodes = qb.all(flat=True)
+
+        ut.custom_print(f"{len(result_nodes)} nodes found.",'info')
 
         # Writing the file
         with open(path, "w") as curr_f:
             # Checking every node
-            for node in track(result_nodes, description=" [ ⌛] Writing info..."):
+            for node in track(result_nodes, description=" [ ⧖ ]  Writing info..."):
                 # Gathering the information from each node
                 data_dict = self._gather_n2p2_reqdata_from_node(node=node)
 
                 # Writing the information to the buffer
                 self._add_entry_to_n2p2_input(buffer=curr_f, data_dict=data_dict)
-        ut.custom_print(f"All calculations saved in '{path}'.", 'done')
+        ut.custom_print(f"All calculations saved in '{path}'.", "done")
+
+    # def task(self, node, name, lock, buffer):
+    #     # data_dict = self._gather_n2p2_reqdata_from_node(node=node)
+
+    #     with lock:
+    #         # Getting calculation name
+    #         # name = node.label + "_aiida-uuid_" + node.uuid
+
+    #         # Writing the vasprun.xml file to a temporary file.
+    #         retrieved = node.outputs.retrieved
+    #         vasprun_str = retrieved.get_object_content("vasprun.xml")
+    #         with open("/tmp/parser_vasprun.tmp", "w") as f:
+    #             f.write(vasprun_str)
+
+    #         # Reading the written vasprun
+    #         vasprun = vasp.Vasprun("/tmp/parser_vasprun.tmp", parse_potcar_file=False)
+    #         # vasprun = aseio.read("/tmp/vasprun.tmp", format="vasp-xml")
+
+    #     # If the aiida-vasp parser is disabled, get the energy from the outcar itself.
+    #     # The energy returned by the function is already in Ha.
+    #     # pot_energy = self._get_pot_energy_outcar_aiida_node(vasprun=vasprun)
+    #     pot_energy = float(vasprun.ionic_steps[-1]["e_fr_energy"]) * self.eV2Eh
+
+    #     # Getting forces
+    #     # Reading forces from vasprun.xml, in eV/Ang and converting them to Ha/Bohr
+    #     forces = (
+    #         np.array(vasprun.ionic_steps[-1]["forces"]) * self.eV2Eh * self.Bohr2Ang
+    #     )
+
+    #     structure = vasprun.ionic_steps[-1]["structure"]
+    #     lattice = structure.lattice
+    #     atoms = structure.sites
+
+    #     # Setting charge to 0
+    #     charge = 0
+
+    #     data_dict = {
+    #         "name": name,
+    #         "lattice": lattice,
+    #         "atoms": atoms,
+    #         "pot_energy": pot_energy,
+    #         "charge": charge,
+    #         "forces": forces,
+    #     }
+
+    #     # Writing begin keyword and structure name
+    #     with lock:
+    #         buffer.write("begin\n")
+    #         buffer.write(f'comment {data_dict.get("name","no name found")}\n')
+
+    #         # Getting lattice parameters and converting them to Bohr
+    #         lat_x = data_dict["lattice"].matrix[0] * self.Ang2Bohr
+    #         lat_y = data_dict["lattice"].matrix[1] * self.Ang2Bohr
+    #         lat_z = data_dict["lattice"].matrix[2] * self.Ang2Bohr
+
+    #         # Writing lattice parameters
+    #         buffer.write(f"lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n")
+    #         buffer.write(f"lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n")
+    #         buffer.write(f"lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n")
+
+    #         # Writing information for every atom. Every atom line must contain:
+    #         # atom <x1> <y1> <z1> <e1> <c1> <n1> <fx1> <fy1> <fz1>
+    #         for at, frc in zip(data_dict["atoms"], data_dict["forces"]):
+    #             # Getting element from the current atom
+    #             ele = list(at.species.get_el_amt_dict().keys())[0]
+    #             # Preparing and writing the line
+    #             buffer.write(
+    #                 (
+    #                     f"atom {at.x*self.Ang2Bohr:.6f} {at.y*self.Ang2Bohr:.6f}"
+    #                     f" {at.z*self.Ang2Bohr:.6f}"
+    #                     f" {ele} {0:.6f} {0:.6f} {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
+    #                 )
+    #             )
+
+    #         # writing potential energy and charge
+    #         buffer.write(f'energy {data_dict["pot_energy"]:.6f}\n')
+    #         buffer.write(f'charge {data_dict["charge"]:.6f}\n')
+
+    #         # writing end keyword
+    #         buffer.write("end\n")
 
 
 def gather_secrets():
@@ -2162,7 +2323,7 @@ def gather_secrets():
 
         {
             "API_KEY": "XXXXXX"
-        :.6f}
+        }
 
 
     Returns

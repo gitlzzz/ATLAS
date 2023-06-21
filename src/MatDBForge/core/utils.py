@@ -1,5 +1,6 @@
 # General utilities
 import logging
+import time
 
 
 def custom_print(string: str, print_type: str = "default", end="\n"):
