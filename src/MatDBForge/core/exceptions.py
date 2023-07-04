@@ -1,0 +1,2 @@
+class BaseStructureNotFound(Exception):
+    pass
