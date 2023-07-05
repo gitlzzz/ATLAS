@@ -19,9 +19,10 @@ class Structure:
         bulk: bool = False,
         cluster: bool = False,
         formula=None,
-        replacement=False,
+        replacement: bool = False,
+        replacement_ind=None,
         symmetry=None,
-        temperature=None,
+        temperature: float = None,
         magnetic_properties=None,
         calc_energy_per_atom=None,
         calc_energy_toten=None,
@@ -41,6 +42,7 @@ class Structure:
         self.surface = surface
         self.bulk = bulk
         self.replacement = replacement
+        self.replacement_ind = replacement_ind
         self.cluster = cluster
         self.formula = formula
         self.symmetry = symmetry
@@ -97,6 +99,9 @@ class Structure:
             calc_type=vasprun.run_type,
             calc_output=vasprun,
         )
+
+        if not generated_structure.replacement:
+            generated_structure.replacement = False
 
         return generated_structure
 
@@ -157,6 +162,8 @@ class Structure:
                 "energy_per_atom": self.calc_energy_per_atom,
                 "unique_id": self.unique_id,
                 "name": self.name,
+                "replacement": self.replacement,
+                "replacement_ind": self.replacement_ind,
                 "supercell": self.supercell,
                 "bulk": self.bulk,
                 "cluster": self.cluster,
@@ -172,10 +179,11 @@ class Structure:
             {
                 "perturb": "boolean",
                 "base": "boolean",
-                "surface": "boolean",
                 "bulk": "boolean",
+                "surface": "boolean",
                 "cluster": "boolean",
                 "calc_performed": "boolean",
+                "replacement": "boolean",
             }
         )
 
@@ -192,13 +200,17 @@ class Bulk(Structure):
         super().__init__(**kwargs)
         self.bulk = True
 
-    def from_mdb_structure(self, mdb_structure, new_structure, name=None):
+    def from_mdb_structure(self, mdb_structure, new_structure=None, name=None):
         if name:
             self.name = name
         else:
             self.name = mdb_structure.name
 
-        self.structure = new_structure
+        if new_structure:
+            self.structure = new_structure
+        else:
+            self.structure = mdb_structure.structure
+
         self.material_id = mdb_structure.material_id
         self.phase = mdb_structure.phase
         self.base = mdb_structure.base
@@ -208,6 +220,8 @@ class Bulk(Structure):
         self.cluster = mdb_structure.cluster
         self.formula = mdb_structure.formula
         self.symmetry = mdb_structure.symmetry
+        self.replacement = mdb_structure.replacement
+        self.replacement_ind = mdb_structure.replacement_ind
         self.temperature = mdb_structure.temperature
         self.magnetic_properties = mdb_structure.magnetic_properties
         self.calc_energy = mdb_structure.calc_energy
@@ -221,10 +235,43 @@ class Bulk(Structure):
 
 
 class Surface(Structure):
-    def __init__(
-        self,
-    ):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.surface = True
+
+    def from_mdb_structure(self, mdb_structure, new_structure=None, name=None):
+        if name:
+            self.name = name
+        else:
+            self.name = mdb_structure.name
+
+        if new_structure:
+            self.structure = new_structure
+        else:
+            self.structure = mdb_structure.structure
+
+        self.material_id = mdb_structure.material_id
+        self.phase = mdb_structure.phase
+        self.base = mdb_structure.base
+        self.perturb = mdb_structure.perturb
+        self.supercell = mdb_structure.supercell
+        self.surface = mdb_structure.surface
+        self.bulk = mdb_structure.surface
+        self.cluster = mdb_structure.cluster
+        self.formula = mdb_structure.formula
+        self.symmetry = mdb_structure.symmetry
+        self.temperature = mdb_structure.temperature
+        self.replacement = mdb_structure.replacement
+        self.replacement_ind = mdb_structure.replacement_ind
+        self.magnetic_properties = mdb_structure.magnetic_properties
+        self.calc_energy = mdb_structure.calc_energy
+        self.calc_energy_per_atom = mdb_structure.calc_energy_per_atom
+        self.calc_energy_toten = mdb_structure.calc_energy_toten
+        self.calc_performed = mdb_structure.calc_performed
+        self.calc_type = mdb_structure.calc_type
+        self.calc_output = mdb_structure.calc_output
+
+        return self
 
 
 class Cluster(Structure):
