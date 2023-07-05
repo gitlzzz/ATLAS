@@ -1,25 +1,50 @@
 import copy
 import os
+from strenum import StrEnum
 
 import aiida_tim.utils as ut
 import ase.data as ad
 import numpy as np
-# import pymatgen.io.vasp as pyvasp
 from aiida import load_profile
-from aiida.engine import submit
-from aiida.orm import Bool, Code, Dict, Int, Str, StructureData
-from aiida.plugins import WorkflowFactory
 from aiida_tim import MODULEROOT as AT_MODULEROOT
 from aiida_vasp.utils.aiida_utils import get_data_node
 
-
 DATAPATH = f"{AT_MODULEROOT}/tests/input_files"
-struct_files = [file for file in os.listdir(DATAPATH)]
 VDW_DATA_PATH = "/home/psanz/Documents/phd-iciq/Projects/P2-Cu/forpol/vdw-data"
 
 # Loading default aiida user profile
 load_profile()
 
+PARSER_DICT = {
+    "parser_settings": {
+        "add_misc": [
+            "notifications",
+            "run_status",
+            "run_stats",
+            "version",
+        ],
+        "add_kpoints": False,
+        "add_structure": False,
+        "add_poscar-structure": False,
+        "add_trajectory": False,
+        "add_forces": False,
+        "add_stress": False,
+        "add_bands": False,
+        "add_dos": False,
+        "add_energies": False,
+        "add_projectors": False,
+        "add_born_charges": False,
+        "add_dielectrics": False,
+        "add_hessian": False,
+        "add_dynmat": False,
+        "add_charge_density": False,
+        "add_wavecar": False,
+        "add_site_magnetization": False,
+        "add_maximum_force": False,
+        "add_maximum_stress": False,
+        "add_total_energies": False,
+    }
+}
 
 # DB_NAME = "aiida/test_database/test.db"
 # DB_NAME = f"{os.getcwd()}/small_fragment_adsorption.db"
@@ -34,7 +59,7 @@ INCAR_SP = {
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
-        "lorbit": 11,
+        # "lorbit": 11,
         ## electronic steps:
         "encut": 450,
         "ediff": 1e-6,
@@ -54,7 +79,7 @@ INCAR_SP = {
         "lcharg": False,
         ## parallelization:
         "ncore": 4,
-        "kpar": 4,
+        # "kpar": 4,
         ## dipole correction
         "lelf": False,
         ## van der Waals:
@@ -70,7 +95,7 @@ INCAR_RELAX = {
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
-        "lorbit": 11,
+        # "lorbit": 11,
         ## electronic steps:
         "encut": 450,
         "ediff": 1e-6,
@@ -90,72 +115,14 @@ INCAR_RELAX = {
         "lcharg": False,
         ## parallelization:
         "ncore": 4,
-        "kpar": 4,
+        # "kpar": 4,
         ## dipole correction
         "lelf": False,
         ## van der Waals:
         "ivdw": 11,
     }
 }
-# CONVERGE = {
-#     # The plane-wave cutoff to be used during ce tests in electron volts.
-#     "pwcutoff": Float(450.0),
-#     # The k-point grid to be used during ce tests. needs an array.
-#     "kgrid": default_array("array", np.array([11.0, 11.0, 11.0])),
-#     # The plane-wave cutoff in electron volts.
-#     "pwcutoff_start": Float(450.0),
-#     # The plane-wave cutoff step (increment) in electron volts. Float
-#     "pwcutoff_step": Float(50.0),
-#     # The number of plane-wave cutoff samples. int
-#     "pwcutoff_samples": Int(3),
-#     # The target k-point stepping at the densest grid in inverse AA.
-#     #  default: 'float', 0.07
-#     "k_dense": Float(0.07),
-#     # The target k-point stepping at the coursest grid in inverse AA.
-#     # default: 'float', 0.35
-#     "k_course": Float(0.35),
-#     # The default k-point spacing in inverse AA. default: 'float', 0.1
-#     "k_spacing": Float(0.1),
-#     # The number of k-point samples. default: ('int', 10)
-#     "k_samples": Int(10),
-#     # The cutoff_type to check convergence against: energy, gap and forces.
-#     # default: 'str', 'energy'
-#     "cutoff_type": Str("forces"),
-#     # If the diff. between calculations are within this value for cutoff_type,
-#     # then it is converged. default: 'float', 0.01
-#     "cutoff_value": Float(0.01),
-#     # in this case the cutoff value is the difference between 'cutoff_type' for the
-#     # input structure and an atomic displacement or a compression of the
-#     # unitcell. default: 'float', 0.01
-#     # "cutoff_value_r": 1,
-#     # If True, a convergence test of the compressed structure is also performed.
-#     # default : 'bool', False
-#     # "compress": 1,
-#     # If True, a convergence test of the displaced structure is also performed
-#     # default: 'bool', False
-#     # "displace": 1,
-#     # The displacement unit vector for the displacement test.
-#     # Sets the direction of displacement. default: 'array', np.array([1.0, 1.0, 1.0])
-#     # "displacement_vector": 1,
-#     # The displacement distance (L2 norm) for the displacement test in AA.
-#     # ('float', 0.2)
-#     # "displacement_distance": 1,
-#     # Which atom to displace? Index starts from 1 and follows the sequence for the
-#     # sites in the Aiida ``structure`` object. ('int', 1)
-#     # "displacement_atom": 1,
-#     # The volume change in direct coordinates for each lattice vector.
-#     # default: 'array', np.array([1.05, 1.05, 1.05])
-#     # "volume_change": 1,
-#     # If True, we relax for each convergence test.
-#     # default: 'bool', False
-#     "relax": Bool(True),
-#     # The energy type that is used when ``cutoff_type`` is set to `energy`.
-#     # Default: 'str', 'energy_extrapolated'
-#     # "total_energy_type": 1,
-#     # If True, we assume testing to be performed (e.g. dummy calculations).
-#     # default: 'bool', False
-#     # "testing": 1,
-# }
+
 
 # Default k-spacing values for every phase to be
 # included in the INCAR.
@@ -171,6 +138,21 @@ KSPACING_DEFAULT = {
     "eta": 0.0948760981384118,
     "m4": 0.0948760981384118,
 }
+
+
+class CalcType(StrEnum):
+    """
+    Class representing the available calculation types for vasp
+    Here, the term relaxation signifies ionic relaxation and can be
+    called by either relaxation or relax.
+
+    """
+
+    relax = "relax"
+    relaxation = "relax"
+    single_point = "sp"
+    sp = "sp"
+    static = "sp"
 
 
 def choose_queue(node_type: int, tot_procs: int = None):
@@ -231,7 +213,6 @@ def choose_queue(node_type: int, tot_procs: int = None):
     return OPTIONS, CODE_STRING
 
 
-
 def choose_queue_from_struct(structure, assign_dict: dict):
     """
     Choose the scheduler and aiida's computer and code options according
@@ -252,50 +233,79 @@ def choose_queue_from_struct(structure, assign_dict: dict):
         The CODE_STRING str is aiida code identifier.
     """
 
+    # Getting the number of atoms
     num_atom = len(structure.sites)
+
+    # Code_string is chosen among the list given by 'verdi code list'
+    keys_list = list(assign_dict.keys())
+    sort_keys_list = keys_list.copy()
+    sort_keys_list.append(num_atom)
+    sort_keys_list = sorted(sort_keys_list)
+    num_atom_posc = sort_keys_list.index(num_atom)
+
+    # If our target structure is larger than the maximum
+    if num_atom_posc == (len(sort_keys_list) - 1):
+        next_val = keys_list[num_atom_posc - 1]
+
+    # Every other case
+    elif num_atom_posc == 0:
+        next_val = keys_list[0]
+    else:
+        next_val = keys_list[num_atom_posc - 1]
+
+    # Getting our data for the the largest queue
+    queue_data = assign_dict.get(next_val, keys_list[-1])
+
     # Jobfile equivalent
     # In OPTIONS, we typically set scheduler options. See:
     # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
     OPTIONS = {}
     OPTIONS["account"] = ""
-    OPTIONS["qos"] = ""
-    OPTIONS["max_wallclock_seconds"] = 117280000
-    OPTIONS["max_memory_kb"] = 102400000
+    OPTIONS["qos"] = queue_data.get("qos", None)
+    OPTIONS["max_wallclock_seconds"] = queue_data.get("max_wallclock_seconds", None)
+    OPTIONS["max_memory_kb"] = queue_data.get("max_memory_kb", None)
 
-    # Code_string is chosen among the list given by 'verdi code list'
-    keys_list = list(assign_dict.keys())
-    keys_list.append(num_atom)
-    keys_list = sorted(keys_list)
-    num_atom_posc = keys_list.index(num_atom)
-
-    # If our target structure is larger than the maximum
-    if num_atom_posc == (len(keys_list)-1):
-        next_val = keys_list[num_atom_posc-1]
-    # Every other case
-    else:
-        next_val = keys_list[num_atom_posc+1]
-
-    # Getting our data for the correct queue or
-    # if not possible, the largest queue.
-    queue_data = assign_dict.get(next_val, keys_list[-1])
-    
     # Getting code string
     CODE_STRING = queue_data["code_string"]
     OPTIONS["resources"] = queue_data["options_resources"]
 
     # Getting options
     node_cpus = queue_data["node_cpus"]
-    mult_nodes = queue_data["multiple"]
-    OPTIONS["resources"]["tot_num_mpiprocs"] = node_cpus*mult_nodes
-    
-    return OPTIONS, CODE_STRING
 
+    mult_nodes = queue_data["multiple"]
+
+    # Specific setting for slurm scheduler
+    if queue_data.get("type") == "slurm":
+        OPTIONS["resources"]["num_cores_per_machine"] = node_cpus
+
+    OPTIONS["resources"]["tot_num_mpiprocs"] = node_cpus * mult_nodes
+
+    return OPTIONS, CODE_STRING, mult_nodes
 
 
 def select_kspacing(incar: dict, phase: str, kspacing: dict):
     incar["incar"]["kspacing"] = kspacing[phase]
 
     return incar
+
+
+def sort_chunk_size(chunk):
+    # Creating list for storing the number of atoms
+    size_list = []
+
+    # Gathering the number of atoms for every structure
+    # and adding it to the size_list
+    for it, row in chunk.iterrows():
+        size_list.append(len(row.structure.sites))
+
+    # Creating a new column for the atom number
+    chunk["num_atoms"] = size_list
+
+    # Sorting the chunk using the atom number, from
+    # small to large.
+    chunk.sort_values(by=["num_atoms"], inplace=True)
+
+    return chunk
 
 
 def generate_incar(phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT):
@@ -317,10 +327,10 @@ def generate_incar(phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT
         dictionary representation of the INCAR
     """
 
-    if calc_type.lower() == "relax":
+    if calc_type == "relax":
         incar = INCAR_RELAX
 
-    elif calc_type.lower() == "sp":
+    elif calc_type == "sp":
         incar = INCAR_SP
 
     incar = select_kspacing(incar, phase, kspacing)
@@ -440,67 +450,4 @@ def get_vdw_params(structure, incar):
 
 
 if __name__ == "__main__":
-    # TODO: Prepare a test dataframe with one structure from alpha and other from beta-prime
-    # TODO: Read the structures from the dataframe.
-    # TODO: Prepare INCAR. It should use the correct parameters. KSPACING inside.
-    # TODO: Prepare dft-d3.
-
-    # Iterating over the target structures and launching a separate
-    # vasp workchain for all of them.
-    for it, target_structure in enumerate(target_structures):
-        # TODO: Set phase correctly
-        phase = "Cu"
-
-        # Appending VDW parameters to INCAR
-        INCAR = get_vdw_params(target_structure, INCAR)
-
-        # Dictionary containing metadata for the calculation
-        metadata_dict = {
-            "label": f"Cu2-{it}-relaxation",
-            "description": "Testing convergence workchain using two Cu atoms.",
-        }
-
-        # Getting structure as a pymatgen structure
-        structure = StructureData(pymatgen=target_structure)
-
-        # Defining the vasp.relax workchain object
-        workchain = WorkflowFactory("vasp.converge")
-
-        # Preparing a builder object to be able to submit the workchain
-        # and pass inputs to it
-        builder = workchain.get_builder()
-
-        # Checking if the current phase is one that needs relaxation
-        if phase in ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]:
-            CONVERGE["relax"] = Bool(True)
-        else:
-            CONVERGE["relax"] = Bool(False)
-
-        # Passing the all inputs to the builder object
-        builder["code"] = Code.get_from_string(CODE_STRING)
-        builder["converge"] = CONVERGE
-        # builder["dynamics"] = SEL_DYNAMICS
-        builder["options"] = Dict(OPTIONS)
-        builder["parameters"] = Dict(INCAR)
-        builder["potential_family"] = Str(POTENTIAL_FAMILY)
-        builder["potential_mapping"] = Dict(POTENTIAL_MAPPING)
-        builder["structure"] = structure
-        builder["metadata"] = metadata_dict
-        builder["max_iterations"] = Int(500)
-        builder["verbose"] = Bool(True)
-        # builder["kpoints"] = KMESH
-
-        # builder["settings"]
-
-        # # Passing the relax inputs to the builder object
-        # for key in relax_dict.keys():
-        #     builder[key] = relax_dict[key]
-
-        # Submitting the calculation.
-        # Aiida should handle the scheduler, ssh connection and result
-        # retrieval if everything is configured
-        node = submit(builder)
-
-        ut.custom_print(
-            f"Launched workchain for Cu2-{it} structure - {node.id}", "debug"
-        )
+    ut.custom_print("This file is not intented to be run as a script.", "error")

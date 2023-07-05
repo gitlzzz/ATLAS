@@ -1,3 +1,5 @@
 __pycache__
 src/MatDBForge/tests
 secrets.json
+*.egg-info
+*.ipynb
