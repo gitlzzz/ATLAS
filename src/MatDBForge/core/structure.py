@@ -2,7 +2,6 @@ import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
 import uuid
 import pandas as pd
-import numpy as np
 
 
 class Structure:
