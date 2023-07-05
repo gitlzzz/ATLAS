@@ -1,6 +1,6 @@
 import time
 
-from MatDBForge.core import initial_db_utils as indb
+from MatDBForge.core import initial_db as indb
 from MatDBForge.core import utils as ut
 
 # Desired phases
@@ -27,8 +27,7 @@ RELAX_STRUCT_PATH = "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_i
 
 # Where to store the initial database once ready
 SAVE_PATH = (
-    # "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db"
-    "/tmp"
+    "/home/psanz/teklahome/projects/p2-CuZn/relaxed_structures_initialdb/initial_db"
 )
 
 current_time = time.strftime("%d%m%Y-%H%M%S")
