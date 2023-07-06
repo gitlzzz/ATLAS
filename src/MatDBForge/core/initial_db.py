@@ -668,12 +668,13 @@ class InitialDatabase:
                     temperature=np.nan,
                     perturb=False,
                     formula=material.composition_reduced,
-                    symmetry=material.symmetry,
+                    symmetry=material.get_space_group_info(),
                     base=True,
                     phase=curr_phase,
                     magnetic_properties=material.total_magnetization,
                     energy_per_atom=material.energy_per_atom,
                 )
+
 
                 self.df = curr_struct.save_to_db(self.df)
 
@@ -802,8 +803,8 @@ class InitialDatabase:
                     perturb=True,
                     supercell=entry.supercell,
                     replacement=entry.replacement,
-                    formula=entry.formula,
-                    symmetry=entry.symmetry,
+                    formula=new_struct_perturb.formula,
+                    symmetry=new_struct_perturb.get_space_group_info(),
                     temperature=entry.temperature,
                     calc_performed=False,
                 )
@@ -811,10 +812,14 @@ class InitialDatabase:
                 # Converting the structure to the appropiate type
                 if entry.bulk:
                     curr_struct_conv = mdf_struct.Bulk().from_mdb_structure(curr_struct)
+                    print('curr_struct_conv: ', curr_struct_conv)
+                    quit()
                 elif entry.surface:
                     curr_struct_conv = mdf_struct.Surface().from_mdb_structure(
                         curr_struct
                     )
+                    print('curr_struct_conv: ', curr_struct_conv)
+                    quit()
                 else:
                     raise NotImplementedError(
                         "This perturbation strategy is not implemented "
@@ -862,7 +867,7 @@ class InitialDatabase:
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=entry.formula,
-                    symmetry=entry.symmetry,
+                    symmetry=new_struct_perturb.get_space_group_info(),
                     temperature=entry.temperature,
                     calc_performed=False,
                 )
