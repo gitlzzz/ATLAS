@@ -107,25 +107,29 @@ class Structure:
     def __repr__(self):
         repr_str = ""
 
+        # Gathering name information
         if self.name:
-            repr_str += f"Structure - {self.name}\n"
+            repr_str += f"{self.__class__.__name__} - {self.name}\n"
             repr_str += f"{self.unique_id}\n"
         else:
             repr_str += f"Structure - {self.unique_id} (no name)\n"
 
+        # Gathing formula and phase
         if self.formula:
-            repr_str += f"{self.formula}"
+            repr_str += f"{self.formula} - "
         if self.phase:
-            repr_str += f" - {self.phase}\n"
+            repr_str += f"{self.phase}\n"
         else:
-            repr_str += " - unknown phase\n"
+            repr_str += "unknown phase\n"
 
+        # Gathering if the structure is a base or structure phase
         props = []
         if self.base:
             props.append("Base")
         elif self.perturb:
             props.append("Perturbed")
 
+        # Gathering the type of structure
         if self.bulk:
             props.append("Bulk")
         elif self.surface:
@@ -137,11 +141,12 @@ class Structure:
 
         repr_str += "\n"
 
+        # Gathering DFT data
         if self.calc_performed:
             repr_str += f"Obtained with DFT {self.calc_type} calculation:\n"
-            repr_str += f"\tEnergy {self.calc_energy}\n"
-            repr_str += f"\tFree energy {self.calc_energy_toten}\n"
-            repr_str += f"\tEnergy per atom: {self.calc_energy_per_atom}"
+            repr_str += f"\t - Energy {self.calc_energy}\n"
+            repr_str += f"\t - Free energy {self.calc_energy_toten}\n"
+            repr_str += f"\t - Energy per atom: {self.calc_energy_per_atom}"
 
         return repr_str
 
@@ -197,6 +202,8 @@ class Bulk(Structure):
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        # Setting the bulk property as True.
         self.bulk = True
 
     def from_mdb_structure(self, mdb_structure, new_structure=None, name=None):
