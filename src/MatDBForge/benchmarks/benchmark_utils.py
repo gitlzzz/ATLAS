@@ -42,12 +42,19 @@ def gen_kspacing_from_vasp_input(
     if poscar:
         read_poscar = poscar
 
+    # Computing kpt density
+    kpt_dens_arr = compute_kpt_density(kpoints=read_kpoints, poscar=read_poscar)
+
+    return kpt_dens_arr
+
+
+def compute_kpt_density(kpoints: Vasp.Kpoints, poscar: Vasp.Poscar):
     # Getting the kpoint density
     # Getting array of kpoints
-    arr_kpt_run = np.array(read_kpoints.kpts[0])
+    arr_kpt_run = np.array(kpoints.kpts[0])
 
     # Getting lattice vectors
-    l_mat = read_poscar.structure.lattice.matrix
+    l_mat = poscar.structure.lattice.matrix
 
     # Getting volume of the reciprocal cell
     v_mat = np.dot(np.cross(l_mat[0, :], l_mat[1, :]), l_mat[2, :])
