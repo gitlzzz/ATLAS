@@ -1,4 +1,5 @@
 import pymatgen.io.vasp as vasp
+from MatDBForge.core import initial_db as mdbu
 from pymatgen.core.units import Energy
 import uuid
 import pandas as pd
@@ -7,10 +8,10 @@ import pandas as pd
 class Structure:
     def __init__(
         self,
-        name: str = None,
+        material_name: str = None,
         structure=None,
         material_id=None,
-        phase: "Phase" = None,
+        phase: "mdbu.Phase" = None,
         base: bool = None,
         perturb: bool = None,
         supercell=None,
@@ -31,7 +32,7 @@ class Structure:
         calc_output=None,
     ):
         self.unique_id = uuid.uuid4()
-        self.name = name
+        self.material_name = material_name
         self.structure = structure
         self.material_id = material_id
         self.phase = phase
@@ -76,7 +77,7 @@ class Structure:
             temperature = float(vasprun.parameters["TEBEG"])
 
         generated_structure = Structure(
-            name=kwargs.get("name"),
+            material_name=kwargs.get("material_name"),
             structure=structure,
             material_id=kwargs.get("material_id"),
             phase=kwargs.get("phase"),
@@ -108,8 +109,8 @@ class Structure:
         repr_str = ""
 
         # Gathering name information
-        if self.name:
-            repr_str += f"{self.__class__.__name__} - {self.name}\n"
+        if self.material_name:
+            repr_str += f"{self.__class__.__name__} - {self.material_name}\n"
             repr_str += f"{self.unique_id}\n"
         else:
             repr_str += f"Structure - {self.unique_id} (no name)\n"
@@ -165,7 +166,7 @@ class Structure:
                 "magnetic_properties": self.magnetic_properties,
                 "energy_per_atom": self.calc_energy_per_atom,
                 "unique_id": self.unique_id,
-                "name": self.name,
+                "material_name": self.material_name,
                 "replacement": self.replacement,
                 "replacement_ind": self.replacement_ind,
                 "supercell": self.supercell,
@@ -206,11 +207,11 @@ class Bulk(Structure):
         # Setting the bulk property as True.
         self.bulk = True
 
-    def from_mdb_structure(self, mdb_structure, new_structure=None, name=None):
-        if name:
-            self.name = name
+    def from_mdb_structure(self, mdb_structure, new_structure=None, material_name=None):
+        if material_name:
+            self.material_name = material_name
         else:
-            self.name = mdb_structure.name
+            self.material_name = mdb_structure.material_name
 
         if new_structure:
             self.structure = new_structure
@@ -245,11 +246,11 @@ class Surface(Structure):
         super().__init__(**kwargs)
         self.surface = True
 
-    def from_mdb_structure(self, mdb_structure, new_structure=None, name=None):
-        if name:
-            self.name = name
+    def from_mdb_structure(self, mdb_structure, new_structure=None, material_name=None):
+        if material_name:
+            self.material_name = material_name
         else:
-            self.name = mdb_structure.name
+            self.material_name = mdb_structure.material_name
 
         if new_structure:
             self.structure = new_structure
