@@ -775,9 +775,13 @@ class InitialDatabase:
 
         # Applying displacement to all perturbed structures
         for idx, entry in target_entries.iterrows():
+
+            # Getting information from the current entry
             str_matid = entry.material_id
             str_phase = entry.phase
             curr_str = entry.structure
+
+            # Generating string for naming the current structure
             extra_info = ""
             if entry.supercell:
                 extra_info += f"_super-{self._get_miller_index_str(entry.supercell)}"
@@ -1227,9 +1231,11 @@ class CuZnInitialDatabase(InitialDatabase):
         self,
         structure: Structure,
         phase: Phase,
-        query_result: emmet.core.summary.SummaryDoc,
-        read: bool,
+        # query_result: emmet.core.summary.SummaryDoc,
+        # read: bool,
+        structure_obj: mdf_struct.Structure,
     ):
+        phase = structure_obj.phase
         curr_phase_atom = self.CUZN_PHASES.get_phase(phase).base_elem
         base_atom_set = list(self.ALLOY_SET - {curr_phase_atom})
 
@@ -1250,27 +1256,26 @@ class CuZnInitialDatabase(InitialDatabase):
             else:
                 sum_ind += 1
 
-        if read:
-            material_id_prefix = query_result.material_id.values[0]
-        else:
-            material_id_prefix = query_result.material_id
+        # else:
+        #     material_id_prefix = query_result.material_id
+        material_id_prefix = structure_obj.material_id
 
         # Generating the symmetrized structure
         new_struct_symm = mdf_struct.Structure(
             material_name=f"{material_id_prefix}_{phase.name}_symm",
             material_id=material_id_prefix,
             structure=structure,
-            temperature=query_result.temperature.values[0],
+            temperature=structure_obj.temperature,
             perturb=False,
             surface=False,
             base=False,
             cluster=False,
             calc_performed=False,
-            supercell=query_result.supercell.values[0],
+            supercell=structure_obj.supercell,
             phase=phase,
         )
 
-        if query_result.bulk.values[0]:
+        if structure_obj.bulk:
             final_struct = mdf_struct.Bulk().from_mdb_structure(
                 mdb_structure=new_struct_symm,
                 new_structure=structure,
@@ -1483,10 +1488,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Replacing some atoms using symmetry
             structure = self._create_symmetrical_prototype(
-                structure=structure,
-                phase=phase,
-                query_result=query_result,
-                read=read,
+                structure=structure, phase=phase, structure_obj=structure_obj
             )
             structure_len = len(structure.species)
 
@@ -1534,7 +1536,7 @@ class CuZnInitialDatabase(InitialDatabase):
                         base=False,
                         cluster=False,
                         calc_performed=False,
-                        supercell=query_result.supercell.values[0],
+                        supercell=structure_obj.supercell,
                         phase=phase,
                     )
 
@@ -1563,7 +1565,7 @@ class CuZnInitialDatabase(InitialDatabase):
         """
         if isinstance(miller_source, Slab):
             curr_miller = str(miller_source.miller_index)
-        elif isinstance(miller_source, np.ndarray):
+        elif isinstance(miller_source, (np.ndarray, list)):
             curr_miller = str(miller_source)
         elif isinstance(miller_source, str):
             curr_miller = miller_source
@@ -1575,6 +1577,7 @@ class CuZnInitialDatabase(InitialDatabase):
         for char in replace_chars:
             curr_miller = curr_miller.replace(char, "")
 
+        print("curr_miller: ", curr_miller)
         return curr_miller
 
     def _slab_to_bottom(
@@ -1880,7 +1883,6 @@ class CuZnInitialDatabase(InitialDatabase):
             # Saving the bulk to the db.
             self.df = curr_strct.save_to_db(self.df)
 
-
         # Getting supercells
         if get_supercells:
             for idx, (slab, mill) in enumerate(slabs_size):
@@ -1920,7 +1922,7 @@ class CuZnInitialDatabase(InitialDatabase):
                         # Saving the bulk to the db.
                         self.df = curr_strct.save_to_db(self.df)
 
-        return len(slabs_size)+len(super_list)
+        return len(slabs_size) + len(super_list)
         # return surf_name
 
     def _get_structs_current_phase(self, phase):
