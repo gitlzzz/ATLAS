@@ -1857,12 +1857,8 @@ class CuZnInitialDatabase(InitialDatabase):
         # Storing the remaining slabs.
         for idx, (slab, mill) in enumerate(slabs_size):
             # Getting the current slab's miller index
-            # curr_miller = self._get_miller_index_str(slab)
-
-            print('mill: ', mill)
             mill_str = self._get_miller_index_str(mill)
-            print('mill_str: ', mill_str)
-            quit()
+
             # Preparing the structure name
             surf_name = (
                 f"{prototype}_{phase.name}_pure_surface"
@@ -1884,7 +1880,6 @@ class CuZnInitialDatabase(InitialDatabase):
             # Saving the bulk to the db.
             self.df = curr_strct.save_to_db(self.df)
 
-        return len(slabs_size)
 
         # Getting supercells
         if get_supercells:
@@ -1906,7 +1901,7 @@ class CuZnInitialDatabase(InitialDatabase):
                         # Preparing the structure name
                         surf_name = (
                             f"{prototype}_{phase.name}_pure_surface-"
-                            f"{n_layers}-layers_{mill}-super-{self._get_miller_index_str(sup_vec)}"
+                            f"{n_layers}-layers_{n_at}-max-at_{self._get_miller_index_str(mill)}-super-{idx+1}"
                         )
 
                         # Creating a new surface from the supercell
@@ -1925,7 +1920,8 @@ class CuZnInitialDatabase(InitialDatabase):
                         # Saving the bulk to the db.
                         self.df = curr_strct.save_to_db(self.df)
 
-        return surf_name
+        return len(slabs_size)+len(super_list)
+        # return surf_name
 
     def _get_structs_current_phase(self, phase):
         # Getting all of the base structures
