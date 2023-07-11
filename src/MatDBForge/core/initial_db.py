@@ -16,10 +16,15 @@ from typing import Union
 
 import ase.io as aseio
 import catkit.gen.surface as cts
+import time
 import emmet
 import numpy as np
 import pandas as pd
 import pymatgen.io.vasp as vasp
+import rich.progress as riprg
+import rich.console as ricns
+import rich.align as rialg
+import rich.live as riliv
 from aiida import orm
 from dscribe.descriptors import SOAP
 from mp_api.client import MPRester
@@ -28,25 +33,13 @@ from pymatgen.core.structure import Lattice, Structure
 from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from rich.console import Group
-from rich.live import Live
-from rich.progress import (
-    BarColumn,
-    Column,
-    MofNCompleteColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-    track,
-)
 from slugify import slugify
 
 import MatDBForge.core.structure as mdf_struct
 from MatDBForge.core import exceptions as mdbex
 from MatDBForge.core import utils as ut
 
+# Filtering certain warnings
 warnings.filterwarnings("ignore", category=vasp.outputs.UnconvergedVASPWarning)
 
 
@@ -150,6 +143,11 @@ class BinaryPhaseDiagram:
             return self.phase_dict[name]
         else:
             raise AttributeError(f"'PhaseDiagram' object has no attribute '{name}'")
+
+
+# TODO: Imlpement this
+class TernaryPhaseDiagram:
+    ...
 
 
 class Phase:
@@ -392,7 +390,7 @@ class InitialDatabase:
         # Creating a pandas dataframe to store the structures
         df = pd.DataFrame(
             columns=[
-                "name",
+                "material_name",
                 "material_id",
                 "structure",
                 "phase",
@@ -573,7 +571,7 @@ class InitialDatabase:
             soap_structs = []
 
             structure_list = self.df.loc[self.df.phase == curr_phase].structure.values
-            name_list = self.df.loc[self.df.phase == curr_phase].name.values
+            name_list = self.df.loc[self.df.phase == curr_phase].material_name.values
 
             tot_structures = len(structure_list)
             tot_equival = 0
@@ -622,13 +620,15 @@ class InitialDatabase:
         )
 
         if delete:
-            base_struct_names = list(set(self.df.loc[self.df.base].name.values))
+            base_struct_names = list(
+                set(self.df.loc[self.df.base].material_name.values)
+            )
             unique_structs.extend(base_struct_names)
 
-            unique_structures_df = self.df[self.df.name.isin(unique_structs)]
+            unique_structures_df = self.df[self.df.material_name.isin(unique_structs)]
 
             unique_structures_df_drop = unique_structures_df.drop_duplicates(
-                subset=["name"],
+                subset=["material_name"],
                 keep="first",
                 # inplace=True,
             )
@@ -674,7 +674,6 @@ class InitialDatabase:
                     magnetic_properties=material.total_magnetization,
                     energy_per_atom=material.energy_per_atom,
                 )
-
 
                 self.df = curr_struct.save_to_db(self.df)
 
@@ -729,7 +728,7 @@ class InitialDatabase:
                 vasprun=curr_run,
                 base=True,
                 phase=curr_phase,
-                name=curr_name,
+                material_name=curr_name,
                 bulk=True,
                 perturb=False,
                 cluster=False,
@@ -767,11 +766,11 @@ class InitialDatabase:
         self.df.to_pickle(path=file_path)
         ut.custom_print(f"Database saved in {file_path}", "info")
 
-    def perturb_gauss(self, center: float = 0.04, repeat:int=5):
+    def perturb_gauss(self, center: float = 0.04, repeat: int = 5):
         # Getting all structures which are not perturbed
         target_entries = self.df.loc[
-            (~self.df.name.str.contains("_perturb"))
-            & (self.df.name.str.contains("_super"))
+            (~self.df.material_name.str.contains("_perturb"))
+            & (self.df.material_name.str.contains("_super"))
         ]
 
         # Applying displacement to all perturbed structures
@@ -783,7 +782,9 @@ class InitialDatabase:
             if entry.supercell:
                 extra_info += f"_super-{self._get_miller_index_str(entry.supercell)}"
             if entry.replacement:
-                extra_info += f"_repl-{entry.replacement_ind[0]}-{entry.replacement_ind[1]}" 
+                extra_info += (
+                    f"_repl-{entry.replacement_ind[0]}-{entry.replacement_ind[1]}"
+                )
 
             for perturb_repeat_idx in range(repeat):
                 # Applying displacement
@@ -795,7 +796,7 @@ class InitialDatabase:
 
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdf_struct.Structure(
-                    name=mat_str,
+                    material_name=mat_str,
                     structure=new_struct_perturb,
                     material_id=str_matid,
                     phase=str_phase,
@@ -812,14 +813,10 @@ class InitialDatabase:
                 # Converting the structure to the appropiate type
                 if entry.bulk:
                     curr_struct_conv = mdf_struct.Bulk().from_mdb_structure(curr_struct)
-                    print('curr_struct_conv: ', curr_struct_conv)
-                    quit()
                 elif entry.surface:
                     curr_struct_conv = mdf_struct.Surface().from_mdb_structure(
                         curr_struct
                     )
-                    print('curr_struct_conv: ', curr_struct_conv)
-                    quit()
                 else:
                     raise NotImplementedError(
                         "This perturbation strategy is not implemented "
@@ -828,7 +825,6 @@ class InitialDatabase:
 
                 # Saving the bulk to the db.
                 self.df = curr_struct_conv.save_to_db(self.df)
-
 
     def _apply_gauss_perturb(self, structure: Structure, center: float = 0.04):
         new_structure = structure.copy()
@@ -851,14 +847,16 @@ class InitialDatabase:
 
             # Applying the perturbation 'repeat' times.
             for perturb_repeat_idx in range(repeat):
-                # Applying displacement
+                # Applying displacement,
                 new_struct_perturb = self._apply_min_perturbation(structure=curr_str)
 
-                mat_str = f"{str_matid}_{str_phase.name}_perturb_min_{perturb_repeat_idx+1}"
+                mat_str = (
+                    f"{str_matid}_{str_phase.name}_perturb_min_{perturb_repeat_idx+1}"
+                )
 
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdf_struct.Structure(
-                    name=mat_str,
+                    material_name=mat_str,
                     structure=new_struct_perturb,
                     material_id=str_matid,
                     phase=str_phase,
@@ -887,7 +885,6 @@ class InitialDatabase:
 
                 # Saving the bulk to the db.
                 self.df = curr_struct_conv.save_to_db(self.df)
-
 
     def _apply_min_perturbation(
         self, structure: Structure, frac_max: float = 0.05, frac_min: float = 0.01
@@ -1206,7 +1203,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Creating a new bulk from the supercell
             curr_bulk = mdf_struct.Bulk(
-                name=f"{material_id_prefix}_{phase.name}_super-{idxs_str}",
+                material_name=f"{material_id_prefix}_{phase.name}_super-{idxs_str}",
                 material_id=material_id_prefix,
                 structure=structure,
                 temperature=query_result.temperature.values[0],
@@ -1260,7 +1257,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # Generating the symmetrized structure
         new_struct_symm = mdf_struct.Structure(
-            name=f"{material_id_prefix}_{phase.name}_symm",
+            material_name=f"{material_id_prefix}_{phase.name}_symm",
             material_id=material_id_prefix,
             structure=structure,
             temperature=query_result.temperature.values[0],
@@ -1526,14 +1523,14 @@ class CuZnInitialDatabase(InitialDatabase):
 
                     # Creating a new Bulk object for the structure with replacement
                     new_struct_symm = mdf_struct.Bulk(
-                        name=f"{prototype}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_{str_ind+1}_{repl+1}",
+                        material_name=f"{prototype}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_{str_ind+1}_{repl+1}",
                         material_id=prototype,
                         structure=new_structure,
                         temperature=query_result.temperature.values[0],
                         perturb=False,
                         surface=False,
                         replacement=True,
-                        replacement_ind=(str_ind+1, repl+1),
+                        replacement_ind=(str_ind + 1, repl + 1),
                         base=False,
                         cluster=False,
                         calc_performed=False,
@@ -1544,10 +1541,32 @@ class CuZnInitialDatabase(InitialDatabase):
                     self.df = new_struct_symm.save_to_db(self.df)
 
     def _get_miller_index_str(self, miller_source):
+        """
+        Generate a miller index string from several sources,
+        either a Slab structure, a numpy array with the indices
+        or a string.
+        The intended use of this string is for labeling structures
+        and helping identification.
+
+        Parameters
+        ----------
+        miller_source : Slab | np.ndarray | str
+            Information about the miller indices used to
+            generate the string.
+
+        Returns
+        -------
+        str
+            Miller indices coded as a string, without including brackets.
+            Negative signs are added in front of the symbols.
+
+        """
         if isinstance(miller_source, Slab):
             curr_miller = str(miller_source.miller_index)
         elif isinstance(miller_source, np.ndarray):
             curr_miller = str(miller_source)
+        elif isinstance(miller_source, str):
+            curr_miller = miller_source
         else:
             # Return None if the given structure is not a surface.
             return None
@@ -1789,20 +1808,18 @@ class CuZnInitialDatabase(InitialDatabase):
         fixed_layers,
         get_supercells,
     ):
+        # Filtering specific catkit warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
         n_layers = int(n_layers)
         n_at = int(n_at)
 
         slabs = []
-
         miller = cts.get_unique_indices(
             bulk=curr_bulk_ase,
             max_index=max_miller_index,
         )
 
-        # prof = profile.Profile()
-        # print("function: _make_clean_surf")
-        # t1 = time.time()
-        # prof.enable()
         slabs, miller_idx_slabs = self._make_clean_surf(
             bulk=curr_bulk_ase,
             n_layers=n_layers,
@@ -1842,7 +1859,10 @@ class CuZnInitialDatabase(InitialDatabase):
             # Getting the current slab's miller index
             # curr_miller = self._get_miller_index_str(slab)
 
+            print('mill: ', mill)
             mill_str = self._get_miller_index_str(mill)
+            print('mill_str: ', mill_str)
+            quit()
             # Preparing the structure name
             surf_name = (
                 f"{prototype}_{phase.name}_pure_surface"
@@ -1851,7 +1871,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Creating a new surface from the supercell
             curr_strct = mdf_struct.Surface(
-                name=surf_name,
+                material_name=surf_name,
                 material_id=prototype,
                 structure=slab,
                 temperature=np.nan,
@@ -1863,6 +1883,8 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Saving the bulk to the db.
             self.df = curr_strct.save_to_db(self.df)
+
+        return len(slabs_size)
 
         # Getting supercells
         if get_supercells:
@@ -1889,7 +1911,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
                         # Creating a new surface from the supercell
                         curr_strct = mdf_struct.Surface(
-                            name=surf_name,
+                            material_name=surf_name,
                             material_id=prototype,
                             structure=supercell_bottom,
                             temperature=np.nan,
@@ -1975,22 +1997,27 @@ class CuZnInitialDatabase(InitialDatabase):
             curr_bulk_ase = AseAtomsAdaptor().get_atoms(curr_bulk)
 
             # Preparing the progress bar
-            text_column = TextColumn(
-                "        {task.description}", table_column=Column()
+            text_column = riprg.TextColumn(
+                "        {task.description}", table_column=riprg.Column(ratio=3)
             )
-            bar_column = BarColumn(table_column=Column())
-            time_col = TimeElapsedColumn(table_column=Column())
-            spin_col = SpinnerColumn(table_column=Column())
-            remaining_col = MofNCompleteColumn(table_column=Column())
-            t_remaining_col = TimeRemainingColumn(table_column=Column())
-            empty_col = TextColumn("", table_column=Column(ratio=6))
+            rialg.Align(text_column.render, align="right")
+            bar_column = riprg.BarColumn(table_column=riprg.Column())
+            time_col = riprg.TimeElapsedColumn(table_column=riprg.Column())
+            spin_col = riprg.SpinnerColumn(table_column=riprg.Column())
+            remaining_col = riprg.MofNCompleteColumn(table_column=riprg.Column())
+            t_remaining_col = riprg.TimeRemainingColumn(table_column=riprg.Column())
+            empty_col = riprg.TextColumn("", table_column=riprg.Column())
 
-            overall_progress = Progress(
-                TextColumn(" [···]  {task.description}", table_column=Column()),
+            overall_progress = riprg.Progress(
+                riprg.TextColumn(
+                    " [···]  {task.description}",
+                    table_column=riprg.Column(ratio=3),
+                ),
                 bar_column,
                 time_col,
                 t_remaining_col,
                 remaining_col,
+                # expand=True,
             )
             total_slabs_gen = list(it.product(slab_sizes, max_atom_num_list[1:]))
             total_slabs = len(total_slabs_gen)
@@ -1999,13 +2026,19 @@ class CuZnInitialDatabase(InitialDatabase):
                 main_task_descr, total=int(total_slabs)
             )
 
-            job_progress = Progress(
-                text_column, bar_column, time_col, spin_col, empty_col, expand=True
+            job_progress = riprg.Progress(
+                text_column,
+                bar_column,
+                time_col,
+                spin_col,
+                empty_col,
+                # expand=True,
             )
 
-            group = Group(overall_progress, job_progress)
-            live = Live(group, refresh_per_second=4)
+            group = ricns.Group(overall_progress, job_progress)
+            live = riliv.Live(group, refresh_per_second=4)
 
+            total_slabs_generated = 0
             with live:
                 while not overall_progress.finished:
                     for n_layers, n_at in total_slabs_gen:
@@ -2014,7 +2047,7 @@ class CuZnInitialDatabase(InitialDatabase):
                             total=None,
                         )
 
-                        self.__gen_curr_surface(
+                        slab_amount = self.__gen_curr_surface(
                             phase=phase,
                             curr_bulk_ase=curr_bulk_ase,
                             n_layers=n_layers,
@@ -2023,10 +2056,14 @@ class CuZnInitialDatabase(InitialDatabase):
                             fixed_layers=fixed_layers,
                             get_supercells=get_supercells,
                         )
+
+                        total_slabs_generated += slab_amount
                         job_progress.update(sub_task, total=1)
                         job_progress.advance(sub_task, advance=1)
 
                         overall_progress.advance(overall_task, advance=1)
+
+            ut.custom_print(f"Generated {total_slabs_generated} surfaces.", "done")
 
     def _get_main_elem_perc(self, phase: Phase, structure):
         """
@@ -2315,7 +2352,7 @@ class CuZnInitialDatabase(InitialDatabase):
     def _add_entry_to_n2p2_input(self, buffer: TextIOWrapper, data_dict: dict):
         # Writing begin keyword and structure name
         buffer.write("begin\n")
-        buffer.write(f'comment {data_dict.get("name","no name found")}\n')
+        buffer.write(f'comment {data_dict.get("material_name","no name found")}\n')
 
         # Getting lattice parameters and converting them to Bohr
         lat_x = data_dict["lattice"][0]
@@ -2388,7 +2425,9 @@ class CuZnInitialDatabase(InitialDatabase):
         # Writing the file
         with open(path, "w") as curr_f:
             # Checking every node
-            for node in track(result_nodes, description=" [ ⧖ ]  Writing info..."):
+            for node in riprg.track(
+                result_nodes, description=" [ ⧖ ]  Writing info..."
+            ):
                 # Gathering the information from each node
                 data_dict = self._gather_n2p2_reqdata_from_node(node=node)
 
@@ -2432,7 +2471,7 @@ class CuZnInitialDatabase(InitialDatabase):
     #     charge = 0
 
     #     data_dict = {
-    #         "name": name,
+    #         "material_name": name,
     #         "lattice": lattice,
     #         "atoms": atoms,
     #         "pot_energy": pot_energy,
@@ -2443,7 +2482,7 @@ class CuZnInitialDatabase(InitialDatabase):
     #     # Writing begin keyword and structure name
     #     with lock:
     #         buffer.write("begin\n")
-    #         buffer.write(f'comment {data_dict.get("name","no name found")}\n')
+    #         buffer.write(f'comment {data_dict.get("material_name","no name found")}\n')
 
     #         # Getting lattice parameters and converting them to Bohr
     #         lat_x = data_dict["lattice"].matrix[0] * self.Ang2Bohr
