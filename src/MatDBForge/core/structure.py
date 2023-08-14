@@ -1,7 +1,7 @@
 import pymatgen.io.vasp as vasp
-from MatDBForge.core import initial_db as mdbu
 from pymatgen.core.units import Energy
 import uuid
+import warnings
 import pandas as pd
 
 
@@ -11,7 +11,7 @@ class Structure:
         material_name: str = None,
         structure=None,
         material_id=None,
-        phase: "mdbu.Phase" = None,
+        phase = None,
         base: bool = None,
         perturb: bool = None,
         supercell=None,
@@ -30,6 +30,7 @@ class Structure:
         calc_performed=False,
         calc_type=None,
         calc_output=None,
+        surface_miller=None,
     ):
         self.unique_id = uuid.uuid4()
         self.material_name = material_name
@@ -40,6 +41,7 @@ class Structure:
         self.perturb = perturb
         self.supercell = supercell
         self.surface = surface
+        self.surface_miller = surface_miller
         self.bulk = bulk
         self.replacement = replacement
         self.replacement_ind = replacement_ind
@@ -162,6 +164,7 @@ class Structure:
                 "symmetry": self.symmetry,
                 "base": self.base,
                 "surface": self.surface,
+                "surface_miller": self.surface_miller,
                 "phase": self.phase,
                 "magnetic_properties": self.magnetic_properties,
                 "energy_per_atom": self.calc_energy_per_atom,
@@ -192,7 +195,10 @@ class Structure:
             }
         )
 
-        df = pd.concat([df, new_row], ignore_index=True)
+        # TODO: Restore FutureWarning.
+        with warnings.catch_warnings():
+            warnings.simplefilter(action='ignore', category=FutureWarning)
+            df = pd.concat([df, new_row], ignore_index=True)
 
         return df
 
@@ -245,8 +251,8 @@ class Surface(Structure):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.surface = True
-
-    def from_mdb_structure(self, mdb_structure, new_structure=None, material_name=None):
+        
+    def from_mdb_structure(self, mdb_structure, surface_miller, new_structure=None, material_name=None):
         if material_name:
             self.material_name = material_name
         else:
@@ -256,13 +262,14 @@ class Surface(Structure):
             self.structure = new_structure
         else:
             self.structure = mdb_structure.structure
-
+    
         self.material_id = mdb_structure.material_id
         self.phase = mdb_structure.phase
         self.base = mdb_structure.base
         self.perturb = mdb_structure.perturb
         self.supercell = mdb_structure.supercell
         self.surface = mdb_structure.surface
+        self.surface_miller = surface_miller
         self.bulk = mdb_structure.surface
         self.cluster = mdb_structure.cluster
         self.formula = mdb_structure.formula

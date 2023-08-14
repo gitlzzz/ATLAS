@@ -2,6 +2,7 @@
 import logging
 import time
 
+logging.basicConfig(level='CRITICAL') 
 
 def custom_print(string: str, print_type: str = "default", end="\n"):
 
@@ -44,4 +45,4 @@ def custom_print(string: str, print_type: str = "default", end="\n"):
     if print_type in ["error", "problem"]:
         prefix = "\u001b[38;5;1m [ X ]"
         print(f"{prefix}{normal}\t{string}", end=end)
-        logging.critical(string)
+        logging.error(string)

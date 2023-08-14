@@ -16,17 +16,16 @@ from typing import Union
 
 import ase.io as aseio
 import catkit.gen.surface as cts
-import time
-import emmet
 import numpy as np
 import pandas as pd
 import pymatgen.io.vasp as vasp
-import rich.progress as riprg
-import rich.console as ricns
 import rich.align as rialg
+import rich.console as ricns
 import rich.live as riliv
+import rich.progress as riprg
 from aiida import orm
 from dscribe.descriptors import SOAP
+from dscribe.kernels import AverageKernel
 from mp_api.client import MPRester
 from pymatgen.core.periodic_table import Element, Species
 from pymatgen.core.structure import Lattice, Structure
@@ -250,6 +249,11 @@ class Phase:
             return True
         else:
             return False
+
+    def get_base_elem_perc(self, structure) -> float:
+        comp_dict = structure.composition.fractional_composition.as_dict()
+        comp_base = comp_dict.get(self.base_elem.symbol, 0.0)
+        return comp_base
 
 
 class InitialDatabase:
@@ -535,115 +539,320 @@ class InitialDatabase:
         else:
             return False
 
+    # def old_find_repeat_structures(
+    #     self,
+    #     delete=False,
+    #     filters: list = None,
+    # ):
+    #     # Filtering the dataframe
+    #     # Filters allow to select certain subsets of structures
+    #     # from the database.
+    #     filtered_df = self.df
+    #     remaining_df = self.df
+    #     for filt in filters:
+    #         filtered_df = filtered_df.loc[filtered_df[filt]]
+    #         remaining_df = remaining_df.loc[~remaining_df[filt]]
+
+    #     # Getting the unique phases in the dataframe
+    #     phase_list = filtered_df.phase.unique()
+
+    #     # Getting the species from the current phase diagram
+    #     species = CuZnInitialDatabase.ALLOY_SET
+    #     species_str_list = [spec.symbol for spec in species]
+
+    #     # Setting SOAP related parameters
+    #     r_cut = 6
+    #     r_cut = 6
+    #     n_max = 8
+    #     l_max = 6
+
+    #     tot_duplicate_name_list = []
+    #     # Getting the total number of structures
+    #     df_total_struct_list = len(filtered_df.structure.values)
+
+    #     # Computing SOAP for every phase
+    #     for curr_phase in phase_list:
+    #         # Setting up the SOAP descriptor
+    #         soap = SOAP(
+    #             species=species_str_list,
+    #             periodic=True,
+    #             r_cut=r_cut,
+    #             n_max=n_max,
+    #             l_max=l_max,
+    #             # average="inner",
+    #             sparse=False,
+    #         )
+
+    #         soap_structs = []
+
+    #         # Getting the current structures
+    #         structure_list = filtered_df[
+    #             filtered_df.phase == curr_phase
+    #         ].structure.values
+
+    #         # Getting the names fo the current structures
+    #         name_list = filtered_df[
+    #             filtered_df.phase == curr_phase
+    #         ].material_name.values
+
+    #         # Getting the total structure count
+    #         tot_structures = len(structure_list)
+
+    #         # Counter for the total equivalent structure number
+    #         tot_equival = 0
+
+    #         for pym_struct in structure_list:
+    #             ase_struct = AseAtomsAdaptor().get_atoms(pym_struct)
+
+    #             # Create output for multiple systems in parallel
+    #             struct_soap = soap.create(ase_struct, n_jobs=-1, verbose=True)
+    #             print("struct_soap: ", struct_soap)
+
+    #             curr_feat_sum = struct_soap.sum()
+
+    #             soap_structs.append(curr_feat_sum)
+
+    #         soap_arr = np.array(soap_structs)
+    #         dupl_list = []
+    #         for soap in soap_structs:
+    #             curr_soap_arr = np.array(soap)
+    #             comp_arr = np.isclose(curr_soap_arr, soap_arr, rtol=7.5e-04, atol=5e-05)
+
+    #             if np.count_nonzero(comp_arr) > 1:
+    #                 dupl_list.append(soap)
+
+    #             soap_arr = soap_arr[~comp_arr]
+
+    #         tot_equival = len(dupl_list)
+    #         dupl_names = []
+
+    #         dupl_list = set(dupl_list)
+    #         for dup in dupl_list:
+    #             soap_1_name = name_list[soap_structs.index(dup)]
+    #             dupl_names.append(soap_1_name)
+    #             tot_duplicate_name_list.append(soap_1_name)
+
+    #         ut.custom_print(
+    #             f"Total selected structures: {tot_structures}, equivalent: {tot_equival} "
+    #             f"({(tot_equival/tot_structures)*100:.2f}%)",
+    #             "debug",
+    #         )
+
+    #     duplicate_structures = tot_duplicate_name_list
+    #     print("duplicate_structures: ", duplicate_structures)
+
+    #     if delete:
+    #         ut.custom_print(
+    #             f"{len(duplicate_structures)} structures marked for deletion.",
+    #             "debug",
+    #         )
+
+    #         # base_struct_names = list(
+    #         #     set(self.df.loc[self.df.base].material_name.values)
+    #         # )
+    #         # duplicate_structures.extend(base_struct_names)
+
+    #         print("filtered_df: ", filtered_df.shape)
+    #         # duplicate_structures_df = filtered_df[~filtered_df.material_name.isin(duplicate_structures)]
+
+    #         # TODO: Check if this works and then drop the matching idx.
+    #         for idx, row in filtered_df.iterrows():
+    #             # print('idx: ', idx)
+    #             for name in duplicate_structures:
+    #                 if name == row.material_name:
+    #                     break
+    #             else:
+    #                 # print(name)
+    #                 pass
+
+    #         duplicate_structures_df = filtered_df.loc[
+    #             ~filtered_df["material_name"].isin(duplicate_structures)
+    #         ]
+    #         print("duplicate_structures_df: ", duplicate_structures_df["material_name"])
+    #         print("unique_structures_df: ", duplicate_structures_df.shape)
+    #         # quit()
+
+    #         # unique_structures_df_drop = unique_structures_df.drop_duplicates(
+    #         #     subset=["material_name"],
+    #         #     keep="first",
+    #         #     # inplace=True,
+    #         # )
+    #         # print('unique_structures_df_drop: ', unique_structures_df_drop.shape)
+
+    #         unique_structures_df_drop = pd.concat(
+    #             (remaining_df, duplicate_structures_df)
+    #         )
+    #         print("unique_structures_df_drop concat: ", unique_structures_df_drop.shape)
+
+    #         # for idx, row in unique_structures_df_drop.iterrows():
+    #         #     poscar = vasp.Poscar(row.structure)
+    #         #     poscar.write_file(f'/tmp/export_poscars_test/{row.material_name}.poscar')
+    #         # quit()
+
+    #         # print("unique_structures_df: ", unique_structures_df)
+
+    #         self.df = unique_structures_df_drop
+    #         ut.custom_print(
+    #             f"Deleted {len(duplicate_structures)} structures.",
+    #             "warn",
+    #         )
+
+    #     else:
+    #         ut.custom_print(
+    #             f"{len(duplicate_structures)} repeated structures found. "
+    #             "Database untouched as 'delete' is set to False.",
+    #             "info",
+    #         )
+
     def find_repeat_structures(
         self,
         delete=False,
+        filters: list = None,
+        phase: Phase = None,
     ):
-        # Getting the unique phases in the dataframe
-        phase_list = self.df.phase.unique()
+        # Filtering the dataframe
+        # Filters allow to select certain subsets of structures
+        # from the database.
+        filtered_df = self.df
+        remaining_df = self.df
 
+        if filters:
+            for filt in filters:
+                if isinstance(filt, tuple):
+                    filtered_df = filtered_df.loc[
+                        (filtered_df[filt[0]]) & (filtered_df[filt[1]])
+                    ]
+
+                    remaining_df = remaining_df.loc[~((remaining_df[filt[0]]) & (remaining_df[filt[1]]))]
+
+                else:
+                    filtered_df = filtered_df.loc[filtered_df[filt]]
+                    remaining_df = remaining_df.loc[~remaining_df[filt]]
+
+        # Getting which phases to check from the user.
+        phase_list = []
+        if phase:
+            if isinstance(phase, list):
+                for curr_phase in phase:
+                    if isinstance(curr_phase, "str"):
+                        curr_phase = self.CUZN_PHASES.get_phase(phase)
+
+                    phase_list.append(curr_phase)
+
+            else:
+                if isinstance(phase, str):
+                    phase = self.CUZN_PHASES.get_phase(phase)
+                phase_list = [phase]
+
+        # If no phase is given, getting the unique phases in the dataframe
+        else:
+            phase_list = filtered_df.phase.unique()
+
+        # Getting the species from the current phase diagram
         species = CuZnInitialDatabase.ALLOY_SET
         species_str_list = [spec.symbol for spec in species]
+
+        # Setting SOAP related parameters
+        r_cut = 6
         r_cut = 6
         n_max = 8
         l_max = 6
 
-        tot_unique_name_list = []
-        df_total_struct_list = len(self.df.structure.values)
+        # Setting up the SOAP descriptor
+        soap = SOAP(
+            species=species_str_list,
+            periodic=True,
+            r_cut=r_cut,
+            n_max=n_max,
+            l_max=l_max,
+            # average="inner",
+            sparse=False,
+        )
 
+        # The uuids of the repeated structues will be stored.
+        tot_duplicate_uuid_list = []
+
+        # Computing SOAP for every phase
         for curr_phase in phase_list:
-            # Setting up the SOAP descriptor
-            soap = SOAP(
-                species=species_str_list,
-                periodic=True,
-                r_cut=r_cut,
-                n_max=n_max,
-                l_max=l_max,
-                # average="inner",
-                sparse=False,
-            )
-
-            ut.custom_print(
-                f"Checking for repeated structures for phase '{curr_phase.name}'...",
-                "info",
-            )
-
+            # This list will contain the descriptors for every structure
             soap_structs = []
 
-            structure_list = self.df.loc[self.df.phase == curr_phase].structure.values
-            name_list = self.df.loc[self.df.phase == curr_phase].material_name.values
+            # Getting the current structures
+            structure_list = filtered_df[
+                filtered_df.phase == curr_phase
+            ].structure.values
 
+            # Getting the names fo the current structures
+            uuid_list = filtered_df[filtered_df.phase == curr_phase].unique_id.values
+
+            # Getting the total structure count
             tot_structures = len(structure_list)
+
+            # Counter for the total equivalent structure number
             tot_equival = 0
 
             for pym_struct in structure_list:
+                # Converting to ase stuctuer
                 ase_struct = AseAtomsAdaptor().get_atoms(pym_struct)
 
-                # Create output for multiple system in parallel
+                # Create soap descriptors for current system and storing it
                 struct_soap = soap.create(ase_struct, n_jobs=-1, verbose=True)
+                soap_structs.append(struct_soap)
 
-                curr_feat_sum = struct_soap.sum()
+            # Calculating similarity with an average kernel and a gaussan metric. The
+            # result will be a full similarity matrix.
+            kernel = AverageKernel(metric="rbf", gamma=1)
+            simi_matrix = kernel.create(soap_structs)
 
-                soap_structs.append(curr_feat_sum)
+            # Checking every structure in the similarity matrix.
+            # Similarity goes from 0 to 1. If a structure is very close to 1, it
+            # will return a True in the mask. There will be always one matching
+            # structure, as the algorithm compares the structure with itself.
 
-            soap_arr = np.array(soap_structs)
-            dupl_list = []
-            for soap in soap_structs:
-                curr_soap_arr = np.array(soap)
-                comp_arr = np.isclose(curr_soap_arr, soap_arr, rtol=7.5e-04, atol=5e-05)
+            for struct_idx, row in enumerate(simi_matrix):
+                row_n_repeat = np.count_nonzero(np.isclose(row, 1)) - 1
 
-                if np.count_nonzero(comp_arr) > 1:
-                    dupl_list.append(soap)
-                soap_arr = soap_arr[~comp_arr]
-
-            tot_equival = len(dupl_list)
-            dupl_names = []
-
-            dupl_list = set(dupl_list)
-            for dup in dupl_list:
-                soap_1_name = name_list[soap_structs.index(dup)]
-                dupl_names.append(soap_1_name)
-                tot_unique_name_list.append(soap_1_name)
+                # If the structure is repeated, get its name
+                if row_n_repeat > 0:
+                    tot_duplicate_uuid_list.append(uuid_list[struct_idx])
+                    tot_equival += 1
 
             ut.custom_print(
-                f"Total structures: {tot_structures}, not equivalent: {tot_equival} "
+                f"Phase '{curr_phase.name}' - Total selected structures: {tot_structures}, equivalent: {tot_equival} "
                 f"({(tot_equival/tot_structures)*100:.2f}%)",
                 "debug",
             )
+
+        duplicate_structure_names = tot_duplicate_uuid_list
+
+        # If the deletion flag is set, the function will delete the duplicate stuctures.
+        if delete:
             ut.custom_print(
-                f"{tot_structures - len(dupl_list)} structures marked for deletion.",
+                f"{len(duplicate_structure_names)} structures marked for deletion.",
                 "debug",
             )
 
-        unique_structs = list(
-            set([name for name in tot_unique_name_list if "super" in name])
-        )
+            # Getting the dataframe entries that match the stored uuids
+            mat_name_match_mask = filtered_df.isin(
+                {"unique_id": duplicate_structure_names}
+            )["unique_id"]
+            duplicate_structures_df = filtered_df[mat_name_match_mask]
 
-        if delete:
-            base_struct_names = list(
-                set(self.df.loc[self.df.base].material_name.values)
-            )
-            unique_structs.extend(base_struct_names)
+            # Dropping the matching entries
+            filtered_df = filtered_df.drop(duplicate_structures_df.index)
 
-            unique_structures_df = self.df[self.df.material_name.isin(unique_structs)]
+            init_df_after_removal = pd.concat([remaining_df, filtered_df])
 
-            unique_structures_df_drop = unique_structures_df.drop_duplicates(
-                subset=["material_name"],
-                keep="first",
-                # inplace=True,
-            )
+            self.df = init_df_after_removal
 
-            # print("unique_structures_df: ", unique_structures_df)
-
-            self.df = unique_structures_df_drop
             ut.custom_print(
-                f"Deleted {df_total_struct_list - len(unique_structs)} structures.",
+                f"Deleted {len(duplicate_structures_df)} structures.",
                 "warn",
             )
 
         else:
             ut.custom_print(
-                f"{len(unique_structs)} repeated structures found. "
+                f"{len(duplicate_structures_df)} repeated structures found. "
                 "Database untouched as 'delete' is set to False.",
                 "info",
             )
@@ -766,16 +975,36 @@ class InitialDatabase:
         self.df.to_pickle(path=file_path)
         ut.custom_print(f"Database saved in {file_path}", "info")
 
-    def perturb_gauss(self, center: float = 0.04, repeat: int = 5):
+    def _apply_user_filters(self, filters: list, target_entries: pd.DataFrame):
+        # Creating a empty DataFrame with the same column dtypes but no entries.
+        target_entries_filter = target_entries[0:0]
+
+        # Iterating over every filter type and getting each related structure,
+        # which will get concatenated to the empty dataframe
+        for fil in filters:
+            filter_entries = target_entries.loc[target_entries[fil]]
+            target_entries_filter = pd.concat((target_entries_filter, filter_entries))
+
+        return target_entries_filter
+
+    def perturb_gauss(
+        self, center: float = 0.04, repeat: int = 5, filters: list = None
+    ):
         # Getting all structures which are not perturbed
-        target_entries = self.df.loc[
-            (~self.df.material_name.str.contains("_perturb"))
-            & (self.df.material_name.str.contains("_super"))
-        ]
+        target_entries = self.df.loc[(~self.df.material_name.str.contains("_perturb"))]
+
+        # Applying user specified filters
+        if filters:
+            target_entries = self._apply_user_filters(filters, target_entries)
+
+        ut.custom_print(f"Applying filters {filters} for perturbation.")
+        ut.custom_print(
+            f"{len(target_entries)*repeat} perturbed entries will be added.", "debug"
+        )
 
         # Applying displacement to all perturbed structures
         for idx, entry in target_entries.iterrows():
-
+            # print('entry: ', entry)
             # Getting information from the current entry
             str_matid = entry.material_id
             str_phase = entry.phase
@@ -796,7 +1025,7 @@ class InitialDatabase:
                     center=center, structure=curr_str
                 )
 
-                mat_str = f"{str_matid}_{str_phase.name}{extra_info}_perturb_gauss_{perturb_repeat_idx+1}"
+                mat_str = f"{entry.material_name}_perturb_gauss_{perturb_repeat_idx+1}"
 
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdf_struct.Structure(
@@ -819,7 +1048,8 @@ class InitialDatabase:
                     curr_struct_conv = mdf_struct.Bulk().from_mdb_structure(curr_struct)
                 elif entry.surface:
                     curr_struct_conv = mdf_struct.Surface().from_mdb_structure(
-                        curr_struct
+                        curr_struct,
+                        entry.surface_miller,
                     )
                 else:
                     raise NotImplementedError(
@@ -837,7 +1067,10 @@ class InitialDatabase:
         return new_structure
 
     def perturb_min_displacement(
-        self, frac_max: float = 0.05, frac_min: float = 0.01, repeat=5
+        self,
+        frac_max: float = 0.05,
+        frac_min: float = 0.01,
+        repeat=5,
     ):
         # Getting all relaxed structures
         target_entries = self.df.loc[self.df.base]
@@ -1171,9 +1404,12 @@ class CuZnInitialDatabase(InitialDatabase):
         # Reading structure from database
         if read:
             ut.custom_print("Using structure from the db as template...", "debug")
-            query_result = self.df.loc[self.df.phase == phase]
-            material_id_prefix = query_result.material_id.values[0]
-            structure = query_result.structure.values[0]
+            try:
+                query_result = self.df.loc[self.df.phase == phase]
+                material_id_prefix = query_result.material_id.values[0]
+                structure = query_result.structure.values[0]
+            except IndexError:
+                raise mdbex.BaseStructureNotFound()
 
         # Querying CuZn alpha prototype structure
         else:
@@ -1296,11 +1532,11 @@ class CuZnInitialDatabase(InitialDatabase):
             offset = phase.offset
 
             # Randomly generating base_elem percentages for the new structures
-            max_base_elem = (phase.base_elem_comp_min) + offset
+            max_base_elem = (phase.base_elem_comp_max) + offset
             if max_base_elem > 1:
                 max_base_elem = 1
 
-            min_base_elem = (phase.base_elem_comp_max) - offset
+            min_base_elem = (phase.base_elem_comp_min) - offset
             if min_base_elem < 0:
                 min_base_elem = 0
 
@@ -1318,8 +1554,36 @@ class CuZnInitialDatabase(InitialDatabase):
 
         return subst_base_elem_perc
 
-    def _gen_perc_surfaces(self, phase, num_struct, current_perc):
-        print("\ncurrent_perc Zn: ", current_perc)
+    def _gen_perc_surfaces(
+        self,
+        phase: Phase,
+        num_struct: int,
+        current_perc: float,
+        relative=True,
+    ) -> list:
+        """
+        Generate num_struct percentages for a structure in a given phase.
+        The percentages represent the ratio of the base element of the
+        structure's phase.
+
+        Parameters
+        ----------
+        phase : Phase
+            Phase that will be used to define the limits of the percentage values by
+            checking its base_elem range.
+        num_struct : int
+            Number of percentages that will be generated
+        current_perc : float
+            Percentage of the current structure
+        relative : bool, optional
+            Whether to return the percentages by themselves or relative
+            to the percentage of the current structure, by default True
+
+        Returns
+        -------
+        list[float]
+            List of floats containing the generated percentages.
+        """
 
         # Getting offset. If not found set to 0.
         offset = phase.offset
@@ -1337,11 +1601,11 @@ class CuZnInitialDatabase(InitialDatabase):
             size=num_struct
         ) + max_base_elem
 
-        print("subst_base_elem_perc: ", subst_base_elem_perc)
-        adjusted_perc = [(per - current_perc) for per in subst_base_elem_perc]
-        print("adjusted_perc: ", adjusted_perc)
-
-        return adjusted_perc
+        if relative:
+            adjusted_perc = [(per - current_perc) for per in subst_base_elem_perc]
+            return adjusted_perc
+        else:
+            return subst_base_elem_perc
 
     def _fit_replacements_phase(
         self,
@@ -1386,27 +1650,66 @@ class CuZnInitialDatabase(InitialDatabase):
 
         return n_at_replacement_upd
 
-    def _apply_replacement(self, structure, phase, structure_len, n_atoms, rng):
+    def _apply_replacement(self, structure: Structure, phase, n_atoms: int, rng=None):
+        if not rng:
+            rng = np.random.default_rng()
+
+        if isinstance(
+            structure, (mdf_struct.Structure, mdf_struct.Surface, mdf_struct.Bulk)
+        ):
+            # structure_obj = structure
+            structure = structure.structure
+
+        structure_len = len(structure.species)
+        curr_comp = structure.composition
+
+        # We assume that if the n_atoms is a fractional number, it must
+        # represent the ratio of atoms in the structure, so we convert
+        # that to a number of atoms.
+        if isinstance(n_atoms, float) and n_atoms < 1:
+            n_atoms = int(n_atoms * structure_len)
+
+        # If no replacements are going to be made, this is probably due to
+        # a low percentage being rounded to 0, thus we attempt to make at
+        # least one replacement.
+        if n_atoms == 0:
+            n_atoms = 1
+
         # Getting current structure composition information
         # The current procedure assumes that all of the atom species in the structure
-        # will have been replaced beforehand with the base atom.
-        # Although this results in more randomness.
-        curr_comp = structure.composition
+        # will have been replaced beforehand with the base atom,
+        # although this results in more randomness.
         base_elem = phase.base_elem
         (other_elem,) = CuZnInitialDatabase.ALLOY_SET - {base_elem}
 
-        # Getting how many base atoms must be changed in order for the
-        # structure to meet the current percentage requirements
-        target_atoms_base = n_atoms - curr_comp[base_elem]
+        # If the structure only has one type of Element, and that is not the base
+        # element, this changes with what to replace.
+        if not curr_comp.as_dict().get(base_elem.symbol):
+            base_elem = structure.composition.elements[0]
+            (other_elem,) = CuZnInitialDatabase.ALLOY_SET - {base_elem}
+            # base_elem, other_elem = other_elem, base_elem
+            # target_atoms_base = n_atoms
+            other_atom_change = n_atoms
 
-        # base_atom_change = int(curr_comp[base_elem] + target_atoms_base)
+        else:
+            # print('\nelse')
+            # print(structure.formula)
+            # print('n_atoms', n_atoms)
+            # Getting how many base atoms must be changed in order for the
+            # structure to meet the current percentage requirements.
+            # target_atoms_base = n_atoms - curr_comp[base_elem]
+            target_atoms_base = curr_comp[base_elem] - abs(n_atoms)
+            # print('target_atoms_base: ', target_atoms_base)
 
-        # Getting how many atoms of the other element must be changed
-        other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
+            # Getting how many atoms of the other element must be changed
+            other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
+            # print('other_atom_change: ', other_atom_change)
 
         # Choosing which species of the structure to change with the other atom.
+        # print('structure_len: ', structure_len)
+        # print('abs(int(other_atom_change)): ', abs(int(other_atom_change)))
         other_elem_choices = rng.choice(
-            a=len(structure.species),
+            a=structure_len,
             size=abs(int(other_atom_change)),
             replace=False,
             shuffle=True,
@@ -1490,13 +1793,11 @@ class CuZnInitialDatabase(InitialDatabase):
             structure = self._create_symmetrical_prototype(
                 structure=structure, phase=phase, structure_obj=structure_obj
             )
-            structure_len = len(structure.species)
 
             # Preparing an array of randomly generated base elem percentages
             # for the new structures
             subst_base_elem_perc = self._gen_base_elem_perc(phase, num_struct)
 
-            # TODO: Is this true?
             # Choosing the amount of atoms to replace with the base element in the
             # struct which at this point will be completely replaced by atoms
             # of the remaining species of the alloy.
@@ -1512,20 +1813,21 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Replacing the atoms and generate 'num_replacements'
             # structures for each percentage
-
             for str_ind, n_atoms in enumerate(n_at_replacement_upd):
                 for repl in range(num_repeats):
                     # Applying the replacement
                     new_structure = self._apply_replacement(
-                        structure, phase, structure_len, n_atoms, rng
+                        structure, phase, n_atoms, rng
                     )
 
                     # Getting the supercell vector
-                    supercell_vec_str = "".join(map(str, structure_obj.supercell))
+                    supercell_vec_str = self._get_miller_index_str(
+                        structure_obj.supercell
+                    )
 
                     # Creating a new Bulk object for the structure with replacement
                     new_struct_symm = mdf_struct.Bulk(
-                        material_name=f"{prototype}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_{str_ind+1}_{repl+1}",
+                        material_name=f"{prototype}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
                         material_id=prototype,
                         structure=new_structure,
                         temperature=query_result.temperature.values[0],
@@ -1565,8 +1867,10 @@ class CuZnInitialDatabase(InitialDatabase):
         """
         if isinstance(miller_source, Slab):
             curr_miller = str(miller_source.miller_index)
-        elif isinstance(miller_source, (np.ndarray, list)):
+        elif isinstance(miller_source, np.ndarray):
             curr_miller = str(miller_source)
+        elif isinstance(miller_source, list):
+            curr_miller = "".join(map(str, miller_source))
         elif isinstance(miller_source, str):
             curr_miller = miller_source
         else:
@@ -1577,7 +1881,6 @@ class CuZnInitialDatabase(InitialDatabase):
         for char in replace_chars:
             curr_miller = curr_miller.replace(char, "")
 
-        print("curr_miller: ", curr_miller)
         return curr_miller
 
     def _slab_to_bottom(
@@ -1706,10 +2009,13 @@ class CuZnInitialDatabase(InitialDatabase):
         images = []
 
         for miller in miller_list:
+            # Object that allows to generate the slab.
+            # The attach_grap parameter is disabled to increase speed.
             gen = cts.SlabGenerator(
                 bulk,
                 miller_index=(miller),
                 layers=n_layers,
+                attach_graph=False,
                 layer_type="angs",
                 fixed=fixed,
                 standardize_bulk="True",
@@ -1810,6 +2116,7 @@ class CuZnInitialDatabase(InitialDatabase):
         max_miller_index,
         fixed_layers,
         get_supercells,
+        limit_per_phase,
     ):
         # Filtering specific catkit warnings
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -1848,6 +2155,7 @@ class CuZnInitialDatabase(InitialDatabase):
             slabs_bottom.append((slab, mill_str))
 
         prototype = phase.prototype
+        generated_structures = []
 
         # Getting only the slabs and their miller index whose total size
         # is smaller than the maximum given for the InitialDatabase.
@@ -1864,14 +2172,15 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Preparing the structure name
             surf_name = (
-                f"{prototype}_{phase.name}_pure_surface"
-                f"_{n_layers}-layers_{n_at}-max-at_{mill_str}-{idx+1}"
+                f"{prototype}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
+                f"_{n_layers}-layers_{n_at}-max-at"
             )
 
             # Creating a new surface from the supercell
             curr_strct = mdf_struct.Surface(
                 material_name=surf_name,
                 material_id=prototype,
+                surface_miller=mill_str,
                 structure=slab,
                 temperature=np.nan,
                 perturb=False,
@@ -1882,6 +2191,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
             # Saving the bulk to the db.
             self.df = curr_strct.save_to_db(self.df)
+            generated_structures.append(curr_strct)
 
         # Getting supercells
         if get_supercells:
@@ -1921,8 +2231,9 @@ class CuZnInitialDatabase(InitialDatabase):
 
                         # Saving the bulk to the db.
                         self.df = curr_strct.save_to_db(self.df)
+                        generated_structures.append(curr_strct)
 
-        return len(slabs_size) + len(super_list)
+        return generated_structures
         # return surf_name
 
     def _get_structs_current_phase(self, phase):
@@ -1939,15 +2250,68 @@ class CuZnInitialDatabase(InitialDatabase):
     def generate_surfaces_pure(
         self,
         phase: Phase,
-        num_repeats: int,
+        num_diff_layer_size: int,
         max_miller_index: int = 2,
         min_slab_size: float = 3,
         max_slab_size: float = 6,
         min_vacuum_size: float = 10,
         get_supercells=False,
+        get_replacements=False,
+        num_replacement_structs: int = 3,
+        num_replacement_repeats: int = 5,
         fixed_layers: int = 0,
         overwrite_max_num_atoms: int = None,
+        limit_per_phase: int = None,
     ):
+        """
+        Generating a series of surfaces from the base structures using a phase
+        as a template. This method must be executed in an InitialDatabase object
+        that contains structures labelled as 'base' and a Phase from a PhaseDiagram
+        object must be given.
+        The structure generation from the CatKit library is leveraged.
+
+        Parameters
+        ----------
+        phase : Phase
+            Phase of the current system's phase diagram that will contain
+            atomic ratio information.
+        num_diff_layer_size : int
+            How many different sized layers will be generated, using the maximum
+            and minimum slab size.
+        max_miller_index : int, optional
+            Maximum index on the miller indices. The function will generate
+            all miller indices starting from zero up to this maximum
+            value, by default 2.
+        min_slab_size : float, optional
+            Minimum size of the slab in Angstrom, by default 3
+        max_slab_size : float, optional
+            Maximum size of the slab in Angstrom, by default 6
+        min_vacuum_size : float, optional
+            Minimum size of the vacuum in Angstrom, by default 10
+        get_supercells : bool, optional
+            Whether to generate supercells for each Slab, by default False
+        get_replacements : bool, optional
+            Whether to generate new Slabs with random replacements.
+            This will be done to all generated Slabs, by default False
+        num_replacement_structs : int, optional
+            How many different random replacement percentages to generate
+            for every structure, by default 3.
+        num_replacement_repeats : int, optional
+            How many times to repeat the random replacement of a single
+            percentage in a structure, by default 5.
+        fixed_layers : int, optional
+            How many layers to fix at the bottom, by default 0
+        overwrite_max_num_atoms : int, optional
+            A parameter that overrides the max number of atoms of the
+            InitialDatabase object, so larger surfaces can be created
+            when generating supercells, by default None.
+
+        Raises
+        ------
+        mdbex.BaseStructureNotFound
+            This exception will raise if no base structures can be found for a
+            certain phase.
+        """
         # Getting the current phase from the phase name.
         if isinstance(phase, str):
             phase = CuZnInitialDatabase.CUZN_PHASES.get_phase(phase)
@@ -1972,7 +2336,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # Preparing equispaced points between initial random value and the
         # maximum thickness value.
-        slab_sizes = np.linspace(min_slab_size, max_slab_size, num_repeats)
+        slab_sizes = np.linspace(min_slab_size, max_slab_size, num_diff_layer_size)
 
         for idx, row in base_structs.iterrows():
             # Getting the current base structure
@@ -1986,10 +2350,22 @@ class CuZnInitialDatabase(InitialDatabase):
             # atom number and the max atom number specified.
             if overwrite_max_num_atoms:
                 max_atom_num_list = np.linspace(
-                    curr_surf_nat, overwrite_max_num_atoms, 3
+                    curr_surf_nat,
+                    overwrite_max_num_atoms,
+                    int(overwrite_max_num_atoms / curr_surf_nat),
                 )
             else:
-                max_atom_num_list = np.linspace(curr_surf_nat, self.max_num_atoms, 3)
+                max_atom_num_list = np.linspace(
+                    curr_surf_nat,
+                    self.max_num_atoms,
+                    int(self.max_num_atoms / curr_surf_nat),
+                )
+            print("self.max_num_atoms: ", self.max_num_atoms)
+            print("curr_surf_nat: ", curr_surf_nat)
+            print(
+                "int(self.max_num_atoms/curr_surf_nat): ",
+                int(self.max_num_atoms / curr_surf_nat),
+            )
 
             # Getting an ASE Atoms object
             curr_bulk_ase = AseAtomsAdaptor().get_atoms(curr_bulk)
@@ -2017,7 +2393,7 @@ class CuZnInitialDatabase(InitialDatabase):
                 remaining_col,
                 # expand=True,
             )
-            total_slabs_gen = list(it.product(slab_sizes, max_atom_num_list[1:]))
+            total_slabs_gen = list(it.product(slab_sizes, max_atom_num_list[:]))
             total_slabs = len(total_slabs_gen)
             main_task_descr = f"Generating {phase.name} slabs:"
             overall_task = overall_progress.add_task(
@@ -2036,7 +2412,11 @@ class CuZnInitialDatabase(InitialDatabase):
             group = ricns.Group(overall_progress, job_progress)
             live = riliv.Live(group, refresh_per_second=4)
 
-            total_slabs_generated = 0
+            total_slabs_generated = []
+            total_slabs_generated_count = 0
+            # Rich live progress bars wrapping the surface generation
+            # process. A task is created for each layer+n_at number,
+            # drawing a progress bar while it gets computed.
             with live:
                 while not overall_progress.finished:
                     for n_layers, n_at in total_slabs_gen:
@@ -2045,7 +2425,7 @@ class CuZnInitialDatabase(InitialDatabase):
                             total=None,
                         )
 
-                        slab_amount = self.__gen_curr_surface(
+                        gen_slabs = self.__gen_curr_surface(
                             phase=phase,
                             curr_bulk_ase=curr_bulk_ase,
                             n_layers=n_layers,
@@ -2053,15 +2433,97 @@ class CuZnInitialDatabase(InitialDatabase):
                             max_miller_index=max_miller_index,
                             fixed_layers=fixed_layers,
                             get_supercells=get_supercells,
+                            limit_per_phase=limit_per_phase,
                         )
 
-                        total_slabs_generated += slab_amount
+                        total_slabs_generated_count += len(gen_slabs)
+                        total_slabs_generated.extend(gen_slabs)
                         job_progress.update(sub_task, total=1)
                         job_progress.advance(sub_task, advance=1)
 
                         overall_progress.advance(overall_task, advance=1)
 
-            ut.custom_print(f"Generated {total_slabs_generated} surfaces.", "done")
+            # Counter for the total number of structures
+            total_slabs_generated_final_cnt = len(total_slabs_generated)
+
+            # Applying replacements
+            if get_replacements:
+                ut.custom_print("Applying replacements...", "debug")
+                rng = np.random.default_rng()
+
+                replacement_list = []
+
+                for idx, gen_slab in enumerate(total_slabs_generated):
+                    # Getting current phase and structure length.
+                    slab_phase = gen_slab.phase
+
+                    # Getting the base element percentage of the current structure
+                    current_perc = slab_phase.get_base_elem_perc(gen_slab.structure)
+
+                    # Generating a list of random percentages inside the current phase
+                    # range.
+                    gen_percentages = self._gen_perc_surfaces(
+                        slab_phase, num_replacement_structs, current_perc, relative=True
+                    )
+
+                    # Going over the generated percentages
+                    for str_ind, n_atoms in enumerate(gen_percentages):
+                        # Repeating the replacement for each percentage, so that
+                        # num_replacement_repeats structures are generated with
+                        # the same ratio but different distribution.
+                        for repl in range(num_replacement_repeats):
+                            # Applying the replacement
+                            new_structure = self._apply_replacement(
+                                structure=gen_slab,
+                                phase=phase,
+                                n_atoms=n_atoms,
+                                rng=rng,
+                            )
+
+                            # Generating name
+                            if gen_slab.supercell:
+                                supercell_vec_str = self._get_miller_index_str(
+                                    gen_slab.supercell
+                                )
+                                supercell_vec_str_name = f"super-{supercell_vec_str}_"
+                            else:
+                                supercell_vec_str = gen_slab.surface_miller
+                                supercell_vec_str_name = supercell_vec_str
+
+                            # Creating a new Surface object for the structure with replacement
+                            new_struct_symm = mdf_struct.Surface(
+                                material_name=f"{phase.prototype}_{phase.name}_surface-{supercell_vec_str_name}-{str_ind+1}_replacement-{repl + 1}",
+                                material_id=phase.prototype,
+                                surface_miller=supercell_vec_str,
+                                structure=new_structure,
+                                temperature=gen_slab.temperature,
+                                perturb=False,
+                                replacement=True,
+                                replacement_ind=(str_ind + 1, repl + 1),
+                                base=False,
+                                calc_performed=False,
+                                supercell=gen_slab.supercell,
+                                phase=phase,
+                            )
+
+                            replacement_list.append(new_struct_symm)
+
+            # Limiting the number of structures per phase
+            if limit_per_phase and len(replacement_list) >= limit_per_phase:
+                rng = np.random.default_rng()
+                slabs_selection = rng.choice(
+                    len(replacement_list), size=limit_per_phase, replace=False
+                )
+                replacement_list = np.take(replacement_list, slabs_selection, axis=0)
+
+            for struct in replacement_list:
+                # Saving new structure into the database.
+                total_slabs_generated_final_cnt += 1
+                self.df = struct.save_to_db(self.df)
+
+            ut.custom_print(
+                f"Generated {total_slabs_generated_final_cnt} surfaces.", "done"
+            )
 
     def _get_main_elem_perc(self, phase: Phase, structure):
         """
@@ -2433,86 +2895,6 @@ class CuZnInitialDatabase(InitialDatabase):
                 self._add_entry_to_n2p2_input(buffer=curr_f, data_dict=data_dict)
         ut.custom_print(f"All calculations saved in '{path}'.", "done")
 
-    # def task(self, node, name, lock, buffer):
-    #     # data_dict = self._gather_n2p2_reqdata_from_node(node=node)
-
-    #     with lock:
-    #         # Getting calculation name
-    #         # name = node.label + "_aiida-uuid_" + node.uuid
-
-    #         # Writing the vasprun.xml file to a temporary file.
-    #         retrieved = node.outputs.retrieved
-    #         vasprun_str = retrieved.get_object_content("vasprun.xml")
-    #         with open("/tmp/parser_vasprun.tmp", "w") as f:
-    #             f.write(vasprun_str)
-
-    #         # Reading the written vasprun
-    #         vasprun = vasp.Vasprun("/tmp/parser_vasprun.tmp", parse_potcar_file=False)
-    #         # vasprun = aseio.read("/tmp/vasprun.tmp", format="vasp-xml")
-
-    #     # If the aiida-vasp parser is disabled, get the energy from the outcar itself.
-    #     # The energy returned by the function is already in Ha.
-    #     # pot_energy = self._get_pot_energy_outcar_aiida_node(vasprun=vasprun)
-    #     pot_energy = float(vasprun.ionic_steps[-1]["e_fr_energy"]) * self.eV2Eh
-
-    #     # Getting forces
-    #     # Reading forces from vasprun.xml, in eV/Ang and converting them to Ha/Bohr
-    #     forces = (
-    #         np.array(vasprun.ionic_steps[-1]["forces"]) * self.eV2Eh * self.Bohr2Ang
-    #     )
-
-    #     structure = vasprun.ionic_steps[-1]["structure"]
-    #     lattice = structure.lattice
-    #     atoms = structure.sites
-
-    #     # Setting charge to 0
-    #     charge = 0
-
-    #     data_dict = {
-    #         "material_name": name,
-    #         "lattice": lattice,
-    #         "atoms": atoms,
-    #         "pot_energy": pot_energy,
-    #         "charge": charge,
-    #         "forces": forces,
-    #     }
-
-    #     # Writing begin keyword and structure name
-    #     with lock:
-    #         buffer.write("begin\n")
-    #         buffer.write(f'comment {data_dict.get("material_name","no name found")}\n')
-
-    #         # Getting lattice parameters and converting them to Bohr
-    #         lat_x = data_dict["lattice"].matrix[0] * self.Ang2Bohr
-    #         lat_y = data_dict["lattice"].matrix[1] * self.Ang2Bohr
-    #         lat_z = data_dict["lattice"].matrix[2] * self.Ang2Bohr
-
-    #         # Writing lattice parameters
-    #         buffer.write(f"lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n")
-    #         buffer.write(f"lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n")
-    #         buffer.write(f"lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n")
-
-    #         # Writing information for every atom. Every atom line must contain:
-    #         # atom <x1> <y1> <z1> <e1> <c1> <n1> <fx1> <fy1> <fz1>
-    #         for at, frc in zip(data_dict["atoms"], data_dict["forces"]):
-    #             # Getting element from the current atom
-    #             ele = list(at.species.get_el_amt_dict().keys())[0]
-    #             # Preparing and writing the line
-    #             buffer.write(
-    #                 (
-    #                     f"atom {at.x*self.Ang2Bohr:.6f} {at.y*self.Ang2Bohr:.6f}"
-    #                     f" {at.z*self.Ang2Bohr:.6f}"
-    #                     f" {ele} {0:.6f} {0:.6f} {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
-    #                 )
-    #             )
-
-    #         # writing potential energy and charge
-    #         buffer.write(f'energy {data_dict["pot_energy"]:.6f}\n')
-    #         buffer.write(f'charge {data_dict["charge"]:.6f}\n')
-
-    #         # writing end keyword
-    #         buffer.write("end\n")
-
 
 def gather_secrets():
     """
@@ -2555,12 +2937,14 @@ def gather_secrets():
 
 def check_incorrect_ratios(df, curr_phase_diag):
     for id, row in df.iterrows():
-        if not row.base and not row.material_id.endswith("_symm"):
+        if not row.base and not row.material_name.endswith("_symm"):
             strct = row.structure.get_sorted_structure()
-            name = row.material_id
+            name = row.material_name
             phase = curr_phase_diag.get_phase(row.phase)
-
+            offset = phase.offset
             tot_atoms = len(strct.species)
+            one_at_perc = 1 / tot_atoms
+
             tot_cu = strct.species.count(Species("Cu")) + strct.species.count(
                 Element("Cu")
             )
@@ -2575,15 +2959,32 @@ def check_incorrect_ratios(df, curr_phase_diag):
             tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}.
             Species: {set(strct.species)}"""
 
-            perc = tot_zn / tot_atoms
+            perc = round(tot_zn / tot_atoms, 2)
 
-            offset_min = phase.base_elem_comp_min - phase.offset
-            offset_max = phase.base_elem_comp_max + phase.offset
+            offset_min = round(phase.base_elem_comp_min - offset, 2)
+            if offset_min < 0:
+                offset_min = 0
+
+            offset_max = round(phase.base_elem_comp_max + offset, 2)
+            if offset_max > 1:
+                offset_max = 1
 
             # Checking if the current structure is between the phase ratio
             # percentages.
             if not (offset_min <= perc <= offset_max):
-                ut.custom_print(
-                    f"{name}: {perc:.2f} Zn out of {offset_min:.2f} - {offset_max:.2f}",
-                    "error",
-                )
+                # If the structure could be fixed by adding or removing an atom
+                if (offset_min <= perc + one_at_perc <= offset_max) or (
+                    offset_min <= perc - one_at_perc <= offset_max
+                ):
+                    ut.custom_print(
+                        f"{name}: {perc:.2f} Zn outside of ({offset_min:.2f} - {offset_max:.2f}) range",
+                        "error",
+                    )
+                else:
+                    pass
+
+
+if __name__ == "__main__":
+    raise RuntimeError(
+        "Do not run this file! This file is intended to be used as a module and not a script."
+    )
