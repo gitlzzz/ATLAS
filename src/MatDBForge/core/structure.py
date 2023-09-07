@@ -251,7 +251,7 @@ class Surface(Structure):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.surface = True
-        
+
     def from_mdb_structure(self, mdb_structure, surface_miller, new_structure=None, material_name=None):
         if material_name:
             self.material_name = material_name
@@ -262,7 +262,7 @@ class Surface(Structure):
             self.structure = new_structure
         else:
             self.structure = mdb_structure.structure
-    
+
         self.material_id = mdb_structure.material_id
         self.phase = mdb_structure.phase
         self.base = mdb_structure.base
