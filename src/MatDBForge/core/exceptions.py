@@ -1,6 +1,10 @@
 class BaseStructureNotFound(Exception):
     pass
 
+class EmptyDataBase(Exception):
+    def __str__(self):
+        return "A database could not be read from the given path."
+
 
 class PhaseNotFound(Exception):
     def __init__(self, phase_diagram, given_phase):
@@ -8,7 +12,6 @@ class PhaseNotFound(Exception):
         self.given_phase = given_phase
 
     def __str__(self):
-
         return (
             f"The given phase '{self.given_phase}' str is not found in the phase diagram, "
             f"which has the following phases:\n {self.phases}"

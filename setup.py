@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="MatDBForge",
-    version="0.1",
-    description="MatDBForge Test",
+    version="0.2a",
+    description="MatDBForge",
     author="Pol Sanz",
     author_email="me@polsanz.xyz",
     package_dir={"": "src"},
