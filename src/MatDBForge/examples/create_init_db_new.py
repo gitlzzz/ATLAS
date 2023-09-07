@@ -1,7 +1,7 @@
 import time
 
 from MatDBForge.core import initial_db as indb
-from MatDBForge.core import utils as ut
+from MatDBForge.core import utils as mdb_ut
 
 # Desired phases
 PHASES = [
@@ -45,9 +45,9 @@ structures.read_base_structures(path=RELAX_STRUCT_PATH, target_structures=PHASES
 # for phase in PHASES:
 for phase in PHASES:
     # Getting properties for the current phase
-    phase = structures.CUZN_PHASES.get_phase(phase)
+    phase = structures.DB_PHASE_DIAGRAM.get_phase(phase)
 
-    ut.custom_print(f"Generating structures for '{phase.name}' phase.", "info")
+    mdb_ut.custom_print(f"Generating structures for '{phase.name}' phase.", "info")
 
     # Generating NUM_STRUCT*NUM_REPEAT structures for the given phase.
     structures.generate_bulk_structures(
@@ -59,31 +59,30 @@ for phase in PHASES:
     )
 
 print()
-ut.custom_print(f"Done! {len(structures.df.index)} structures generated.", "done")
+mdb_ut.custom_print(f"Done! {len(structures.df.index)} structures generated.", "done")
 print()
 
 # Checking for duplicate structures, and deleting the ones that are repeated.
-ut.custom_print("Checking for repeated structures...","info",)
+mdb_ut.custom_print("Checking for repeated structures...","info",)
 structures.find_repeat_structures(delete=True)
-ut.custom_print(structures, "info")
-# print()
+mdb_ut.custom_print(structures, "info")
 
 # Displacing structures around PES minima by modifying the
 # relaxed cell lattice parameters.
-ut.custom_print("Adding structures displaced around the minimum...", "info")
+mdb_ut.custom_print("Adding structures displaced around the minimum...", "info")
 structures.perturb_min_displacement(frac_max=0.05, repeat=5)
-ut.custom_print("Displacements around minimum done.", "done")
-ut.custom_print(structures, "info")
+mdb_ut.custom_print("Displacements around minimum done.", "done")
+mdb_ut.custom_print(structures, "info")
 print()
 
 # Adding a random perturbation to structures.
-ut.custom_print("Adding a random perturbation to structures...", "info")
+mdb_ut.custom_print("Adding a random perturbation to structures...", "info")
 structures.perturb_gauss(center=0.04, repeat=3, filters=['replacement', 'base'])
-ut.custom_print("Random perturbation done.", "done")
-ut.custom_print(structures, "info")
+mdb_ut.custom_print("Random perturbation done.", "done")
+mdb_ut.custom_print(structures, "info")
 print()
 
 # Saving database
-ut.custom_print("Checking for incorrect phase assignation...", "info")
-indb.check_incorrect_ratios(structures.df, indb.CuZnInitialDatabase.CUZN_PHASES)
-structures.save_database(path=SAVE_PATH, suffix="test_new_db_style")
+mdb_ut.custom_print("Checking for incorrect phase assignation...", "info")
+mdb_ut.check_incorrect_ratios(structures.df, indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM)
+structures.save_database(path=SAVE_PATH, suffix="test_file_structure")
