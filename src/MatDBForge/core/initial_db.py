@@ -12,11 +12,8 @@ import pickle
 import re
 import warnings
 from io import BytesIO, TextIOWrapper
-from multiprocessing import Pool
-from typing import Union
 
 import ase.io as aseio
-import catkit.gen.surface as cts
 import numpy as np
 import pandas as pd
 import pymatgen.io.vasp as vasp
@@ -29,7 +26,7 @@ from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from mp_api.client import MPRester
 from pymatgen.core.periodic_table import Element
-from pymatgen.core.structure import Lattice, Structure
+from pymatgen.core.structure import Structure
 from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
