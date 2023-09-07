@@ -8,6 +8,7 @@ import numpy as np
 from aiida import load_profile
 from aiida_tim import MODULEROOT as AT_MODULEROOT
 from aiida_vasp.utils.aiida_utils import get_data_node
+from pymatgen.io.vasp import Poscar
 
 DATAPATH = f"{AT_MODULEROOT}/tests/input_files"
 VDW_DATA_PATH = "/home/psanz/Documents/phd-iciq/Projects/P2-Cu/forpol/vdw-data"
@@ -84,6 +85,9 @@ INCAR_SP = {
         "lelf": False,
         ## van der Waals:
         "ivdw": 11,
+        ## surface
+        "idipol":3,
+        "ldipol":True,
     }
 }
 
@@ -139,7 +143,7 @@ KSPACING_DEFAULT = {
     "m4": 0.0948760981384118,
 }
 
-
+# TODO: Convert the subtypes into actual clases
 class CalcType(StrEnum):
     """
     Class representing the available calculation types for vasp
@@ -151,6 +155,7 @@ class CalcType(StrEnum):
     relax = "relax"
     relaxation = "relax"
     single_point = "sp"
+    single_point_surface = "sp_surface"
     sp = "sp"
     static = "sp"
 
@@ -282,11 +287,42 @@ def choose_queue_from_struct(structure, assign_dict: dict):
 
     return OPTIONS, CODE_STRING, mult_nodes
 
+def kpoint_mesh_from_density(structure, kspacing):
+    """Returns kpoint mesh (3x3) from kpoint array,
+    intended for surfaces.
+    """
 
-def select_kspacing(incar: dict, phase: str, kspacing: dict):
-    incar["incar"]["kspacing"] = kspacing[phase]
+    # Read POSCAR
+    poscar = Poscar(structure)
 
-    return incar
+    kpt_dens_arr = np.repeat(kspacing, 3)
+
+    # Getting lattice vectors
+    l_mat = poscar.structure.lattice.matrix
+
+    # Getting volume of the reciprocal cell
+    v_mat = np.dot(np.cross(l_mat[0, :], l_mat[1, :]), l_mat[2, :])
+
+    # Computing values for each axis
+    a_rcpr = np.linalg.norm((np.cross(l_mat[1, :], l_mat[2, :])) / v_mat)
+    b_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[2, :])) / v_mat)
+    c_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[1, :])) / v_mat)
+
+    arr_kpt_run = 1/(kpt_dens_arr / np.array((a_rcpr, b_rcpr, c_rcpr)))
+    arr_kpt_run = np.around(arr_kpt_run) 
+    arr_kpt_run[2] = 1
+
+    return arr_kpt_run
+ 
+
+def select_kspacing(curr_structure, incar: dict, phase: str, kspacing: dict, calc_type):
+
+    if "surface" in calc_type:
+        kspacing_calc = kpoint_mesh_from_density(structure=curr_structure,kspacing=kspacing[phase])
+    else:
+        kspacing_calc = kspacing[phase]
+
+    return kspacing_calc
 
 
 def sort_chunk_size(chunk):
@@ -308,13 +344,15 @@ def sort_chunk_size(chunk):
     return chunk
 
 
-def generate_incar(phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT):
+def generate_incar(structure, phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT):
     """
     Generate an incar file using depending on the calculation type.
     This incar includes a kspacing variable that depends on the phase.
 
     Parameters
     ----------
+    structure: pymatgen.core.structure.Structure
+        Current structure
     phase : str
         Phase of the current structure
     calc_type : str
@@ -327,15 +365,17 @@ def generate_incar(phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT
         dictionary representation of the INCAR
     """
 
-    if calc_type == "relax":
+    if "relax" in calc_type:
+        ut.custom_print("Selecting relaxation INCAR...", 'debug')
         incar = INCAR_RELAX
 
-    elif calc_type == "sp":
+    if "sp" in calc_type:
+        ut.custom_print("Selecting single point INCAR...", 'debug')
         incar = INCAR_SP
 
-    incar = select_kspacing(incar, phase, kspacing)
+    kspacing = select_kspacing(structure, incar, phase, kspacing, calc_type)
 
-    return incar
+    return incar, kspacing
 
 
 def generate_potential_mapping() -> dict:
