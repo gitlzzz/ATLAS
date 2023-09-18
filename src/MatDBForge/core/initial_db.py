@@ -932,15 +932,6 @@ class CuZnInitialDatabase(InitialDatabase):
             )
             self.use_offset = use_offset
 
-    # def gather_base_structures(self, target_structures):
-    #     # Gathering base structures using the method from the superclass
-    #     super().gather_base_structures(target_structures)
-
-    #     # Assigning assumed phase to the base structure
-    #     # for idx in self.df["material_id"]:
-    #     #     curr_phase = self._get_phase_from_id(idx)
-    #     #     self.df.at[idx, "phase"] = curr_phase
-
     def _get_phase_from_id(self, idx: str) -> str:
         """
         Searches for the corresponding phase in the self.DB_PHASE_DIAGRAM
