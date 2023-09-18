@@ -106,7 +106,6 @@ class InitialDatabase:
         self.secrets = ut.gather_secrets()
 
     def __repr__(self):
-
         # Getting the class name
         class_name = self.__class__.__name__
 
@@ -285,7 +284,10 @@ class InitialDatabase:
 
                 if verbose:
                     ut.custom_print(
-                        f"Supercell generated - total atoms: {len(new_structure.species)}",
+                        (
+                            "Supercell generated - total atoms:"
+                            f"{len(new_structure.species)}"
+                        ),
                         "debug",
                     )
 
@@ -450,8 +452,11 @@ class InitialDatabase:
                     tot_equival += 1
 
             ut.custom_print(
-                f"Phase '{curr_phase.name}' - Total selected structures: {tot_structures}, equivalent: {tot_equival} "
-                f"({(tot_equival/tot_structures)*100:.2f}%)",
+                (
+                    f"Phase '{curr_phase.name}' - Total selected structures:"
+                    f" {tot_structures}, equivalent: {tot_equival}"
+                    f" ({(tot_equival/tot_structures)*100:.2f}%)"
+                ),
                 "debug",
             )
 
@@ -1024,8 +1029,8 @@ class CuZnInitialDatabase(InitialDatabase):
         ------
         KeyError
             Raised if the given phase is not found. All of the available phases
-            are given on the self.DB_PHASE_DIAGRAM dictionary. More phases could be added
-            there if necessary.
+            are given on the self.DB_PHASE_DIAGRAM dictionary.
+            More phases could be added there if necessary.
         """
         # Checking for correct phase input
         phase_name = slugify(phase.name)
@@ -1054,8 +1059,9 @@ class CuZnInitialDatabase(InitialDatabase):
                 material_id_prefix = query_result.material_id
 
         # TODO: Add a toggle so that the user can choose to use it.
-        # Converting all of the atoms from the prototype cell to the base atom type if necessary
-        # structure = self._convert_prototype_structure(structure=structure, phase=phase)
+        # Converting all of the atoms from the prototype cell to
+        # the base atom type if necessary
+        # structure = self._convert_prototype_structure(structure=structure, phase=ph)
 
         # Getting conventional cell for the replaced structure
         sga = SpacegroupAnalyzer(structure)
@@ -1266,7 +1272,6 @@ class CuZnInitialDatabase(InitialDatabase):
             other_atom_change = n_atoms
 
         else:
-
             # Getting how many base atoms must be changed in order for the
             # structure to meet the current percentage requirements.
             target_atoms_base = curr_comp[base_elem] - abs(n_atoms)
@@ -1338,8 +1343,8 @@ class CuZnInitialDatabase(InitialDatabase):
         ------
         KeyError
             Raised if the given phase is not found. All of the available phases
-            are given on the self.DB_PHASE_DIAGRAM dictionary. More phases could be added
-            there if necessary.
+            are given on the self.DB_PHASE_DIAGRAM dictionary.
+            More phases could be added there if necessary.
         """
         # Instantiating RNG
         rng = np.random.default_rng()
@@ -1360,7 +1365,8 @@ class CuZnInitialDatabase(InitialDatabase):
             curr_structure = structure_obj.structure
 
             # TODO: Add a toggle so that the user can choose to use it.
-            # Converting all of the atoms from the prototype cell to the base atom type if necessary
+            # Converting all of the atoms from the prototype cell to the
+            # base atom type if necessary
             structure = self._convert_prototype_structure(
                 structure=curr_structure, phase=phase
             )
@@ -1711,9 +1717,16 @@ class CuZnInitialDatabase(InitialDatabase):
                                 supercell_vec_str = gen_slab.surface_miller
                                 supercell_vec_str_name = supercell_vec_str
 
-                            # Creating a new Surface object for the structure with replacement
+                            mat_name = (
+                                f"{phase.prototype}_{phase.name}_surface"
+                                f"-{supercell_vec_str_name}-{str_ind+1}"
+                                f"_replacement-{repl + 1}"
+                            )
+
+                            # Creating a new Surface object for the
+                            # structure with replacement
                             new_struct_symm = mdb_struct.Surface(
-                                material_name=f"{phase.prototype}_{phase.name}_surface-{supercell_vec_str_name}-{str_ind+1}_replacement-{repl + 1}",
+                                material_name=mat_name,
                                 material_id=phase.prototype,
                                 surface_miller=supercell_vec_str,
                                 structure=new_structure,
@@ -1881,15 +1894,14 @@ class CuZnInitialDatabase(InitialDatabase):
         extra=None,
         base=False,
     ):
-
         # Attributes not to store in a row
-        unwanted_attrs = ['save_to_db']
+        unwanted_attrs = ["save_to_db"]
 
         # If given structure is a pymatgen Structure
         if isinstance(structure, Structure):
             new_row = pd.Series(
-                {""
-                    "material_id": material_id,
+                {
+                    "" "material_id": material_id,
                     "structure": structure,
                     "temperature": None,
                     "perturb": True,
@@ -1902,8 +1914,12 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # If given structure is a MatDBForge structure.
         elif isinstance(structure, mdb_struct.Structure):
-            attr_list = [att for att in dir(structure) if not att.startswith("_") and att not in unwanted_attrs]
-            att_dict = {att:getattr(structure,att) for att in attr_list}
+            attr_list = [
+                att
+                for att in dir(structure)
+                if not att.startswith("_") and att not in unwanted_attrs
+            ]
+            att_dict = {att: getattr(structure, att) for att in attr_list}
 
             new_row = pd.Series(att_dict)
 
@@ -1916,7 +1932,6 @@ class CuZnInitialDatabase(InitialDatabase):
             {"perturb": "boolean", "base": "boolean", "surface": "boolean"}
         )
         self.df = pd.concat([self.df, new_row_df], ignore_index=True)
-
 
     def _gather_n2p2_reqdata_from_node(self, node):
         # Getting calculation name
@@ -1978,7 +1993,6 @@ class CuZnInitialDatabase(InitialDatabase):
         for idx, (at, frc) in enumerate(
             zip(data_dict["positions"], data_dict["forces"])
         ):
-
             # Preparing and writing the line
             buffer.write(
                 (
@@ -2104,7 +2118,8 @@ class CuZnInitialDatabase(InitialDatabase):
                     [phase_structures, changed_structures_sample]
                 )
 
-                # We remove all structures of the selected type and phase from the original
+                # We remove all structures of the selected type
+                # and phase from the original
                 # dataframe, and add the selected ones.
                 orig_removed = self.df.loc[
                     ~self.df.unique_id.isin(structure_list.unique_id)
@@ -2177,5 +2192,8 @@ class CuZnInitialDatabase(InitialDatabase):
 
 if __name__ == "__main__":
     raise RuntimeError(
-        "Do not run this file! This file is intended to be used as a module and not a script."
+        (
+            "Do not run this file!"
+            "This file is intended to be used as a module and not a script."
+        )
     )
