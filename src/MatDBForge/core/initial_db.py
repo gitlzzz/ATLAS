@@ -106,8 +106,6 @@ class InitialDatabase:
         self.secrets = ut.gather_secrets()
 
     def __repr__(self):
-        # Fields on the dataframe
-        # fields = [field for field in self.df.columns]
 
         # Getting the class name
         class_name = self.__class__.__name__
@@ -294,7 +292,6 @@ class InitialDatabase:
         return structure_list, idx_list, supercell_vec_list
 
     def _check_repeat_struct(self, curr_phase, curr_struct: Structure):
-        # ut.custom_print("checking for duplicates", "warn")
         structure_list = self.df.loc[self.df.phase == curr_phase].structure.values
         species_list = set([a.symbol for a in curr_struct.species])
 
@@ -310,7 +307,6 @@ class InitialDatabase:
             r_cut=r_cut,
             n_max=n_max,
             l_max=l_max,
-            # average="inner",
             sparse=False,
         )
 
@@ -402,7 +398,6 @@ class InitialDatabase:
             r_cut=r_cut,
             n_max=n_max,
             l_max=l_max,
-            # average="inner",
             sparse=False,
         )
 
@@ -534,9 +529,6 @@ class InitialDatabase:
         else:
             read_path = pathlib.Path()
 
-        # Getting the list of directories containing the simulations
-        # list_dir = os.walk(read_path, followlinks=True)
-
         if target_structures:
             selection_criteria = target_structures
         else:
@@ -609,7 +601,6 @@ class InitialDatabase:
             path = ""
 
         file_path = pathlib.Path(path, filename)
-        # self.df.to_pickle(path=file_path, compression="gzip")
 
         with lzma.open(file_path, "wb") as f:
             pickle.dump(self, f)
@@ -1110,8 +1101,6 @@ class CuZnInitialDatabase(InitialDatabase):
         self,
         structure: Structure,
         phase: mdb_pd.Phase,
-        # query_result: emmet.core.summary.SummaryDoc,
-        # read: bool,
         structure_obj: mdb_struct.Structure,
     ):
         phase = structure_obj.phase
@@ -1135,8 +1124,6 @@ class CuZnInitialDatabase(InitialDatabase):
             else:
                 sum_ind += 1
 
-        # else:
-        #     material_id_prefix = query_result.material_id
         material_id_prefix = structure_obj.material_id
 
         # Generating the symmetrized structure
@@ -1247,7 +1234,6 @@ class CuZnInitialDatabase(InitialDatabase):
         if isinstance(
             structure, (mdb_struct.Structure, mdb_struct.Surface, mdb_struct.Bulk)
         ):
-            # structure_obj = structure
             structure = structure.structure
 
         structure_len = len(structure.species)
@@ -1277,19 +1263,13 @@ class CuZnInitialDatabase(InitialDatabase):
         if not curr_comp.as_dict().get(base_elem.symbol):
             base_elem = structure.composition.elements[0]
             (other_elem,) = CuZnInitialDatabase.ALLOY_SET - {base_elem}
-            # base_elem, other_elem = other_elem, base_elem
-            # target_atoms_base = n_atoms
             other_atom_change = n_atoms
 
         else:
-            # print('\nelse')
-            # print(structure.formula)
-            # print('n_atoms', n_atoms)
+
             # Getting how many base atoms must be changed in order for the
             # structure to meet the current percentage requirements.
-            # target_atoms_base = n_atoms - curr_comp[base_elem]
             target_atoms_base = curr_comp[base_elem] - abs(n_atoms)
-            # print('target_atoms_base: ', target_atoms_base)
 
             # Getting how many atoms of the other element must be changed
             other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
@@ -1319,10 +1299,6 @@ class CuZnInitialDatabase(InitialDatabase):
             sanitize=True, site_properties=site_props_before
         )
 
-        # if None in new_structure.site_properties['selective_dynamics']:
-        #     print('none found')
-        #     print(new_structure)
-
         return new_structure
 
     def generate_bulk_structures(
@@ -1332,7 +1308,6 @@ class CuZnInitialDatabase(InitialDatabase):
         num_struct: int,
         num_repeats: int,
         get_different_supercells: bool,
-        # perturb: list,
         read: bool = True,
     ):
         """
@@ -1574,11 +1549,6 @@ class CuZnInitialDatabase(InitialDatabase):
             )
 
             raise mdb_exc.BaseStructureNotFound(err_msg)
-
-        # Generating an initial random slab size close to the minimum slab thickness
-        # given.
-        # rng = np.random.default_rng()
-        # init_value = rng.uniform(high=min_slab_size + 1, low=min_slab_size)
 
         # Preparing equispaced points between initial random value and the
         # maximum thickness value.
@@ -1855,15 +1825,12 @@ class CuZnInitialDatabase(InitialDatabase):
                 if stct < 0:
                     curr_repl *= -1
                 n_at_replacement.append(curr_repl)
-            print("n_at_replacement: ", n_at_replacement)
 
             # Attempting to fix any percentages outside of the
             # current phase ratios.
             n_at_replacement_upd = self._fit_replacements_phase(
                 phase, curr_surface, subst_base_elem_perc
             )
-
-            print("n_at_replacement_upd: ", n_at_replacement_upd)
 
             # Adapting the replacement percentages generated to the
             # percentage of the current structure
@@ -1950,8 +1917,6 @@ class CuZnInitialDatabase(InitialDatabase):
         )
         self.df = pd.concat([self.df, new_row_df], ignore_index=True)
 
-        # TODO: Converting NaN values given by some functions to None
-        # self.df.fillna(None, method=None, inplace=True)
 
     def _gather_n2p2_reqdata_from_node(self, node):
         # Getting calculation name
@@ -2013,8 +1978,7 @@ class CuZnInitialDatabase(InitialDatabase):
         for idx, (at, frc) in enumerate(
             zip(data_dict["positions"], data_dict["forces"])
         ):
-            # Getting element from the current atom
-            # ele = list(at.species.get_el_amt_dict().keys())[0]
+
             # Preparing and writing the line
             buffer.write(
                 (
@@ -2055,8 +2019,6 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # Preparing a query in the aiida db
         qb = orm.QueryBuilder()
-
-        # result_nodes = []
 
         for group in aiida_group_list:
             qb.append(orm.Group, filters={"label": group}, tag="group")
@@ -2207,7 +2169,7 @@ class CuZnInitialDatabase(InitialDatabase):
         if save_in_db:
             for idx, cluster in enumerate(cluster_list):
                 self._save_row(structure=cluster)
-        
+
         # Return the cluster list in case the user just wants the clusters
         # but not storing them into the database.
         return cluster_list
