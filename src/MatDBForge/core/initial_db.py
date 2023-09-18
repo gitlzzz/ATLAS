@@ -37,6 +37,7 @@ import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.surfaces as mdb_surf
+import MatDBForge.core.clusters as mdb_clust
 from MatDBForge.core import utils as ut
 
 # Filtering certain warnings
@@ -136,11 +137,12 @@ class InitialDatabase:
         if len(db_path.suffixes) == 0:
             suffix = ".xz"
         else:
-            suffix = ""
-            if db_path.suffixes[0] == '.pkl':
-                database = pd.read_pickle(f"{self.database_name}{suffix}")
-            elif db_path.suffixes[0] == '.xz':
-                with lzma.open(db_path, 'rb') as f:
+            if db_path.suffixes[0] == ".pkl":
+                suffix = ".pkl"
+                database = pd.read_pickle(db_path)
+            elif db_path.suffixes[0] == ".xz":
+                suffix = ".xz"
+                with lzma.open(db_path, "rb") as f:
                     database = pickle.load(f)
 
                     # Setting parameters from InitialDatabase
@@ -591,13 +593,12 @@ class InitialDatabase:
 
         Parameters
         ----------
-        path : str, optional
+        path : str, optional.
+            Location where the pickle object will be saved,
+            by default None, which defaults to storing the file in the CWD.
+        suffix : str, optional.
+            String that will be added at the end of the filename.
 
-                Location where the pickle object will be saved,
-                by default None, which defaults to storing the file in the CWD.
-        suffix : str, optional
-
-                String that will be added at the beginning of the filename.
         """
         if suffix:
             filename = self.database_name + f"_{suffix}.xz"
@@ -606,7 +607,6 @@ class InitialDatabase:
 
         if not path:
             path = ""
-
 
         file_path = pathlib.Path(path, filename)
         # self.df.to_pickle(path=file_path, compression="gzip")
@@ -826,6 +826,7 @@ class CuZnInitialDatabase(InitialDatabase):
     alpha_phase = mdb_pd.Phase(
         name="alpha",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0,
         base_elem_comp_max=0.3895,
         prototype="mp-30",
@@ -834,6 +835,7 @@ class CuZnInitialDatabase(InitialDatabase):
     m1 = mdb_pd.Phase(
         name="m1",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.3895,
         base_elem_comp_max=0.45,
         prototype="mp-30",
@@ -842,6 +844,7 @@ class CuZnInitialDatabase(InitialDatabase):
     beta_prime = mdb_pd.Phase(
         name="beta-prime",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.455,
         base_elem_comp_max=0.507,
         prototype="mp-987",
@@ -850,6 +853,7 @@ class CuZnInitialDatabase(InitialDatabase):
     m2 = mdb_pd.Phase(
         name="m2",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.51,
         base_elem_comp_max=0.577,
         prototype="mp-987",
@@ -858,6 +862,7 @@ class CuZnInitialDatabase(InitialDatabase):
     gamma = mdb_pd.Phase(
         name="gamma",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.577,
         base_elem_comp_max=0.706,
         prototype="mp-1368",
@@ -866,6 +871,7 @@ class CuZnInitialDatabase(InitialDatabase):
     m3 = mdb_pd.Phase(
         name="m3",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.706,
         base_elem_comp_max=0.785,
         prototype="mp-1216020",
@@ -874,6 +880,7 @@ class CuZnInitialDatabase(InitialDatabase):
     delta = mdb_pd.Phase(
         name="delta",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.7302,
         base_elem_comp_max=0.765,
         prototype="mp-1215518",
@@ -882,6 +889,7 @@ class CuZnInitialDatabase(InitialDatabase):
     epsilon = mdb_pd.Phase(
         name="epsilon",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.785,
         base_elem_comp_max=0.883,
         prototype="mp-972042",
@@ -890,6 +898,7 @@ class CuZnInitialDatabase(InitialDatabase):
     m4 = mdb_pd.Phase(
         name="m4",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.883,
         base_elem_comp_max=0.9725,
         prototype="mp-79",
@@ -898,6 +907,7 @@ class CuZnInitialDatabase(InitialDatabase):
     eta = mdb_pd.Phase(
         name="eta",
         base_elem="Zn",
+        cluster_elem="Cu",
         base_elem_comp_min=0.9725,
         base_elem_comp_max=1,
         prototype="mp-79",
@@ -922,14 +932,14 @@ class CuZnInitialDatabase(InitialDatabase):
             )
             self.use_offset = use_offset
 
-    def gather_base_structures(self, target_structures):
-        # Gathering base structures using the method from the superclass
-        super().gather_base_structures(target_structures)
+    # def gather_base_structures(self, target_structures):
+    #     # Gathering base structures using the method from the superclass
+    #     super().gather_base_structures(target_structures)
 
-        # Assigning assumed phase to the base structure
-        # for idx in self.df["material_id"]:
-        #     curr_phase = self._get_phase_from_id(idx)
-        #     self.df.at[idx, "phase"] = curr_phase
+    #     # Assigning assumed phase to the base structure
+    #     # for idx in self.df["material_id"]:
+    #     #     curr_phase = self._get_phase_from_id(idx)
+    #     #     self.df.at[idx, "phase"] = curr_phase
 
     def _get_phase_from_id(self, idx: str) -> str:
         """
@@ -1907,25 +1917,37 @@ class CuZnInitialDatabase(InitialDatabase):
 
     def _save_row(
         self,
-        material_id,
-        phase,
         structure,
-        extra,
+        material_id=None,
+        phase=None,
+        extra=None,
         base=False,
     ):
-        new_row = pd.Series(
-            {
-                # f"{prototype}_{phase.name}_super-"{supr_idx}_{str_ind+1}_{repl+1}",
-                "material_id": material_id,
-                "structure": structure,
-                "temperature": None,
-                "perturb": True,
-                "phase": phase.name,
-                "base": base,
-                "formula": structure.formula,
-                **extra,
-            }
-        )
+
+        # Attributes not to store in a row
+        unwanted_attrs = ['save_to_db']
+
+        # If given structure is a pymatgen Structure
+        if isinstance(structure, Structure):
+            new_row = pd.Series(
+                {""
+                    "material_id": material_id,
+                    "structure": structure,
+                    "temperature": None,
+                    "perturb": True,
+                    "phase": phase.name,
+                    "base": base,
+                    "formula": structure.formula,
+                    **extra,
+                }
+            )
+
+        # If given structure is a MatDBForge structure.
+        elif isinstance(structure, mdb_struct.Structure):
+            attr_list = [att for att in dir(structure) if not att.startswith("_") and att not in unwanted_attrs]
+            att_dict = {att:getattr(structure,att) for att in attr_list}
+
+            new_row = pd.Series(att_dict)
 
         new_row_df = new_row.to_frame().T
         new_row_df = new_row_df.astype(
@@ -1944,15 +1966,6 @@ class CuZnInitialDatabase(InitialDatabase):
         # Getting calculation name
         name = node.label + "_aiida-uuid_" + node.uuid
 
-        # WARNING:
-        # Getting potential energy
-        # misc = node.outputs.misc.get_dict()
-        # The energy can be obtained from aiida-vasp, however, the energy provided by the
-        # parser is not the one used by n2p2.
-        # Getting potential energy from the aiida-vasp parser, in eV.
-        # Convert the aiida-vasp energy to Ha.
-        # pot_energy = misc.get("total_energies", {}).get("energy_extrapolated") * self.eV2Eh
-
         # Writing the vasprun.xml file to a buffer.
         retrieved = node.outputs.retrieved
         vasprun_f = retrieved.get_object_content("vasprun.xml", "rb")
@@ -1965,45 +1978,13 @@ class CuZnInitialDatabase(InitialDatabase):
         # Getting properties from the vasprun
         pot_energy = vasprun.get_potential_energy(force_consistent=True) * self.eV2Eh
 
-        # print(dir(vasprun))
-        # print(vasprun.calculator)
-        # quit()
-        # try:
-        #     vasprun = vasp.Vasprun("/tmp/parser_vasprun.tmp", parse_potcar_file=False)
-        # except Exception as e:
-        #     # TODO: If parsing the xml fails, and the calculation has converged,
-        #     # then read the energies and forces from the OUTCAR.
-        #     ut.custom_print(name, 'warn')
-        #     print(e)
-        # vasprun = aseio.read("/tmp/vasprun.tmp", format="vasp-xml")
-
-        # Getting atomic positions
-        # Pymatgen treats coordinates in Ang.
-        # contcar_str = retrieved.get_object_content("CONTCAR")
-
-        # If the aiida-vasp parser is disabled, get the energy from the outcar itself.
-        # The energy returned by the function is already in Ha.
-        # pot_energy = self._get_pot_energy_outcar_aiida_node(vasprun=vasprun)
-        # pot_energy = float(vasprun.ionic_steps[-1]["e_fr_energy"]) * self.eV2Eh
-
         # Getting forces
         # Reading forces from vasprun.xml, in eV/Ang and converting them to Ha/Bohr
         forces = vasprun.get_forces() * self.eV2Eh * self.Bohr2Ang
 
-        # forces = (
-        #     np.array(vasprun.ionic_steps[-1]["forces"]) * self.eV2Eh * self.Bohr2Ang
-        # )
-
-        # contcar = vasp.Poscar.from_string(contcar_str)
-
         lattice = vasprun.get_cell() * self.Ang2Bohr
         structure = vasprun.get_positions() * self.Ang2Bohr
         symbols = vasprun.get_chemical_symbols()
-        # print('structure: ', structure)
-
-        # print('lattice: ', lattice)
-        # print('atoms: ', atoms)
-        # quit()
 
         # Setting charge to 0
         # charge = contcar.structure.charge
@@ -2178,6 +2159,67 @@ class CuZnInitialDatabase(InitialDatabase):
 
                 phase_result_df = pd.concat([orig_removed, phase_structures])
                 self.df = phase_result_df
+
+    def generate_clusters(
+        self,
+        phase: mdb_pd.Phase,
+        size_range: list,
+        get_replacements=False,
+        get_perturbed=False,
+        save_in_db=False,
+        limit_per_phase: int = None,
+        num_struct: int = 2,
+        num_repeat: int = 2,
+    ):
+        # Generate a list of mdb_struct.Cluster
+        cluster_list = []
+
+        # Generate a list of perturbed clusters, which is done separately
+        # in order to not apply the perturbations to the entire dataset,
+        # which would grow infinitely then.
+        repl_perturb_cluster_list = []
+
+        # Create clusters over all size range given, from smallest to largest.
+        for size in size_range:
+            clust_obj = mdb_clust.make_clean_cluster(self, size=size, phase=phase)
+
+            cluster_list.append(clust_obj)
+            repl_perturb_cluster_list.append(clust_obj)
+
+            # Iterate over all structures, and for every
+            # structure, generate 2~3 replacements for every of the phases.
+            if get_replacements:
+                replaced_clusters = mdb_clust.apply_replacement_cluster(
+                    db_obj=self,
+                    cluster=clust_obj,
+                    phase=phase,
+                    num_struct=num_struct,
+                    num_repeat=num_repeat,
+                )
+                repl_perturb_cluster_list.extend(replaced_clusters)
+
+            # Getting all generated structures (base and perturb)
+            # and applying a perturbation
+            if get_perturbed:
+                perturbed_clusters = mdb_clust.apply_gauss_perturb(
+                    cluster_list=repl_perturb_cluster_list,
+                    center=0.04,
+                    repeat=num_repeat,
+                )
+                repl_perturb_cluster_list.extend(perturbed_clusters)
+
+            cluster_list.extend(repl_perturb_cluster_list)
+            repl_perturb_cluster_list = []
+
+        # If True, store the structures along with their information
+        # into the MatDBForge InitialDatabase object
+        if save_in_db:
+            for idx, cluster in enumerate(cluster_list):
+                self._save_row(structure=cluster)
+        
+        # Return the cluster list in case the user just wants the clusters
+        # but not storing them into the database.
+        return cluster_list
 
 
 if __name__ == "__main__":
