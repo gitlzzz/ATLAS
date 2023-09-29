@@ -7,7 +7,6 @@ import MatDBForge.core.initial_db as mdb_indb
 import numpy as np
 import itertools as it
 from pymatgen.core import Structure, Lattice
-from pymatgen.io.vasp import Poscar
 
 # Gathering some cluster related data
 DATA_PATH = (pl.Path(f"{__file__}").parent / "../data").resolve()
@@ -17,8 +16,14 @@ CLUST_LIST = [clst.stem for clst in DATA_PATH.iterdir()]
 LATT = [20, 21, 22]
 
 # Data sourced from Materials Project
-# TODO: Get this using a query. Will probably need the structure name and phase?
-ATOM_DATA = {"Cu": {"a": 3.5691940}}
+# TODO: Get this using a query.
+# Will probably need the structure name and phase?
+ATOM_DATA = {
+    "Cu": {
+        "a": 3.5691940,
+        "dimer_dist": 2.248,  # Å, via DFT calculations (Kabir et al., 2004; Guvelioglu et al., 2006)
+    }
+}
 
 # Maximum vacuum thickness, in Angs.
 MAX_VAC = 12
@@ -73,110 +78,82 @@ def make_clean_cluster(indb_obj, size, phase: mdb_phase.Phase):
         coords_are_cartesian=True,
     )
 
-    # Centering and bottoming structure
-    # struct = center_and_bottom_structure(struct)
+    # Centering structure using center of mass
     struct = center_structure(struct)
-    # struct = bottom_structure(struct)
 
-    Poscar(struct).write_file(
-        f"/tmp/cluster_tests/test_{np.random.randint(1,1e6)}.poscar"
-    )
-    quit()
-
-    cluster_name = f"base_cluster_{struct.formula}"
+    cluster_name = f"base_cluster_{phase.name}_{struct.formula}"
     clust_obj = mdb_struct.Cluster(
         material_name=cluster_name,
         structure=struct,
         base=True,
+        phase=phase,
     )
 
     return clust_obj
 
 
-def center_and_bottom_structure(
-    structure: Structure,
-    offset: int = 2,
-) -> Structure:
-    """
-    Move the structure towards the bottom of the cell, leaving a
-    offset wide margin at the bottom.
+def make_clean_dimer(indb_obj, phase: mdb_phase.Phase):
+    curr_at_data = ATOM_DATA.get(phase.cluster_elem.symbol)
 
-    Parameters
-    ----------
-    structure : Structure
-        Target structure to move to the bottom.
-    offset : int, optional
-        Separation to be left between the bottom of the cell
-        and the structure, by default 2, in Angstrom.
+    folder = [
+        fold for idx, fold in enumerate(CLUST_LIST) if phase.cluster_elem.symbol in fold
+    ]
+    if len(folder) == 0 or not curr_at_data:
+        raise mdb_exc.AtomNotFoundForCluster
 
+    # Dimer created by hand
+    at_posc = np.array([[0, 0, 0], [0, curr_at_data["dimer_dist"], 0]])
 
-    Returns
-    -------
-    Structure
-        Pymatgen structure containing a structure placed on the bottom,
-        with the same attributes as the original.
-    """
-
-    # # Centering
-    # avg = np.average(structure.cart_coords, axis=0)
-    # print('avg: ', avg)
-    # print('structure.lattice.abc: ', structure.lattice.abc)
-    # dist = np.array(structure.lattice.abc) / 2 - avg
-    # print('dist: ', dist)
-    # modified_coords = structure.cart_coords + dist
-
-    # # TODO: Center of mass should be computed after replacement.
-    # atomic_mass_arr = np.array([atom.atomic_mass for atom in structure.species])
-    # print('atomic_mass_arr: ', atomic_mass_arr)
-    # print('modified_coords1: ', modified_coords)
-    # total_mass = np.sum(atomic_mass_arr)
-
-    # # Multiplying the coordinates by the atomic mass, adding an additional empty axis
-    # modified_coords = np.multiply(modified_coords,atomic_mass_arr[:, None])
-    # print('modified_coords_multiply: ', modified_coords)
-    # modified_coords = np.sum(modified_coords, axis=0)
-    # print('modified_coords_sum: ', modified_coords)
-
-    # # Dividing by the total mass in order to get the center of mass
-    # modified_coords /= total_mass
-    # print('modified_coords: ', modified_coords)
-    # print('total_mass: ', total_mass)
-    # # quit()
-    # # Getting the position closest to the bottom
-    # bottom = np.min(modified_coords)
-    # bottom_arr = np.zeros(shape=modified_coords.shape)
-
-    # Getting the center of mass
-    com = get_center_of_mass(structure)
-
-    # Getting the position closest to the bottom
-    bottom = np.min(structure.cart_coords)
-    bottom_arr = np.zeros(shape=structure.cart_coords.shape)
-
-    # Centering
-    # avg = np.average(structure.cart_coords, axis=0)
-    dist = np.array(structure.lattice.abc) / 2 - com
-    print("dist: ", dist)
-    modified_coords = structure.cart_coords + dist
-
-    # Applying the offset
-    bottom_arr[:, 2] += bottom - offset
-    print("bottom_arr: ", bottom_arr)
-
-    # Substracting the bottom position from the structure plus an offset
-    modified_coords = modified_coords + bottom_arr
-    print("modified_coords: ", modified_coords)
-
-    # Generating new pymatgen structure with the modifications
-    new_structure = Structure(
-        lattice=structure.lattice,
-        species=structure.species,
-        coords=modified_coords,
+    # Generating initial structure with a large cell size.
+    # It will be used to check the cluster size and the cell siize
+    # reduction needed in order to get a vacuum thickness of MAX_VAC
+    lattice = Lattice.from_parameters(
+        a=LATT[0], b=LATT[1], c=LATT[2], alpha=90, beta=90, gamma=90
+    )
+    struct = Structure(
+        lattice=lattice,
+        coords=at_posc,
+        species=list(it.repeat(phase.cluster_elem, 2)),
         coords_are_cartesian=True,
-        site_properties=structure.site_properties,
     )
 
-    return new_structure
+    # Vaccuum thickness for every axis,
+    # considering if the cluster goes over the cell boundary.
+    vac_thick = (
+        np.min(struct.cart_coords, axis=0)
+        + np.array(LATT)
+        - np.max(struct.cart_coords, axis=0)
+    )
+    new_latt_size = (np.array(LATT) - vac_thick) + MAX_VAC
+    lattice = Lattice.from_parameters(
+        a=new_latt_size[0],
+        b=new_latt_size[1],
+        c=new_latt_size[2],
+        alpha=90,
+        beta=90,
+        gamma=90,
+    )
+
+    # New structure with the desired vacuum thickness
+    struct = Structure(
+        lattice=lattice,
+        coords=struct.cart_coords,
+        species=list(it.repeat(phase.cluster_elem, 2)),
+        coords_are_cartesian=True,
+    )
+
+    # Centering structure using center of mass
+    struct = center_structure(struct)
+
+    cluster_name = f"base_cluster_{phase.name}_{struct.formula}"
+    clust_obj = mdb_struct.Cluster(
+        material_name=cluster_name,
+        structure=struct,
+        base=True,
+        phase=phase,
+    )
+
+    return clust_obj
 
 
 def center_structure(
@@ -357,23 +334,136 @@ def apply_replacement_cluster(
     return replaced_clusters
 
 
-def apply_gauss_perturb(repeat: int, cluster_list: list, center: float = 0.04):
+def apply_replacement_cluster_db(
+    db_obj: "mdb_indb.InitialDatabase",
+    # cluster: mdb_struct.Cluster,
+    phase: mdb_phase.Phase,
+    num_struct: int,
+    num_repeat: int,
+    similarity_check=True,
+    save_in_db=True,
+):
+    replaced_clusters = []
+    rng = np.random.default_rng()
+    rnd_ratios = (phase.base_elem_comp_max - phase.base_elem_comp_min) * rng.random(
+        size=num_struct
+    ) + phase.base_elem_comp_min
+    (other_elem,) = db_obj.ALLOY_SET - {phase.cluster_elem}
+
+    # Selecting only non-replaced structures
+    base_clusters = db_obj.df.loc[db_obj.df["replacement"] == False]
+
+    for row_idx, row in base_clusters.iterrows():
+        cluster = row.structure
+        structure_len = len(cluster.species)
+
+        for repl_ind, ratio in enumerate(rnd_ratios):
+            for repeat_ind in range(num_repeat):
+                n_replace = int(structure_len * ratio)
+                if n_replace == 0:
+                    n_replace = 1
+
+                other_elem_choices = rng.choice(
+                    a=structure_len,
+                    size=n_replace,
+                    replace=False,
+                    shuffle=True,
+                )
+
+                # Creating a new pymatgen structure using the base one as a template
+                new_structure = cluster.copy(sanitize=True)
+                site_props_before = cluster.site_properties
+
+                # Replacing atoms in the structures
+                for ind in other_elem_choices:
+                    new_structure.replace(ind, other_elem)
+
+                new_structure = new_structure.copy(
+                    sanitize=True, site_properties=site_props_before
+                )
+
+                cluster_name = (
+                    f"cluster_{new_structure.formula}_replacement"
+                    f"-{n_replace}_repeat-{repeat_ind}"
+                )
+                clust_obj = mdb_struct.Cluster(
+                    material_name=cluster_name,
+                    structure=new_structure,
+                    replacement=True,
+                    replacement_ind=repl_ind,
+                    phase=phase,
+                )
+                replaced_clusters.append(clust_obj)
+
+    mdb_utils.custom_print(
+        f"Generated {len(replaced_clusters)} clusters after replacement", "debug"
+    )
+
+    if similarity_check:
+        replaced_clusters = mdb_utils.similarity_check_list(
+            db_obj=db_obj,
+            replaced_structures=replaced_clusters,
+            save_in_db=save_in_db,
+        )
+
+    if save_in_db and not similarity_check:
+        mdb_utils.custom_print("Saving to db...", "debug")
+        for idx, cluster in enumerate(replaced_clusters):
+            db_obj._save_row(structure=cluster)
+
+    return replaced_clusters
+
+
+def _apply_perturbation_cluster(center, row, per_idx):
+    # Applying displacement
+    new_struct_perturb = mdb_utils.gauss_perturb(center=center, structure=row.structure)
+
+    # Creating perturbed cluster object
+    mat_str = f"{row.material_name}_perturb_gauss_{per_idx+1}"
+    clust_obj = mdb_struct.Cluster(
+        material_name=mat_str,
+        structure=new_struct_perturb,
+        replacement_ind=row.replacement_ind,
+        phase=row.phase,
+        perturb=True,
+    )
+    return clust_obj
+
+
+def apply_gauss_perturb_list(repeat: int, cluster_list: list, center: float = 0.04):
     perturbed_clusters = []
     for cluster in cluster_list:
-        for perturb_repeat_idx in range(repeat):
-            # Applying displacement
-            new_struct_perturb = mdb_utils.gauss_perturb(
-                center=center, structure=cluster
-            )
-
-            mat_str = f"{cluster.material_name}_perturb_gauss_{perturb_repeat_idx+1}"
-            clust_obj = mdb_struct.Cluster(
-                material_name=mat_str,
-                structure=new_struct_perturb,
-                replacement_ind=cluster.replacement_ind,
-                phase=cluster.phase,
-                perturb=True,
-            )
+        for per_idx in range(repeat):
+            clust_obj = _apply_perturbation_cluster(center, cluster, per_idx)
             perturbed_clusters.append(clust_obj)
+
+    return perturbed_clusters
+
+
+def apply_gauss_perturb_db(repeat: int, db_obj, center: float = 0.04):
+    perturbed_clusters = []
+
+    if not isinstance(db_obj, mdb_indb.InitialDatabase):
+        raise TypeError(
+            (
+                f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
+                f"database object, not a {type(db_obj)}."
+            )
+        )
+
+    # Iterating over all database rows to get the unperturbed clusters
+    mdb_utils.custom_print(f"Perturbation db_obj shape: {db_obj.df.shape}", "debug")
+    for _, row in db_obj.df.iterrows():
+        for per_idx in range(repeat):
+            clust_obj = _apply_perturbation_cluster(center, row, per_idx)
+            perturbed_clusters.append(clust_obj)
+
+    mdb_utils.custom_print(
+        f"Total structures perturbed: {len(perturbed_clusters)}", "debug"
+    )
+
+    # Saving in database
+    for cluster in perturbed_clusters:
+        db_obj._save_row(structure=cluster)
 
     return perturbed_clusters
