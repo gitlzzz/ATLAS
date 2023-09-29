@@ -24,13 +24,12 @@ structures.df["surface"] = structures.df["surface"].astype("boolean")
 # Filtering phases
 selected_phases = [
     phase
-    for phase in indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.phases
+    for phase in indb.DB_PHASE_DIAGRAM.phases
     if phase.name not in ["m1", "m2", "m3", "m4"]
 ]
 
 ut.custom_print("Generating surfaces from initial structures...", "debug")
-# for phase in selected_phases:
-for phase in ['alpha']:
+for phase in selected_phases:
     # Line break for aesthetic purposes
     print()
 
