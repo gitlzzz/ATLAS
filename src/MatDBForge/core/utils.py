@@ -129,7 +129,7 @@ def gather_secrets():
 
     else:
         raise FileNotFoundError(
-            f"'secrets.json' not found!\nPlease, add a 'secrets.json' file in the"
+            "'secrets.json' not found!\nPlease, add a 'secrets.json' file in the"
             f" following directory: '{initial_db_path}'. "
         )
         secrets = None
@@ -179,7 +179,10 @@ def check_incorrect_ratios(df, curr_phase_diag):
                     offset_min <= perc - one_at_perc <= offset_max
                 ):
                     custom_print(
-                        f"{name}: {perc:.2f} Zn outside of ({offset_min:.2f} - {offset_max:.2f}) range",
+                        (
+                            f"{name}: {perc:.2f} Zn outside of ({offset_min:.2f} -"
+                            f" {offset_max:.2f}) range"
+                        ),
                         "error",
                     )
                 else:

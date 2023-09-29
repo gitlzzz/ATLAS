@@ -107,6 +107,7 @@ class BinaryPhaseDiagram:
     def get_phase_for_structure(self, structure):
         print(structure.formula)
 
+
 # TODO: Imlpement this
 class TernaryPhaseDiagram:
     ...
@@ -165,8 +166,9 @@ class Phase:
 
         """
         repr_string = (
-            f"Phase '{self.name}', {self.base_elem_comp_min*100:.1f}% {self.base_elem} - "
-            f"{self.base_elem_comp_max*100:.1f}% {self.base_elem} (± {self.offset*100:.1f}%)"
+            f"Phase '{self.name}', {self.base_elem_comp_min*100:.1f}%"
+            f" {self.base_elem} - {self.base_elem_comp_max*100:.1f}%"
+            f" {self.base_elem} (± {self.offset*100:.1f}%)"
         )
 
         if self.phase_diagram is not None:
@@ -183,8 +185,9 @@ class Phase:
 
         """
         repr_string = (
-            f"Phase '{self.name}', {self.base_elem_comp_min*100:.1f}% {self.base_elem} - "
-            f"{self.base_elem_comp_max*100:.1f}% {self.base_elem} (± {self.offset*100:.1f}%)"
+            f"Phase '{self.name}', {self.base_elem_comp_min*100:.1f}%"
+            f" {self.base_elem} - {self.base_elem_comp_max*100:.1f}%"
+            f" {self.base_elem} (± {self.offset*100:.1f}%)"
         )
 
         if self.phase_diagram is not None:

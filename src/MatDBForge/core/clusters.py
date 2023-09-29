@@ -21,7 +21,9 @@ LATT = [20, 21, 22]
 ATOM_DATA = {
     "Cu": {
         "a": 3.5691940,
-        "dimer_dist": 2.248,  # Å, via DFT calculations (Kabir et al., 2004; Guvelioglu et al., 2006)
+        "dimer_dist": (
+            2.248
+        ),  # Å, via DFT calculations (Kabir et al., 2004; Guvelioglu et al., 2006)
     }
 }
 
@@ -351,7 +353,7 @@ def apply_replacement_cluster_db(
     (other_elem,) = db_obj.ALLOY_SET - {phase.cluster_elem}
 
     # Selecting only non-replaced structures
-    base_clusters = db_obj.df.loc[db_obj.df["replacement"] == False]
+    base_clusters = db_obj.df.loc[db_obj.df["replacement"] is False]
 
     for row_idx, row in base_clusters.iterrows():
         cluster = row.structure
@@ -445,10 +447,8 @@ def apply_gauss_perturb_db(repeat: int, db_obj, center: float = 0.04):
 
     if not isinstance(db_obj, mdb_indb.InitialDatabase):
         raise TypeError(
-            (
-                f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
-                f"database object, not a {type(db_obj)}."
-            )
+            f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
+            f"database object, not a {type(db_obj)}."
         )
 
     # Iterating over all database rows to get the unperturbed clusters

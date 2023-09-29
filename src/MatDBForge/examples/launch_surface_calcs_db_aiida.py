@@ -2,7 +2,6 @@ import logging
 import time
 
 import numpy as np
-import pandas as pd
 from aiida.engine import submit
 from aiida.orm import Bool, Code, Dict, Group, Int, Str, StructureData, List
 from aiida.orm.nodes.data.array.kpoints import KpointsData
@@ -93,7 +92,10 @@ POTENTIAL_FAMILY = "vasp-5.4-PBE-2023"
 POTENTIAL_MAPPING = aut.generate_potential_mapping()
 
 # Paths for the source and target dataframe.
-SOURCE_DF = "/tmp/initial-database_23082023-182352_test_new_db_style_testing_site_properties.pkl"
+SOURCE_DF = (
+    "/tmp/initial-database_23082023-182352_test_"
+    "new_db_style_testing_site_properties.pkl"
+)
 TARGET_DF = "/WAREHOUSE/surface_database.pkl"
 LOG_PATH = "/WAREHOUSE"
 
@@ -110,15 +112,18 @@ START_ON = 0
 
 
 if __name__ == "__main__":
-
     # Loading the initial structures dataframe
     initial_db = indb.CuZnInitialDatabase(SOURCE_DF)
 
     # Limiting the number of allowed structures
-    initial_db.limit_structure_number_phases(structure_limit=3500,phases_to_use=['alpha','beta-prime','gamma','epsilon','delta','eta'],structure_types=['surface'])
-    
+    initial_db.limit_structure_number_phases(
+        structure_limit=3500,
+        phases_to_use=["alpha", "beta-prime", "gamma", "epsilon", "delta", "eta"],
+        structure_types=["surface"],
+    )
+
     # Selecting the desired structures
-    sel_struct_df = initial_db.df.loc[initial_db.df['surface']]
+    sel_struct_df = initial_db.df.loc[initial_db.df["surface"]]
 
     # Getting current time
     ctime = time.strftime("%Y%m%dT%H%M%S")
@@ -141,7 +146,7 @@ if __name__ == "__main__":
     group.store()
     ut.custom_print(f'Group identifier: "{group.uuid}"', "info")
     ut.custom_print(f"Group label: {group_label}", "info")
-    
+
     # Starting calculation index
     curr_ind = 0
 
@@ -150,7 +155,10 @@ if __name__ == "__main__":
     num_chunks = len(sel_struct_df) // MAX_BATCH
 
     ut.custom_print(
-        f"Splitting database with {len(sel_struct_df)} entries into {num_chunks} chunks.",
+        (
+            f"Splitting database with {len(sel_struct_df)} entries into"
+            f" {num_chunks} chunks."
+        ),
         "info",
     )
 
@@ -180,14 +188,19 @@ if __name__ == "__main__":
             kspacing = KSPACING[phase]
 
             # Generate INCAR with correct kspacing
-            incar, kspacing_vec = aut.generate_incar(structure=target_structure,
-                phase=phase, calc_type=CALC_TYPE, kspacing=KSPACING
+            incar, kspacing_vec = aut.generate_incar(
+                structure=target_structure,
+                phase=phase,
+                calc_type=CALC_TYPE,
+                kspacing=KSPACING,
             )
 
             # Dictionary containing metadata for the calculation
             metadata_dict = {
                 "label": f"{target_row.material_id}-{struct_formula}-{it}_{CALC_TYPE}",
-                "description": f"Relaxation for {struct_formula} in CuZn initial database.",
+                "description": (
+                    f"Relaxation for {struct_formula} in CuZn initial database."
+                ),
             }
 
             # Getting structure as an aiida structure from pymatgen.
@@ -198,7 +211,7 @@ if __name__ == "__main__":
             kpoints_data = KpointsData()
             # This conditional could be done with isinstance, if the calc
             # types were defined differently. Check if the current StrEnum
-            # can be used with isinstance. 
+            # can be used with isinstance.
             if CALC_TYPE == "sp":
                 kpoints_data.set_cell_from_structure(structuredata=structure)
                 kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
@@ -208,10 +221,12 @@ if __name__ == "__main__":
 
             # Get selective dynamics
             selective_dynamics = None
-            if target_structure.site_properties.get('selective_dynamics'):
-                dynamics_list = target_structure.site_properties.get('selective_dynamics')
-                selective_dynamics = {'positions_dof': List(dynamics_list)}
-            
+            if target_structure.site_properties.get("selective_dynamics"):
+                dynamics_list = target_structure.site_properties.get(
+                    "selective_dynamics"
+                )
+                selective_dynamics = {"positions_dof": List(dynamics_list)}
+
             # Jobfile equivalent
             # In options, we typically set scheduler options. See:
             # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
@@ -260,7 +275,7 @@ if __name__ == "__main__":
             elif CALC_TYPE.lower() == "relax":
                 builder["perform_static"] = Bool(False)
                 builder["relax"]["perform"] = Bool(True)
-            
+
             # Submitting the calculation.
             # Aiida should handle the scheduler, ssh connection and result
             # retrieval if everything is configured correctly
@@ -269,7 +284,10 @@ if __name__ == "__main__":
             chunk_node_list.append(node)
 
             ut.custom_print(
-                f"Launched workchain for structure {it}: '{struct_formula}' ({phase}) - node id: {node.id}",
+                (
+                    f"Launched workchain for structure {it}: '{struct_formula}'"
+                    f" ({phase}) - node id: {node.id}"
+                ),
                 "debug",
             )
 
@@ -278,14 +296,18 @@ if __name__ == "__main__":
         chunk_finished = False
         while not chunk_finished:
             ut.custom_print(
-                f"({time.strftime('%H:%M:%S')}) Waiting for calculations from chunk {chunk_id} to be finished...",
+                (
+                    f"({time.strftime('%H:%M:%S')}) Waiting for calculations from chunk"
+                    f" {chunk_id} to be finished..."
+                ),
                 "info",
             )
             node_status_list = []
             for nod in chunk_node_list:
                 # Some interesting options with dir(i):
                 # 'is_excepted', 'is_failed', 'is_finished',
-                # 'is_finished_ok', 'is_killed', 'is_sealed', 'is_stored', 'is_terminated',
+                # 'is_finished_ok', 'is_killed', 'is_sealed',
+                # 'is_stored', 'is_terminated',
                 # 'process_status', exception
                 node_status_list.append(nod.is_finished)
 
@@ -294,7 +316,10 @@ if __name__ == "__main__":
 
                 for nod in chunk_node_list:
                     ut.custom_print(
-                        f"VaspCalculation {nod.id} finished: {nod.exit_status} - {nod.exit_message}",
+                        (
+                            f"VaspCalculation {nod.id} finished: {nod.exit_status} -"
+                            f" {nod.exit_message}"
+                        ),
                         "debug",
                     )
 

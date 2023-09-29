@@ -40,10 +40,10 @@ for phase in selected_phases:
         phase=phase,
         overwrite_max_num_atoms=64,
         max_miller_index=2,
-        min_slab_size=4, # Angs
-        max_slab_size=14, # Angs
-        num_diff_layer_size=3, # 3
-        min_vacuum_size=12, # Angs
+        min_slab_size=4,  # Angs
+        max_slab_size=14,  # Angs
+        num_diff_layer_size=3,  # 3
+        min_vacuum_size=12,  # Angs
         get_supercells=False,
         get_replacements=True,
         num_replacement_structs=2,
@@ -52,13 +52,18 @@ for phase in selected_phases:
         limit_per_phase=250,
     )
 
-    ut.custom_print("Checking for repeated structures...","info",)
-    structures.find_repeat_structures(delete=True, filters=[('surface', 'replacement')], phase=phase)
+    ut.custom_print(
+        "Checking for repeated structures...",
+        "info",
+    )
+    structures.find_repeat_structures(
+        delete=True, filters=[("surface", "replacement")], phase=phase
+    )
 
 print()
 
 ut.custom_print("Applying a random perturbation to the surfaces...", "info")
-structures.perturb_gauss(filters=['surface'], repeat=3)
+structures.perturb_gauss(filters=["surface"], repeat=3)
 ut.custom_print(structures, "done")
 print()
 

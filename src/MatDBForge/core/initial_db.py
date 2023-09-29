@@ -492,8 +492,10 @@ class InitialDatabase:
 
         else:
             ut.custom_print(
-                f"{len(duplicate_structure_names)} repeated structures found. "
-                "Database untouched as 'delete' is set to False.",
+                (
+                    f"{len(duplicate_structure_names)} repeated structures found. "
+                    "Database untouched as 'delete' is set to False."
+                ),
                 "info",
             )
 
@@ -1904,7 +1906,7 @@ class CuZnInitialDatabase(InitialDatabase):
         if isinstance(structure, Structure):
             new_row = pd.Series(
                 {
-                    "" "material_id": material_id,
+                    "material_id": material_id,
                     "structure": structure,
                     "temperature": None,
                     "perturb": True,
@@ -2007,12 +2009,10 @@ class CuZnInitialDatabase(InitialDatabase):
         ):
             # Preparing and writing the line
             buffer.write(
-                (
-                    f"atom {at[0]:.6f} {at[1]:.6f}"
-                    f" {at[2]:.6f}"
-                    f" {data_dict['symbols'][idx]} {0:.6f} {0:.6f}"
-                    f" {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
-                )
+                f"atom {at[0]:.6f} {at[1]:.6f}"
+                f" {at[2]:.6f}"
+                f" {data_dict['symbols'][idx]} {0:.6f} {0:.6f}"
+                f" {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
             )
 
         # writing potential energy and charge
@@ -2192,8 +2192,6 @@ class CuZnInitialDatabase(InitialDatabase):
 
 if __name__ == "__main__":
     raise RuntimeError(
-        (
-            "Do not run this file!"
-            "This file is intended to be used as a module and not a script."
-        )
+        "Do not run this file!"
+        "This file is intended to be used as a module and not a script."
     )

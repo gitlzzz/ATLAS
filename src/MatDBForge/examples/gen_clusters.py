@@ -1,8 +1,9 @@
-from MatDBForge.core import initial_db as indb
-import MatDBForge.core.utils as mdb_utils
-import MatDBForge.core.clusters as mdb_clust
-from datetime import datetime
 import pathlib as pl
+from datetime import datetime
+
+import MatDBForge.core.clusters as mdb_clust
+import MatDBForge.core.utils as mdb_utils
+from MatDBForge.core import initial_db as indb
 
 MAX_SIZE = 5
 NUM_STRUCT = 4

@@ -177,7 +177,9 @@ if __name__ == "__main__":
             # Dictionary containing metadata for the calculation
             metadata_dict = {
                 "label": f"{target_row.material_id}-{struct_formula}-{it}_{CALC_TYPE}",
-                "description": f"Relaxation for {struct_formula} in CuZn initial database.",
+                "description": (
+                    f"Relaxation for {struct_formula} in CuZn initial database."
+                ),
             }
 
             # Getting structure as an aiida structure from pymatgen.
@@ -245,7 +247,10 @@ if __name__ == "__main__":
             chunk_node_list.append(node)
 
             ut.custom_print(
-                f"Launched workchain for structure {it}: '{struct_formula}' ({phase}) - node id: {node.id}",
+                (
+                    f"Launched workchain for structure {it}: '{struct_formula}'"
+                    f" ({phase}) - node id: {node.id}"
+                ),
                 "debug",
             )
 
@@ -254,7 +259,10 @@ if __name__ == "__main__":
         chunk_finished = False
         while not chunk_finished:
             ut.custom_print(
-                f"({time.strftime('%H:%M:%S')}) Waiting for calculations from chunk {chunk_id} to be finished...",
+                (
+                    f"({time.strftime('%H:%M:%S')}) Waiting for calculations from chunk"
+                    f" {chunk_id} to be finished..."
+                ),
                 "info",
             )
             node_status_list = []
@@ -270,7 +278,10 @@ if __name__ == "__main__":
 
                 for nod in chunk_node_list:
                     ut.custom_print(
-                        f"VaspCalculation {nod.id} finished: {nod.exit_status} - {nod.exit_message}",
+                        (
+                            f"VaspCalculation {nod.id} finished: {nod.exit_status} -"
+                            f" {nod.exit_message}"
+                        ),
                         "debug",
                     )
 

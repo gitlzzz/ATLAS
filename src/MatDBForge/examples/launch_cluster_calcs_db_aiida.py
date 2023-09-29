@@ -1,15 +1,14 @@
-import logging
+import pathlib as pl
 import time
 
 import numpy as np
 from aiida.engine import submit
-from aiida.orm import Bool, Code, Dict, Group, Int, Str, StructureData, List
+from aiida.orm import Bool, Code, Dict, Group, Int, List, Str, StructureData
 from aiida.orm.nodes.data.array.kpoints import KpointsData
 from aiida.plugins import WorkflowFactory
+from MatDBForge.core import initial_db as indb
 from MatDBForge.core import utils as ut
 from MatDBForge.workflows import aiida_utils as aut
-from MatDBForge.core import initial_db as indb
-import pathlib as pl
 
 # k-spacing values for every phase to be
 # included in the INCAR
@@ -94,9 +93,7 @@ POTENTIAL_MAPPING = aut.generate_potential_mapping()
 # Paths for the source and target dataframe.
 
 # "./clusters_2023-09-18T123330_final_database.xz"
-
-
-#"clusters_2023-09-20T114841_final_database.xz"
+# "clusters_2023-09-20T114841_final_database.xz"
 SOURCE_DF = "clusters_2023-09-28T230054_final_database.xz"
 TARGET_DF = "/WAREHOUSE/surface_database.pkl"
 LOG_PATH = "/WAREHOUSE/P2/calc_logs"
@@ -206,9 +203,11 @@ if __name__ == "__main__":
 
             # Dictionary containing metadata for the calculation
             metadata_dict = {
-                "label": f"{target_row.material_name}-{struct_formula}-{it}_{CALC_TYPE}",
+                "label": (
+                    f"{target_row.material_name}-{struct_formula}-{it}_{CALC_TYPE}"
+                ),
                 "description": (
-                    f"Relaxation for {struct_formula}" f"in CuZn initial database."
+                    f"Relaxation for {struct_formula}in CuZn initial database."
                 ),
             }
 

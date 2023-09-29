@@ -1,7 +1,6 @@
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
 import uuid
-import warnings
 import pandas as pd
 
 
