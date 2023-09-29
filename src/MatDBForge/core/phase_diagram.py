@@ -104,6 +104,8 @@ class BinaryPhaseDiagram:
         else:
             raise AttributeError(f"'PhaseDiagram' object has no attribute '{name}'")
 
+    def get_phase_for_structure(self, structure):
+        print(structure.formula)
 
 # TODO: Imlpement this
 class TernaryPhaseDiagram:
@@ -135,6 +137,7 @@ class Phase:
         self,
         name: str,
         base_elem,
+        cluster_elem,
         base_elem_comp_max: float,
         base_elem_comp_min: float,
         prototype: str,
@@ -143,6 +146,7 @@ class Phase:
     ):
         self.name = name
         self.base_elem = Element(base_elem)
+        self.cluster_elem = Element(cluster_elem)
         self.base_elem_comp_max = float(base_elem_comp_max)
         self.base_elem_comp_min = float(base_elem_comp_min)
         self.prototype = prototype
@@ -154,6 +158,24 @@ class Phase:
         # self.phase_diagram = phase_diagram.__name__
 
     def __str__(self):
+        """Return a string representation of the phase.
+
+        Returns:
+            str: The string representation of the phase.
+
+        """
+        repr_string = (
+            f"Phase '{self.name}', {self.base_elem_comp_min*100:.1f}% {self.base_elem} - "
+            f"{self.base_elem_comp_max*100:.1f}% {self.base_elem} (± {self.offset*100:.1f}%)"
+        )
+
+        if self.phase_diagram is not None:
+            # repr_string += f" (belongs to {self.phase_diagram.material})"
+            repr_string += f" (belongs to {self.phase_diagram})"
+
+        return repr_string
+
+    def __repr__(self):
         """Return a string representation of the phase.
 
         Returns:
