@@ -21,7 +21,8 @@ import rich.align as rialg
 import rich.console as ricns
 import rich.live as riliv
 import rich.progress as riprg
-from aiida import orm
+from aiida import load_profile, orm
+from aiida_vasp.calcs.vasp import VaspCalculation
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from mp_api.client import MPRester
@@ -33,11 +34,11 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from slugify import slugify
 
 import MatDBForge as mdb
+import MatDBForge.core.clusters as mdb_clust
 import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.surfaces as mdb_surf
-import MatDBForge.core.clusters as mdb_clust
 from MatDBForge.core import utils as ut
 
 # Filtering certain warnings
@@ -295,7 +296,9 @@ class InitialDatabase:
 
     def _check_repeat_struct(self, curr_phase, curr_struct: Structure):
         structure_list = self.df.loc[self.df.phase == curr_phase].structure.values
-        species_list = set([a.symbol for a in curr_struct.species])
+
+        # species_list = set([a.symbol for a in curr_struct.species])
+        species_list = [el.Z for el in CuZnInitialDatabase.ALLOY_SET]
 
         r_cut = 6
         n_max = 8
@@ -489,7 +492,7 @@ class InitialDatabase:
 
         else:
             ut.custom_print(
-                f"{len(duplicate_structures_df)} repeated structures found. "
+                f"{len(duplicate_structure_names)} repeated structures found. "
                 "Database untouched as 'delete' is set to False.",
                 "info",
             )
@@ -1931,7 +1934,16 @@ class CuZnInitialDatabase(InitialDatabase):
         self.df = self.df.astype(
             {"perturb": "boolean", "base": "boolean", "surface": "boolean"}
         )
-        self.df = pd.concat([self.df, new_row_df], ignore_index=True)
+
+        # Concatenating a row with boolean columns to an empty array results
+        # in a warning message. In order to avoid the warning, if the
+        # dataframe is empty, it is replaced by the dataframe with the complete
+        # row in this first instance only, and then the concatenation is done
+        # as usual for the rest of the execution.
+        if self.df.shape[0] == 0:
+            self.df = new_row_df
+        else:
+            self.df = pd.concat([self.df, new_row_df], ignore_index=True)
 
     def _gather_n2p2_reqdata_from_node(self, node):
         # Getting calculation name
@@ -2013,9 +2025,6 @@ class CuZnInitialDatabase(InitialDatabase):
     def generate_n2p2_input_aiida(
         self, aiida_group_list: list, filter_dict: dict, path: str = None
     ):
-        from aiida import load_profile
-        from aiida_vasp.calcs.vasp import VaspCalculation
-
         # Loading aiida profile
         load_profile()
 
@@ -2035,10 +2044,16 @@ class CuZnInitialDatabase(InitialDatabase):
         qb = orm.QueryBuilder()
 
         for group in aiida_group_list:
+            print("group: ", group)
             qb.append(orm.Group, filters={"label": group}, tag="group")
-            qb.append(VaspCalculation, with_group="group", filters=filter_dict),
+            qb.append(orm.WorkChainNode, with_group="group", filters=filter_dict),
 
         result_nodes = qb.all(flat=True)
+
+        if len(result_nodes) == 0:
+            for group in aiida_group_list:
+                qb.append(VaspCalculation, with_group="group", filters=filter_dict)
+            result_nodes = qb.all(flat=True)
 
         ut.custom_print(f"{len(result_nodes)} nodes found.", "info")
 
@@ -2079,11 +2094,13 @@ class CuZnInitialDatabase(InitialDatabase):
             except mdb_exc.PhaseNotFound:
                 pass
 
-            # Getting the selected types to use.
-            # TODO: Fix this, only keeps one structure type.
             structure_list = self.df.loc[self.df.phase == curr_phase]
-            for structure_type in structure_types:
-                structure_list = structure_list.loc[structure_list[structure_type]]
+
+            # Getting the selected types to use.
+            # TODO: Fix this, as now only keeps one structure type.
+            # for structure_type in structure_types:
+            # structure_list.loc[structure_list['channel'].isin(['sale','fullprice'])]
+            # structure_list = structure_list.loc[structure_list[structure_type]]
 
             # If the number of structures for the selected types is larger than
             # the maximum allowed, reduce the number by sampling a certain amount.
@@ -2091,31 +2108,26 @@ class CuZnInitialDatabase(InitialDatabase):
                 # Getting the all but the original surface used for this phase,
                 # which should be maintained in the database.
                 changed_structures = structure_list.loc[
-                    structure_list.perturb
-                    | structure_list.supercell
-                    | structure_list.replacement
+                    (structure_list.phase == curr_phase)
+                    & (
+                        structure_list.perturb
+                        | structure_list.supercell
+                        | structure_list.replacement
+                    )
                 ]
 
-                structure_list_base = structure_list.drop(changed_structures.index)
+                to_remove = structure_list.loc[
+                    structure_list.unique_id.isin(changed_structures.unique_id)
+                ]
+                structure_list_base = structure_list.drop(to_remove.index)
 
-                if changed_structures.shape[0] >= max_struct_phase // 2:
-                    phase_structures = structure_list_base.iloc[
-                        0 : max_struct_phase // 2
-                    ]
-                    changed_structures_sample = changed_structures.sample(
-                        max_struct_phase // 2
-                    )
-                else:
-                    offset = (max_struct_phase // 2) - changed_structures.shape[0]
-                    phase_structures = structure_list_base.iloc[
-                        0 : (max_struct_phase // 2) + offset
-                    ]
-                    changed_structures_sample = changed_structures
+                sample_amount = structure_limit - structure_list_base.shape[0]
+                changed_structures_sample = changed_structures.sample(sample_amount)
 
                 # These are the selected structures for the desired phase and type.
                 # We want to keep these structures in the original dataframe.
                 phase_structures = pd.concat(
-                    [phase_structures, changed_structures_sample]
+                    [structure_list_base, changed_structures_sample]
                 )
 
                 # We remove all structures of the selected type
@@ -2130,54 +2142,37 @@ class CuZnInitialDatabase(InitialDatabase):
 
     def generate_clusters(
         self,
-        phase: mdb_pd.Phase,
         size_range: list,
         get_replacements=False,
         get_perturbed=False,
+        add_dimer=False,
         save_in_db=False,
         limit_per_phase: int = None,
         num_struct: int = 2,
         num_repeat: int = 2,
     ):
+        # Getting default phase
+        phase = CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase("alpha")
+
         # Generate a list of mdb_struct.Cluster
         cluster_list = []
 
-        # Generate a list of perturbed clusters, which is done separately
-        # in order to not apply the perturbations to the entire dataset,
-        # which would grow infinitely then.
-        repl_perturb_cluster_list = []
+        # Adding a dimer
+        if add_dimer:
+            ut.custom_print("Adding base dimers...", "debug")
+            clust_obj = mdb_clust.make_clean_dimer(self, phase=phase)
+            cluster_list.append(clust_obj)
+            ut.custom_print("Base dimers done...", "debug")
 
         # Create clusters over all size range given, from smallest to largest.
+        ut.custom_print(
+            f"Adding base clusters with n_atoms: {size_range[0]}-{size_range[-1]}...",
+            "debug",
+        )
         for size in size_range:
             clust_obj = mdb_clust.make_clean_cluster(self, size=size, phase=phase)
-
             cluster_list.append(clust_obj)
-            repl_perturb_cluster_list.append(clust_obj)
-
-            # Iterate over all structures, and for every
-            # structure, generate 2~3 replacements for every of the phases.
-            if get_replacements:
-                replaced_clusters = mdb_clust.apply_replacement_cluster(
-                    db_obj=self,
-                    cluster=clust_obj,
-                    phase=phase,
-                    num_struct=num_struct,
-                    num_repeat=num_repeat,
-                )
-                repl_perturb_cluster_list.extend(replaced_clusters)
-
-            # Getting all generated structures (base and perturb)
-            # and applying a perturbation
-            if get_perturbed:
-                perturbed_clusters = mdb_clust.apply_gauss_perturb(
-                    cluster_list=repl_perturb_cluster_list,
-                    center=0.04,
-                    repeat=num_repeat,
-                )
-                repl_perturb_cluster_list.extend(perturbed_clusters)
-
-            cluster_list.extend(repl_perturb_cluster_list)
-            repl_perturb_cluster_list = []
+        ut.custom_print("Base clusters done...", "debug")
 
         # If True, store the structures along with their information
         # into the MatDBForge InitialDatabase object
@@ -2187,7 +2182,12 @@ class CuZnInitialDatabase(InitialDatabase):
 
         # Return the cluster list in case the user just wants the clusters
         # but not storing them into the database.
+        ut.custom_print(f"Generated {len(cluster_list)} base clusters.", "debug")
         return cluster_list
+
+    def display_db_ase(self):
+        structures = self.df.structure
+        ut._display_indb_dataframe(structures)
 
 
 if __name__ == "__main__":
