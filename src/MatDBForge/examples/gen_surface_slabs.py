@@ -24,13 +24,12 @@ structures.df["surface"] = structures.df["surface"].astype("boolean")
 # Filtering phases
 selected_phases = [
     phase
-    for phase in indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.phases
+    for phase in indb.DB_PHASE_DIAGRAM.phases
     if phase.name not in ["m1", "m2", "m3", "m4"]
 ]
 
 ut.custom_print("Generating surfaces from initial structures...", "debug")
-# for phase in selected_phases:
-for phase in ['alpha']:
+for phase in selected_phases:
     # Line break for aesthetic purposes
     print()
 
@@ -41,10 +40,10 @@ for phase in ['alpha']:
         phase=phase,
         overwrite_max_num_atoms=64,
         max_miller_index=2,
-        min_slab_size=4, # Angs
-        max_slab_size=14, # Angs
-        num_diff_layer_size=3, # 3
-        min_vacuum_size=12, # Angs
+        min_slab_size=4,  # Angs
+        max_slab_size=14,  # Angs
+        num_diff_layer_size=3,  # 3
+        min_vacuum_size=12,  # Angs
         get_supercells=False,
         get_replacements=True,
         num_replacement_structs=2,
@@ -53,13 +52,18 @@ for phase in ['alpha']:
         limit_per_phase=250,
     )
 
-    ut.custom_print("Checking for repeated structures...","info",)
-    structures.find_repeat_structures(delete=True, filters=[('surface', 'replacement')], phase=phase)
+    ut.custom_print(
+        "Checking for repeated structures...",
+        "info",
+    )
+    structures.find_repeat_structures(
+        delete=True, filters=[("surface", "replacement")], phase=phase
+    )
 
 print()
 
 ut.custom_print("Applying a random perturbation to the surfaces...", "info")
-structures.perturb_gauss(filters=['surface'], repeat=3)
+structures.perturb_gauss(filters=["surface"], repeat=3)
 ut.custom_print(structures, "done")
 print()
 

@@ -371,8 +371,6 @@ def slab_to_bottom(
     ----------
     slab : Union[Slab, Structure]
         Target slab to move to the bottom.
-    miller: tuple
-        Miller index of the slab
     offset : int, optional
         Separation to be left between the bottom of the cell
         and the slab, by default 2, in Angstrom.

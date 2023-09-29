@@ -53,6 +53,44 @@ SEL_DYNAMICS = None
 
 # INCAR equivalent
 # Set input parameters
+INCAR_CLUSTER = {
+    "incar": {
+        ## general:
+        "istart": 0,
+        "icharg": 2,
+        "gga": "Pe",
+        "ispin": 1,
+        # "lorbit": 11,
+        ## electronic steps:
+        "encut": 450,
+        "ediff": 1e-6,
+        "ismear": 0,
+        "sigma": 0.03,
+        "algo": "Fast",
+        "lreal": "Auto",
+        "nelm": 120,
+        ## ionic steps:
+        "ibrion": -1,
+        "nsw": 2,
+        "ediffg": -0.03,
+        "isif": 2,
+        "potim": 0.3,
+        ## files to write:
+        "lwave": False,
+        "lcharg": False,
+        ## parallelization:
+        "ncore": 4,
+        # "kpar": 4,
+        ## dipole correction
+        "lelf": False,
+        ## van der Waals:
+        "ivdw": 11,
+        ## surface
+        "idipol": 4,
+        "ldipol": True,
+    }
+}
+
 INCAR_SP = {
     "incar": {
         ## general:
@@ -86,8 +124,8 @@ INCAR_SP = {
         ## van der Waals:
         "ivdw": 11,
         ## surface
-        "idipol":3,
-        "ldipol":True,
+        "idipol": 3,
+        "ldipol": True,
     }
 }
 
@@ -143,6 +181,7 @@ KSPACING_DEFAULT = {
     "m4": 0.0948760981384118,
 }
 
+
 # TODO: Convert the subtypes into actual clases
 class CalcType(StrEnum):
     """
@@ -156,6 +195,7 @@ class CalcType(StrEnum):
     relaxation = "relax"
     single_point = "sp"
     single_point_surface = "sp_surface"
+    single_point_cluster = "sp_cluster"
     sp = "sp"
     static = "sp"
 
@@ -287,6 +327,7 @@ def choose_queue_from_struct(structure, assign_dict: dict):
 
     return OPTIONS, CODE_STRING, mult_nodes
 
+
 def kpoint_mesh_from_density(structure, kspacing):
     """Returns kpoint mesh (3x3) from kpoint array,
     intended for surfaces.
@@ -308,17 +349,18 @@ def kpoint_mesh_from_density(structure, kspacing):
     b_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[2, :])) / v_mat)
     c_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[1, :])) / v_mat)
 
-    arr_kpt_run = 1/(kpt_dens_arr / np.array((a_rcpr, b_rcpr, c_rcpr)))
-    arr_kpt_run = np.around(arr_kpt_run) 
+    arr_kpt_run = 1 / (kpt_dens_arr / np.array((a_rcpr, b_rcpr, c_rcpr)))
+    arr_kpt_run = np.around(arr_kpt_run)
     arr_kpt_run[2] = 1
 
     return arr_kpt_run
- 
+
 
 def select_kspacing(curr_structure, incar: dict, phase: str, kspacing: dict, calc_type):
-
     if "surface" in calc_type:
-        kspacing_calc = kpoint_mesh_from_density(structure=curr_structure,kspacing=kspacing[phase])
+        kspacing_calc = kpoint_mesh_from_density(
+            structure=curr_structure, kspacing=kspacing[phase]
+        )
     else:
         kspacing_calc = kspacing[phase]
 
@@ -344,7 +386,9 @@ def sort_chunk_size(chunk):
     return chunk
 
 
-def generate_incar(structure, phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT):
+def generate_incar(
+    structure, phase: str, calc_type: str, kspacing: dict = KSPACING_DEFAULT
+):
     """
     Generate an incar file using depending on the calculation type.
     This incar includes a kspacing variable that depends on the phase.
@@ -366,11 +410,13 @@ def generate_incar(structure, phase: str, calc_type: str, kspacing: dict = KSPAC
     """
 
     if "relax" in calc_type:
-        ut.custom_print("Selecting relaxation INCAR...", 'debug')
+        ut.custom_print("Selecting relaxation INCAR...", "debug")
         incar = INCAR_RELAX
-
-    if "sp" in calc_type:
-        ut.custom_print("Selecting single point INCAR...", 'debug')
+    elif "sp_cluster" in calc_type:
+        ut.custom_print("Selecting single point INCAR...", "debug")
+        incar = INCAR_SP
+    elif "sp" in calc_type:
+        ut.custom_print("Selecting single point INCAR...", "debug")
         incar = INCAR_SP
 
     kspacing = select_kspacing(structure, incar, phase, kspacing, calc_type)

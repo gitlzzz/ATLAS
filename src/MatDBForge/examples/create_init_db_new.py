@@ -63,7 +63,10 @@ mdb_ut.custom_print(f"Done! {len(structures.df.index)} structures generated.", "
 print()
 
 # Checking for duplicate structures, and deleting the ones that are repeated.
-mdb_ut.custom_print("Checking for repeated structures...","info",)
+mdb_ut.custom_print(
+    "Checking for repeated structures...",
+    "info",
+)
 structures.find_repeat_structures(delete=True)
 mdb_ut.custom_print(structures, "info")
 
@@ -77,7 +80,7 @@ print()
 
 # Adding a random perturbation to structures.
 mdb_ut.custom_print("Adding a random perturbation to structures...", "info")
-structures.perturb_gauss(center=0.04, repeat=3, filters=['replacement', 'base'])
+structures.perturb_gauss(center=0.04, repeat=3, filters=["replacement", "base"])
 mdb_ut.custom_print("Random perturbation done.", "done")
 mdb_ut.custom_print(structures, "info")
 print()
