@@ -8,10 +8,10 @@ import pandas as pd
 class Structure:
     def __init__(
         self,
-        material_name: str = None,
         structure=None,
+        material_name: str = None,
         material_id=None,
-        phase = None,
+        phase=None,
         base: bool = None,
         perturb: bool = None,
         supercell=None,
@@ -46,7 +46,11 @@ class Structure:
         self.replacement = replacement
         self.replacement_ind = replacement_ind
         self.cluster = cluster
+
+        if not formula and structure:
+            formula = structure.formula
         self.formula = formula
+
         self.symmetry = symmetry
         self.temperature = temperature
         self.magnetic_properties = magnetic_properties
@@ -195,9 +199,9 @@ class Structure:
             }
         )
 
-        # TODO: Restore FutureWarning.
-        with warnings.catch_warnings():
-            warnings.simplefilter(action='ignore', category=FutureWarning)
+        if df.shape[0] == 0:
+            df = new_row
+        else:
             df = pd.concat([df, new_row], ignore_index=True)
 
         return df
@@ -252,7 +256,9 @@ class Surface(Structure):
         super().__init__(**kwargs)
         self.surface = True
 
-    def from_mdb_structure(self, mdb_structure, surface_miller, new_structure=None, material_name=None):
+    def from_mdb_structure(
+        self, mdb_structure, surface_miller, new_structure=None, material_name=None
+    ):
         if material_name:
             self.material_name = material_name
         else:
@@ -289,7 +295,6 @@ class Surface(Structure):
 
 
 class Cluster(Structure):
-    def __init__(
-        self,
-    ):
-        self.cluster = True
+    def __init__(self, cluster=True, **kwargs):
+        super().__init__(**kwargs)
+        self.cluster = cluster
