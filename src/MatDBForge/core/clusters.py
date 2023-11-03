@@ -1,12 +1,14 @@
+import itertools as it
 import pathlib as pl
+
+import numpy as np
+from pymatgen.core import Lattice, Structure
+
+import MatDBForge.core.exceptions as mdb_exc
+import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_phase
 import MatDBForge.core.structure as mdb_struct
-import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.utils as mdb_utils
-import MatDBForge.core.initial_db as mdb_indb
-import numpy as np
-import itertools as it
-from pymatgen.core import Structure, Lattice
 
 # Gathering some cluster related data
 DATA_PATH = (pl.Path(f"{__file__}").parent / "../data").resolve()
@@ -176,7 +178,6 @@ def center_structure(
         Pymatgen structure containing a structure placed on the center,
         with the same attributes as the original.
     """
-
     # Getting the center of mass
     com = get_center_of_mass(structure)
 
@@ -219,7 +220,6 @@ def bottom_structure(
         Pymatgen structure containing a structure placed on the bottom,
         with the same attributes as the original.
     """
-
     # Getting the position closest to the bottom
     bottom = np.min(structure.cart_coords)
     bottom_arr = np.zeros(shape=structure.cart_coords.shape)
@@ -262,7 +262,6 @@ def get_center_of_mass(structure: Structure):
     np.array
         Coordinates of the COM
     """
-
     # Getting the atomic mass for each atom and the total mass
     atomic_mass_arr = np.array([atom.atomic_mass for atom in structure.species])
     total_mass = np.sum(atomic_mass_arr)

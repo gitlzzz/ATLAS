@@ -7,12 +7,14 @@ class BinaryPhaseDiagram:
     """
     Class representing a binary phase diagram of materials.
 
-    Parameters:
+    Parameters
+    ----------
         material (str): The name of the material.
         *phases (Phase): Variable number of Phase objects representing the
                          phases in the diagram.
 
-    Attributes:
+    Attributes
+    ----------
         phases (list): List of Phase objects representing the phases in the diagram.
         material (str): The name of the material.
 
@@ -33,7 +35,8 @@ class BinaryPhaseDiagram:
     def add_phase(self, phase):
         """Add a phase to the phase diagram.
 
-        Parameters:
+        Parameters
+        ----------
             phase (Phase): The Phase object to add.
 
         """
@@ -63,7 +66,6 @@ class BinaryPhaseDiagram:
         TypeError
             _description_
         """
-
         if isinstance(phase, Phase):
             return self.phase_dict[phase.name]
         if isinstance(phase, str):
@@ -81,13 +83,16 @@ class BinaryPhaseDiagram:
         Override attribute lookup.
         Allows accessing phases by their names as attributes.
 
-        Parameters:
+        Parameters
+        ----------
             name (str): The name of the attribute.
 
-        Returns:
+        Returns
+        -------
             Phase: The Phase object with the specified name.
 
-        Raises:
+        Raises
+        ------
             AttributeError: If the attribute is not found.
 
         """
@@ -116,7 +121,8 @@ class TernaryPhaseDiagram:
 class Phase:
     """Class representing a phase in a phase diagram.
 
-    Parameters:
+    Parameters
+    ----------
     name: str
         The name of the phase.
     base_elem:
@@ -161,7 +167,8 @@ class Phase:
     def __str__(self):
         """Return a string representation of the phase.
 
-        Returns:
+        Returns
+        -------
             str: The string representation of the phase.
 
         """
@@ -180,7 +187,8 @@ class Phase:
     def __repr__(self):
         """Return a string representation of the phase.
 
-        Returns:
+        Returns
+        -------
             str: The string representation of the phase.
 
         """

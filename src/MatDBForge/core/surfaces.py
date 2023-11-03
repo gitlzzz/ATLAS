@@ -6,15 +6,17 @@ from typing import Union
 import catkit.gen.surface as cts
 import numpy as np
 from pymatgen.core.structure import Lattice, Structure
-from pymatgen.core.surface import Slab
+from pymatgen.core.surface import Slab, SlabGenerator
 from pymatgen.io.ase import AseAtomsAdaptor
 
+import MatDBForge.core.exceptions as mdb_exc
+import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
+import MatDBForge.core.utils as mdb_ut
 
 
 def gen_perc_surfaces(
-    db_obj,
     phase: mdb_pd.Phase,
     num_struct: int,
     current_perc: float,
@@ -43,7 +45,6 @@ def gen_perc_surfaces(
     list[float]
         List of floats containing the generated percentages.
     """
-
     # Getting offset. If not found set to 0.
     offset = phase.offset
 
@@ -183,8 +184,8 @@ def _gen_curr_surface(
     slabs_bottom = []
     for ind, (slab, mill) in enumerate(zip(slabs, miller_idx_slabs)):
         curr_surf_pymg = AseAtomsAdaptor().get_structure(slab)
-        slab = slab_to_bottom(db_obj=db_obj, slab=curr_surf_pymg)
-        mill_str = db_obj._get_miller_index_str(mill)
+        slab = slab_to_bottom(slab=curr_surf_pymg)
+        mill_str = get_miller_index_str(mill)
 
         # INFO: The _adjust_vacuum function does not work correctly.
         # As of now, the vacuum size is being defined during slab creation,
@@ -209,7 +210,7 @@ def _gen_curr_surface(
     # Storing the remaining slabs.
     for idx, (slab, mill) in enumerate(slabs_size):
         # Getting the current slab's miller index
-        mill_str = db_obj._get_miller_index_str(mill)
+        mill_str = get_miller_index_str(mill)
 
         # Preparing the structure name
         surf_name = (
@@ -229,49 +230,9 @@ def _gen_curr_surface(
             calc_performed=False,
             phase=phase,
         )
-        # Saving the bulk to the db.
+        # Saving the surface to the db.
         db_obj.df = curr_strct.save_to_db(db_obj.df)
         generated_structures.append(curr_strct)
-
-    # Getting supercells
-    if get_supercells:
-        for idx, (slab, mill) in enumerate(slabs_size):
-            super_list, idx_list, supercells = db_obj._find_supercell_indices(
-                structure=curr_surf_pymg,
-                max_atoms=db_obj.max_num_atoms,
-                get_different_supercells=True,
-                initial_supercell_size=3,
-                verbose=False,
-            )
-
-            # Storing the supercells.
-            for supercell, idx, sup_vec in zip(super_list, idx_list, supercells):
-                if len(supercell.sites) <= db_obj.max_num_atoms:
-                    # Dragging the slab to the bottom
-                    supercell_bottom = db_obj._slab_to_bottom(curr_surf_pymg)
-
-                    # Preparing the structure name
-                    surf_name = (
-                        f"{prototype}_{phase.name}_pure_surface-"
-                        f"{n_layers}-layers_{n_at}-max-at_{db_obj._get_miller_index_str(mill)}-super-{idx+1}"
-                    )
-
-                    # Creating a new surface from the supercell
-                    curr_strct = mdb_struct.Surface(
-                        material_name=surf_name,
-                        material_id=prototype,
-                        structure=supercell_bottom,
-                        temperature=np.nan,
-                        perturb=False,
-                        base=False,
-                        calc_performed=False,
-                        phase=phase,
-                        supercell=sup_vec,
-                    )
-
-                    # Saving the bulk to the db.
-                    db_obj.df = curr_strct.save_to_db(db_obj.df)
-                    generated_structures.append(curr_strct)
 
     return generated_structures
     # return surf_name
@@ -359,9 +320,9 @@ def adjust_vacuum(db_obj, slab: Slab, vacuum_size: float) -> Slab:
 
 
 def slab_to_bottom(
-    db_obj,
     slab: Union[Slab, Structure],
     offset: int = 2,
+    return_mdb_struct=True,
 ) -> Structure:
     """
     Move the slab towards the bottom of the cell, leaving a
@@ -382,6 +343,11 @@ def slab_to_bottom(
         Pymatgen structure containing slab placed on the bottom,
         with the same attributes as the original.
     """
+    # If the cell has any vector with z coordinates lower
+    # than zero, change the offset to consider this
+    if np.any(slab.lattice.matrix[:, 2] < 0):
+        min_val = np.min(slab.lattice.matrix[:, 2])
+        offset = offset + min_val
 
     # Getting the position closest to the bottom
     bottom = min(slab.cart_coords[:, 2])
@@ -391,14 +357,19 @@ def slab_to_bottom(
     bottom_arr[:, 2] += bottom - offset
 
     # Substracting the bottom position from the slab plus an offset
-    modified_coords = slab.cart_coords - bottom_arr
+    modified_coords = slab.cart_coords - np.abs(bottom_arr)
 
-    new_slab = Structure(
+    # Delete the else and the conditional structure
+    new_slab = Slab(
         lattice=slab.lattice,
         species=slab.species,
         coords=modified_coords,
         coords_are_cartesian=True,
         site_properties=slab.site_properties,
+        miller_index=slab.miller_index,
+        oriented_unit_cell=slab.oriented_unit_cell,
+        shift=slab.shift,
+        scale_factor=slab.scale_factor,
     )
 
     return new_slab
@@ -424,3 +395,356 @@ def check_correct_vacuum_size(
         return True
     else:
         return False
+
+
+def get_miller_index_str(miller_source):
+    """
+    Generate a miller index string from several sources,
+    either a Slab structure, a numpy array with the indices
+    or a string.
+    The intended use of this string is for labeling structures
+    and helping identification.
+
+    Parameters
+    ----------
+    miller_source : Slab | np.ndarray | str
+        Information about the miller indices used to
+        generate the string.
+
+    Returns
+    -------
+    str
+        Miller indices coded as a string, without including brackets.
+        Negative signs are added in front of the symbols.
+
+    """
+    if isinstance(miller_source, Slab):
+        curr_miller = str(miller_source.miller_index)
+    elif isinstance(miller_source, (np.ndarray, tuple, list)):
+        curr_miller = str(miller_source)
+    elif isinstance(miller_source, list):
+        curr_miller = "".join(map(str, miller_source))
+    elif isinstance(miller_source, str):
+        curr_miller = miller_source
+    else:
+        # Return None if the given structure is not a surface.
+        return None
+
+    replace_chars = ["'", ",", " ", "(", ")", "[", "]"]
+    for char in replace_chars:
+        curr_miller = curr_miller.replace(char, "")
+
+    return curr_miller
+
+
+def generate_surfaces_pymatgen(
+    db_obj,
+    phase: mdb_pd.Phase,
+    num_diff_layer_size: int,
+    max_miller_index: int = 2,
+    min_slab_size: float = 6,
+    # max_slab_size: float = 12,
+    min_vacuum_size: float = 10,
+    get_supercells=False,
+    get_replacements=False,
+    num_replacement_structs: int = 3,
+    num_replacement_repeats: int = 5,
+    fixed_layers: int = 0,
+    overwrite_max_num_atoms: int = None,
+    limit_per_phase: int = None,
+    limit_supercell: int = None,
+    save_in_db=False,
+):
+    # Getting the current phase from the phase name.
+    if isinstance(phase, str):
+        phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+
+    base_structs = db_obj.get_base_structs_current_phase(phase)
+
+    # Checking if there are any base structures for the current
+    # phase.
+    if len(base_structs) == 0:
+        err_msg = (
+            f"No base structure could be found for phase {phase.name}."
+            "\nThe database must contain base structures before "
+            "running this function."
+        )
+
+        raise mdb_exc.BaseStructureNotFound(err_msg)
+
+    for idx, row in base_structs.iterrows():
+        total_slabs = []
+        miller_indices = list(it.product(list(range(max_miller_index + 1)), repeat=3))[
+            1:
+        ]
+
+        for miller in miller_indices:
+            slabgen = SlabGenerator(
+                row.structure,
+                miller_index=miller,
+                min_slab_size=6,
+                min_vacuum_size=12,
+                center_slab=True,
+                lll_reduce=True,
+            )
+            slabs = slabgen.get_slabs()
+            for slab in slabs:
+                total_slabs.append((slab_to_bottom(slab=slab), miller))
+
+        generated_structures = []
+        # Storing the remaining slabs.
+        for idx, (slab, mill) in enumerate(total_slabs):
+            # Getting the current slab's miller index
+            mill_str = get_miller_index_str(mill)
+
+            # Preparing the structure name
+            surf_name = (
+                f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
+                f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
+            )
+
+            # Creating a new surface from the supercell
+            curr_strct = mdb_struct.Surface(
+                material_name=surf_name,
+                material_id=row.material_id,
+                surface_miller=mill_str,
+                structure=slab,
+                temperature=np.nan,
+                perturb=False,
+                base=False,
+                calc_performed=False,
+                phase=phase,
+            )
+
+            # Saving the surface to the db.
+            db_obj.df = curr_strct.save_to_db(db_obj.df)
+            generated_structures.append(curr_strct)
+
+        # Getting supercells
+        supercell_list = []
+        if get_supercells:
+            for idx, (slab, mill) in enumerate(total_slabs):
+                super_list, idx_list, supercells = db_obj._find_supercell_indices(
+                    structure=slab,
+                    max_atoms=db_obj.max_num_atoms,
+                    get_different_supercells=True,
+                    initial_supercell_size=3,
+                    verbose=False,
+                )
+
+                # Storing the supercells.
+                for supercell, idx, sup_vec in zip(super_list, idx_list, supercells):
+                    if len(supercell.sites) <= db_obj.max_num_atoms:
+                        # Dragging the slab to the bottom
+                        supercell_bottom = slab_to_bottom(slab=supercell)
+
+                        # Preparing the structure name
+                        surf_name = (
+                            f"{row.material_id}_{phase.name}_pure_surface-"
+                            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{idx+1}"
+                        )
+
+                        # Creating a new surface from the supercell
+                        curr_strct = mdb_struct.Surface(
+                            material_name=surf_name,
+                            material_id=row.material_id,
+                            structure=supercell_bottom,
+                            temperature=np.nan,
+                            perturb=False,
+                            base=False,
+                            calc_performed=False,
+                            phase=phase,
+                            supercell=sup_vec,
+                        )
+
+                        supercell_list.append(curr_strct)
+
+            # Limiting the number of generated supercells to
+            # the supercell limit.
+            mdb_ut.custom_print(
+                f"Length of the supercell list: {len(supercell_list)}", "debug"
+            )
+            if len(supercell_list) > limit_supercell:
+                mdb_ut.custom_print(
+                    (
+                        f"Limiting the number of supercells ({len(supercell_list)})"
+                        f" to {limit_supercell}."
+                    ),
+                    "debug",
+                )
+
+                supercell_list = np.random.choice(
+                    supercell_list, size=limit_supercell, replace=False
+                )
+
+            # for curr_strct in supercell_list:
+            # Saving the bulk to the db.
+            # db_obj.df = curr_strct.save_to_db(db_obj.df)
+
+            generated_structures.extend(supercell_list)
+
+        mdb_ut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+        if save_in_db:
+            mdb_ut.custom_print("Saving replaced structures in dataframe.", "debug")
+            for slab in generated_structures:
+                slab.save_to_db(db_obj=db_obj)
+            mdb_ut.custom_print(
+                f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+            )
+
+        return generated_structures
+
+
+def apply_replacement_surface(
+    db_obj: "mdb_indb.InitialDatabase",
+    slabs_to_replace: list,
+    save_in_db: bool = False,
+    num_replacement_structs: int = 3,
+    num_replacement_repeats: int = 2,
+    limit_replacements: int = None,
+):
+    mdb_ut.custom_print(
+        f"Applying replacements to {len(slabs_to_replace)} structures...", "debug"
+    )
+    rng = np.random.default_rng()
+
+    replacement_list = []
+
+    for idx, gen_slab in enumerate(slabs_to_replace):
+        # Getting current phase and structure length.
+        slab_phase = gen_slab.phase
+
+        # Getting the base element percentage of the current structure
+        current_perc = slab_phase.get_base_elem_perc(gen_slab.structure)
+
+        # Generating a list of random percentages inside the current phase
+        # range.
+        gen_percentages = gen_perc_surfaces(
+            phase=slab_phase,
+            num_struct=num_replacement_structs,
+            current_perc=current_perc,
+            relative=True,
+        )
+
+        # Going over the generated percentages
+        for str_ind, n_atoms in enumerate(gen_percentages):
+            # Repeating the replacement for each percentage, so that
+            # num_replacement_repeats structures are generated with
+            # the same ratio but different distribution.
+            for repl in range(num_replacement_repeats):
+                # Applying the replacement
+                new_structure = mdb_ut.apply_replacement(
+                    structure=gen_slab,
+                    phase=slab_phase,
+                    n_atoms=n_atoms,
+                    rng=rng,
+                )
+
+                # Generating name
+                if gen_slab.supercell:
+                    supercell_vec_str = get_miller_index_str(gen_slab.supercell)
+                    supercell_vec_str_name = f"super-{supercell_vec_str}_"
+                else:
+                    supercell_vec_str = gen_slab.surface_miller
+                    supercell_vec_str_name = supercell_vec_str
+
+                mat_name = (
+                    f"{slab_phase.prototype}_{slab_phase.name}_surface"
+                    f"-{supercell_vec_str_name}-{str_ind+1}"
+                    f"_replacement-{repl + 1}"
+                )
+
+                # Creating a new Surface object for the
+                # structure with replacement
+                new_struct_symm = mdb_struct.Surface(
+                    material_name=mat_name,
+                    material_id=slab_phase.prototype,
+                    surface_miller=supercell_vec_str,
+                    structure=new_structure,
+                    temperature=gen_slab.temperature,
+                    perturb=False,
+                    replacement=True,
+                    replacement_ind=(str_ind + 1, repl + 1),
+                    base=False,
+                    calc_performed=False,
+                    supercell=gen_slab.supercell,
+                    phase=slab_phase,
+                )
+
+                replacement_list.append(new_struct_symm)
+
+    mdb_ut.custom_print(
+        f"Generated {len(replacement_list)} replaced surfaces.", "debug"
+    )
+
+    # Limiting the number of replaced surfaces
+    if limit_replacements and len(replacement_list) > limit_replacements:
+        replacement_list = np.random.choice(
+            replacement_list, size=limit_replacements, replace=False
+        )
+
+        mdb_ut.custom_print(
+            f"Limited number of replaced surfaces to {len(replacement_list)}.", "debug"
+        )
+
+    if save_in_db:
+        mdb_ut.custom_print("Saving replaced surfaces in dataframe.", "debug")
+        for slab in replacement_list:
+            slab.save_to_db(db_obj=db_obj)
+        mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}", "debug")
+
+    return replacement_list
+
+
+def _apply_perturbation_surface(center, row, per_idx, filters: list, phase):
+    # Applying displacement
+    new_struct_perturb = mdb_ut.gauss_perturb(center=center, structure=row.structure)
+
+    # Creating perturbed cluster object
+    mat_str = f"{row.material_name}_perturb_gauss_{per_idx+1}"
+    clust_obj = mdb_struct.Surface(
+        material_name=mat_str,
+        structure=new_struct_perturb,
+        replacement_ind=row.replacement_ind,
+        phase=row.phase,
+        perturb=True,
+    )
+    return clust_obj
+
+
+def apply_gauss_perturb_db(
+    repeat: int, db_obj, filters: list, phase, center: float = 0.04
+):
+    perturbed_surfaces = []
+
+    if not isinstance(db_obj, mdb_indb.InitialDatabase):
+        raise TypeError(
+            f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
+            f"database object, not a {type(db_obj)}."
+        )
+
+    # Filtering structures to perturb
+    filtered_df, _, _ = mdb_ut.apply_filters_db(db_obj, filters, phase)
+
+    # Iterating over all filtered database rows to get the unperturbed surfaces
+    mdb_ut.custom_print(
+        f"Number of structures to perturb: {filtered_df.shape[0]}", "debug"
+    )
+    for _, row in filtered_df.iterrows():
+        if not row.surface or row.perturb:
+            continue
+        for per_idx in range(repeat):
+            clust_obj = _apply_perturbation_surface(
+                center, row, per_idx, filters=filters, phase=phase
+            )
+            perturbed_surfaces.append(clust_obj)
+
+    mdb_ut.custom_print(f"Total surfaces perturbed: {len(perturbed_surfaces)}", "debug")
+
+    # Saving in database
+    mdb_ut.custom_print("Saving perturbed surfaces in dataframe", "debug")
+    for surface in perturbed_surfaces:
+        db_obj._save_row(structure=surface)
+    mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
+
+    return perturbed_surfaces
