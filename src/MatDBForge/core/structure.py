@@ -1,7 +1,10 @@
+import uuid
+
+import pandas as pd
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
-import uuid
-import pandas as pd
+
+from MatDBForge.core import initial_db as mdb_indb
 
 
 class Structure:
@@ -21,8 +24,12 @@ class Structure:
         replacement: bool = False,
         replacement_ind=None,
         symmetry=None,
+        # This should be the material's project db energies
+        energy_per_atom=None,
         temperature: float = None,
         magnetic_properties=None,
+        # Everything prefixed with calc_ should come from a DFT
+        # calculation, and not the materials project db
         calc_energy_per_atom=None,
         calc_energy_toten=None,
         calc_energy=None,
@@ -45,6 +52,7 @@ class Structure:
         self.replacement = replacement
         self.replacement_ind = replacement_ind
         self.cluster = cluster
+        self.energy_per_atom = energy_per_atom
 
         if not formula and structure:
             formula = structure.formula
@@ -70,7 +78,10 @@ class Structure:
 
         # Getting energy information
         energy = vasprun.final_energy
-        energy_toten = Energy(float(vasprun.ionic_steps[-1]["e_fr_energy"]), "eV")
+        energy_toten = Energy(
+            float(vasprun.ionic_steps[-1]["e_fr_energy"]),
+            "eV",
+        )
         energy_per_atom = energy / len(structure.species)
 
         # Getting the temperature from the vasp parameters
@@ -82,6 +93,7 @@ class Structure:
             temperature = float(vasprun.parameters["TEBEG"])
 
         generated_structure = Structure(
+            energy_per_atom=None,
             material_name=kwargs.get("material_name"),
             structure=structure,
             material_id=kwargs.get("material_id"),
@@ -115,10 +127,12 @@ class Structure:
 
         # Gathering name information
         if self.material_name:
-            repr_str += f"{self.__class__.__name__} - {self.material_name}\n"
+            repr_str += f"MatDBForge {self.__class__.__name__}"
+            repr_str += " - "
+            repr_str += f"{self.material_name}\n"
             repr_str += f"{self.unique_id}\n"
         else:
-            repr_str += f"Structure - {self.unique_id} (no name)\n"
+            repr_str += f"MatDBForge Structure - {self.unique_id} (no name)\n"
 
         # Gathing formula and phase
         if self.formula:
@@ -156,7 +170,14 @@ class Structure:
 
         return repr_str
 
-    def save_to_db(self, df):
+    # def __dict__(self):
+    #     dict_obj = {}
+    #     att_names = [att for att in dir(self) if not att.startswith('__')]
+    #     for att in att_names:
+    #         dict_obj[att] = self.getattr(att)
+    #     return dict_obj
+
+    def save_to_db(self, db_obj):
         new_row = pd.Series(
             {
                 "material_id": str(self.material_id),
@@ -170,7 +191,7 @@ class Structure:
                 "surface_miller": self.surface_miller,
                 "phase": self.phase,
                 "magnetic_properties": self.magnetic_properties,
-                "energy_per_atom": self.calc_energy_per_atom,
+                "energy_per_atom": None,
                 "unique_id": self.unique_id,
                 "material_name": self.material_name,
                 "replacement": self.replacement,
@@ -186,24 +207,38 @@ class Structure:
                 "calc_output": self.calc_output,
             }
         )
-        new_row = new_row.to_frame().T.astype(
-            {
-                "perturb": "boolean",
-                "base": "boolean",
-                "bulk": "boolean",
-                "surface": "boolean",
-                "cluster": "boolean",
-                "calc_performed": "boolean",
-                "replacement": "boolean",
-            }
-        )
+        bool_columns = {
+            "perturb": bool,
+            "base": bool,
+            "bulk": bool,
+            "surface": bool,
+            "cluster": bool,
+            "calc_performed": bool,
+            "replacement": bool,
+        }
+        new_row = new_row.to_frame().T.astype(bool_columns)
 
-        if df.shape[0] == 0:
-            df = new_row
+        is_InitialDatabase = isinstance(db_obj, mdb_indb.InitialDatabase)
+
+        if is_InitialDatabase:
+            struct_df = db_obj.df
         else:
-            df = pd.concat([df, new_row], ignore_index=True)
+            struct_df = db_obj
 
-        return df
+        struct_df.fillna(value=False, inplace=True)
+        struct_df = struct_df.astype(bool_columns)
+
+        if struct_df.shape[0] == 0:
+            struct_df = new_row
+        else:
+            struct_df = pd.concat([struct_df, new_row], ignore_index=True)
+
+        if is_InitialDatabase:
+            db_obj.df = struct_df
+        else:
+            db_obj = struct_df
+
+        return db_obj
 
 
 class Bulk(Structure):
@@ -216,7 +251,12 @@ class Bulk(Structure):
         # Setting the bulk property as True.
         self.bulk = True
 
-    def from_mdb_structure(self, mdb_structure, new_structure=None, material_name=None):
+    def from_mdb_structure(
+        self,
+        mdb_structure,
+        new_structure=None,
+        material_name=None,
+    ):
         if material_name:
             self.material_name = material_name
         else:
@@ -241,6 +281,7 @@ class Bulk(Structure):
         self.temperature = mdb_structure.temperature
         self.magnetic_properties = mdb_structure.magnetic_properties
         self.calc_energy = mdb_structure.calc_energy
+        self.energy_per_atom = mdb_structure.energy_per_atom
         self.calc_energy_per_atom = mdb_structure.calc_energy_per_atom
         self.calc_energy_toten = mdb_structure.calc_energy_toten
         self.calc_performed = mdb_structure.calc_performed
@@ -275,6 +316,7 @@ class Surface(Structure):
         self.supercell = mdb_structure.supercell
         self.surface = mdb_structure.surface
         self.surface_miller = surface_miller
+        self.energy_per_atom = mdb_structure.energy_per_atom
         self.bulk = mdb_structure.surface
         self.cluster = mdb_structure.cluster
         self.formula = mdb_structure.formula

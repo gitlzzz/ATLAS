@@ -88,4 +88,4 @@ print()
 # Saving database
 mdb_ut.custom_print("Checking for incorrect phase assignation...", "info")
 mdb_ut.check_incorrect_ratios(structures.df, indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM)
-structures.save_database(path=SAVE_PATH, suffix="test_file_structure")
+structures.save_database(path=SAVE_PATH, suffix="new_cluster")

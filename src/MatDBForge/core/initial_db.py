@@ -110,7 +110,7 @@ class InitialDatabase:
         # Getting the class name
         class_name = self.__class__.__name__
 
-        # Getting how many rows
+        # Getting the amount of entries in the database
         count = len(self.df.count(axis=1))
 
         repr_string = (
@@ -118,6 +118,21 @@ class InitialDatabase:
         )
 
         return repr_string
+
+    def _adapt_old_db(self, database_old):
+        print("database_old: ", database_old.columns)
+        columns_to_add = {
+            "bulk": bool,
+            "surface": bool,
+            "cluster": bool,
+            "calc_performed": bool,
+            "replacement": bool,
+        }
+
+        for col in columns_to_add.keys():
+            database_old[col] = None
+
+        return database_old
 
     def _load_database(self) -> pd.DataFrame:
         """
@@ -128,8 +143,8 @@ class InitialDatabase:
         pd.DataFrame
             Dataframe containing structure data for the initial database
         """
-
         db_path = pathlib.PurePath(self.database_name)
+        ut.custom_print(f"Loading database: '{self.database_name}'", "debug")
         self.database_name = db_path.name.replace(db_path.suffix, "")
 
         if len(db_path.suffixes) == 0:
@@ -137,7 +152,15 @@ class InitialDatabase:
         else:
             if db_path.suffixes[0] == ".pkl":
                 suffix = ".pkl"
+                ut.custom_print(
+                    "Using outdated version of database. Adding missing columns.",
+                    "debug",
+                )
                 database = pd.read_pickle(db_path)
+                database = self._adapt_old_db(database)
+
+                return database
+
             elif db_path.suffixes[0] == ".xz":
                 suffix = ".xz"
                 with lzma.open(db_path, "rb") as f:
@@ -148,9 +171,20 @@ class InitialDatabase:
                     self.max_num_atoms = database.max_num_atoms
                     self.db_version = database.db_version
 
-        ut.custom_print(f"Loaded '{self.database_name}{suffix}'", "info")
+                    ut.custom_print(
+                        f"Using database version {self.db_version}.", "debug"
+                    )
 
-        return database.df
+                return database.df
+            # else:
+            #     err_msg = (
+            #         "MatDBForge InitialDatabase object not found "
+            #         "in the specified location."
+            #     )
+            #     raise FileNotFoundError(err_msg)
+
+        ut.custom_print(f"Loaded '{self.database_name}{suffix}'", "info")
+        ut.custom_print(f"Path: {db_path}", "debug")
 
     def _check_database(self) -> bool:
         """
@@ -163,7 +197,6 @@ class InitialDatabase:
         bool
             True if the database exists, False if not does not.
         """
-
         # Checking if dataframe already exists on the cwd.
         file_exists = False
         file_check = [file for file in os.listdir() if self.database_name in file]
@@ -175,6 +208,8 @@ class InitialDatabase:
 
         if name_as_path.exists():
             file_exists = True
+
+        ut.custom_print(f"Database found: {file_exists}.", "debug")
 
         return file_exists
 
@@ -244,7 +279,7 @@ class InitialDatabase:
 
         # Number of atoms of the supercell
         struct_size = len(new_structure.species)
-        while struct_size > max_atoms:
+        while struct_size > max_atoms and supercell_vec != [1, 1, 1]:
             new_structure = structure.copy(sanitize=True)
             idx -= 1
 
@@ -350,51 +385,25 @@ class InitialDatabase:
         # Filters allow to select certain subsets of structures
         # from the database.
         filtered_df = self.df
-        remaining_df = self.df
+        # remaining_df = self.df
 
-        if filters:
-            for filt in filters:
-                if isinstance(filt, tuple):
-                    filtered_df = filtered_df.loc[
-                        (filtered_df[filt[0]]) & (filtered_df[filt[1]])
-                    ]
-
-                    remaining_df = remaining_df.loc[
-                        ~((remaining_df[filt[0]]) & (remaining_df[filt[1]]))
-                    ]
-
-                else:
-                    filtered_df = filtered_df.loc[filtered_df[filt]]
-                    remaining_df = remaining_df.loc[~remaining_df[filt]]
-
-        # Getting which phases to check from the user.
-        phase_list = []
-        if phase:
-            if isinstance(phase, list):
-                for curr_phase in phase:
-                    if isinstance(curr_phase, "str"):
-                        curr_phase = self.DB_PHASE_DIAGRAM.get_phase(phase)
-
-                    phase_list.append(curr_phase)
-
-            else:
-                if isinstance(phase, str):
-                    phase = self.DB_PHASE_DIAGRAM.get_phase(phase)
-                phase_list = [phase]
-
-        # If no phase is given, getting the unique phases in the dataframe
-        else:
-            phase_list = filtered_df.phase.unique()
+        filtered_df, remaining_df, phase_list = ut.apply_filters_db(
+            db_obj=filtered_df, phase=phase, filters=filters
+        )
 
         # Getting the species from the current phase diagram
         species = CuZnInitialDatabase.ALLOY_SET
         species_str_list = [spec.symbol for spec in species]
 
         # Setting SOAP related parameters
-        r_cut = 6
-        r_cut = 6
-        n_max = 8
-        l_max = 6
+        r_cut = 4
+        n_max = 4
+        l_max = 4
+
+        ut.custom_print(
+            f"Setting up SOAP with: r_cut = {r_cut}, n_max = {n_max}, l_max = {l_max}",
+            "debug",
+        )
 
         # Setting up the SOAP descriptor
         soap = SOAP(
@@ -415,12 +424,10 @@ class InitialDatabase:
             soap_structs = []
 
             # Getting the current structures
-            structure_list = filtered_df[
-                filtered_df.phase == curr_phase
-            ].structure.values
+            structure_list = filtered_df.structure.values
 
             # Getting the names fo the current structures
-            uuid_list = filtered_df[filtered_df.phase == curr_phase].unique_id.values
+            uuid_list = filtered_df[filtered_df.phase == curr_phase]["unique_id"].values
 
             # Getting the total structure count
             tot_structures = len(structure_list)
@@ -489,6 +496,8 @@ class InitialDatabase:
                 f"Deleted {len(duplicate_structures_df)} structures.",
                 "warn",
             )
+
+            ut.custom_print(f"Dataframe shape after deleting: {self.df.shape}", "debug")
 
         else:
             ut.custom_print(
@@ -655,7 +664,7 @@ class InitialDatabase:
             # Generating string for naming the current structure
             extra_info = ""
             if entry.supercell:
-                extra_info += f"_super-{self._get_miller_index_str(entry.supercell)}"
+                extra_info += f"_super-{mdb_surf.get_miller_index_str(entry.supercell)}"
             if entry.replacement:
                 extra_info += (
                     f"_repl-{entry.replacement_ind[0]}-{entry.replacement_ind[1]}"
@@ -948,7 +957,6 @@ class CuZnInitialDatabase(InitialDatabase):
         str
             A phase of the CuZn phase diagram
         """
-
         # Creating a list of the phase diagram phase names
         phase_list = [
             phase.name
@@ -1406,7 +1414,7 @@ class CuZnInitialDatabase(InitialDatabase):
                     )
 
                     # Getting the supercell vector
-                    supercell_vec_str = self._get_miller_index_str(
+                    supercell_vec_str = mdb_surf.get_miller_index_str(
                         structure_obj.supercell
                     )
 
@@ -1429,51 +1437,20 @@ class CuZnInitialDatabase(InitialDatabase):
 
                     self.df = new_struct_symm.save_to_db(self.df)
 
-    def _get_miller_index_str(self, miller_source):
-        """
-        Generate a miller index string from several sources,
-        either a Slab structure, a numpy array with the indices
-        or a string.
-        The intended use of this string is for labeling structures
-        and helping identification.
-
-        Parameters
-        ----------
-        miller_source : Slab | np.ndarray | str
-            Information about the miller indices used to
-            generate the string.
-
-        Returns
-        -------
-        str
-            Miller indices coded as a string, without including brackets.
-            Negative signs are added in front of the symbols.
-
-        """
-        if isinstance(miller_source, Slab):
-            curr_miller = str(miller_source.miller_index)
-        elif isinstance(miller_source, np.ndarray):
-            curr_miller = str(miller_source)
-        elif isinstance(miller_source, list):
-            curr_miller = "".join(map(str, miller_source))
-        elif isinstance(miller_source, str):
-            curr_miller = miller_source
-        else:
-            # Return None if the given structure is not a surface.
-            return None
-
-        replace_chars = ["'", ",", " ", "(", ")", "[", "]"]
-        for char in replace_chars:
-            curr_miller = curr_miller.replace(char, "")
-
-        return curr_miller
-
-    def _get_structs_current_phase(self, phase):
+    def get_base_structs_current_phase(self, phase):
         # Getting all of the base structures
         base_structs = self.df.loc[self.df.base]
 
+        if isinstance(phase, str):
+            phase = self.DB_PHASE_DIAGRAM.get_phase(phase=phase)
+
         # Getting the structures corresponding to the current phase
         phase_mask = base_structs.phase == phase
+
+        # If an old version of the phase object is being used
+        if not phase_mask.any():
+            phase_mask = base_structs.phase == phase.name
+
         base_structs = base_structs.where(phase_mask, other=pd.NA)
         base_structs.dropna(how="all", inplace=True)
 
@@ -1548,13 +1525,13 @@ class CuZnInitialDatabase(InitialDatabase):
         if isinstance(phase, str):
             phase = CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
 
-        base_structs = self._get_structs_current_phase(phase)
+        base_structs = self.get_base_structs_current_phase(phase)
 
         # Checking if there are any base structures for the current
         # phase.
         if len(base_structs) == 0:
             err_msg = (
-                f"No base structure could be found for phase {phase}."
+                f"No base structure could be found for phase {phase.name}."
                 "\nThe database must contain base structures before "
                 "running this function."
             )
@@ -1695,7 +1672,7 @@ class CuZnInitialDatabase(InitialDatabase):
                         num_struct=num_replacement_structs,
                         current_perc=current_perc,
                         relative=True,
-                        db_obj=self,
+                        # db_obj=self,
                     )
 
                     # Going over the generated percentages
@@ -1714,7 +1691,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
                             # Generating name
                             if gen_slab.supercell:
-                                supercell_vec_str = self._get_miller_index_str(
+                                supercell_vec_str = mdb_surf.get_miller_index_str(
                                     gen_slab.supercell
                                 )
                                 supercell_vec_str_name = f"super-{supercell_vec_str}_"
@@ -1899,8 +1876,9 @@ class CuZnInitialDatabase(InitialDatabase):
         extra=None,
         base=False,
     ):
+        # HACK: This should probably use __dict__ instead of a manually set list...
         # Attributes not to store in a row
-        unwanted_attrs = ["save_to_db"]
+        unwanted_attrs = ["save_to_db", "from_vasprun", "from_mdb_structure"]
 
         # If given structure is a pymatgen Structure
         if isinstance(structure, Structure):
@@ -1930,11 +1908,27 @@ class CuZnInitialDatabase(InitialDatabase):
 
         new_row_df = new_row.to_frame().T
         new_row_df = new_row_df.astype(
-            {"perturb": "boolean", "base": "boolean", "surface": "boolean"}
+            {
+                "perturb": bool,
+                "base": bool,
+                "bulk": bool,
+                "surface": bool,
+                "cluster": bool,
+                "calc_performed": bool,
+                "replacement": bool,
+            }
         )
 
         self.df = self.df.astype(
-            {"perturb": "boolean", "base": "boolean", "surface": "boolean"}
+            {
+                "perturb": bool,
+                "base": bool,
+                "bulk": bool,
+                "surface": bool,
+                "cluster": bool,
+                "calc_performed": bool,
+                "replacement": bool,
+            }
         )
 
         # Concatenating a row with boolean columns to an empty array results
@@ -2190,8 +2184,49 @@ class CuZnInitialDatabase(InitialDatabase):
         ut._display_indb_dataframe(structures)
 
 
+# def _add_cols_old_db_version(database_old):
+#     print("database_old: ", database_old)
+#     quit()
+
+
+# def get_database(path) -> InitialDatabase:
+#     """
+#     Load a database from a file on the cwd or a specific path.
+
+#     Returns
+#     -------
+#     InitialDatabase
+#         MatDBForge InitialDatabase containing structure data.
+#     """
+#     ut.custom_print("hola", "debug")
+#     if isinstance(path, InitialDatabase):
+#         ut.custom_print("Database already loaded!", "warning")
+#         return path
+
+#     elif isinstance(path, str):
+#         db_path = pathlib.Path(path)
+#         if db_path.exists():
+#             if db_path.suffixes[0] == ".pkl":
+#                 database = pd.read_pickle(db_path)
+#                 ut.custom_print(
+#                     "Old database version detected. Adding columns...", "debug"
+#                 )
+#                 database = _add_cols_old_db_version(database)
+#             elif db_path.suffixes[0] == ".xz":
+#                 with lzma.open(db_path, "rb") as f:
+#                     database = pickle.load(f)
+#             ut.custom_print(f"Loaded '{db_path}'", "info")
+#             return database
+#         else:
+#             err_msg = (
+#                 "MatDBForge InitialDatabase object not found "
+#                 "in the specified location."
+#             )
+#             raise FileNotFoundError(err_msg)
+
+
 if __name__ == "__main__":
     raise RuntimeError(
-        "Do not run this file!"
+        "Do not run this file! "
         "This file is intended to be used as a module and not a script."
     )

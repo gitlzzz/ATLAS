@@ -2,20 +2,20 @@
 import json as js
 import logging
 import pathlib
+import tempfile
 
 import numpy as np
-from ase import visualize
+from ase import Atoms, visualize
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from pymatgen.core import Structure
 from pymatgen.core.periodic_table import Element, Species
 from pymatgen.io import ase as pmg_ase
 from pymatgen.io.ase import AseAtomsAdaptor
-import tempfile
 
 import MatDBForge.core.initial_db as mdb_indb
+import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
-
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
@@ -42,7 +42,7 @@ def init_logger(source, log_path=None):
 
     fh = logging.FileHandler(filename=filename)
     fh.setLevel(logging.DEBUG)
-    formatter_fil = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    formatter_fil = logging.Formatter("%(asctime)s - %(levelname)s - %(shortmsg)s")
     fh.setFormatter(formatter_fil)
     logger.addHandler(fh)
 
@@ -71,27 +71,39 @@ def custom_print(string: str, print_type: str = "default", end="\n"):
     if print_type in ["info", "default"]:
         prefix = "\u001b[38;5;33m [ i ]"
         # print(f"{prefix}{normal}\t{string}", end=end)
-        logging.getLogger("mdb").info(f"{prefix}{normal}\t{string}")
+        logging.getLogger("mdb").info(
+            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
+        )
     elif print_type in ["warn", "warning"]:
         prefix = "\u001b[38;5;220m [ ! ]"
         # print(f"{prefix}\t{string}{normal}", end=end)
-        logging.getLogger("mdb").warning(f"{prefix}{normal}\t{string}")
+        logging.getLogger("mdb").warning(
+            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
+        )
     elif print_type in ["warn-soft", "warning-soft"]:
         prefix = "\u001b[38;5;220m [ ! ]"
         # print(f"{prefix}{normal}\t{string}", end=end)
-        logging.getLogger("mdb").warning(f"{prefix}{normal}\t{string}")
+        logging.getLogger("mdb").warning(
+            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
+        )
     elif print_type in ["extra", "debug"]:
         prefix = "\u001b[38;5;8m [···]"
         # print(f"{prefix}\t{string}{normal}", end=end)
-        logging.getLogger("mdb").debug(f"{prefix}{normal}\t{string}")
+        logging.getLogger("mdb").debug(
+            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
+        )
     elif print_type in ["done"]:
         prefix = "\u001b[38;5;46m [ ✔ ]"
         # print(f"{prefix}{normal}\t{string}", end=end)
-        logging.getLogger("mdb").info(f"{prefix}{normal}\t{string}")
+        logging.getLogger("mdb").info(
+            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
+        )
     if print_type in ["error", "problem"]:
         prefix = "\u001b[38;5;1m [ X ]"
         # print(f"{prefix}{normal}\t{string}", end=end)
-        logging.getLogger("mdb").error(f"{prefix}{normal}\t{string}")
+        logging.getLogger("mdb").error(
+            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
+        )
 
 
 def clear_previous_print():
@@ -202,8 +214,13 @@ def _display_indb_dataframe(structures, data=None):
     """
     atoms_obj_list = []
     for structure in structures:
-        struct = pmg_ase.AseAtomsAdaptor().get_atoms(structure)
-        atoms_obj_list.append(struct)
+        if not isinstance(structure, Atoms):
+            struct_ase = pmg_ase.AseAtomsAdaptor().get_atoms(structure)
+        else:
+            struct_ase = structure
+
+        atoms_obj_list.append(struct_ase)
+
     visualize.view(atoms_obj_list, data=data)
 
 
@@ -226,13 +243,18 @@ def display_struct_list_ase(struct_list):
     _display_indb_dataframe(new_struct_list, data=data_dict)
 
 
-def similarity_check_list(db_obj, replaced_structures, save_in_db=True):
+def similarity_check_list(
+    db_obj, replaced_structures, r_cut=None, n_max=None, l_max=None, save_in_db=True
+):
     custom_print(
         f"Checking replacements for {len(replaced_structures)} structures.", "debug"
     )
 
     # Checking for similarity after replacement
-    uuid_list = _check_repeat_struct_list(replaced_structures)
+    uuid_list = _check_repeat_struct_list(
+        replaced_structures, r_cut=r_cut, l_max=2, n_max=2
+    )
+    print("uuid_list: ", len(uuid_list))
 
     # Deleting equivalent structures
     replaced_structures = _del_structure_list_by_uuid(replaced_structures, uuid_list)
@@ -270,12 +292,8 @@ def gauss_perturb(structure: Structure, center: float = 0.04):
     return new_structure
 
 
-def _check_repeat_struct_list(structure_list):
-    # Setting SOAP related parameters
-    r_cut = 6
-    r_cut = 6
-    n_max = 8
-    l_max = 6
+def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
+    print("r_cut: ", r_cut)
 
     species_list = [el.Z for el in mdb_indb.CuZnInitialDatabase.ALLOY_SET]
 
@@ -359,3 +377,145 @@ def _del_structure_list_by_uuid(structure_list, dupl_uuid_list):
                 unique_structure_list.append(structure)
 
     return unique_structure_list
+
+
+def apply_replacement(structure: Structure, phase, n_atoms: int, rng=None):
+    if not rng:
+        rng = np.random.default_rng()
+
+    if isinstance(
+        structure, (mdb_struct.Structure, mdb_struct.Surface, mdb_struct.Bulk)
+    ):
+        structure = structure.structure
+
+    structure_len = len(structure.species)
+    curr_comp = structure.composition
+
+    # We assume that if the n_atoms is a fractional number, it must
+    # represent the ratio of atoms in the structure, so we convert
+    # that to a number of atoms.
+    if isinstance(n_atoms, float) and n_atoms < 1:
+        n_atoms = int(n_atoms * structure_len)
+
+    # If no replacements are going to be made, this is probably due to
+    # a low percentage being rounded to 0, thus we attempt to make at
+    # least one replacement.
+    if n_atoms == 0:
+        n_atoms = 1
+
+    # Getting current structure composition information
+    # The current procedure assumes that all of the atom species in the structure
+    # will have been replaced beforehand with the base atom,
+    # although this results in more randomness.
+    base_elem = phase.base_elem
+    (other_elem,) = mdb_indb.CuZnInitialDatabase.ALLOY_SET - {base_elem}
+
+    # If the structure only has one type of Element, and that is not the base
+    # element, this changes with what to replace.
+    if not curr_comp.as_dict().get(base_elem.symbol):
+        base_elem = structure.composition.elements[0]
+        (other_elem,) = mdb_indb.CuZnInitialDatabase.ALLOY_SET - {base_elem}
+        other_atom_change = n_atoms
+
+    else:
+        # Getting how many base atoms must be changed in order for the
+        # structure to meet the current percentage requirements.
+        target_atoms_base = curr_comp[base_elem] - abs(n_atoms)
+
+        # Getting how many atoms of the other element must be changed
+        other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
+        # print('other_atom_change: ', other_atom_change)
+
+    # Choosing which species of the structure to change with the other atom.
+    # print('structure_len: ', structure_len)
+    # print('abs(int(other_atom_change)): ', abs(int(other_atom_change)))
+    other_elem_choices = rng.choice(
+        a=structure_len,
+        size=abs(int(other_atom_change)),
+        replace=False,
+        shuffle=True,
+    )
+
+    # Creating a new pymatgen structure using the base one as a template
+    new_structure = structure.copy(sanitize=True)
+    site_props_before = structure.site_properties
+
+    # Replacing atoms in the structures
+    for ind in other_elem_choices:
+        new_structure.replace(ind, other_elem)
+
+    # TODO: Instead of this, create a new structure
+    # Copying site properties
+    new_structure = new_structure.copy(sanitize=True, site_properties=site_props_before)
+
+    return new_structure
+
+
+def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
+    filtered_df = db_obj
+
+    if isinstance(db_obj, mdb_indb.InitialDatabase):
+        filtered_df = db_obj.df
+
+    remaining_df = filtered_df
+
+    custom_print(f"Applying filters: {filters}.", "debug")
+
+    if filters:
+        for filt in filters:
+            # if isinstance(filt, tuple):
+            #     filtered_df = filtered_df.loc[
+            #         (filtered_df[filt[0]]) & (filtered_df[filt[1]])
+            #     ]
+
+            #     remaining_df = remaining_df.loc[
+            #         ~((remaining_df[filt[0]]) & (remaining_df[filt[1]]))
+            #     ]
+
+            # else:
+            filtered_df = filtered_df.loc[filtered_df[filt]]
+
+    # Getting which phases to check from the user.
+    phase_list = []
+    if phase:
+        custom_print(f"Using phase: {phase.name}.", "debug")
+        if isinstance(phase, list):
+            for curr_phase in phase:
+                if isinstance(curr_phase, "str"):
+                    curr_phase = (
+                        mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+                    )
+
+                phase_list.append(curr_phase)
+
+        else:
+            if isinstance(phase, str):
+                phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+            phase_list = [phase]
+
+    # If no phase is given, getting the unique phases in the dataframe
+    else:
+        phase_list = filtered_df.phase.unique()
+        custom_print(
+            (f"No phase given. " f"Checking on all phases: {phase_list}."),
+            "debug",
+        )
+
+    # Getting the current phase structures
+    filtered_df = filtered_df[filtered_df["phase"].isin(phase_list)]
+
+    # Getting the remaining structures after selecting the phase
+    remaining_df = remaining_df.loc[
+        remaining_df.index.difference(filtered_df.index)
+    ]
+
+    custom_print(
+        f"Number of filtered structures: {filtered_df.shape[0]}",
+        "debug",
+    )
+    custom_print(
+        f"Number of remaining unfiltered structures: {remaining_df.shape[0]}",
+        "debug",
+    )
+
+    return filtered_df, remaining_df, phase_list

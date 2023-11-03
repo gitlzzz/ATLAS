@@ -1,5 +1,10 @@
 from MatDBForge.core import initial_db as indb
-import MatDBForge.core.utils as ut
+import MatDBForge.core.utils as mdb_ut
+import pathlib as pl
+
+# Start logger
+LOG_PATH = "/WAREHOUSE/P2/calc_logs"
+mdb_ut.init_logger(source=pl.Path(__file__).stem, log_path=LOG_PATH)
 
 NUM_STRUCT = 3
 NUM_REPEAT = 2
@@ -10,12 +15,13 @@ db_path = (
 
 structures = indb.CuZnInitialDatabase(
     # f"{db_path}/initial-database_19052023-165058_final.pkl",
+    f"{db_path}/initial-database_19052023-165058_final.pkl",
     # "/tmp/initial-database_12072023-165311_test_new_db_style.pkl",
-    "/tmp/initial-database_07092023-122416_test_file_structure.xz",
+    # "/tmp/initial-database_07092023-122416_test_file_structure.xz",
     max_num_atoms=128,
 )
 
-ut.custom_print(structures, "done")
+mdb_ut.custom_print(structures, "done")
 
 structures.df["surface"] = None
 structures.df["surface"].fillna(False, inplace=True)
@@ -24,18 +30,18 @@ structures.df["surface"] = structures.df["surface"].astype("boolean")
 # Filtering phases
 selected_phases = [
     phase
-    for phase in indb.DB_PHASE_DIAGRAM.phases
+    for phase in indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.phases
     if phase.name not in ["m1", "m2", "m3", "m4"]
 ]
 
-ut.custom_print("Generating surfaces from initial structures...", "debug")
+mdb_ut.custom_print("Generating surfaces from initial structures...", "debug")
 for phase in selected_phases:
     # Line break for aesthetic purposes
     print()
 
     # Creating surfaces from the base structures, generating different supercells
     # and applying replacements.
-    ut.custom_print(f"Current phase: {phase}.", "info")
+    mdb_ut.custom_print(f"Current phase: {phase}.", "info")
     structures.generate_surfaces_pure(
         phase=phase,
         overwrite_max_num_atoms=64,
@@ -52,7 +58,7 @@ for phase in selected_phases:
         limit_per_phase=250,
     )
 
-    ut.custom_print(
+    mdb_ut.custom_print(
         "Checking for repeated structures...",
         "info",
     )
@@ -62,9 +68,9 @@ for phase in selected_phases:
 
 print()
 
-ut.custom_print("Applying a random perturbation to the surfaces...", "info")
+mdb_ut.custom_print("Applying a random perturbation to the surfaces...", "info")
 structures.perturb_gauss(filters=["surface"], repeat=3)
-ut.custom_print(structures, "done")
+mdb_ut.custom_print(structures, "done")
 print()
 
 structures.save_database(path="/tmp/", suffix="testing_site_properties")

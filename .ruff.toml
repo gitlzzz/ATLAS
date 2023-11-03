@@ -1,0 +1,14 @@
+# same as black
+line-length = 88
+
+select = [
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "I",  # isort
+  "D",   # pydocstyle
+]
+
+ignore = ["D417", "D401"]
+
+[pydocstyle]
+convention = "numpy"
