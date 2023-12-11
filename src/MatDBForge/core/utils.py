@@ -52,8 +52,7 @@ def init_logger(source, log_path=None):
 
 
 def custom_print(string: str, print_type: str = "default", end="\n"):
-    """Prints a string using different formatting styles for
-    easier debugging.
+    """Prints a string using different formatting styles for easier debugging.
 
     Parameters
     ----------

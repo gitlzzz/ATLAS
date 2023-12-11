@@ -1,6 +1,9 @@
 import copy
 import os
 import pathlib as pl
+
+# import queue
+# import threading
 import time
 
 import ase.data as ad
@@ -75,7 +78,7 @@ INCAR_CLUSTER = {
         "gga": "Pe",
         "ispin": 1,
         # "lorbit": 11,
-        ## electronic steps:
+        # electronic steps:
         "encut": 450,
         "ediff": 1e-6,
         "ismear": 0,
@@ -83,23 +86,23 @@ INCAR_CLUSTER = {
         "algo": "Fast",
         "lreal": "Auto",
         "nelm": 120,
-        ## ionic steps:
+        # ionic steps:
         "ibrion": -1,
         "nsw": 2,
         "ediffg": -0.03,
         "isif": 2,
         "potim": 0.3,
-        ## files to write:
+        # files to write:
         "lwave": False,
         "lcharg": False,
-        ## parallelization:
+        # parallelization:
         "ncore": 4,
         # "kpar": 4,
-        ## dipole correction
+        # dipole correction
         "lelf": False,
-        ## van der Waals:
+        # van der Waals:
         "ivdw": 11,
-        ## surface
+        # surface
         "idipol": 4,
         "ldipol": True,
     }
@@ -107,13 +110,13 @@ INCAR_CLUSTER = {
 
 INCAR_SP = {
     "incar": {
-        ## general:
+        # general:
         "istart": 0,
         "icharg": 2,
         "gga": "Pe",
         "ispin": 1,
         # "lorbit": 11,
-        ## electronic steps:
+        # electronic steps:
         "encut": 450,
         "ediff": 1e-6,
         "ismear": 0,
@@ -121,23 +124,23 @@ INCAR_SP = {
         "algo": "Fast",
         "lreal": "Auto",
         "nelm": 60,
-        ## ionic steps:
+        # ionic steps:
         "ibrion": -1,
         "nsw": 2,
         "ediffg": -0.03,
         "isif": 2,
         "potim": 0.3,
-        ## files to write:
+        # files to write:
         "lwave": False,
         "lcharg": False,
-        ## parallelization:
+        # parallelization:
         "ncore": 4,
         # "kpar": 4,
-        ## dipole correction
+        # dipole correction
         "lelf": False,
-        ## van der Waals:
+        # van der Waals:
         "ivdw": 11,
-        ## surface
+        # surface
         "idipol": 3,
         "ldipol": True,
     }
@@ -351,6 +354,180 @@ def choose_queue_from_struct(structure, assign_dict: dict):
     return OPTIONS, CODE_STRING, mult_nodes
 
 
+def submit_aiida_calculation(
+    index,
+    target_row,
+    initial_db,
+    kspacing_dict,
+    incar_dict,
+    calc_type,
+    queue_dict,
+    potential_family,
+    potential_mapping,
+    dry_run,
+    group,
+):
+    mdb_ut.custom_print(f"Row {index}.", "debug")
+
+    # Getting current structure, phase and formula.
+    target_structure = target_row.structure.get_sorted_structure()
+
+    # TODO: Use phase object instead of phase name
+    # Getting the phase name, formula and kspacing.
+    try:
+        phase = target_row.phase.name
+    except AttributeError:
+        phase = initial_db.DB_PHASE_DIAGRAM.get_phase("alpha").name
+
+    struct_formula = target_structure.formula.replace(" ", "")
+    kspacing = kspacing_dict[phase]
+
+    if incar_dict:
+        # TODO: Implement manual INCAR submission.
+        raise NotImplementedError("Manual INCAR submission not yet implemented.")
+    else:
+        # Generate INCAR with correct kspacing
+        incar, kspacing_vec = generate_incar(
+            structure=target_structure,
+            phase=phase,
+            calc_type=calc_type,
+            kspacing=kspacing_dict,
+        )
+
+    # Dictionary containing metadata for the calculation
+    metadata_dict = {
+        "label": (f"{target_row.material_name}-{struct_formula}-{index}_{calc_type}"),
+        "description": (
+            f"Relaxation for {struct_formula} in CuZn initial database."
+            # "options": {"dry_run": True},
+        ),
+    }
+
+    # Slab structures cannot be converted to aiida StructureData
+    # directly, they must be converted to pymatgen structures
+    # first.
+    if isinstance(target_structure, Slab):
+        target_structure = _convert_Slab_to_Structure(target_structure)
+
+    # Getting structure as an aiida structure from pymatgen.
+    structure = StructureData(pymatgen=target_structure)
+
+    mdb_ut.custom_print(f"Calculation type: {calc_type}", "debug")
+
+    # Get kpoints for aiida
+    kpoints_data = generate_kpoints_data(
+        structure=structure,
+        kspacing=kspacing,
+        kspacing_vec=kspacing_vec,
+        calc_type=calc_type,
+    )
+
+    # Get selective dynamics
+    selective_dynamics = None
+    if target_structure.site_properties.get("selective_dynamics"):
+        dynamics_list = target_structure.site_properties.get("selective_dynamics")
+        selective_dynamics = {"positions_dof": List(dynamics_list)}
+
+    # Jobfile equivalent
+    # In options, we typically set scheduler options. See:
+    # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
+    options, code_string, mult = choose_queue_from_struct(
+        structure=target_structure, assign_dict=queue_dict
+    )
+
+    # Removing kpar for multinode calculations
+    # incar["incar"]["kpar"] = 4
+    # if mult > 1:
+    #     incar["incar"].pop("kpar")
+
+    if calc_type == "sp_cluster":
+        # Setting the center of the cell in direct lattice coordinates
+        # with respect to which the total dipole-moment in the cell
+        # is calculated.
+        incar["incar"]["DIPOL"] = [0.5, 0.5, 0.5]
+
+    # Defining the vasp.relax workchain object
+    workchain = WorkflowFactory("vasp.relax")
+
+    # Preparing a builder object to be able to submit the workchain
+    # and pass inputs to it
+    builder = workchain.get_builder()
+
+    # Passing the all inputs to the builder object
+    builder["code"] = Code.get_from_string(code_string)
+    # builder["converge"] = CONVERGE
+
+    if selective_dynamics:
+        builder["dynamics"] = selective_dynamics
+
+    # Assembling the builder object
+    # Entries available for the options dict:
+    # https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/calculations/usage.html?highlight=options#options
+    builder["options"] = Dict(options)
+    builder["parameters"] = Dict(incar)
+    builder["potential_family"] = Str(potential_family)
+    builder["potential_mapping"] = Dict(potential_mapping)
+    builder["structure"] = structure
+    builder["metadata"] = metadata_dict
+    builder["max_iterations"] = Int(2)
+    builder["verbose"] = Bool(True)
+    builder["kpoints"] = kpoints_data
+
+    if dry_run:
+        options["metadata"] = {}
+        options["metadata"]["dry_run"] = True
+
+    # Setting parser options
+    builder["settings"] = Dict(PARSER_DICT)
+
+    if calc_type.lower() == "sp":
+        builder["perform_static"] = Bool(True)
+        builder["relax"]["perform"] = Bool(False)
+
+    elif calc_type.lower() == "relax":
+        builder["perform_static"] = Bool(False)
+        builder["relax"]["perform"] = Bool(True)
+
+    if dry_run:
+        # print('dir builder:\n',dir(builder))
+        # print(builder.metadata)
+        # print(type(builder.metadata))
+        # print(dir(builder.metadata))
+        # print(builder.metadata._port_namespace)
+        # print("\nmetadata valid fields: ",builder.metadata._valid_fields)
+        # # print("\nsettings valid fields: ",builder.settings._valid_fields)
+        # print("\nparameters valid fields: ",builder.parameters._valid_fields)
+        # print("\noptions valid fields: ",builder.options._valid_fields)
+
+        # Generate a fake node and return it?
+        mdb_ut.custom_print("Dry run: nothing generated.", "debug")
+
+    else:
+        # Submitting the calculation.
+        # Aiida should handle the scheduler, ssh connection and result
+        # retrieval if everything is configured correctly
+        node = submit(builder)
+        mdb_ut.custom_print(
+            (
+                f"Launched workchain for structure {index}:"
+                f" '{struct_formula}' ({phase}) - node id: {node.id}"
+            ),
+            "debug",
+        )
+
+        # Storing each calculation's unique_id (uuid) with the node, so once the
+        # calculation is done, it can be traced back to its database entry by
+        # getting the hex of the uuid in the database and searching which
+        # RelaxWorkChain has the same hex, and then, the calculation results
+        # of its last children node will be gathered and added to the DB.
+        node.base.extras.set("mdb_calc_uuid", target_row.unique_id.hex)
+
+        if group:
+            group.add_nodes(node)
+
+    return node
+
+
 def run_dataframe_vasp_simulations_aiida(
     sel_struct_df,
     group_name: str,
@@ -419,156 +596,30 @@ def run_dataframe_vasp_simulations_aiida(
         # Iterating over the chunk and launching a separate
         # vasp workchain for every structure contained.
         for it, target_row in chunk.iterrows():
-            mdb_ut.custom_print(f"Row {it}.", "debug")
-
-            # Getting current structure, phase and formula.
-            target_structure = target_row.structure.get_sorted_structure()
-
-            # TODO: Use phase object instead of phase name
-            # Getting the phase name, formula and kspacing.
-            try:
-                phase = target_row.phase.name
-            except AttributeError:
-                phase = initial_db.DB_PHASE_DIAGRAM.get_phase("alpha").name
-
-            struct_formula = target_structure.formula.replace(" ", "")
-            kspacing = kspacing_dict[phase]
-
-            if incar_dict:
-                # TODO: Implement manual INCAR submission.
-                raise NotImplementedError(
-                    "Manual INCAR submission not yet implemented."
-                )
-            else:
-                # Generate INCAR with correct kspacing
-                incar, kspacing_vec = generate_incar(
-                    structure=target_structure,
-                    phase=phase,
-                    calc_type=calc_type,
-                    kspacing=kspacing_dict,
-                )
-
-            # Dictionary containing metadata for the calculation
-            metadata_dict = {
-                "label": (
-                    f"{target_row.material_name}-{struct_formula}-{it}_{calc_type}"
-                ),
-                "description": (
-                    f"Relaxation for {struct_formula} in CuZn initial database."
-                ),
-            }
-
-            # Slab structures cannot be converted to aiida StructureData
-            # directly, they must be converted to pymatgen structures
-            # first.
-            if isinstance(target_structure, Slab):
-                target_structure = _convert_Slab_to_Structure(target_structure)
-
-            # Getting structure as an aiida structure from pymatgen.
-            structure = StructureData(pymatgen=target_structure)
-
-            mdb_ut.custom_print(f"Calculation type: {calc_type}", "debug")
-
-            # Get kpoints for aiida
-            kpoints_data = generate_kpoints_data(
-                structure=structure,
-                kspacing=kspacing,
-                kspacing_vec=kspacing_vec,
+            # Gathering calculation information and
+            # submitting the calculation through AiiDA.
+            node = submit_aiida_calculation(
+                index=it,
+                target_row=target_row,
+                initial_db=initial_db,
+                kspacing_dict=kspacing_dict,
+                incar_dict=incar_dict,
                 calc_type=calc_type,
+                queue_dict=queue_dict,
+                potential_family=potential_family,
+                potential_mapping=potential_mapping,
+                dry_run=dry_run,
+                group=group,
             )
 
-            # Get selective dynamics
-            selective_dynamics = None
-            if target_structure.site_properties.get("selective_dynamics"):
-                dynamics_list = target_structure.site_properties.get(
-                    "selective_dynamics"
-                )
-                selective_dynamics = {"positions_dof": List(dynamics_list)}
+            chunk_node_list.append(node)
 
-            # Jobfile equivalent
-            # In options, we typically set scheduler options. See:
-            # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
-            options, code_string, mult = choose_queue_from_struct(
-                structure=target_structure, assign_dict=queue_dict
-            )
-
-            # Removing kpar for multinode calculations
-            # incar["incar"]["kpar"] = 4
-            # if mult > 1:
-            #     incar["incar"].pop("kpar")
-
-            if calc_type == "sp_cluster":
-                # Setting the center of the cell in direct lattice coordinates
-                # with respect to which the total dipole-moment in the cell
-                # is calculated.
-                incar["incar"]["DIPOL"] = [0.5, 0.5, 0.5]
-
-            # Defining the vasp.relax workchain object
-            workchain = WorkflowFactory("vasp.relax")
-
-            # Preparing a builder object to be able to submit the workchain
-            # and pass inputs to it
-            builder = workchain.get_builder()
-
-            # Passing the all inputs to the builder object
-            builder["code"] = Code.get_from_string(code_string)
-            # builder["converge"] = CONVERGE
-
-            if selective_dynamics:
-                builder["dynamics"] = selective_dynamics
-
-            builder["options"] = Dict(options)
-            builder["parameters"] = Dict(incar)
-            builder["potential_family"] = Str(potential_family)
-            builder["potential_mapping"] = Dict(potential_mapping)
-            builder["structure"] = structure
-            builder["metadata"] = metadata_dict
-            builder["max_iterations"] = Int(2)
-            builder["verbose"] = Bool(True)
-            builder["kpoints"] = kpoints_data
-
-            # Setting parser options
-            builder["settings"] = Dict(PARSER_DICT)
-
-            if calc_type.lower() == "sp":
-                builder["perform_static"] = Bool(True)
-                builder["relax"]["perform"] = Bool(False)
-
-            elif calc_type.lower() == "relax":
-                builder["perform_static"] = Bool(False)
-                builder["relax"]["perform"] = Bool(True)
-
-            if dry_run:
-                mdb_ut.custom_print(
-                    "Calculation node created, calculation not sent", "debug"
-                )
-            else:
-                # Submitting the calculation.
-                # Aiida should handle the scheduler, ssh connection and result
-                # retrieval if everything is configured correctly
-                node = submit(builder)
-
-                # Storing each calculation's unique_id (uuid) with the node, so once the
-                # calculation is done, it can be traced back to its database entry by
-                # getting the hex of the uuid in the database and searching which
-                # RelaxWorkChain has the same hex, and then, the calculation results
-                # of its last children node will be gathered and added to the DB.
-                node.base.extras.set("mdb_calc_uuid", target_row.unique_id.hex)
-
-                group.add_nodes(node)
-                chunk_node_list.append(node)
-
-                mdb_ut.custom_print(
-                    (
-                        f"Launched workchain for structure {it}:"
-                        f" '{struct_formula}' ({phase}) - node id: {node.id}"
-                    ),
-                    "debug",
-                )
-
-        # Waiting until the current chunk's calculations
-        # are done.
+        # Waiting until the current chunk's calculations are done.
         chunk_finished = False
+
+        # Initialization of chunk node list as all False.
+        node_status_list = np.full(len(chunk_node_list), False)
+
         while not chunk_finished:
             # Skipping the wait if dry run is selected
             if dry_run:
@@ -576,7 +627,8 @@ def run_dataframe_vasp_simulations_aiida(
 
             mdb_ut.custom_print(
                 (
-                    f"({time.strftime('%H:%M:%S')}) Waiting for calculations"
+                    f"({time.strftime('%H:%M:%S')}) - {np.count_nonzero(node_status_list)}"
+                    f"/{len(node_status_list)} - Waiting for calculations"
                     f" from chunk {chunk_id} to be finished..."
                 ),
                 "info",
@@ -608,6 +660,179 @@ def run_dataframe_vasp_simulations_aiida(
 
     mdb_ut.custom_print("All calculations finished!", "done")
     mdb_ut.custom_print("Check 'verdi process list' for more information", "info.")
+
+
+def monitor_queue_calcs(calc_queue, dataframe, index, all_sub, check_interval=60):
+    # Execute the function if there are still nodes to submit
+    # or there are nodes in the queue.
+    while not all_sub or calc_queue.qsize() > 0:
+        # For every calculation
+        for node in list(calc_queue.queue):
+            # Checking if a calculation is finished
+            if node.is_finished:
+                # Remove finished calculation
+                calc_queue.get(node)
+
+                if index < len(dataframe):
+                    # Submit new calculation and put it in the queue
+                    new_calc_data = dataframe.iloc[index]
+                    new_node = submit_aiida_calculation(new_calc_data)
+                    calc_queue.put(new_node)
+                    index += 1
+        time.sleep(check_interval)  # Sleep some time before checking again
+
+
+def run_dataframe_vasp_aiida_queue(
+    sel_struct_df,
+    group_name: str,
+    calc_type: CalcType,
+    kspacing_dict: dict,
+    max_batch: int,
+    potential_mapping: dict,
+    potential_family: str,
+    initial_db: "mdb_indb.InitialDatabase",
+    queue_dict: dict,
+    start_on: int = 0,
+    incar_dict: dict = None,
+    dry_run: bool = False,
+    queue_check_interval: int = 60,
+):
+    # Getting current time
+    ctime = time.strftime("%Y%m%dT%H%M%S")
+
+    # Print for dry runs
+    if dry_run:
+        mdb_ut.custom_print(
+            (
+                "This is a dry run: calculations will not be submitted. "
+                "No aiida group will be created"
+            ),
+            "warning",
+        )
+        group = None
+    else:
+        # Creating a new aiida group for the calculations.
+        # It will provide an ID for the entire batch
+        group_label = f"{group_name}_{calc_type}_batch_{ctime}"
+        group = Group(label=group_label)
+        group.store()
+        mdb_ut.custom_print(f'Group identifier: "{group.uuid}"', "info")
+        mdb_ut.custom_print(f"Group label: {group_label}", "info")
+
+    # Starting calculation queue
+    # calc_queue = queue.Queue(maxsize=max_batch)
+
+    mdb_ut.custom_print(
+        (
+            f"Starting queue for running database with {len(sel_struct_df)} structures..."
+        ),
+        "info",
+    )
+
+    current_row_index = start_on
+    calcs_remaining = True
+    first_step = True
+
+    queue = []
+    total_loops = 1
+
+    # Repeat while there are calculations to finish
+    while calcs_remaining:
+        mdb_ut.custom_print(
+            (
+                f"Step {total_loops} - {queue_check_interval*total_loops} s "
+                "- Checking queue..."
+            ),
+            "info",
+        )
+        # Check all calculations and remove any that are finished.
+        chunk_status = []
+        for nod in queue:
+            chunk_status.append(nod.is_finished)
+        chunk_status_arr = np.array(chunk_status)
+
+        # Removing the finished ones from the queue and current chunk
+        if not first_step:
+            queue = list(np.array(queue)[~chunk_status_arr])
+            chunk_status_arr = chunk_status_arr[~chunk_status_arr]
+
+        # Update the queue while the length of the queue is smaller
+        # than the maximum allowed number of calculations.
+        while len(queue) < max_batch and total_loops < len(sel_struct_df):
+            # Getting current row
+            target_row = sel_struct_df.iloc[current_row_index]
+
+            # Creating list for storing the nodes once submitted
+
+            # Iterating over the chunk and launching a separate
+            # vasp workchain for every structure contained.
+            # for it, target_row in chunk.iterrows():
+            # Gathering calculation information and
+            # submitting the calculation through AiiDA.
+            node = submit_aiida_calculation(
+                index=current_row_index,
+                target_row=target_row,
+                initial_db=initial_db,
+                kspacing_dict=kspacing_dict,
+                incar_dict=incar_dict,
+                calc_type=calc_type,
+                queue_dict=queue_dict,
+                potential_family=potential_family,
+                potential_mapping=potential_mapping,
+                dry_run=dry_run,
+                group=group,
+            )
+
+            current_row_index += 1
+            queue.append(node)
+            mdb_ut.custom_print(f"Queue length: {len(queue)}/{max_batch}", "debug")
+
+        # print('Waiting 60 seconds...')
+        time.sleep(queue_check_interval)
+
+        first_step = False
+        total_loops += 1
+
+        if current_row_index >= len(sel_struct_df) and len(queue) == 0:
+            calcs_remaining = False
+
+    mdb_ut.custom_print("All calculations finished!", "done")
+    mdb_ut.custom_print("Check 'verdi process list' for more information", "info.")
+
+    # # Submit initial batch of calculations
+    # index = start_on
+    # for _ in range(max_batch):
+    #     if index < len(sel_struct_df):
+    #         calc_data = sel_struct_df.iloc[index]
+    #         future = submit_aiida_calculation(
+    #             index=index,
+    #             target_row=calc_data,
+    #             initial_db=initial_db,
+    #             kspacing_dict=kspacing_dict,
+    #             incar_dict=incar_dict,
+    #             calc_type=calc_type,
+    #             queue_dict=queue_dict,
+    #             potential_family=potential_family,
+    #             potential_mapping=potential_mapping,
+    #             dry_run=dry_run,
+    #             group=group,
+    #         )
+    #         calc_queue.put(future)
+    #         index += 1
+
+    # # Start monitoring thread
+    # all_calculations_submitted = False
+    # monitor_thread = threading.Thread(
+    #     target=monitor_queue_calcs,
+    #     args=(calc_queue, sel_struct_df, index, all_calculations_submitted),
+    # )
+    # monitor_thread.start()
+
+    # # Once you have submitted all calculations, signal the monitoring thread
+    # all_calculations_submitted = True
+
+    # # Wait for the monitoring thread to finish
+    # monitor_thread.join()
 
 
 def kpoint_mesh_from_density(structure, kspacing):
@@ -687,6 +912,7 @@ def generate_incar(
 ):
     """
     Generate an incar file using depending on the calculation type.
+
     This incar includes a kspacing variable that depends on the phase.
 
     Parameters
@@ -752,7 +978,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
 
         mdb_ut.custom_print(
             (
-                f"Generated kpoints for surface using kspacing ({kspacing}): "
+                f"Generated kpoints for surface using kspacing ({kspacing:.4f}): "
                 f"{kpoints_data.get_kpoints_mesh()[0]} (z-axis forced to 1)"
             ),
             "debug",
@@ -810,9 +1036,9 @@ def add_aiida_group_to_db(db_obj: str, group_identifier, copy=False):
             database_df.at[hex_index, "calc_type"] = vasprun.calc
             database_df.at[hex_index, "calc_energy"] = vasprun.get_potential_energy()
             database_df.at[hex_index, "calc_energy_toten"] = vasprun.get_total_energy()
-            database_df.at[
-                hex_index, "calc_energy_per_atom"
-            ] = vasprun.get_potential_energy() / len(vasprun)
+            database_df.at[hex_index, "calc_energy_per_atom"] = (
+                vasprun.get_potential_energy() / len(vasprun)
+            )
             database_df.at[hex_index, "calc_output"] = vasprun
         else:
             pass
@@ -831,8 +1057,9 @@ def add_aiida_group_to_db(db_obj: str, group_identifier, copy=False):
 def generate_potential_mapping() -> dict:
     """
     Generate a dictionary specifying the potential mapping for vasp.
-    As of now, this function only assigns the default potential for every
-    atom.
+
+    This function only assigns the default potential for every
+    atom. The user can specify different mappings if needed.
 
     Inputs
     ------
@@ -845,8 +1072,8 @@ def generate_potential_mapping() -> dict:
 
     ::
 
-        # Header lines that will be ignored.
-        # The next two lines should not have any comment marks, '#'.
+        # Header lines for comments that will be ignored.
+        # The lines following the headers should not have any comment marks, i.e. '#'.
         Ag=Ag_gw
         Au=Au_gw
 

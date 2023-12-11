@@ -38,14 +38,12 @@ KSPACING = {
 #
 QUEUE_DICT = {
     10: {
-        "type": "slurm",
-        "node_cpus": 48,
-        "code_string": "vasp-5.4.4_mn@marenostrum1",
-        "qos": "debug",
-        "max_wallclock_seconds": 8000,
-        "max_memory_kb": 96000000,
+        "type": "sge",
+        "node_cpus": 12,
+        "code_string": "vasp-std-5.4.4@tekla2",
         "options_resources": {
-            "tot_num_mpiprocs": 48,
+            "parallel_env": "c12m48ib_mpi",
+            "tot_num_mpiprocs": 12,
         },
         "multiple": 1,
     },
@@ -99,7 +97,7 @@ CALC_TYPE = mdb_aut.CalcType.single_point_surface
 MAX_BATCH = 300
 
 # Skip all chunks from 0 up to the the chunk number set in START_ON.
-START_ON = 3
+START_ON = 4
 
 # Group name prefix
 GROUP_NAME = "surface_run_kpoints_fixed"
