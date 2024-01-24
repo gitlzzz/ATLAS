@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # AL settings
     builder.m0_rmse_e = 2.0 # TODO: Add units in to var name
     builder.m0_rmse_f = 20.0 # TODO: Add units in to var name
-    builder.al_keep_frame_interval_perc = 0.025
+    builder.al_keep_frame_interval_perc = 0.1
 
 
     node = run(builder)

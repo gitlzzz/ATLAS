@@ -275,6 +275,7 @@ class ActiveLearningWorkChain(WorkChain):
 
         for idx, curr_structure in enumerate(self.ctx.current_train_seed_structs):
             curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
+            struct_properties = curr_structure.properties
 
             curr_input = self.gen_md_input(
                 structure=curr_structure,
@@ -311,6 +312,10 @@ class ActiveLearningWorkChain(WorkChain):
 
             self.ctx.current_train_seed.append(future)
             self.ctx.train_seed_group.add_nodes(future)
+
+            # Writing extra information
+            for key, val in struct_properties.items():
+                future.base.extras.set(key, val)
             future.base.extras.set("index_in_db", index_in_db)
 
             # Telling the work chain to wait for the md to finish
@@ -337,6 +342,8 @@ class ActiveLearningWorkChain(WorkChain):
                     "forces": {"m0": forces},
                     "al_step": self.ctx.al_loop_iteration,
                     "index_in_db": workchain.extras["index_in_db"],
+                    "mdb_struct_type": workchain.extras["mdb_struct_type"],
+                    "struct_name": workchain.extras["struct_name"],
                 }
             )
 
@@ -600,7 +607,7 @@ class ActiveLearningWorkChain(WorkChain):
         self.report("Deciding which structures to keep...")
 
         # TODO: Can I get the performances from the model?
-        chem_acc_multiplier = 0.1 # TODO: Set to 10.
+        chem_acc_multiplier = 0.1  # TODO: Set to 10.
         e_rmse = self.inputs.m0_rmse_e.value
         e_error_threshold = chem_acc_multiplier * e_rmse
 
@@ -647,22 +654,25 @@ class ActiveLearningWorkChain(WorkChain):
                 print("\nSending structures to DFT.")
                 # Else, select some of them and send them to DFT
 
-                # Selecting all candidate structures by getting all True values
-                high_error_structures = np.nonzero(error_all_structures)[0]
+                # NO: Selecting all candidate structures by getting all True values
+                # high_error_structures = np.nonzero(error_all_structures)[0]
 
-                # Instead of keeping them all, select some of them (get 1 frame 
+                # Instead of keeping them all, select some of them (get 1 frame
                 # every n frames)
                 dft_structures = al_ut.select_dft_structures(
-                    high_error_structures,
+                    error_all_structures,
                     self.inputs.al_keep_frame_interval_perc,
                 )
-                print('dft_structures idx: ', dft_structures)
-                print('dft_structures idx len: ', len(dft_structures))
 
                 dft_structures = [
                     row["trajectory"][int(struct)] for struct in dft_structures
                 ]
+
+                for dft_struct in dft_structures:
+                    al_ut.compute_dft_energy_structure(dft_struct)
+
                 print("dft_structures len: ", len(dft_structures))
+                print("struct_type:", row["mdb_struct_type"])
 
         # Deleting marked entries.
         if len(delete_indices) > 0:

@@ -70,43 +70,43 @@ SEL_DYNAMICS = None
 
 # INCAR equivalent
 # Set input parameters
-INCAR_CLUSTER = {
-    "incar": {
-        ## general:
-        "istart": 0,
-        "icharg": 2,
-        "gga": "Pe",
-        "ispin": 1,
-        # "lorbit": 11,
-        # electronic steps:
-        "encut": 450,
-        "ediff": 1e-6,
-        "ismear": 0,
-        "sigma": 0.03,
-        "algo": "Fast",
-        "lreal": "Auto",
-        "nelm": 120,
-        # ionic steps:
-        "ibrion": -1,
-        "nsw": 2,
-        "ediffg": -0.03,
-        "isif": 2,
-        "potim": 0.3,
-        # files to write:
-        "lwave": False,
-        "lcharg": False,
-        # parallelization:
-        "ncore": 4,
-        # "kpar": 4,
-        # dipole correction
-        "lelf": False,
-        # van der Waals:
-        "ivdw": 11,
-        # surface
-        "idipol": 4,
-        "ldipol": True,
-    }
-}
+# INCAR_CLUSTER = {
+#     "incar": {
+#         ## general:
+#         "istart": 0,
+#         "icharg": 2,
+#         "gga": "Pe",
+#         "ispin": 1,
+#         # "lorbit": 11,
+#         # electronic steps:
+#         "encut": 450,
+#         "ediff": 1e-6,
+#         "ismear": 0,
+#         "sigma": 0.03,
+#         "algo": "Fast",
+#         "lreal": "Auto",
+#         "nelm": 120,
+#         # ionic steps:
+#         "ibrion": -1,
+#         "nsw": 2,
+#         "ediffg": -0.03,
+#         "isif": 2,
+#         "potim": 0.3,
+#         # files to write:
+#         "lwave": False,
+#         "lcharg": False,
+#         # parallelization:
+#         "ncore": 4,
+#         # "kpar": 4,
+#         # dipole correction
+#         "lelf": False,
+#         # van der Waals:
+#         "ivdw": 11,
+#         # surface
+#         "idipol": 4,
+#         "ldipol": True,
+#     }
+# }
 
 INCAR_SP = {
     "incar": {
@@ -445,6 +445,7 @@ def submit_aiida_calculation(
         # with respect to which the total dipole-moment in the cell
         # is calculated.
         incar["incar"]["DIPOL"] = [0.5, 0.5, 0.5]
+        incar["incar"]["IDIPOL"] = 4
 
     # Defining the vasp.relax workchain object
     workchain = WorkflowFactory("vasp.relax")

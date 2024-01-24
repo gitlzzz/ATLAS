@@ -37,13 +37,13 @@ def get_model_energies_std(energies_dict):
     return energies_std
 
 
-def select_dft_structures(struct_list, frame_interval):
+def select_dft_structures(struct_arr, frame_interval):
     """
     Select DFT structures using the interval given as an input of the workchain.
 
     Parameters
     ----------
-    struct_list : np.array
+    struct_arr : np.array
         Array containing all possible structures to compute.
     frame_interval : Int
         Integer representing the interval between structures to keep.
@@ -53,11 +53,25 @@ def select_dft_structures(struct_list, frame_interval):
     np.array
         Array containing only the selected structures.
     """
-    # TODO: Find a way of getting more separate frames.
-    slice_step = int(len(struct_list) * frame_interval)
+    slice_step = int(len(struct_arr) * frame_interval)
 
     if slice_step == 0:
-        slice_step = int(len(struct_list)/2)
+        slice_step = int(len(struct_arr) / 2)
 
-    selected_dft_structs = struct_list[:: slice_step]
-    return selected_dft_structs
+    selected_dft_structs_idxs = range(len(struct_arr))[::slice_step]
+    selected_dft_structs = struct_arr[::slice_step]
+    selected_high_error = np.nonzero(selected_dft_structs)[0]
+    selected_high_error_idxs = np.array(selected_dft_structs_idxs)[selected_high_error]
+
+    return selected_high_error_idxs
+
+
+def compute_dft_energy_structure(struct):
+
+    struct_type = identify_struct_type(struct)
+    
+    
+
+def identify_struct_type(struct):
+    ...
+    
