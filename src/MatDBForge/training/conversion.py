@@ -42,7 +42,7 @@ def _structure_to_extended_xyz(structure: "mdb_strc.Structure"):
     ...
 
 
-def _add_entry_to_mace_input(buffer: TextIOWrapper, vasprun, node):
+def _add_entry_to_mace_input(buffer: TextIOWrapper, vasprun, node, to_file=True):
     # The training data is in extxyz format.
     # The parser from ase can be used to read the vasprun directly
     # and convert it to the correct format, which will have the
@@ -63,7 +63,12 @@ def _add_entry_to_mace_input(buffer: TextIOWrapper, vasprun, node):
     vasprun.info["struct_name"] = name
     vasprun.info["aiida_uuid"] = node.uuid
 
-    aseio.write(buffer, images=vasprun, format="extxyz")
+    if to_file:
+        aseio.write(buffer, images=vasprun, format="extxyz")
+    else:
+        return vasprun
+
+
 
 
 def _gather_mace_req_calc_data_from_node(node):

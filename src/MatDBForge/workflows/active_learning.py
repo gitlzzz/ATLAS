@@ -7,7 +7,14 @@ import numpy as np
 import pandas as pd
 import pymatgen.io.ase as pmg_ase
 import torch
-from aiida.engine import WorkChain, append_, calcfunction
+from aiida.engine import (
+    BaseRestartWorkChain,
+    WorkChain,
+    append_,
+    calcfunction,
+    while_,
+    workfunction,
+)
 from aiida.orm import (
     Dict,
     Float,
@@ -18,9 +25,12 @@ from aiida.orm import (
     SinglefileData,
     Str,
     load_code,
+    load_group,
+    load_node,
     to_aiida_type,
 )
 from aiida.plugins import CalculationFactory
+from ase import Atoms
 from ase.io import read as ase_read
 from mace import data as mace_data
 from mace.calculators import MACECalculator
@@ -30,8 +40,9 @@ from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
 
-from MatDBForge.active_learning import active_learning_utils as al_ut
+from MatDBForge.active_learning import active_learning_utils as mdb_al
 from MatDBForge.core import DATA_DIR
+from MatDBForge.training import conversion as mdb_conv
 
 
 @calcfunction
@@ -44,6 +55,40 @@ def prepare_output_dataframe(md_seed_results_df):
     md_seed_results_df.index = md_seed_results_df.index.map(str)
     training_df = Dict(md_seed_results_df.to_dict(orient="index"))
     return training_df
+
+
+@calcfunction
+def gather_dft_calcs(dft_calc_list):
+    print("dft_calc_list: ", type(dft_calc_list))
+    print("starting gather_dft_calcs")
+    vasprun_list = []
+    # Adding structures to the initial DB
+    for finished_dft_calc in dft_calc_list:
+        finished_dft_calc = load_node(finished_dft_calc)
+        vasprun = mdb_conv._gather_mace_req_calc_data_from_node(finished_dft_calc)
+        vasprun = vasprun.todict()
+        vasprun["pbc"] = [bool(boo) for boo in vasprun["pbc"]]
+        vasprun_list.append(vasprun)
+
+    return_list = List([val for val in vasprun_list])
+    print("return_list: ", type(return_list))
+    # self.out("dft_calcs", List(self.ctx.vasprun_list))
+    return return_list
+
+@workfunction
+def train_mace_model(dft_calc_list):
+
+    # [ ] This workfunction should be run before the MD part, using submit.
+    # [ ] Create calcfunctions for these things below:
+        # [ ] Generate new training data file
+        # [ ] Load training settings from json(?). Use low accuracy for debugging.
+        # [ ] Run training and save new model file
+    # [ ] Return model to workchain
+
+    # TODO: Check if this workfunction can be run in a remote computer.
+
+    return ...
+
 
 
 class ActiveLearningWorkChain(WorkChain):
@@ -60,6 +105,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("init_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("final_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("data_path", valid_type=Str, serializer=to_aiida_type)
+        spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
         spec.input("seed_size_frac", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
@@ -68,24 +114,30 @@ class ActiveLearningWorkChain(WorkChain):
         )
         spec.input("lammps_potential_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("mace_potential_names", valid_type=List, serializer=to_aiida_type)
+        # spec.input("max_al_iterations", valid_type=Int, serializer=to_aiida_type)
         spec.input("m0_rmse_e", valid_type=Float, serializer=to_aiida_type)
         spec.input("m0_rmse_f", valid_type=Float, serializer=to_aiida_type)
         spec.input(
             "al_keep_frame_interval_perc", valid_type=Float, serializer=to_aiida_type
         )
+        spec.input(
+            "current_train_seed_structs", valid_type=List, serializer=to_aiida_type
+        )
+        spec.input("seed_gen_db", valid_type=List, serializer=to_aiida_type)
+        spec.input(
+            "current_train_seed_structs_idx",
+            valid_type=List,
+            serializer=to_aiida_type,
+        )
+        spec.input(
+            "train_seed_group",
+            valid_type=Str,
+            serializer=to_aiida_type,
+        )
         # spec.input("md_code", valid_type=AbstractCode)
         # spec.input("mace_code", valid_type=AbstractCode)
 
         spec.outline(
-            # Get the initial database (database_initial, D_ini) and its structures,
-            # additionally, create a copy of the database (seed_gen_db, D0),
-            # this will be used to generate the training seeds.
-            cls.get_database,
-            # Get descriptors
-            cls.generate_descriptors,
-            ## This part will loop to reduce the error
-            # Get random structures from D0 to generate the training seed.
-            cls.get_training_seed,
             # All of the structures in the seed will be run using the MD
             # code selected, using the main model (M0)
             cls.run_md_seed,
@@ -97,17 +149,22 @@ class ActiveLearningWorkChain(WorkChain):
             # According to the difference in error between the models either:
             # The original structure will be removed from D0, or
             # The problematic structure will be calcualated using DFT
-            cls.add_or_remove_structures,
+            cls.send_calc_or_remove_structures,
+            cls.return_seed_dft,
             # If high error (define this) is found on a training seed,
             # do not change seed until the error is decreased
-            cls.choose_next_seed,
+            # cls.choose_next_seed,
             ## When the loop ends this should run to finish the workchain.
             # Generate final database and model files. Store to given paths.
-            cls.return_final_db,
+            # cls.return_final_db,
         )
-        spec.output("result_db_path", valid_type=Str)
-        spec.output("final_model_path", valid_type=Str)
-        spec.output("al_loop_results_dataframe", valid_type=Dict)
+        spec.output("dft_calcs", valid_type=List)
+        spec.output("upd_seed_gen_db", valid_type=List)
+
+        # TODO: Implement these into the base workchain
+        # spec.output("result_db_path", valid_type=Str)
+        # spec.output("final_model_path", valid_type=Str)
+        # spec.output("al_loop_results_dataframe", valid_type=Dict)
 
         # spec.exit_code(
         #     400,
@@ -162,106 +219,10 @@ class ActiveLearningWorkChain(WorkChain):
 
         return lammps_template
 
-    def get_database(self):
-        """Loading initial database."""
-        self.report("Reading database file...")
-
-        # Starting to count AL loop iterations.
-        self.ctx.al_loop_iteration = 0
-
-        # The original database (database_initial) from which copies are made
-        # for further processing. New structures will be
-        # added here.
-        self.ctx.database_initial = ase_read(
-            filename=self.inputs.init_db_path.value,
-            format="extxyz",
-            index=":",
-        )
-
-        # A copy of the initial database, (D0)
-        # used specifically for generating training seeds.
-        self.ctx.seed_gen_db = ase_read(
-            filename=self.inputs.init_db_path.value,
-            format="extxyz",
-            index=":",
-        )
-
-        # If dtype=object is not used, numpy won't be able to create this jagged array.
-        # We need an array to have an easier time indexing and using masks for item
-        # removal.
-        self.ctx.seed_gen_db = np.array(self.ctx.seed_gen_db, dtype=object)
-
-        self.report(f"Loaded database with {len(self.ctx.seed_gen_db)} structures.")
-
-    def generate_descriptors(self):
-        self.report("Generating descriptors")
-
-        model_path = (
-            self.inputs.data_path.value + "/" + self.inputs.mace_potential_names[0]
-        )
-        calculator = MACECalculator(
-            model_paths=model_path, device="cuda", default_dtype="float32"
-        )
-        descriptor_list = []
-
-        for struct in self.ctx.database_initial:
-            curr_struct_descriptors = calculator.get_descriptors(struct)
-            descriptor_list.append(curr_struct_descriptors)
-
-        np.vstack(descriptor_list)
-        self.ctx.database_descriptors = descriptor_list
-
-    def get_training_seed(self):
-        """
-        Selects a random subset of structures from the seed generation database to
-        create a training seed for the active learning loop.
-
-        This function calculates the number of structures to be included in the training
-        seed based on the specified fraction of the seed generation database's length.
-        It then randomly selects and populates the training seed with these structures.
-
-        Returns
-        -------
-            None. The function updates self.ctx.current_train_seed_structs with the selected
-            structures.
-        """
-        self.report("Getting training seed...")
-
-        # Getting length of the seed generating database
-        db_length = len(self.ctx.seed_gen_db)
-
-        # Choosing structures at random to create the training seed
-        selected_structs = np.random.choice(
-            range(db_length),
-            size=int(self.inputs.seed_size_frac.value * db_length),
-            replace=False,
-        )
-        self.ctx.current_train_seed_structs_idx = selected_structs
-
-        # The set of random structures selected from the seed generation
-        # database to be used in training.
-        self.ctx.current_train_seed_structs = []
-
-        # Populating training seed with the selected random structures
-        for idx in selected_structs:
-            self.ctx.current_train_seed_structs.append(self.ctx.seed_gen_db[idx])
-
-        ctime = time.strftime("%Y%m%dT%H%M%S")
-        seed_group = Group(label=f"remove_test_{ctime}")
-        # seed_group = Group(label=f"train_md_seed_{ctime}")
-        seed_group.store()
-        self.ctx.train_seed_group = seed_group
-
-        self.report(
-            f"Created training seed with {len(self.ctx.current_train_seed_structs)}"
-            f" structures ({self.inputs.seed_size_frac.value*100}%)."
-        )
-
-        self.report(f"Created group: '{self.ctx.train_seed_group.label}'.")
-
     def run_md_seed(self):
-        self.report(f"Starting AL Loop iteration {self.ctx.al_loop_iteration}.")
         self.report("Running MD (using M0) for all structures in the current seed...")
+
+        # print("\n\n###### AL self.inputs ######\n", self.inputs)
 
         # Creating a list in the context to store the nodes
         self.ctx.current_train_seed = []
@@ -273,7 +234,15 @@ class ActiveLearningWorkChain(WorkChain):
         builder_settings = {"additional_retrieve_list": ["structure.lammpstrj"]}
         builder.settings = Dict(builder_settings)
 
-        for idx, curr_structure in enumerate(self.ctx.current_train_seed_structs):
+        for idx, curr_structure in enumerate(self.inputs.current_train_seed_structs):
+            # Structures are stored as a dict in order to be json-serializable
+            for key in ["pbc", "cell", "numbers", "positions", "forces"]:
+                curr_structure[key] = np.array(curr_structure[key])
+
+            curr_structure = Atoms.fromdict(curr_structure)
+            print("curr_structure: ", curr_structure)
+
+            # Converting to pymatgen
             curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
             struct_properties = curr_structure.properties
 
@@ -293,7 +262,7 @@ class ActiveLearningWorkChain(WorkChain):
             builder.files = {"data": data}
             builder.filenames = {"data": "structure.lammps"}
 
-            index_in_db = self.ctx.current_train_seed_structs_idx[idx]
+            index_in_db = self.inputs.current_train_seed_structs_idx[idx]
 
             # Run the calculation on 1 CPU and kill it
             # if it runs longer than 1800 seconds.
@@ -311,7 +280,8 @@ class ActiveLearningWorkChain(WorkChain):
             future = self.submit(builder)
 
             self.ctx.current_train_seed.append(future)
-            self.ctx.train_seed_group.add_nodes(future)
+            curr_group = load_group(uuid=self.inputs.train_seed_group.value)
+            curr_group.add_nodes(future)
 
             # Writing extra information
             for key, val in struct_properties.items():
@@ -340,15 +310,16 @@ class ActiveLearningWorkChain(WorkChain):
                     "trajectory": traj,
                     "energy": {"m0": steps_E_F_arr[:, 1]},
                     "forces": {"m0": forces},
-                    "al_step": self.ctx.al_loop_iteration,
+                    "al_step": self.inputs.al_loop_iteration.value,
                     "index_in_db": workchain.extras["index_in_db"],
                     "mdb_struct_type": workchain.extras["mdb_struct_type"],
-                    "struct_name": workchain.extras["struct_name"],
+                    "material_name": workchain.extras["struct_name"],
+                    "unique_id": workchain.extras["aiida_uuid"],
                 }
             )
 
         # Increasing the current AL step number
-        self.ctx.al_loop_iteration += 1
+        # self.ctx.al_loop_iteration += 1
 
         # Creating a DataFrame with all the results
         self.ctx.md_seed_results_df = pd.DataFrame(new_rows)
@@ -511,7 +482,7 @@ class ActiveLearningWorkChain(WorkChain):
 
     def check_commitee_results(self):
         for row in self.ctx.md_seed_results_df.iterrows():
-            self.report(f"Checking struct {row[0]} results with all models...")
+            # self.report(f"Checking struct {row[0]} results with all models...")
             # print("row: ", row)
             curr_traj = row[1]["trajectory"]
 
@@ -593,17 +564,7 @@ class ActiveLearningWorkChain(WorkChain):
                     model_name
                 ] = forces_list  # total_force_norm_per_frame
 
-        # print("df force: ", self.ctx.md_seed_results_df["forces"].iloc[0])
-        # print("df row 0: ", self.ctx.md_seed_results_df["forces"].iloc[0]["m0"].shape)
-
-        # print("df energy: ", self.ctx.md_seed_results_df["energy"].iloc[0])
-        # print("df row 0: ", self.ctx.md_seed_results_df["energy"].iloc[0]["m0"].shape)
-        # self.out(
-        #     "al_loop_results_dataframe",
-        #     training_df,
-        # )
-
-    def add_or_remove_structures(self):
+    def send_calc_or_remove_structures(self):
         self.report("Deciding which structures to keep...")
 
         # TODO: Can I get the performances from the model?
@@ -620,7 +581,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Getting all energy predictions
             # TODO For E: Do variance
             model_energies_dict = row["energy"]
-            energies_std = al_ut.get_model_forces_std(model_energies_dict)
+            energies_std = mdb_al.get_model_forces_std(model_energies_dict)
 
             # Any True value in this array is over the energy error threshold
             # and must be sent to calculate with DFT.
@@ -628,7 +589,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             # TODO For F: Do variance
             model_forces_dict = row["forces"]
-            forces_std = al_ut.get_model_energies_std(model_forces_dict)
+            forces_std = mdb_al.get_model_energies_std(model_forces_dict)
             forces_std_norm = np.linalg.norm(forces_std, axis=2)
             forces_std_norm_max = np.amax(forces_std_norm, axis=1)
 
@@ -641,9 +602,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Joining both error masks to get a single True/False array makring structures
             # to be computed
             error_all_structures = np.ma.mask_or(error_e_structures, error_f_structures)
-            print("\nerror_all_structures: ", error_all_structures)
 
-            # TODO: Do this instead
             if np.all(error_all_structures == 0):
                 # If all values in error_all_structures are false, delete the main
                 # structure from D0. The index of the structure to delete will
@@ -651,7 +610,7 @@ class ActiveLearningWorkChain(WorkChain):
                 # which structures to remove outside of the loop.
                 delete_indices.append(row["index_in_db"])
             else:
-                print("\nSending structures to DFT.")
+                self.report("Sending structures to DFT.")
                 # Else, select some of them and send them to DFT
 
                 # NO: Selecting all candidate structures by getting all True values
@@ -659,7 +618,7 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # Instead of keeping them all, select some of them (get 1 frame
                 # every n frames)
-                dft_structures = al_ut.select_dft_structures(
+                dft_structures = mdb_al.select_dft_structures(
                     error_all_structures,
                     self.inputs.al_keep_frame_interval_perc,
                 )
@@ -668,19 +627,58 @@ class ActiveLearningWorkChain(WorkChain):
                     row["trajectory"][int(struct)] for struct in dft_structures
                 ]
 
-                for dft_struct in dft_structures:
-                    al_ut.compute_dft_energy_structure(dft_struct)
+                # REMOVE: For testing purposes. Remove this!
+                dft_structures = [row["trajectory"][5]]
 
-                print("dft_structures len: ", len(dft_structures))
-                print("struct_type:", row["mdb_struct_type"])
+                self.report(f"Submitting {len(dft_structures)} DFT calculations.")
+                for calc_idx, dft_struct in enumerate(dft_structures):
+                    builder = mdb_al.get_dft_calc_builder(
+                        dft_struct,
+                        row,
+                        calc_idx,
+                        self.inputs.train_seed_group.value,
+                    )
+
+                    # Submitting current calculation
+                    future = self.submit(builder)
+                    future.base.extras.set("mdb_calc_uuid", row["unique_id"])
+                    self.to_context(dft_struct_seed_calcs=append_(future))
 
         # Deleting marked entries.
+        self.report("Deleting structures from seed generating db (Di)")
         if len(delete_indices) > 0:
-            del_mask = np.ones(len(self.ctx.seed_gen_db), bool)
+            seed_gen_db = np.array(self.inputs.seed_gen_db)
+            del_mask = np.ones(len(seed_gen_db), bool)
             del_mask[delete_indices] = 0
-            self.ctx.seed_gen_db = self.ctx.seed_gen_db[del_mask]
+            self.inputs.seed_gen_db = list(seed_gen_db[del_mask])
+
+        if isinstance(self.inputs.seed_gen_db, list):
+            self.inputs.seed_gen_db = List(self.inputs.seed_gen_db)
+
+        self.out("upd_seed_gen_db", self.inputs.seed_gen_db)
+
+    def return_seed_dft(self):
+        print("dft_calc_list: ", type(self.ctx.dft_struct_seed_calcs))
+        print("starting gather_dft_calcs")
+        # vasprun_list = []
+        return_list = gather_dft_calcs(
+            [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+        )
+        # # Adding structures to the initial DB
+        # for finished_dft_calc in self.ctx.dft_struct_seed_calcs:
+        #     vasprun = mdb_conv._gather_mace_req_calc_data_from_node(finished_dft_calc)
+        #     vasprun = vasprun.todict()
+        #     vasprun["pbc"] = [bool(boo) for boo in vasprun["pbc"]]
+        #     vasprun_list.append(vasprun)
+
+        # return_list = List([val for val in vasprun_list])
+        print("return_list: ", return_list)
+        print("return_list: ", type(return_list))
+        self.out("dft_calcs", return_list)
 
     def choose_next_seed(self):
+        # Retrain the models and retry seed? Or choose a new seed?
+        print("intial db after append: ", len(self.inputs.database_initial))
         self.report("Choosing next seed...")
 
     def return_final_db(self):
@@ -708,25 +706,238 @@ class ActiveLearningWorkChain(WorkChain):
         #     training_df,
         # )
 
-    # def multiply(self):
-    #     """Multiply two integers."""
-    #     self.ctx.product = multiply(self.inputs.x, self.inputs.y)
 
-    # def add(self):
-    #     """Add two numbers using the `ArithmeticAddCalculation`
-    #        calculation job plugin."""
-    #     inputs = {'x': self.ctx.product, 'y': self.inputs.z, 'code': self.inputs.code}
-    #     future = self.submit(ArithmeticAddCalculation, **inputs)
+class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
+    _process_class = ActiveLearningWorkChain
 
-    #     return ToContext(addition=future)
+    @classmethod
+    def define(cls, spec):
+        """Define the process specification."""
+        super().define(spec)
 
-    # def validate_result(self):
-    #     """Make sure the result is not negative."""
-    #     result = self.ctx.addition.outputs.sum
+        spec.expose_inputs(
+            ActiveLearningWorkChain,
+            namespace="active_learning",
+            exclude=[
+                "current_train_seed_structs",
+                "current_train_seed_structs_idx",
+                "al_loop_iteration",
+                "train_seed_group",
+                "seed_gen_db",
+            ],
+        )
+        spec.expose_outputs(ActiveLearningWorkChain)
+        spec.outline(
+            # Get the initial database (database_initial, D_ini) and its structures,
+            # additionally, create a copy of the database (seed_gen_db, D0),
+            # this will be used to generate the training seeds.
+            cls.get_database,
+            # Create inputs and initialize counter
+            cls.setup,
+            # Get random structures from D0 to generate the training seed.
+            # This part will loop to complete the process
+            # It will loop `self.ctx.inputs.max_al_iterations` times.
+            while_(cls.should_run_process)(
+                # Load database and create D0
+                cls.get_training_seed,
 
-    #     if result.value < 0:
-    #         return self.exit_codes.ERROR_NEGATIVE_NUMBER
+                # Generate descriptors for the current seed.
+                # cls.generate_descriptors,
 
-    # def result(self):
-    #     """Add the result to the outputs."""
-    #     self.out('result', self.ctx.addition.outputs.sum)
+                # Run training seed
+                cls.run_process,
+
+                # Check for correct results
+                # cls.inspect_process,
+
+                # Get results from workchain
+                cls.results,
+                cls.add_dft_results_to_db,
+
+                # cls.gather_dft_calcs,
+                # cls.increment_seed_step,
+            ),
+            cls.results,
+        )
+
+    # def gather_dft_calcs(self):
+    #     print("\n\n##### self.ctx #####\n", self.ctx)
+    #     print("\n\n##### self.outputs #####\n", self.outputs)
+    #     quit()
+
+    #     # Appending Atoms object to Atoms
+    #     # self.ctx.database_initial.append(vasprun)
+
+    #     # TODO: Curr seed gen should be updated here
+
+    def get_database(self):
+        """Loading initial database."""
+        self.report("Reading database file...")
+
+        # The original database (D0) from which copies are made
+        # for further processing. New structures will be
+        # added here.
+        self.ctx.database_initial = ase_read(
+            filename=self.inputs.active_learning.init_db_path.value,
+            format="extxyz",
+            index=":",
+        )
+
+        # A copy of the initial database, (Di)
+        # used specifically for generating training seeds.
+        self.ctx.seed_gen_db = self.ctx.database_initial.copy()
+
+        # self.ctx.seed_gen_db = ase_read(
+        #     filename=self.inputs.active_learning.init_db_path.value,
+        #     format="extxyz",
+        #     index=":",
+        # )
+
+        # If dtype=object is not used, numpy won't be able to create this jagged array.
+        # We need an array to have an easier time indexing and using masks for item
+        # removal.
+        self.ctx.seed_gen_db = np.array(self.ctx.seed_gen_db, dtype=object)
+
+        self.report(f"Loaded database with {len(self.ctx.seed_gen_db)} structures.")
+
+    def add_dft_results_to_db(self):
+        # print("\n\n##### self.ctx gather #####\n", self.ctx)
+        # print("\n\n##### self.outputs #####\n", self.outputs)
+        # print("\n\n##### self.outputs #####\n", self.ctx.outputs)
+        # print("initial db before append: ", len(self.ctx.database_initial))
+
+        cnt_dft_calcs = len(self.outputs["dft_calcs"])
+
+        if cnt_dft_calcs > 0:
+            self.report("DFT calculations done.")
+
+            print("init len seed_gen_db: ", len(self.ctx.seed_gen_db))
+            print('type seed_gen_db: ', type(self.ctx.seed_gen_db))
+            print('self.ctx.seed_gen_db[2] ', self.ctx.seed_gen_db[2],'\n\n')
+            for dft_calc in self.outputs["dft_calcs"]:
+                print("dft_calc: ", dft_calc)
+                self.ctx.seed_gen_db = np.append(self.ctx.seed_gen_db, dft_calc)
+            # self.ctx.vasprun_list_new = self.outputs["dft_calcs"]
+
+            print("\n\n!!!! UPDATED INITIAL DB\n\n")
+            print("after len seed_gen_db: ", len(self.ctx.seed_gen_db))
+
+            print('self.ctx.is_finished: ', self.ctx.is_finished)
+            print('self.ctx.iteration: ', self.ctx.iteration)
+
+    def generate_descriptors(self):
+        self.report("Generating descriptors...")
+
+        model_path = (
+            self.inputs.active_learning.data_path.value
+            + "/"
+            + self.inputs.active_learning.mace_potential_names[0]
+        )
+        calculator = MACECalculator(
+            model_paths=model_path, device="cuda", default_dtype="float32"
+        )
+        descriptor_list = []
+
+        # TODO: Check what to use: database_initial or seed_gen_db?
+        for struct in self.ctx.database_initial:
+            curr_struct_descriptors = calculator.get_descriptors(struct)
+            descriptor_list.append(curr_struct_descriptors)
+
+        np.vstack(descriptor_list)
+        self.ctx.database_descriptors = descriptor_list
+
+    def setup(self):
+        """Call BaseRestartWorkChain setup and create inputs dict in self.ctx.inputs.
+
+        This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
+        to submit the process in the internal loop.
+        """
+        super().setup()
+        self.ctx.inputs = self.exposed_inputs(
+            ActiveLearningWorkChain, "active_learning"
+        )
+
+        # Providing current iteration to children workchain.
+        self.ctx.inputs.al_loop_iteration = self.ctx.iteration
+
+        seed_db_serialized = []
+        for s in self.ctx.seed_gen_db:
+            curr_s = s.todict()
+            curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
+            seed_db_serialized.append(curr_s)
+        self.ctx.inputs.seed_gen_db = seed_db_serialized
+
+    def get_training_seed(self):
+        """
+        Selects a random subset of structures from the seed generation database to
+        create a training seed for the active learning loop.
+
+        This function calculates the number of structures to be included in the training
+        seed based on the specified fraction of the seed generation database's length.
+        It then randomly selects and populates the training seed with these structures.
+
+        Returns
+        -------
+            None. The function updates self.ctx.current_train_seed_structs with the selected
+            structures.
+        """
+        self.report(
+            f"Starting AL Loop iteration {self.ctx.inputs.al_loop_iteration}..."
+        )
+        self.report("Getting training seed...")
+
+        # Getting length of the seed generating database
+        db_length = len(self.ctx.seed_gen_db)
+
+        # Choosing structures at random to create the training seed
+        selected_structs = np.random.choice(
+            range(db_length),
+            size=int(self.ctx.inputs.seed_size_frac.value * db_length),
+            replace=False,
+        )
+
+        self.ctx.inputs.current_train_seed_structs_idx = list(selected_structs)
+
+        # The set of random structures selected from the seed generation
+        # database to be used in training.
+        self.ctx.current_train_seed_structs = []
+
+        # Populating training seed with the selected random structures
+        for idx in selected_structs:
+            self.ctx.current_train_seed_structs.append(self.ctx.seed_gen_db[idx])
+
+        ctime = time.strftime("%Y%m%dT%H%M%S")
+
+        # TODO: Update this
+        seed_group = Group(label=f"remove_test_{ctime}")
+        # seed_group = Group(label=f"train_md_seed_{ctime}")
+        seed_group.store()
+        self.ctx.inputs.train_seed_group = seed_group.uuid
+
+        self.report(
+            f"Created training seed with {len(self.ctx.current_train_seed_structs)}"
+            f" structures ({self.ctx.inputs.seed_size_frac.value*100}%)."
+        )
+
+        self.report(f"Created group: '{self.ctx.inputs.train_seed_group}'.")
+
+        # Adding current train seed to the context
+        current_train_seed_serialized = []
+        for s in self.ctx.current_train_seed_structs:
+            curr_s = s.todict()
+            curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
+            current_train_seed_serialized.append(curr_s)
+
+        self.ctx.inputs.current_train_seed_structs = current_train_seed_serialized
+
+        # def should_run_process(self):
+        #     check = (
+        # self.ctx.inputs.al_loop_iteration < self.ctx.inputs.max_al_iterations.value
+        #     )
+        #     print("check: ", check)
+
+        #     return check
+
+        # def increment_seed_step(self):
+        # print("Current step: ", self.ctx.iteration)
+        # self.ctx.al_loop_iteration += 1
