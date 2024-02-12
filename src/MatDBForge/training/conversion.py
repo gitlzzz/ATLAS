@@ -4,13 +4,14 @@ from enum import Enum
 from io import BytesIO, TextIOWrapper
 
 import ase.io as aseio
+from ase.atoms import Atoms
 import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.structure as mdb_strc
 import MatDBForge.core.utils as mdb_ut
 import rich.progress as riprg
+import numpy as np
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
-from ase.io import extxyz
 
 
 class Units(Enum):
@@ -56,7 +57,7 @@ def _add_entry_to_mace_input(buffer: TextIOWrapper, vasprun, node, to_file=True)
 
     name = node.label
     if not name:
-        name = 'unknown'
+        name = "unknown"
 
     # Adding structure type information to the dataset
     vasprun.info["mdb_struct_type"] = get_struct_type(vasprun)
@@ -67,8 +68,6 @@ def _add_entry_to_mace_input(buffer: TextIOWrapper, vasprun, node, to_file=True)
         aseio.write(buffer, images=vasprun, format="extxyz")
     else:
         return vasprun
-
-
 
 
 def _gather_mace_req_calc_data_from_node(node):
@@ -284,3 +283,68 @@ def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
     mdb_ut.custom_print(
         f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
     )
+
+
+def gen_mace_train_structure_list(
+    path, structure_list, disable=False, skip_dipole=True, skip_stress=True
+):
+    # Handling path
+    if path and isinstance(path, str):
+        path = pathlib.Path(path)
+    else:
+        path = pathlib.Path()
+
+    # ctime = time.strftime("%Y%m%dT%H%M%S")
+    # Adding input.data filename to path
+    # path = path.parent / (str(path.stem) + f"_{ctime}{path.suffix}")
+
+    ase_structs = []
+    # Converting into ase atoms object
+    for struct in structure_list:
+        new_struct = {}
+
+        dict_keys_set = set(list(struct.keys()))
+        info_keys_set = set(list(struct["info"].keys()))
+        dict_to_array_set = set(
+            ["pbc", "cell", "forces", "positions", "energy", "numbers"]
+        )
+
+        # List containing possible keys in atoms.info
+        info_list = [
+            "stress",
+            "dipole",
+            "struct_name",
+            "energy",
+            "aiida_uuid",
+            "free_energy",
+            "mdb_struct_type",
+        ]
+
+        # Whether to keep or remove stress and dipole
+        if skip_stress:
+            info_list.remove("stress")
+        if skip_dipole:
+            info_list.remove("dipole")
+        info_to_array_set = set(info_list)
+
+        for arr_key in dict_to_array_set.intersection(dict_keys_set):
+            new_struct[arr_key] = np.array(struct.get(arr_key))
+
+        # Storing keys in atoms.info
+        new_struct["info"] = {}
+        for arr_key in info_to_array_set.intersection(info_keys_set):
+            value = struct.get("info").get(arr_key)
+
+            # If not converted to array will be written incorrectly
+            if arr_key in ["stress", "dipole"]:
+                value = np.array(value)
+
+            new_struct["info"][arr_key] = value
+
+        ase_structs.append(Atoms.fromdict(new_struct))
+
+    # Writing the file
+    aseio.write(path, ase_structs, "extxyz")
+    # mdb_ut.custom_print(
+    #     f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
+    # )
