@@ -1,6 +1,7 @@
 """Definition of an aiida workchain for MACE active learning loops using MD."""
 
 import io
+import json
 import time
 from pathlib import Path
 
@@ -8,8 +9,10 @@ import numpy as np
 import pandas as pd
 import pymatgen.io.ase as pmg_ase
 import torch
+from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.engine import (
     BaseRestartWorkChain,
+    CalcJob,
     WorkChain,
     append_,
     while_,
@@ -24,10 +27,13 @@ from aiida.orm import (
     List,
     SinglefileData,
     Str,
+    StructureData,
     load_code,
     load_group,
+    load_node,
     to_aiida_type,
 )
+from aiida.parsers.parser import Parser
 from aiida.plugins import CalculationFactory
 from ase import Atoms
 from ase.io import read as ase_read
@@ -42,6 +48,177 @@ from pymatgen.io.lammps.data import LammpsData
 from MatDBForge.active_learning import active_learning_utils as mdb_al
 from MatDBForge.core import DATA_DIR
 from MatDBForge.training import conversion as mdb_conv
+
+
+class TrainMACEModelCalculationParser(Parser):
+    def parse(self, **kwargs):
+        """Parse the retrieved files of the calculation job."""
+        # str that represents the absolute filepath to the temporary folder
+        print("kwargs: ", kwargs)
+        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+
+        for child_file in retrieved_temporary_folder.iterdir():
+            print("\nchild_file: ", child_file)
+            # create singlefile data for the model
+            if "swa.model" in child_file.name:
+                model_file = SinglefileData(file=child_file)
+                print("model_file: ", model_file)
+                # model_file.store()
+                print("model_file: ", model_file)
+            else:
+                print("model_file not found")
+
+            if "train.txt" in child_file.name:
+                # TODO: gather rmse_e, rmse_f
+                with open(child_file) as f:
+                    for line in f:
+                        line_dict = json.loads(line)
+                        if "rmse_e" in line_dict.keys():
+                            last_dict = line_dict
+
+                rmse_e = float(last_dict["rmse_e_per_atom"]) * 1000  # meV / atom
+                print("rmse_e: ", rmse_e)
+                rmse_f = float(last_dict["rmse_f"]) * 1000  # meV / A
+                print("rmse_f: ", rmse_f)
+
+        # if not model_file:
+        #     return self.exit_codes.ERROR_INVALID_OUTPUT
+
+        # Return CalcJob outputs
+        self.out("model_file", model_file)
+        self.out("m_rmse_e", Float(rmse_e))
+        self.out("m_rmse_f", Float(rmse_f))
+
+    # @staticmethod
+    # def parse_stdout(filelike):
+    #     """Parse the sum from the output of the ArithmeticAddcalculation written to standard out
+    #     :param filelike: filelike object containing the output
+    #     :returns: the sum
+    #     """
+    #     try:
+    #         result = int(filelike.read())
+
+    #     except ValueError:
+    #         result = None
+
+    #     return result
+
+
+class TrainMACEModelCalculation(CalcJob):
+    """Implementation of CalcJob to perform a MACE training using a settings dir."""
+
+    @classmethod
+    def define(cls, spec):
+        super().define(spec)
+        spec.input(
+            "mace_settings_dict",
+            valid_type=Dict,
+            help="Dictionary containing MACE training settings.",
+        )
+        spec.input(
+            "mace_train_file_path",
+            valid_type=Str,
+            help=(
+                "Path to the file containing the structures to be used for training, "
+                "in the extxyz format."
+            ),
+            # non_db=True,
+            serializer=to_aiida_type,
+        )
+        spec.input(
+            "test_file",
+            valid_type=SinglefileData,
+            help=(
+                "File containing the structures to be used for training, "
+                "in the extxyz format."
+            ),
+            required=False,
+            default=None,
+        )
+
+        spec.input(
+            "model_name",
+            valid_type=Str,
+            help=("Name given to the model."),
+            serializer=to_aiida_type,
+        )
+
+        spec.output(
+            "model_file",
+            valid_type=SinglefileData,
+            help="Path of the trained MACE model.",
+        )
+        spec.output(
+            "m_rmse_e",
+            valid_type=Float,
+            help="Validation RMSE for the energy, in meV / atom.",
+        )
+        spec.output(
+            "m_rmse_f",
+            valid_type=Float,
+            help="Validation RMSE for the forces, in meV / Å.",
+        )
+
+    def prepare_for_submission(self, folder):
+        """Write the input files that are required for the code to run.
+
+        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
+        :return: `~aiida.common.datastructures.CalcInfo` instance
+        """
+        # Parsing mace settings dict
+        params_list = []
+        for key, val in self.inputs.mace_settings_dict.items():
+            # print("\nkey: ", key)
+            # print("val: ", val)
+            if key == "train_file":
+                val = Path(val).resolve().name
+
+            if isinstance(val, str):
+                curr_key = f"--{key}={val}"
+            elif isinstance(val, bool):
+                if val:
+                    curr_key = f"--{key}"
+            else:
+                curr_key = f"--{key}={val}"
+            params_list.append(curr_key)
+
+        # TODO: Add a way of checking if validation_file was given.
+
+        # Copying database to temporary folder
+        folder.insert_path(
+            src=self.inputs.mace_train_file_path.value,
+            dest_name=self.inputs.mace_settings_dict["train_file"],
+        )
+
+        codeinfo = CodeInfo()
+        codeinfo.code_uuid = self.inputs.code.uuid
+        codeinfo.stdout_name = self.options.output_filename
+        codeinfo.cmdline_params = params_list
+
+        calcinfo = CalcInfo()
+        calcinfo.codes_info = [codeinfo]
+        calcinfo.local_copy_list = []
+        calcinfo.provenance_exclude_list = [
+            self.inputs.mace_settings_dict["train_file"]
+        ]
+        calcinfo.remote_copy_list = []
+
+        # Gathering files. They won't be added to the repository,
+        # and instead kept into a temporary folder.
+        # They can later be processed during the parse function
+        # by accessing the temporary folder.
+        calcinfo.retrieve_temporary_list = [
+            self.metadata.options.output_filename,
+            "./*.model",
+            "./results/*",
+        ]
+
+        return calcinfo
+
+    def _build_process_label(self):
+        model_name = self.inputs.model_name.value
+        label = f"Training MACE model - {model_name.upper()}"
+        return label
 
 
 class ActiveLearningWorkChain(WorkChain):
@@ -67,7 +244,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input(
             "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
         )
-        spec.input("mace_potential_names", valid_type=List, serializer=to_aiida_type)
+        # spec.input("mace_potential_names", valid_type=List, serializer=to_aiida_type)
         spec.input(
             "al_keep_frame_interval_perc", valid_type=Float, serializer=to_aiida_type
         )
@@ -90,8 +267,11 @@ class ActiveLearningWorkChain(WorkChain):
         # spec.input("mace_code", valid_type=AbstractCode)
 
         spec.outline(
-            # Training the main mace model (M0) using the training database (Dt).
+            # Training the main mace model (M0) and the commitee models
+            # using the training database (Dt).
             cls.train_mace_model,
+            # Gathering results from mace training.
+            cls.get_mace_train_output,
             # All of the structures in the seed will be run using the MD
             # code selected, using the main model (M0)
             cls.run_md_seed,
@@ -113,6 +293,7 @@ class ActiveLearningWorkChain(WorkChain):
             # cls.return_final_db,
         )
         spec.output("dft_calcs", valid_type=List)
+        spec.output("m0_model_file", valid_type=SinglefileData)
         spec.output("upd_seed_gen_db", valid_type=List)
         spec.output("stop_md_seed_no_disagreement", valid_type=Bool)
 
@@ -127,10 +308,14 @@ class ActiveLearningWorkChain(WorkChain):
         #     message="The result is a negative number.",
         # )
 
-    def train_mace_model(self):
-        # TODO: Make this run in remote computers.
+    # def _build_process_label(self):
+    #     curr_iteration = self.inputs.al_loop_iteration.value
+    #     label = f"Training and refining models. Step: {curr_iteration}"
+    #     return label
 
+    def train_mace_model(self):
         self.report("Generating new training database file.")
+
         # Generate new training data file
         mdb_conv.gen_mace_train_structure_list(
             path=self.inputs.final_db_path.value,
@@ -142,11 +327,11 @@ class ActiveLearningWorkChain(WorkChain):
             f"Training M0 - M{self.inputs.commitee_num_models.value} using "
             "current iteration data."
         )
-        commitee_model_paths = []
+        # commitee_model_paths = []
         for model_num in range(self.inputs.commitee_num_models.value + 1):
             model_name = f"m{model_num}"
 
-            # TODO: Use a larger toml configuration file that includes all settings
+            # TODO: Use a general toml configuration file that includes all settings
             # Load training settings from json.
             mace_train_settings: Dict = mdb_al.load_mace_settings_json(
                 self.inputs.mace_settings_path,
@@ -156,25 +341,83 @@ class ActiveLearningWorkChain(WorkChain):
             )
 
             # Run training and save new model file
-            train_outputs: Dict = mdb_al.run_mace_train_custom(mace_train_settings)
+            # TODO: Launch TrainMACEModelCalculation here.
+            # Check the CalcJob.options dict for the queue_name,
+            # and CalcJob for the code input.
+            # train_outputs: Dict = mdb_al.run_mace_train_custom(mace_train_settings)
+            mace_train = CalculationFactory("mace-train")
+            mace_builder = mace_train.get_builder()
 
-            # HACK: Maybe there is a more elegant way of doing this?
+            # database_file = SinglefileData(self.inputs.final_db_path.value).store()
+            mace_builder.model_name = model_name
+            mace_builder.mace_settings_dict = Dict(mace_train_settings)
+            mace_builder.mace_train_file_path = self.inputs.final_db_path.value
+
+            # TODO: Add as an input (Str)
+            mace_builder.code = load_code("mace_run_train@tekla2")
+
+            # TODO: Add as an input (Dict)
+            mace_builder.metadata.options.resources = {
+                "parallel_env": "c128m1024ib_mpi_32slots",
+                "tot_num_mpiprocs": 32,
+            }
+            mace_builder.metadata.options.parser_name = "mace-training-parser"
+
+            mace_builder.metadata.options.queue_name = "c128m1024ibgpu4.q"
+            mace_builder.metadata.options.max_wallclock_seconds = 117280000
+            mace_builder.metadata.options.max_memory_kb = 102400000
+            mace_builder.metadata.options.account = ""
+            mace_builder.metadata.options.qos = ""
+            # mace_builder.metadata.options.withmpi = True
+            mace_builder.metadata.options.output_filename = (
+                f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
+            )
+            mace_builder.metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
+            # mace_builder.metadata.options.prepend_text = "export CUDA_VISIBLE_DEVICES=GPU-e2fb8a48-c8e7-6c3c-e5e2-e252506896ae"
+            # mace_builder.metadata.options.prepend_text = "module load Intel_OneAPI/2024\n"
+            # mace_builder.metadata.options.prepend_text = "OMP_NUM_THREADS=32"
+
+            future = self.submit(mace_builder)
+            self.to_context(mace_training_results=append_(future))
+
+    def get_mace_train_output(self):
+        mace_training_results = self.ctx.mace_training_results
+        print("mace_training_results: ", mace_training_results)
+
+        commitee_model_paths = []
+        for calc in mace_training_results:
+            curr_calc = load_node(calc.uuid)
+
+            model_name = curr_calc.inputs.model_name.value
+            print("model_name: ", model_name)
+
+            # Overwriting m0_rmse values with actual training values
+            self.ctx.m0_rmse_e = curr_calc.outputs.m_rmse_e
+            self.ctx.m0_rmse_f = curr_calc.outputs.m_rmse_f
+
+            # Getting model file
+            model_file = curr_calc.outputs.model_file
+
+            # HACK: Maybe there is a more elegant ways of doing this?
             # Saving model results
             if model_name == "m0":
-                # Overwriting m0_rmse values with actual training values
-                self.ctx.m0_rmse_e = train_outputs["m_rmse_e"]
-                self.ctx.m0_rmse_f = train_outputs["m_rmse_f"]
-
                 # Convert model to LAMMPS compatible format
-                lammps_model_path = mdb_al.create_mace_lammps_model(
-                    train_outputs["m_path"]
+                # and return it to workchain context
+                self.ctx.lammps_potential_file = mdb_al.create_mace_lammps_model(
+                    model_file
                 )
 
-                # Return main lammps model to workchain
-                self.ctx.lammps_potential_path = lammps_model_path.value
-                self.report(f"Generated LAMMPS potential using '{model_name}'.")
+                self.report(f"Generated LAMMPS potential using '{model_name.upper()}'.")
+                self.report(
+                    f"Current iteration M0 RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV / atom"
+                )
+                self.report(
+                    f"Current iteration M0 RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV / Å"
+                )
+                self.out("m0_model_file", SinglefileData(model_file))
             else:
-                commitee_model_paths.append(train_outputs["m_path"])
+                self.report(f"Trained commitee model '{model_name.upper()}'.")
+                commitee_model_paths.append(mace_training_results.m_path)
 
         # Sending commitee model paths to current context
         self.ctx.commitee_model_paths = commitee_model_paths
@@ -193,7 +436,7 @@ class ActiveLearningWorkChain(WorkChain):
         # potential_path = (
         #     self.inputs.data_path.value + "/" + self.inputs.mace_potential_names[0]
         # )
-        pair_coeff_str += f"{potential_path} "
+        pair_coeff_str += f"{Path(potential_path).name} "
 
         for spec in species:
             pair_coeff_str += f"{spec} "
@@ -237,68 +480,96 @@ class ActiveLearningWorkChain(WorkChain):
         code = load_code("mace-lammps-fix2@localhost")
         builder = CalculationFactory("lammps.raw").get_builder()
         builder.code = code
-        builder_settings = {"additional_retrieve_list": ["structure.lammpstrj"]}
-        builder.settings = Dict(builder_settings)
 
-        for idx, curr_structure in enumerate(self.inputs.current_train_seed_structs):
-            # Structures are stored as a dict in order to be json-serializable
-            for key in ["pbc", "cell", "numbers", "positions", "forces"]:
-                curr_structure[key] = np.array(curr_structure[key])
+        # Getting the lammps potential file in a temporary foler
+        with self.ctx.lammps_potential_file.as_path() as lmp_pot_path:
+            lmp_pot_filename = Path(lmp_pot_path).name
+            lmp_pot_path = str(lmp_pot_path)
 
-            curr_structure = Atoms.fromdict(curr_structure)
-
-            # Converting to pymatgen
-            curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
-            struct_properties = curr_structure.properties
-
-            curr_input = self.gen_md_input(
-                structure=curr_structure,
-                potential_path=self.ctx.lammps_potential_path,
-            )
-
-            script = SinglefileData(io.StringIO(curr_input))
-            builder.script = script
-
-            lammps_struct_str = LammpsData.from_structure(
-                curr_structure, atom_style="atomic"
-            ).get_str()
-
-            data = SinglefileData(io.StringIO(lammps_struct_str))
-            builder.files = {"data": data}
-            builder.filenames = {"data": "structure.lammps"}
-
-            index_in_db = self.inputs.current_train_seed_structs_idx[idx]
-
-            # Run the calculation on 1 CPU and kill it
-            # if it runs longer than 1800 seconds.
-            builder.metadata.options = {
-                "resources": {
-                    "num_machines": 1,
-                    "num_mpiprocs_per_machine": 1,
-                    "num_cores_per_mpiproc": 2,
-                },
-                "max_wallclock_seconds": 1800,
-                "withmpi": True,
+            # Setting the trajectory to be retrieved and the
+            # potential file to be copied into the calculation folder
+            builder_settings = {
+                "additional_retrieve_list": ["structure.lammpstrj"],
+                "local_copy_list": [
+                    (
+                        self.ctx.lammps_potential_file.uuid,
+                        lmp_pot_path,
+                        lmp_pot_filename,
+                    )
+                ],
             }
 
-            # Submitting current calculation
-            future = self.submit(builder)
+            builder.settings = Dict(builder_settings)
 
-            self.ctx.current_train_seed.append(future)
-            curr_group = load_group(uuid=self.inputs.train_seed_group.value)
-            curr_group.add_nodes(future)
+            for idx, curr_structure in enumerate(
+                self.inputs.current_train_seed_structs
+            ):
+                # Structures are stored as a dict in order to be json-serializable
+                for key in ["pbc", "cell", "numbers", "positions", "forces"]:
+                    curr_structure[key] = np.array(curr_structure[key])
 
-            # Writing extra information
-            for key, val in struct_properties.items():
-                future.base.extras.set(key, val)
-            future.base.extras.set("index_in_db", index_in_db)
+                curr_structure = Atoms.fromdict(curr_structure)
 
-            # Telling the work chain to wait for the md to finish
-            # before continuing the workflow.
-            # We append the future to a list of workflows.
-            self.to_context(md_seed_workchains=append_(future))
+                # Converting to pymatgen
+                curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
+                struct_properties = curr_structure.properties
 
-            # return ToContext(md=future)
+                curr_input = self.gen_md_input(
+                    structure=curr_structure,
+                    # potential_path=lmp_pot_path,
+                    potential_path=lmp_pot_filename,
+                )
+
+                script = SinglefileData(io.StringIO(curr_input))
+                builder.script = script
+
+                lammps_struct_str = LammpsData.from_structure(
+                    curr_structure, atom_style="atomic"
+                ).get_str()
+
+                data = SinglefileData(io.StringIO(lammps_struct_str))
+                builder.files = {
+                    "data": data,
+                    "mace_potential": self.ctx.lammps_potential_file,
+                }
+                builder.filenames = {
+                    "data": "structure.lammps",
+                    "mace_potential": lmp_pot_filename,
+                }
+
+                index_in_db = self.inputs.current_train_seed_structs_idx[idx]
+
+                # TODO: Change this
+                # HACK: Run the calculation on 1 CPU and kill it
+                # if it runs longer than 1800 seconds.
+                builder.metadata.options = {
+                    "resources": {
+                        "num_machines": 1,
+                        "num_mpiprocs_per_machine": 1,
+                        "num_cores_per_mpiproc": 2,
+                    },
+                    "max_wallclock_seconds": 1800,
+                    "withmpi": True,
+                }
+
+                # Submitting current calculation
+                future = self.submit(builder)
+
+                self.ctx.current_train_seed.append(future)
+                curr_group = load_group(uuid=self.inputs.train_seed_group.value)
+                curr_group.add_nodes(future)
+
+                # Writing extra information
+                for key, val in struct_properties.items():
+                    future.base.extras.set(key, val)
+                future.base.extras.set("index_in_db", index_in_db)
+
+                # Telling the work chain to wait for the md to finish
+                # before continuing the workflow.
+                # We append the future to a list of workflows.
+                self.to_context(md_seed_workchains=append_(future))
+
+                # return ToContext(md=future)
 
     def gather_m0_md_results(self):
         self.report("Gathering M0 MD results for the current seed...")
@@ -316,10 +587,10 @@ class ActiveLearningWorkChain(WorkChain):
                     "energy": {"m0": steps_E_F_arr[:, 1]},
                     "forces": {"m0": forces},
                     "al_step": self.inputs.al_loop_iteration.value,
-                    "index_in_db": workchain.extras["index_in_db"],
-                    "mdb_struct_type": workchain.extras["mdb_struct_type"],
-                    "material_name": workchain.extras["struct_name"],
-                    "unique_id": workchain.extras["aiida_uuid"],
+                    "index_in_db": workchain.base.extras.all["index_in_db"],
+                    "mdb_struct_type": workchain.base.extras.all["mdb_struct_type"],
+                    "material_name": workchain.base.extras.all["struct_name"],
+                    "unique_id": workchain.base.extras.all["aiida_uuid"],
                 }
             )
 
@@ -585,8 +856,8 @@ class ActiveLearningWorkChain(WorkChain):
 
         delete_indices = []
 
-        self.report(f"Current iteration M0 RMSE E [meV / atom]: {e_rmse}")
-        self.report(f"Current iteration M0 RMSE F [meV / A]: {f_rmse}")
+        # self.report(f"Current iteration M0 RMSE E [meV / atom]: {e_rmse}")
+        # self.report(f"Current iteration M0 RMSE F [meV / A]: {f_rmse}")
 
         # Every row contains the results of MD for a single structure, which are:
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
@@ -623,10 +894,12 @@ class ActiveLearningWorkChain(WorkChain):
                 # be added to a list, which will be used as a mask to select
                 # which structures to remove outside of the loop.
                 delete_indices.append(row["unique_id"])
-                self.report("All models agree. No DFT calculations will be submitted.")
+                self.report(
+                    f"{idx} - All models agree. No DFT calculations will be submitted."
+                )
             else:
                 # Else, select some of them and send them to DFT
-                self.report("Sending structures to DFT.")
+                self.report("Models disagree. Sending structures to DFT.")
 
                 # Instead of keeping them all, select some of them (get 1 frame
                 # every n frames)
@@ -804,6 +1077,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             ),
             cls.results,
         )
+        spec.output("final_training_db", valid_type=List)
+        spec.output("final_model_file", valid_type=SinglefileData)
 
     def get_database(self):
         """Loading initial database."""
@@ -826,43 +1101,13 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # A copy of the initial database, (Ds)
         # used specifically for generating training seeds and running the MDs.
         # New structures will be added and well represented configs removed from here.
+        # TODO: Is this necessary?
         self.ctx.seed_gen_db = self.ctx.database_training.copy()
-
         self.ctx.seed_gen_db = np.array(self.ctx.seed_gen_db, dtype=object)
 
-        self.report(f"Loaded database with {len(self.ctx.seed_gen_db)} structures.")
-
-    def check_al_loop_conditions(self) -> bool:
-        max_iterations = self.inputs.max_iterations.value
-
-        # This will be True if the workchain still needs to be running due
-        # to the number of iterations.
-        iterations_status_ok = (
-            not self.ctx.is_finished and self.ctx.iteration < max_iterations
+        self.report(
+            f"Loaded database containing {len(self.ctx.seed_gen_db)} structures."
         )
-
-        # stop_md_seed_no_disagreement has to be True to stop the loop
-        # seed_gen_db_all_structs_removed has to be True to stop the loop
-        # If any of the above two is True, stop the loop.
-
-        # This will be True while the AL loop needs to be repeated
-        continue_loop_conditions = (
-            not self.ctx.stop_md_seed_no_disagreement.value
-            and not self.ctx.seed_gen_db_all_structs_removed.value
-        )
-
-        # This will be True if the workchain can be repeated.
-        continue_cond = continue_loop_conditions and iterations_status_ok
-
-        if self.ctx.stop_md_seed_no_disagreement.value:
-            self.report("Stopping AL Loop as all predictions agree for a MD seed.")
-
-        if self.ctx.seed_gen_db_all_structs_removed.value:
-            self.report(
-                "Stopping AL Loop as seed generating database has been depleted."
-            )
-
-        return continue_cond
 
     def add_dft_results_to_db(self):
         # Updating current training seed
@@ -900,10 +1145,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
     def generate_descriptors(self):
         self.report("Generating descriptors...")
 
+        # TODO: This does not work
         model_path = (
-            self.inputs.active_learning.data_path.value
-            + "/"
-            + self.inputs.active_learning.mace_potential_names[0]
+            self.inputs.active_learning.data_path.value + "/"
+            # + self.inputs.active_learning.mace_potential_names[0]
         )
         calculator = MACECalculator(
             model_paths=model_path, device="cuda", default_dtype="float32"
@@ -924,7 +1169,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.
         """
+        self.report("Starting Workchain setup.")
         super().setup()
+
         self.ctx.inputs = self.exposed_inputs(
             ActiveLearningWorkChain, "active_learning"
         )
@@ -947,21 +1194,49 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.seed_gen_db_all_structs_removed = Bool(False)
 
         seed_db_serialized = []
-        for s in self.ctx.seed_gen_db:
-            curr_s = s.todict()
-            curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
-            seed_db_serialized.append(curr_s)
-        self.ctx.inputs.seed_gen_db = seed_db_serialized
-
-        self.ctx.init_seed_gen_db_size = len(seed_db_serialized)
-
         database_training_serialized = []
-        for s in self.ctx.database_training:
-            curr_s = s.todict()
-            curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
+        for s in self.ctx.seed_gen_db:
+            curr_s = mdb_al.serialize_ase(s)
+            seed_db_serialized.append(curr_s)
             database_training_serialized.append(curr_s)
 
+        self.ctx.inputs.seed_gen_db = seed_db_serialized
         self.ctx.inputs.database_training = database_training_serialized
+
+        self.ctx.init_seed_gen_db_size = len(seed_db_serialized)
+        self.report("Workchain setup finished.")
+
+    def check_al_loop_conditions(self) -> bool:
+        max_iterations = self.inputs.max_iterations.value
+
+        # This will be True if the workchain still needs to be running due
+        # to the number of iterations.
+        iterations_status_ok = (
+            not self.ctx.is_finished and self.ctx.iteration < max_iterations
+        )
+
+        # stop_md_seed_no_disagreement has to be True to stop the loop
+        # seed_gen_db_all_structs_removed has to be True to stop the loop
+        # If any of the above two is True, stop the loop.
+
+        # This will be True while the AL loop needs to be repeated
+        continue_loop_conditions = (
+            not self.ctx.stop_md_seed_no_disagreement.value
+            and not self.ctx.seed_gen_db_all_structs_removed.value
+        )
+
+        # This will be True if the workchain can be repeated.
+        continue_cond = continue_loop_conditions and iterations_status_ok
+
+        if self.ctx.stop_md_seed_no_disagreement.value:
+            self.report("Stopping AL Loop as all predictions agree for a MD seed.")
+
+        if self.ctx.seed_gen_db_all_structs_removed.value:
+            self.report(
+                "Stopping AL Loop as seed generating database has been depleted."
+            )
+
+        return continue_cond
 
     def get_training_seed(self):
         """
@@ -981,6 +1256,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f"Starting AL Loop iteration {self.ctx.inputs.al_loop_iteration}..."
         )
         self.report("Getting training seed...")
+        self.ctx.inputs.metadata.description = (
+            "Perform MD simulations, evaluate and refine ML models. "
+            f"Step: {self.ctx.inputs.al_loop_iteration}"
+        )
+        self.ctx.inputs.metadata.label = f"Step - {self.ctx.inputs.al_loop_iteration}"
 
         # Getting length of the seed generating database
         db_length = len(self.ctx.seed_gen_db)
@@ -1019,9 +1299,37 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Adding current train seed to the context
         current_train_seed_serialized = []
         for curr_s in self.ctx.current_train_seed_structs:
-            if not isinstance(curr_s, dict):
-                curr_s = curr_s.todict()
-            curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
+            curr_s = mdb_al.serialize_ase(curr_s)
             current_train_seed_serialized.append(curr_s)
 
         self.ctx.inputs.current_train_seed_structs = current_train_seed_serialized
+
+    def results(self):
+        # Converting training_db to aiida types
+        struct_list_serialized = []
+        for curr_s in list(self.ctx.database_training):
+            curr_s = mdb_al.serialize_ase(curr_s)
+            struct_list_serialized.append(curr_s)
+
+        self.ctx.serialized_struct_list = struct_list_serialized
+
+        train_db = mdb_al.prepare_output_final_training_db(
+            self.ctx.serialized_struct_list
+        )
+
+        self.out("final_training_db", train_db)
+
+        # Return model file as output
+        # mace_training_results = self.ctx.mace_training_results
+        # print("mace_training_results: ", mace_training_results)
+        # for calc in mace_training_results:
+        #     curr_calc = load_node(calc.uuid)
+        #     print("curr_calc: ", curr_calc)
+
+        #     model_name = curr_calc.inputs.model_name.value
+        #     if model_name == "m0":
+        #         model_file = curr_calc.outputs.model_file
+        #         print("model_file: ", model_file)
+        #         self.out("final_model_file", model_file)
+
+        super().results()
