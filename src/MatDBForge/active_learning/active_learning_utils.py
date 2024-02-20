@@ -9,12 +9,14 @@ from aiida.engine import (
     calcfunction,
 )
 from aiida.orm import (
+    Bool,
     Dict,
     Float,
-    List,
-    Str,
     Int,
-    Bool,
+    List,
+    SinglefileData,
+    Str,
+    StructureData,
     load_node,
 )
 from e3nn import o3
@@ -208,9 +210,9 @@ def load_mace_settings_json(
     # Update training file path in mace train settings
     # to include the new database.
     if isinstance(train_data_path, Str):
-        train_data_path = train_data_path.value
+        train_data_path: Path = Path(train_data_path.value)
 
-    training_settings_dict["train_file"] = train_data_path
+    training_settings_dict["train_file"] = str(train_data_path.name)
 
     # Updating name to include model and iteration number
     curr_name = training_settings_dict["name"]
@@ -946,23 +948,62 @@ def run_mace_train_custom(mace_settings_dict):
 
 
 @calcfunction
-def create_mace_lammps_model(model_path: str):
-    # Making path absolute
-    model_path: Path = Path(model_path.value).resolve()
+def create_mace_lammps_model(model_file):
+    # print("model_file: ", model_file)
+    # print("type(model_file): ", type(model_file))
+    # print("dir(model_file): ", dir(model_file))
 
-    # Loading model
-    model = torch.load(model_path)
-    model = model.double().to("cpu")
-    lammps_model = LAMMPS_MACE(model)
-    lammps_model_compiled = jit.compile(lammps_model)
+    # model_file_uuid = model_file.uuid
+    # model_file.store()
 
-    # Creating new path
-    new_model_path = str(model_path) + "-lammps.pt"
+    with model_file.as_path() as model_path:
+        print("model_path: ", model_path)
 
-    # Saving LAMMPS model
-    lammps_model_compiled.save(new_model_path)
+        # Making path absolute
+        # model_path: Path = Path(model_path.value).resolve()
 
-    return Str(new_model_path)
+        # Loading model
+        model = torch.load(model_path)
+        model = model.double().to("cpu")
+        lammps_model = LAMMPS_MACE(model)
+        lammps_model_compiled = jit.compile(lammps_model)
+
+        # Creating new path
+        new_model_path = str(model_path) + "-lammps.pt"
+
+        # Saving LAMMPS model
+        lammps_model_compiled.save(new_model_path)
+
+        # TODO: Create SingleileData for lammps model?
+        return SinglefileData(file=new_model_path)
+
+
+def serialize_ase(curr_s):
+    if not isinstance(curr_s, dict):
+        curr_s = curr_s.todict()
+
+    # curr_s = s.todict()
+    curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
+    return curr_s
+
+
+@calcfunction
+def prepare_output_final_training_db(training_db_list):
+    # Converting training_db to aiida types
+    struct_list = []
+    for ase_struct in training_db_list:
+        # ase_struct: Atoms
+        # aiida_struct = StructureData()
+
+        # aiida_struct.set_ase(ase_struct)
+        # struct_list.append(aiida_struct)
+        # serial_struct = serialize_ase(ase_struct)
+        struct_list.append(ase_struct)
+
+    print("struct_list: ", struct_list)
+    print("type struct_list: ", type(struct_list))
+
+    return List(struct_list)
 
 
 @calcfunction
