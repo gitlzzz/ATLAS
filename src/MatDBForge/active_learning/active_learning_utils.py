@@ -16,7 +16,6 @@ from aiida.orm import (
     List,
     SinglefileData,
     Str,
-    StructureData,
     load_node,
 )
 from e3nn import o3

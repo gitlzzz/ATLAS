@@ -4,14 +4,14 @@ from enum import Enum
 from io import BytesIO, TextIOWrapper
 
 import ase.io as aseio
-from ase.atoms import Atoms
 import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.structure as mdb_strc
 import MatDBForge.core.utils as mdb_ut
-import rich.progress as riprg
 import numpy as np
+import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
+from ase.atoms import Atoms
 
 
 class Units(Enum):
@@ -290,9 +290,13 @@ def gen_mace_train_structure_list(
 ):
     # Handling path
     if path and isinstance(path, str):
-        path = pathlib.Path(path)
+        path = pathlib.Path(path).resolve()
     else:
-        path = pathlib.Path()
+        path = pathlib.Path().resolve()
+    
+    # Creating path if does not exist
+    if not path.exists():
+        path.parent.mkdir(parents=True)
 
     # ctime = time.strftime("%Y%m%dT%H%M%S")
     # Adding input.data filename to path
@@ -300,7 +304,10 @@ def gen_mace_train_structure_list(
 
     ase_structs = []
     # Converting into ase atoms object
-    for struct in structure_list:
+    len_struct = len(structure_list)
+    structure_list = structure_list.get_list()
+    for idd, struct in enumerate(structure_list):
+        print(f'struct: {idd}/{len_struct}', end='\r')
         new_struct = {}
 
         dict_keys_set = set(list(struct.keys()))
@@ -345,6 +352,3 @@ def gen_mace_train_structure_list(
 
     # Writing the file
     aseio.write(path, ase_structs, "extxyz")
-    # mdb_ut.custom_print(
-    #     f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
-    # )

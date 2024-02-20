@@ -27,7 +27,6 @@ from aiida.orm import (
     List,
     SinglefileData,
     Str,
-    StructureData,
     load_code,
     load_group,
     load_node,
