@@ -54,19 +54,12 @@ class TrainMACEModelCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
-        print("kwargs: ", kwargs)
         retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
 
         for child_file in retrieved_temporary_folder.iterdir():
-            print("\nchild_file: ", child_file)
             # create singlefile data for the model
             if "swa.model" in child_file.name:
                 model_file = SinglefileData(file=child_file)
-                print("model_file: ", model_file)
-                # model_file.store()
-                print("model_file: ", model_file)
-            else:
-                print("model_file not found")
 
             if "train.txt" in child_file.name:
                 # TODO: gather rmse_e, rmse_f
@@ -77,32 +70,12 @@ class TrainMACEModelCalculationParser(Parser):
                             last_dict = line_dict
 
                 rmse_e = float(last_dict["rmse_e_per_atom"]) * 1000  # meV / atom
-                print("rmse_e: ", rmse_e)
                 rmse_f = float(last_dict["rmse_f"]) * 1000  # meV / A
-                print("rmse_f: ", rmse_f)
-
-        # if not model_file:
-        #     return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
         self.out("model_file", model_file)
         self.out("m_rmse_e", Float(rmse_e))
         self.out("m_rmse_f", Float(rmse_f))
-
-    # @staticmethod
-    # def parse_stdout(filelike):
-    #     """Parse the sum from the output of the ArithmeticAddcalculation written to standard out
-    #     :param filelike: filelike object containing the output
-    #     :returns: the sum
-    #     """
-    #     try:
-    #         result = int(filelike.read())
-
-    #     except ValueError:
-    #         result = None
-
-    #     return result
-
 
 class TrainMACEModelCalculation(CalcJob):
     """Implementation of CalcJob to perform a MACE training using a settings dir."""
@@ -382,14 +355,12 @@ class ActiveLearningWorkChain(WorkChain):
 
     def get_mace_train_output(self):
         mace_training_results = self.ctx.mace_training_results
-        print("mace_training_results: ", mace_training_results)
 
         commitee_model_paths = []
         for calc in mace_training_results:
             curr_calc = load_node(calc.uuid)
 
             model_name = curr_calc.inputs.model_name.value
-            print("model_name: ", model_name)
 
             # Overwriting m0_rmse values with actual training values
             self.ctx.m0_rmse_e = curr_calc.outputs.m_rmse_e
@@ -414,7 +385,7 @@ class ActiveLearningWorkChain(WorkChain):
                 self.report(
                     f"Current iteration M0 RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV / Å"
                 )
-                self.out("m0_model_file", SinglefileData(model_file))
+                self.out("m0_model_file", model_file)
             else:
                 self.report(f"Trained commitee model '{model_name.upper()}'.")
                 commitee_model_paths.append(mace_training_results.m_path)
@@ -1075,7 +1046,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 cls.add_dft_results_to_db,
                 cls.get_al_loop_break_conditions,
             ),
-            cls.results,
+            cls.results_final,
         )
         spec.output("final_training_db", valid_type=List)
         spec.output("final_model_file", valid_type=SinglefileData)
@@ -1304,7 +1275,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.ctx.inputs.current_train_seed_structs = current_train_seed_serialized
 
-    def results(self):
+    def results_final(self):
+        self.report("Returning final results...")
         # Converting training_db to aiida types
         struct_list_serialized = []
         for curr_s in list(self.ctx.database_training):
@@ -1332,4 +1304,5 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         #         print("model_file: ", model_file)
         #         self.out("final_model_file", model_file)
 
-        super().results()
+        # super().results()
+        self.report("Workchain completed!")
