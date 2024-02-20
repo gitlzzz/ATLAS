@@ -982,7 +982,6 @@ def serialize_ase(curr_s):
     if not isinstance(curr_s, dict):
         curr_s = curr_s.todict()
 
-    # curr_s = s.todict()
     curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
     return curr_s
 
@@ -992,16 +991,7 @@ def prepare_output_final_training_db(training_db_list):
     # Converting training_db to aiida types
     struct_list = []
     for ase_struct in training_db_list:
-        # ase_struct: Atoms
-        # aiida_struct = StructureData()
-
-        # aiida_struct.set_ase(ase_struct)
-        # struct_list.append(aiida_struct)
-        # serial_struct = serialize_ase(ase_struct)
         struct_list.append(ase_struct)
-
-    print("struct_list: ", struct_list)
-    print("type struct_list: ", type(struct_list))
 
     return List(struct_list)
 
@@ -1018,7 +1008,6 @@ def gather_dft_calcs(dft_calc_list):
         vasprun_list.append(vasprun)
 
     return_list = List([val for val in vasprun_list])
-    # self.out("dft_calcs", List(self.ctx.vasprun_list))
     return return_list
 
 
