@@ -76,6 +76,7 @@ class TrainMACEModelCalculationParser(Parser):
         self.out("m_rmse_e", Float(rmse_e))
         self.out("m_rmse_f", Float(rmse_f))
 
+
 class TrainMACEModelCalculation(CalcJob):
     """Implementation of CalcJob to perform a MACE training using a settings dir."""
 
@@ -1276,7 +1277,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     def results_final(self):
         self.report("Returning final results...")
-        # Converting training_db to aiida types
+
+        # Converting final training_db to aiida types
         struct_list_serialized = []
         for curr_s in list(self.ctx.database_training):
             curr_s = mdb_al.serialize_ase(curr_s)
@@ -1290,7 +1292,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.out("final_training_db", train_db)
 
-        # Return model file as output
+        # TODO Return model file as output
         # mace_training_results = self.ctx.mace_training_results
         # print("mace_training_results: ", mace_training_results)
         # for calc in mace_training_results:
@@ -1303,5 +1305,4 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         #         print("model_file: ", model_file)
         #         self.out("final_model_file", model_file)
 
-        # super().results()
         self.report("Workchain completed!")
