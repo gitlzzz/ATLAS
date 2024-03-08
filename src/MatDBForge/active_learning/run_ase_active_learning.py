@@ -32,21 +32,22 @@ if __name__ == "__main__":
     builder.active_learning.final_db_path = str(final_db_path)
     # builder.active_learning.mace_potential_names = mace_potential_names
 
-    # MD settings
-    md_steps = 100  # TESTING: 33334
     # TESTING: Update seed once debugging is done
-    builder.active_learning.seed_size_frac = 0.1  # TESTING: 0.0010
+    # MD settings
+    # Size of the seed generating database in percentage of the total number of
+    # available training structures
+    builder.active_learning.seed_size_frac = 0.02  # TESTING: 0.0010
     builder.active_learning.md_temperature_K = 300.0
-    builder.active_learning.md_num_steps = md_steps
+    builder.active_learning.md_num_steps = 100 # TESTING: 33334
     builder.active_learning.md_timestep_duration_ps = 0.003
-    builder.active_learning.commitee_num_models = 0  # 4
+    builder.active_learning.commitee_num_models = 2  # 4
     # builder.active_learning.lammps_potential_path = str(potential_path)
 
     # AL settings
-    builder.max_iterations = Int(100)
+    builder.max_iterations = Int(10)
     # Frames to keep for DFT
-    # TODO: Test this vlues
-    builder.active_learning.al_keep_frame_interval_perc = 0.1  # TESTING: 0.01 # 0.005
+    # TODO: Test these values
+    builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
 
     # TESTING: This should use aiida.engine.submit function once all debugging is done.
     node = run(builder)

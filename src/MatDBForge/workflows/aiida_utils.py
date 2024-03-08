@@ -436,7 +436,8 @@ def submit_aiida_calculation(
     builder = workchain.get_builder()
 
     # Passing the all inputs to the builder object
-    builder["code"] = Code.get_from_string(code_string)
+    
+    builder["code"] = orm.load_code(code_string)
     # builder["converge"] = CONVERGE
 
     if selective_dynamics:

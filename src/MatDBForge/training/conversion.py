@@ -2,6 +2,7 @@ import pathlib
 import time
 from enum import Enum
 from io import BytesIO, TextIOWrapper
+from typing import Union
 
 import ase.io as aseio
 import MatDBForge.core.initial_db as mdb_indb
@@ -20,18 +21,15 @@ class Units(Enum):
 
     # Sourced from CODATA 2018
     Bohr2Ang = 0.5291772109030
-    Ang2Bohr = 1 / 0.5291772109030
+    Ang2Bohr = 1 / Bohr2Ang
     Eh2eV = 27.211386245988
-    eV2Eh = 1 / 27.211386245988
+    eV2Eh = 1 / Eh2eV
 
 
 def mdb_database_to_mace_train(mdb_database: "mdb_indb.InitialDatabase"):
-    # Gathering all structure in the InitialDatabase.
-
-    # Generating an entry for every structure.
-
-    # Writng the entry into a file. Multithread?
-
+    # Gathering all structures in an InitialDatabase.
+    # Generate an entry for every structure.
+    # Write the entry into a file. Use Multithread?
     ...
 
 
@@ -43,26 +41,55 @@ def _structure_to_extended_xyz(structure: "mdb_strc.Structure"):
     ...
 
 
-def _add_entry_to_mace_input(buffer: TextIOWrapper, vasprun, node, to_file=True):
+def _add_entry_to_mace_input(
+    vasprun,
+    node,
+    remove_dipole,
+    remove_stress,
+    remove_kinetic=True,
+    # remove_energy=True,
+    buffer: TextIOWrapper = None,
+    to_file=True,
+):
     # The training data is in extxyz format.
     # The parser from ase can be used to read the vasprun directly
     # and convert it to the correct format, which will have the
     # positions, energies, forces and stresses included
     # extxyz.write_extxyz(buffer, data_dict["atoms_obj"])
 
-    # TODO: This aseio writer writes all the properties from
-    # vasprun, included dipole_moments. However, some calculations
-    # do not contain dipole information, and the files are written without
-    # dipole, which leads to an error in training.
+    if isinstance(vasprun, dict):
+        # print("vasprun: ", vasprun["forces"].shape)
+        vasprun = Atoms.fromdict(vasprun)
 
     name = node.label
     if not name:
         name = "unknown"
 
     # Adding structure type information to the dataset
-    vasprun.info["mdb_struct_type"] = get_struct_type(vasprun)
-    vasprun.info["struct_name"] = name
-    vasprun.info["aiida_uuid"] = node.uuid
+    if "mdb_struct_type" not in vasprun.info.keys():
+        vasprun.info["mdb_struct_type"] = get_struct_type(vasprun)
+    if "struct_name" not in vasprun.info.keys():
+        vasprun.info["struct_name"] = name
+    if "aiida_uuid" not in vasprun.info.keys():
+        vasprun.info["aiida_uuid"] = node.uuid
+
+    # HACK: This aseio writer writes all the properties from
+    # vasprun, included dipole_moments. However, some calculations
+    # do not contain dipole information, and the files are written without
+    # dipole, which leads to an error in training.
+    # One solution is to remove dipole and stress if not needed.
+    if vasprun.calc:
+        if remove_dipole and "dipole" in vasprun.calc.results.keys():
+            vasprun.calc.results.pop("dipole")
+        if remove_stress and "stress" in vasprun.calc.results.keys():
+            vasprun.calc.results.pop("stress")
+
+        # HACK: Removing energy (without entropy, as it is not used to calculate
+        # the forces) and kinetic energy.
+        # if remove_energy and "energy" in vasprun.calc.results.keys():
+        #     vasprun.calc.results.pop("energy")
+        if remove_kinetic and "kinetic_energy" in vasprun.calc.results.keys():
+            vasprun.calc.results.pop("kinetic_energy")
 
     if to_file:
         aseio.write(buffer, images=vasprun, format="extxyz")
@@ -75,16 +102,22 @@ def _gather_mace_req_calc_data_from_node(node):
     # name = node.label + "_aiida-uuid_" + node.uuid
 
     # Writing the vasprun.xml file to a buffer.
-    retrieved = node.outputs.retrieved
-    vasprun_f = retrieved.get_object_content("vasprun.xml", "rb")
-    buffer = BytesIO(vasprun_f)
+    retrieved: orm.NodeRepository = node.outputs.retrieved
 
     # Reading the file from the buffer and closing it
-    vasprun = aseio.read(buffer, format="vasp-xml", index="-1")
+    with retrieved.open("vasprun.xml", "rb") as f:
+        vasprun = aseio.read(f, format="vasp-xml", index="-1")
     return vasprun
 
 
-def gather_calc_data_from_node(node):
+def gather_calc_data_from_node(node, units="atomic"):
+    if units == "atomic":
+        length_unit = Units.Ang2Bohr.value
+        energy_unit = Units.eV2Eh.value
+    elif units == "mace":
+        length_unit = 1
+        energy_unit = 1
+
     # Getting calculation name
     name = node.label + "_aiida-uuid_" + node.uuid
 
@@ -98,17 +131,25 @@ def gather_calc_data_from_node(node):
     buffer.close()
 
     # Getting properties from the vasprun
-    pot_energy = vasprun.get_potential_energy(force_consistent=True) * Units.eV2Eh.value
+    # Free energy can be gathered with self.get_potential_energy(force_consistent=True)
+    # energy_zero can be gathered with self.get_potential_energy(force_consistent=False)
+    pot_energy = vasprun.get_potential_energy(force_consistent=False) * energy_unit
+    tot_energy = vasprun.get_total_energy() * energy_unit
 
     # Getting forces
     # Reading forces from vasprun.xml, in eV/Ang and converting them to Ha/Bohr
-    forces = vasprun.get_forces() * Units.eV2Eh.value * Units.Bohr2Ang.value
+    forces = vasprun.get_forces() * energy_unit * 1 / length_unit
 
-    lattice = vasprun.get_cell() * Units.Ang2Bohr.value
+    lattice = vasprun.get_cell() * length_unit
     pbc = vasprun.get_pbc()
-    structure = vasprun.get_positions() * Units.Ang2Bohr.value
+    structure = vasprun.get_positions() * length_unit
     symbols = vasprun.get_chemical_symbols()
-    stress = vasprun.get_stress()
+    numbers = vasprun.get_atomic_numbers()
+    dipole = vasprun.get_dipole_moment()
+
+    # voigt=False is needed to get a 3x3 array, which gets used by the
+    # extxyz format
+    stress = vasprun.get_stress(voigt=False)
 
     # Setting charge to 0
     # charge = contcar.structure.charge
@@ -116,15 +157,22 @@ def gather_calc_data_from_node(node):
 
     struct_type = get_struct_type(vasprun)
 
+    # MACE by default checks the 'energy' key for the energies in the training files.
+    # However, we decided to use free_energy to store the energy.
+    # Which key is used by MACE training can be set on the launch arguments.
+    # TODO: Re-add dipole and potential_energy.
     data_dict = {
         "name": name,
         "lattice": lattice,
         "positions": structure,
         "symbols": symbols,
-        "pot_energy": pot_energy,
+        "numbers": numbers,
+        # "pot_energy": pot_energy,
+        "free_energy": tot_energy,
         "charge": charge,
         "pbc": pbc,
         "stress": stress,
+        # "dipole": dipole,
         "forces": forces,
         "atoms_obj": vasprun,
         "struct_type": struct_type,
@@ -186,7 +234,13 @@ def _gather_result_nodes_aiida(path, aiida_group_list, filter_dict):
     return result_nodes_list
 
 
-def gen_mace_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = None):
+def gen_mace_train_aiida(
+    aiida_group_list: list,
+    filter_dict: dict,
+    path: str = None,
+    remove_dipole=False,
+    remove_stress=False,
+):
     # Gathering aiida nodes containing the desired calculation results
     result_nodes = _gather_result_nodes_aiida(path, aiida_group_list, filter_dict)
 
@@ -209,7 +263,13 @@ def gen_mace_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
             vasprun = _gather_mace_req_calc_data_from_node(node=node)
 
             # Writing the information to the buffer
-            _add_entry_to_mace_input(buffer=curr_f, vasprun=vasprun, node=node)
+            _add_entry_to_mace_input(
+                buffer=curr_f,
+                vasprun=vasprun,
+                node=node,
+                remove_dipole=remove_dipole,
+                remove_stress=remove_stress,
+            )
 
         final_size = curr_f.tell() * 1e-06
 
@@ -286,69 +346,85 @@ def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
 
 
 def gen_mace_train_structure_list(
-    path, structure_list, disable=False, skip_dipole=True, skip_stress=True
+    path: Union[str, pathlib.Path],
+    structure_list: list,
+    disable=False,
+    skip_dipole=True,
+    skip_stress=True,
+    skip_free_energy=False,
 ):
+    print("2 - path in gen_mace_train_structure_list: ", path)
     # Handling path
     if path and isinstance(path, str):
         path = pathlib.Path(path).resolve()
     else:
         path = pathlib.Path().resolve()
-    
+
     # Creating path if does not exist
     if not path.exists():
-        path.parent.mkdir(parents=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
 
-    # ctime = time.strftime("%Y%m%dT%H%M%S")
-    # Adding input.data filename to path
-    # path = path.parent / (str(path.stem) + f"_{ctime}{path.suffix}")
+        ase_structs = []
+        # Converting into ase atoms object
+        # len_struct = len(structure_list)
+        structure_list = structure_list.get_list()
+        for idd, struct in enumerate(structure_list):
+            # print(f'struct: {idd}/{len_struct}', end='\r')
+            new_struct = {}
 
-    ase_structs = []
-    # Converting into ase atoms object
-    len_struct = len(structure_list)
-    structure_list = structure_list.get_list()
-    for idd, struct in enumerate(structure_list):
-        print(f'struct: {idd}/{len_struct}', end='\r')
-        new_struct = {}
+            dict_keys_set = set(list(struct.keys()))
+            info_keys_set = set(list(struct["info"].keys()))
+            dict_to_array_set = set(
+                [
+                    "pbc",
+                    "cell",
+                    "forces",
+                    "positions",
+                    "energy",
+                    "numbers",
+                    "free_energy",
+                ]
+            )
 
-        dict_keys_set = set(list(struct.keys()))
-        info_keys_set = set(list(struct["info"].keys()))
-        dict_to_array_set = set(
-            ["pbc", "cell", "forces", "positions", "energy", "numbers"]
-        )
+            # List containing possible keys in atoms.info
+            info_list = [
+                "stress",
+                "dipole",
+                "struct_name",
+                "energy",
+                "aiida_uuid",
+                "free_energy",
+                "mdb_struct_type",
+            ]
 
-        # List containing possible keys in atoms.info
-        info_list = [
-            "stress",
-            "dipole",
-            "struct_name",
-            "energy",
-            "aiida_uuid",
-            "free_energy",
-            "mdb_struct_type",
-        ]
+            # Whether to keep or remove stress, dipole and energy
+            if skip_stress:
+                info_list.remove("stress")
+            if skip_free_energy:
+                info_list.remove("free_energy")
+            if skip_dipole:
+                info_list.remove("dipole")
+            info_to_array_set = set(info_list)
 
-        # Whether to keep or remove stress and dipole
-        if skip_stress:
-            info_list.remove("stress")
-        if skip_dipole:
-            info_list.remove("dipole")
-        info_to_array_set = set(info_list)
+            for arr_key in dict_to_array_set.intersection(dict_keys_set):
+                new_struct[arr_key] = np.array(struct.get(arr_key))
 
-        for arr_key in dict_to_array_set.intersection(dict_keys_set):
-            new_struct[arr_key] = np.array(struct.get(arr_key))
+            # Storing keys in atoms.info
+            new_struct["info"] = {}
+            for arr_key in info_to_array_set.intersection(info_keys_set):
+                value = struct.get("info").get(arr_key)
 
-        # Storing keys in atoms.info
-        new_struct["info"] = {}
-        for arr_key in info_to_array_set.intersection(info_keys_set):
-            value = struct.get("info").get(arr_key)
+                # If not converted to array will be written incorrectly
+                if arr_key in ["stress", "dipole"]:
+                    value = np.array(value)
 
-            # If not converted to array will be written incorrectly
-            if arr_key in ["stress", "dipole"]:
-                value = np.array(value)
+                new_struct["info"][arr_key] = value
 
-            new_struct["info"][arr_key] = value
+            ase_structs.append(Atoms.fromdict(new_struct))
 
-        ase_structs.append(Atoms.fromdict(new_struct))
+        # Writing the file
+        aseio.write(path, ase_structs, "extxyz")
 
-    # Writing the file
-    aseio.write(path, ase_structs, "extxyz")
+    # REMOVE
+    else:
+        print("Path already exists, not overwriting final db.")
