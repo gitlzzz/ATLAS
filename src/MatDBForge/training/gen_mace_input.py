@@ -18,6 +18,7 @@ filter_dict = {
 
 mdb_train_cnv.gen_mace_train_aiida(
     # path="/WAREHOUSE/projects/P2/nnp/mace_training_data",
+    # path="/tmp/",
     aiida_group_list=[
         # Bulks
         "correct_calcs_nnp",
@@ -28,4 +29,6 @@ mdb_train_cnv.gen_mace_train_aiida(
         "small_cluster_complement_20230929T000201",
     ],
     filter_dict=filter_dict,
+    remove_dipole=True,
+    remove_stress=False,
 )
