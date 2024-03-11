@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MatDBForge",
-    version="0.2.1",
+    version="0.2.4",
     description="MatDBForge",
     author="Pol Sanz",
     author_email="me@polsanz.xyz",
