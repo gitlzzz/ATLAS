@@ -5,6 +5,7 @@ import pathlib as pl
 # import queue
 # import threading
 import time
+from enum import Enum
 
 import ase.data as ad
 import numpy as np
@@ -17,7 +18,6 @@ from aiida.plugins import WorkflowFactory
 from aiida_vasp.utils.aiida_utils import get_data_node
 from pymatgen.core.surface import Slab
 from pymatgen.io.vasp import Poscar
-from strenum import StrEnum
 
 from MatDBForge.core import DATA_DIR
 from MatDBForge.core import initial_db as mdb_indb
@@ -70,43 +70,43 @@ SEL_DYNAMICS = None
 
 # INCAR equivalent
 # Set input parameters
-INCAR_CLUSTER = {
-    "incar": {
-        ## general:
-        "istart": 0,
-        "icharg": 2,
-        "gga": "Pe",
-        "ispin": 1,
-        # "lorbit": 11,
-        # electronic steps:
-        "encut": 450,
-        "ediff": 1e-6,
-        "ismear": 0,
-        "sigma": 0.03,
-        "algo": "Fast",
-        "lreal": "Auto",
-        "nelm": 120,
-        # ionic steps:
-        "ibrion": -1,
-        "nsw": 2,
-        "ediffg": -0.03,
-        "isif": 2,
-        "potim": 0.3,
-        # files to write:
-        "lwave": False,
-        "lcharg": False,
-        # parallelization:
-        "ncore": 4,
-        # "kpar": 4,
-        # dipole correction
-        "lelf": False,
-        # van der Waals:
-        "ivdw": 11,
-        # surface
-        "idipol": 4,
-        "ldipol": True,
-    }
-}
+# INCAR_CLUSTER = {
+#     "incar": {
+#         ## general:
+#         "istart": 0,
+#         "icharg": 2,
+#         "gga": "Pe",
+#         "ispin": 1,
+#         # "lorbit": 11,
+#         # electronic steps:
+#         "encut": 450,
+#         "ediff": 1e-6,
+#         "ismear": 0,
+#         "sigma": 0.03,
+#         "algo": "Fast",
+#         "lreal": "Auto",
+#         "nelm": 120,
+#         # ionic steps:
+#         "ibrion": -1,
+#         "nsw": 2,
+#         "ediffg": -0.03,
+#         "isif": 2,
+#         "potim": 0.3,
+#         # files to write:
+#         "lwave": False,
+#         "lcharg": False,
+#         # parallelization:
+#         "ncore": 4,
+#         # "kpar": 4,
+#         # dipole correction
+#         "lelf": False,
+#         # van der Waals:
+#         "ivdw": 11,
+#         # surface
+#         "idipol": 4,
+#         "ldipol": True,
+#     }
+# }
 
 INCAR_SP = {
     "incar": {
@@ -201,7 +201,7 @@ KSPACING_DEFAULT = {
 
 
 # TODO: Convert the subtypes into actual clases
-class CalcType(StrEnum):
+class CalcType(Enum):
     """
     Class representing the available calculation types for vasp.
 
@@ -356,8 +356,10 @@ def choose_queue_from_struct(structure, assign_dict: dict):
 
 def submit_aiida_calculation(
     index,
-    target_row,
-    initial_db,
+    target_structure,
+    phase,
+    material_name,
+    unique_id,
     kspacing_dict,
     incar_dict,
     calc_type,
@@ -365,19 +367,10 @@ def submit_aiida_calculation(
     potential_family,
     potential_mapping,
     dry_run,
+    return_builder,
     group,
 ):
     mdb_ut.custom_print(f"Row {index}.", "debug")
-
-    # Getting current structure, phase and formula.
-    target_structure = target_row.structure.get_sorted_structure()
-
-    # TODO: Use phase object instead of phase name
-    # Getting the phase name, formula and kspacing.
-    try:
-        phase = target_row.phase.name
-    except AttributeError:
-        phase = initial_db.DB_PHASE_DIAGRAM.get_phase("alpha").name
 
     struct_formula = target_structure.formula.replace(" ", "")
     kspacing = kspacing_dict[phase]
@@ -396,7 +389,7 @@ def submit_aiida_calculation(
 
     # Dictionary containing metadata for the calculation
     metadata_dict = {
-        "label": (f"{target_row.material_name}-{struct_formula}-{index}_{calc_type}"),
+        "label": (f"{material_name}-{struct_formula}-{index}_{calc_type}"),
         "description": (
             f"Relaxation for {struct_formula} in CuZn initial database."
             # "options": {"dry_run": True},
@@ -435,17 +428,6 @@ def submit_aiida_calculation(
         structure=target_structure, assign_dict=queue_dict
     )
 
-    # Removing kpar for multinode calculations
-    # incar["incar"]["kpar"] = 4
-    # if mult > 1:
-    #     incar["incar"].pop("kpar")
-
-    if calc_type == "sp_cluster":
-        # Setting the center of the cell in direct lattice coordinates
-        # with respect to which the total dipole-moment in the cell
-        # is calculated.
-        incar["incar"]["DIPOL"] = [0.5, 0.5, 0.5]
-
     # Defining the vasp.relax workchain object
     workchain = WorkflowFactory("vasp.relax")
 
@@ -454,7 +436,8 @@ def submit_aiida_calculation(
     builder = workchain.get_builder()
 
     # Passing the all inputs to the builder object
-    builder["code"] = Code.get_from_string(code_string)
+    
+    builder["code"] = orm.load_code(code_string)
     # builder["converge"] = CONVERGE
 
     if selective_dynamics:
@@ -502,6 +485,10 @@ def submit_aiida_calculation(
         # Generate a fake node and return it?
         mdb_ut.custom_print("Dry run: nothing generated.", "debug")
 
+    if return_builder:
+        mdb_ut.custom_print("Returning builder.", "debug")
+        return builder
+
     else:
         # Submitting the calculation.
         # Aiida should handle the scheduler, ssh connection and result
@@ -520,7 +507,8 @@ def submit_aiida_calculation(
         # getting the hex of the uuid in the database and searching which
         # RelaxWorkChain has the same hex, and then, the calculation results
         # of its last children node will be gathered and added to the DB.
-        node.base.extras.set("mdb_calc_uuid", target_row.unique_id.hex)
+        # node.base.extras.set("mdb_calc_uuid", target_row.unique_id.hex)
+        node.base.extras.set("mdb_calc_uuid", unique_id.hex)
 
         if group:
             group.add_nodes(node)
@@ -598,9 +586,19 @@ def run_dataframe_vasp_simulations_aiida(
         for it, target_row in chunk.iterrows():
             # Gathering calculation information and
             # submitting the calculation through AiiDA.
+            (
+                curr_structure,
+                curr_material_name,
+                curr_unique_id,
+                curr_phase,
+            ) = gather_calc_data_from_row(target_row)
+
             node = submit_aiida_calculation(
                 index=it,
-                target_row=target_row,
+                target_structure=curr_structure,
+                phase=curr_phase,
+                material_name=curr_material_name,
+                unique_id=curr_unique_id,
                 initial_db=initial_db,
                 kspacing_dict=kspacing_dict,
                 incar_dict=incar_dict,
@@ -662,24 +660,23 @@ def run_dataframe_vasp_simulations_aiida(
     mdb_ut.custom_print("Check 'verdi process list' for more information", "info.")
 
 
-def monitor_queue_calcs(calc_queue, dataframe, index, all_sub, check_interval=60):
-    # Execute the function if there are still nodes to submit
-    # or there are nodes in the queue.
-    while not all_sub or calc_queue.qsize() > 0:
-        # For every calculation
-        for node in list(calc_queue.queue):
-            # Checking if a calculation is finished
-            if node.is_finished:
-                # Remove finished calculation
-                calc_queue.get(node)
+def gather_calc_data_from_row(target_row, curr_structure=None):
+    # Gathering calculation information and
+    # submitting the calculation through AiiDA.
+    if not curr_structure:
+        curr_structure = target_row.structure.get_sorted_structure()
+    else:
+        curr_structure = curr_structure.get_sorted_structure()
 
-                if index < len(dataframe):
-                    # Submit new calculation and put it in the queue
-                    new_calc_data = dataframe.iloc[index]
-                    new_node = submit_aiida_calculation(new_calc_data)
-                    calc_queue.put(new_node)
-                    index += 1
-        time.sleep(check_interval)  # Sleep some time before checking again
+    curr_material_name = target_row.material_name
+    curr_unique_id = target_row.unique_id
+
+    try:
+        curr_phase = target_row.phase.name
+    except AttributeError:
+        curr_phase = "alpha"
+
+    return curr_structure, curr_material_name, curr_unique_id, curr_phase
 
 
 def run_dataframe_vasp_aiida_queue(
@@ -764,6 +761,14 @@ def run_dataframe_vasp_aiida_queue(
 
             # Creating list for storing the nodes once submitted
 
+            # Gathering row information
+            (
+                curr_structure,
+                curr_material_name,
+                curr_unique_id,
+                curr_phase,
+            ) = gather_calc_data_from_row(target_row)
+
             # Iterating over the chunk and launching a separate
             # vasp workchain for every structure contained.
             # for it, target_row in chunk.iterrows():
@@ -771,7 +776,10 @@ def run_dataframe_vasp_aiida_queue(
             # submitting the calculation through AiiDA.
             node = submit_aiida_calculation(
                 index=current_row_index,
-                target_row=target_row,
+                target_structure=curr_structure,
+                phase=curr_phase,
+                material_name=curr_material_name,
+                unique_id=curr_unique_id,
                 initial_db=initial_db,
                 kspacing_dict=kspacing_dict,
                 incar_dict=incar_dict,
@@ -798,41 +806,6 @@ def run_dataframe_vasp_aiida_queue(
 
     mdb_ut.custom_print("All calculations finished!", "done")
     mdb_ut.custom_print("Check 'verdi process list' for more information", "info.")
-
-    # # Submit initial batch of calculations
-    # index = start_on
-    # for _ in range(max_batch):
-    #     if index < len(sel_struct_df):
-    #         calc_data = sel_struct_df.iloc[index]
-    #         future = submit_aiida_calculation(
-    #             index=index,
-    #             target_row=calc_data,
-    #             initial_db=initial_db,
-    #             kspacing_dict=kspacing_dict,
-    #             incar_dict=incar_dict,
-    #             calc_type=calc_type,
-    #             queue_dict=queue_dict,
-    #             potential_family=potential_family,
-    #             potential_mapping=potential_mapping,
-    #             dry_run=dry_run,
-    #             group=group,
-    #         )
-    #         calc_queue.put(future)
-    #         index += 1
-
-    # # Start monitoring thread
-    # all_calculations_submitted = False
-    # monitor_thread = threading.Thread(
-    #     target=monitor_queue_calcs,
-    #     args=(calc_queue, sel_struct_df, index, all_calculations_submitted),
-    # )
-    # monitor_thread.start()
-
-    # # Once you have submitted all calculations, signal the monitoring thread
-    # all_calculations_submitted = True
-
-    # # Wait for the monitoring thread to finish
-    # monitor_thread.join()
 
 
 def kpoint_mesh_from_density(structure, kspacing):
@@ -933,11 +906,23 @@ def generate_incar(
     if "relax" in calc_type:
         mdb_ut.custom_print("Selecting relaxation INCAR...", "debug")
         incar = INCAR_RELAX
-    elif calc_type in ["sp_surface", "sp_cluster", "sp_bulk"]:
+    elif calc_type in ["surface", "cluster", "bulk"]:
         mdb_ut.custom_print("Selecting single point INCAR...", "debug")
         incar = INCAR_SP
 
     kspacing = select_kspacing(structure, incar, phase, kspacing, calc_type)
+
+    if "cluster" in calc_type:
+        # Setting the center of the cell in direct lattice coordinates
+        # with respect to which the total dipole-moment in the cell
+        # is calculated.
+        incar["incar"]["DIPOL"] = [0.5, 0.5, 0.5]
+        incar["incar"]["IDIPOL"] = 4
+
+    # Removing kpar for multinode calculations
+    # incar["incar"]["kpar"] = 4
+    # if mult > 1:
+    #     incar["incar"].pop("kpar")
 
     return incar, kspacing
 
@@ -956,14 +941,14 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
     # types were defined differently. Check if the current StrEnum
     # can be used with isinstance.
     # Bulks
-    if calc_type == "sp_bulk":
+    if "bulk" in calc_type:
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
         mdb_ut.custom_print(
             f"Generated kpoints for bulk: {kpoints_data.get_kpoints_mesh()}", "debug"
         )
 
     # Surfaces
-    elif calc_type == "sp_surface":
+    elif "surface" in calc_type:
         # kpoints_data.set_kpoints_mesh(kspacing_vec)
 
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
@@ -985,7 +970,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
         )
 
     # Clusters
-    elif calc_type == "sp_cluster":
+    elif "cluster" in calc_type:
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh([1, 1, 1])
         mdb_ut.custom_print(
@@ -993,7 +978,6 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
             "debug",
         )
 
-    # print('kpoints_data: ', kpoints_data)
     return kpoints_data
 
 

@@ -355,11 +355,10 @@ class InitialDatabase:
 
             # Create output for multiple system in parallel
             struct_soap = soap.create(ase_struct, n_jobs=-1, verbose=False)
-
             curr_feat_sum = struct_soap.sum()
-
             soap_structs.append(curr_feat_sum)
 
+        # TODO: Should this be here twice?
         curr_ase_struct = AseAtomsAdaptor().get_atoms(curr_struct)
         curr_struct_soap = soap.create(curr_ase_struct, n_jobs=-1, verbose=False)
         curr_soap_sum = curr_struct_soap.sum()
@@ -2040,7 +2039,7 @@ class CuZnInitialDatabase(InitialDatabase):
         for group in aiida_group_list:
             print("group: ", group)
             qb.append(orm.Group, filters={"label": group}, tag="group")
-            qb.append(orm.WorkChainNode, with_group="group", filters=filter_dict),
+            (qb.append(orm.WorkChainNode, with_group="group", filters=filter_dict),)
 
         result_nodes = qb.all(flat=True)
 
