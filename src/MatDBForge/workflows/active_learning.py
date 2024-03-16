@@ -253,6 +253,7 @@ class ActiveLearningWorkChain(WorkChain):
             valid_type=Str,
             serializer=to_aiida_type,
         )
+        spec.input("mace_train", valid_type=Dict)
 
         spec.outline(
             # Training the main mace model (M0) and the commitee models
@@ -376,7 +377,7 @@ class ActiveLearningWorkChain(WorkChain):
             future = self.submit(mace_builder)
             self.to_context(mace_training_results=append_(future))
 
-    def get_mace_train_output(self, force_weight: float = 0.1):
+    def get_mace_train_output(self):
         """
         Retrieve and process MACE training output for model selection.
 
@@ -386,12 +387,6 @@ class ActiveLearningWorkChain(WorkChain):
         the importance of forces via a weighting factor, and processes the best model
         to create a LAMMPS-compatible potential file. Information about the selected
         model and committee models is updated in the context for further use.
-
-        Parameters
-        ----------
-        force_weight : float, optional
-            The weighting factor for the force RMSE in the E+F calculation. Defaults
-            to 0.1.
 
         Returns
         -------
@@ -415,6 +410,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Adding E + F multiplied by a weight value, in order to consider
             # forces when deciding which model to keep
+            force_weight = self.inputs.mace_train.get("result_force_weight", 0.1)
             weighted_E_F_sum = curr_calc.outputs.m_rmse_e.value + (
                 force_weight * curr_calc.outputs.m_rmse_f
             )
@@ -1125,6 +1121,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """Define the process specification."""
         super().define(spec)
 
+        ##########
+        # FIXME  #
+        ##########
+        # TODO: There are some problems when exposing the inputs and outputs
+        ##########
         spec.expose_inputs(
             ActiveLearningWorkChain,
             namespace="active_learning",
@@ -1137,6 +1138,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "database_training",
             ],
         )
+
         spec.expose_outputs(
             ActiveLearningWorkChain,
             exclude=[
@@ -1144,6 +1146,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "final_model_file",
             ],
         )
+
         spec.outline(
             # Load the initial database (D_ini), that will be used as the
             # training database (Dt) without changing the original database.
