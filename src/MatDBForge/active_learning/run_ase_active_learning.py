@@ -30,7 +30,6 @@ if __name__ == "__main__":
     builder.active_learning.mace_settings_path = str(mace_settings_path)
     builder.active_learning.init_db_path = str(init_db_path)
     builder.active_learning.final_db_path = str(final_db_path)
-    # bldr.active_learning.mace_potential_names = mace_potential_names
 
     # TESTING: Update seed once debugging is done
     # MD settings
@@ -41,8 +40,8 @@ if __name__ == "__main__":
     builder.active_learning.md_num_steps = 100  # TESTING: 33334
     builder.active_learning.md_timestep_duration_ps = 0.003
     builder.active_learning.commitee_num_models = 2  # 4
-    # bldr.active_learning.lammps_potential_path = str(potential_path)
 
+    # MACE training settings
     mace_train_dict = {
         "code": "mace_run_train_gpu@tekla2-new-test",
         "metadata": {
@@ -57,10 +56,11 @@ if __name__ == "__main__":
                 "max_memory_kb": 102400000,
                 "account": "",
                 "qos": "",
+                "withmpi": True,
                 "custom_scheduler_commands": ("#$ -l gpu=1"),
             },
         },
-        "result_force_weight": 0.1
+        "result_force_weight": 0.1,
     }
     # bldr.active_learning.mace_train.code = "mace_run_train_gpu@tekla2-new-test"
     # bldr.active_learning.mace_train.metadata.options.resources = {

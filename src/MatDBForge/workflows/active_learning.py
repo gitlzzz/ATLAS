@@ -255,6 +255,12 @@ class ActiveLearningWorkChain(WorkChain):
         )
         spec.input("mace_train", valid_type=Dict)
 
+        spec.input(
+            "mace_train",
+            valid_type=Dict,
+            serializer=to_aiida_type,
+        )
+
         spec.outline(
             # Training the main mace model (M0) and the commitee models
             # using the training database (Dt).
@@ -352,27 +358,17 @@ class ActiveLearningWorkChain(WorkChain):
             mace_builder.mace_settings_dict = Dict(mace_train_settings)
             mace_builder.mace_train_file_path = self.inputs.final_db_path.value
 
-            # TODO: Add as an input (Str)
-            mace_builder.code = load_code("mace_run_train_gpu@tekla2-new-test")
+            # # TODO: This should be set in the code?
+            # mace_builder.metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
 
-            # TODO: Add as an input (Dict)
-            mace_builder.metadata.options.resources = {
-                "parallel_env": "c128m1024ib_mpi_32slotsbis",
-                "tot_num_mpiprocs": 32,
-            }
-            mace_builder.metadata.options.parser_name = "mace-training-parser"
-
-            mace_builder.metadata.options.queue_name = "c128m1024ibgpu4.q"
-            mace_builder.metadata.options.max_wallclock_seconds = 117280000
-            mace_builder.metadata.options.max_memory_kb = 102400000
-            mace_builder.metadata.options.account = ""
-            mace_builder.metadata.options.qos = ""
-            # mace_builder.metadata.options.withmpi = True
+            mace_builder.code = load_code(self.inputs.mace_train.dict.code)
+            mace_builder.metadata.options.withmpi = True
+            mace_builder.metadata.options = self.inputs.mace_train.dict.metadata.get(
+                "options"
+            )
             mace_builder.metadata.options.output_filename = (
                 f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
             )
-            # TODO: This should be set in the code?
-            mace_builder.metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
 
             future = self.submit(mace_builder)
             self.to_context(mace_training_results=append_(future))
@@ -445,9 +441,9 @@ class ActiveLearningWorkChain(WorkChain):
                 )
 
                 self.report(
-                    f"Generated LAMMPS potential using'{model_name}' as M0."
-                    f"RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV / at"
-                    f"RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV / Å"
+                    f"Generated LAMMPS potential using '{model_name}' as M0 - "
+                    f"RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, "
+                    f"RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å"
                 )
                 self.out("m0_model_file", model_file)
             else:
