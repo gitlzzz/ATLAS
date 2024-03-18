@@ -62,21 +62,6 @@ if __name__ == "__main__":
         },
         "result_force_weight": 0.1,
     }
-    # bldr.active_learning.mace_train.code = "mace_run_train_gpu@tekla2-new-test"
-    # bldr.active_learning.mace_train.metadata.options.resources = {
-    #     "parallel_env": "c128m1024ib_mpi_32slotsbis",
-    #     "tot_num_mpiprocs": 32,
-    # }
-    # bldr.active_learning.mace_train.metadata.options.parser_name = "mace-training-parser"
-    # bldr.active_learning.mace_train.metadata.options.queue_name = "c128m1024ibgpu4.q"
-    # bldr.active_learning.mace_train.metadata.options.max_wallclock_seconds = 117280000
-    # bldr.active_learning.mace_train.metadata.options.max_memory_kb = 102400000
-    # bldr.active_learning.mace_train.metadata.options.account = ""
-    # bldr.active_learning.mace_train.metadata.options.qos = ""
-    # bldr.active_learning.mace_train.metadata.options.custom_scheduler_commands = (
-    #     "#$ -l gpu=1"
-    # )
-    # bldr.active_learning.mace_train.force_weight_results = "mace_run_train_gpu@tekla2-new-test"
     builder.active_learning.mace_train = Dict(value=mace_train_dict)
 
     # AL settings
