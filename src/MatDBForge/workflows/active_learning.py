@@ -581,7 +581,7 @@ class ActiveLearningWorkChain(WorkChain):
         self.ctx.current_train_seed = []
 
         # this string with the label used in the code setup.
-        code = load_code("mace-lammps-fix2@localhost")
+        code = load_code("mace-lammps@localhost-mpirun.mpich")
         builder = CalculationFactory("lammps.raw").get_builder()
         builder.code = code
 

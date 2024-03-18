@@ -22,25 +22,25 @@ if __name__ == "__main__":
 
     # Getting builder for workchain
     al_calculation = WorkflowFactory("mdb-active-learning-base")
-    bldr = al_calculation.get_builder()
+    builder = al_calculation.get_builder()
 
     # Setting mandatory inputs.
     # Input settings
-    bldr.active_learning.data_path = str(init_db_path)  # str(data_path)
-    bldr.active_learning.mace_settings_path = str(mace_settings_path)
-    bldr.active_learning.init_db_path = str(init_db_path)
-    bldr.active_learning.final_db_path = str(final_db_path)
+    builder.active_learning.data_path = str(init_db_path)  # str(data_path)
+    builder.active_learning.mace_settings_path = str(mace_settings_path)
+    builder.active_learning.init_db_path = str(init_db_path)
+    builder.active_learning.final_db_path = str(final_db_path)
     # bldr.active_learning.mace_potential_names = mace_potential_names
 
     # TESTING: Update seed once debugging is done
     # MD settings
     # Size of the seed generating database in percentage of the total number of
     # available training structures
-    bldr.active_learning.seed_size_frac = 0.02  # TESTING: 0.0010
-    bldr.active_learning.md_temperature_K = 300.0
-    bldr.active_learning.md_num_steps = 100  # TESTING: 33334
-    bldr.active_learning.md_timestep_duration_ps = 0.003
-    bldr.active_learning.commitee_num_models = 2  # 4
+    builder.active_learning.seed_size_frac = 0.02  # TESTING: 0.0010
+    builder.active_learning.md_temperature_K = 300.0
+    builder.active_learning.md_num_steps = 100  # TESTING: 33334
+    builder.active_learning.md_timestep_duration_ps = 0.003
+    builder.active_learning.commitee_num_models = 2  # 4
     # bldr.active_learning.lammps_potential_path = str(potential_path)
 
     mace_train_dict = {
@@ -77,14 +77,14 @@ if __name__ == "__main__":
     #     "#$ -l gpu=1"
     # )
     # bldr.active_learning.mace_train.force_weight_results = "mace_run_train_gpu@tekla2-new-test"
-    bldr.active_learning.mace_train = Dict(value=mace_train_dict)
+    builder.active_learning.mace_train = Dict(value=mace_train_dict)
 
     # AL settings
-    bldr.max_iterations = Int(10)
+    builder.max_iterations = Int(10)
     # Frames to keep for DFT
     # TODO: Test these values
-    bldr.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
+    builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
 
     # TESTING: This should use aiida.engine.submit function once all debugging is done.
-    node = run(bldr)
+    node = run(builder)
     # print("node: ", node.pk)
