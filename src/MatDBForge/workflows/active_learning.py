@@ -1388,12 +1388,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         Notes
         -----
         - The method uses `self.ctx.is_finished`, `self.ctx.iteration`,
-        `self.inputs.max_iterations.value`,
+        `self.inputs.active_learning.max_iterations.value`,
         `self.ctx.stop_md_seed_no_disagreement.value`,
         and `self.ctx.seed_gen_db_all_structs_removed.value`
-
         """
-        max_iterations = self.inputs.max_iterations.value
+        max_iterations = self.inputs.active_learning.max_iterations.value
 
         # This will be True if the workchain still needs to be running due
         # to the number of iterations.
@@ -1440,7 +1439,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             None. The function updates self.ctx.current_train_seed_structs with the selected
             structures.
         """
-        self.report(f"Starting AL Loop iteration {self.ctx.iteration}...")
+        self.report(f"Starting AL Loop iteration {self.ctx.iteration}/{self.inputs.active_learning.max_iterations.value}...")
         self.report("Getting training seed...")
         self.ctx.inputs.metadata.description = (
             "Perform MD simulations, evaluate and refine ML models. "

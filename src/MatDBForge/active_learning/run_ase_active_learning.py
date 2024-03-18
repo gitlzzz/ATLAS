@@ -26,20 +26,26 @@ if __name__ == "__main__":
 
     # Setting mandatory inputs.
     # Input settings
-    builder.active_learning.data_path = str(init_db_path)  # str(data_path)
+    builder.active_learning.data_path = str(init_db_path)
     builder.active_learning.mace_settings_path = str(mace_settings_path)
     builder.active_learning.init_db_path = str(init_db_path)
     builder.active_learning.final_db_path = str(final_db_path)
 
-    # TESTING: Update seed once debugging is done
-    # MD settings
+    # General AL settings
+    builder.active_learning.max_iterations = Int(10)
+
+    # AL-MD settings
     # Size of the seed generating database in percentage of the total number of
     # available training structures
+    # TESTING: Update seed size once debugging is done
     builder.active_learning.seed_size_frac = 0.02  # TESTING: 0.0010
     builder.active_learning.md_temperature_K = 300.0
     builder.active_learning.md_num_steps = 100  # TESTING: 33334
     builder.active_learning.md_timestep_duration_ps = 0.003
     builder.active_learning.commitee_num_models = 2  # 4
+
+    # Frames to keep for DFT
+    builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
 
     # MACE training settings
     mace_train_dict = {
@@ -63,12 +69,6 @@ if __name__ == "__main__":
         "result_force_weight": 0.1,
     }
     builder.active_learning.mace_train = Dict(value=mace_train_dict)
-
-    # AL settings
-    builder.max_iterations = Int(10)
-    # Frames to keep for DFT
-    # TODO: Test these values
-    builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
 
     # TESTING: This should use aiida.engine.submit function once all debugging is done.
     node = run(builder)
