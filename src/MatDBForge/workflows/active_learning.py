@@ -228,6 +228,8 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
         spec.input("commitee_num_models", valid_type=Int, serializer=to_aiida_type)
+        spec.input("chem_acc", valid_type=Int, serializer=to_aiida_type)
+        spec.input("chem_acc_multiplier", valid_type=Int, serializer=to_aiida_type)
         spec.input(
             "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
         )
@@ -958,21 +960,13 @@ class ActiveLearningWorkChain(WorkChain):
     def send_calc_or_remove_structures(self):
         self.report("Deciding which structures to keep...")
 
-        # TODO: Add as a input.
-        # TODO: Set to 10.
-        chem_acc = 30  # meV?
-        chem_acc_multiplier = 10  # TESTING: 0.0001
+        chem_acc = self.inputs.chem_acc.value
+        chem_acc_multiplier = self.inputs.chem_acc_multiplier.value
         e_rmse = self.ctx.m0_rmse_e.value
         e_error_threshold = chem_acc_multiplier * e_rmse
 
-        # REMOVE
-        # e_error_threshold = chem_acc_multiplier
-
         f_rmse = self.ctx.m0_rmse_f.value
         f_error_threshold = chem_acc_multiplier * f_rmse
-
-        # REMOVE
-        # f_error_threshold = chem_acc_multiplier
 
         delete_indices = []
         dft_structures = []
@@ -1057,7 +1051,7 @@ class ActiveLearningWorkChain(WorkChain):
                     self.to_context(dft_struct_seed_calcs=append_(future))
 
         self.report(
-            f"Commitee decision: {len(dft_structures)} DFT - "
+            f"Commitee decision: {len(dft_structures)} DFT / "
             f"{len(delete_indices)} delete"
         )
 
@@ -1439,7 +1433,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             None. The function updates self.ctx.current_train_seed_structs with the selected
             structures.
         """
-        self.report(f"Starting AL Loop iteration {self.ctx.iteration}/{self.inputs.active_learning.max_iterations.value}...")
+        self.report(
+            f"Starting AL Loop iteration {self.ctx.iteration}/"
+            f"{self.inputs.active_learning.max_iterations.value}..."
+        )
         self.report("Getting training seed...")
         self.ctx.inputs.metadata.description = (
             "Perform MD simulations, evaluate and refine ML models. "

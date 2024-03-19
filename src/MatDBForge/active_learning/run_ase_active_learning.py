@@ -43,6 +43,8 @@ if __name__ == "__main__":
     builder.active_learning.md_num_steps = 100  # TESTING: 33334
     builder.active_learning.md_timestep_duration_ps = 0.003
     builder.active_learning.commitee_num_models = 2  # 4
+    builder.active_learning.chem_acc = 30  # meV? # TESTING: 10?
+    builder.active_learning.chem_acc_multiplier = 10  # TESTING: 0.0001
 
     # Frames to keep for DFT
     builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
