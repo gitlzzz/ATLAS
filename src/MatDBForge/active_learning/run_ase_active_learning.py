@@ -49,6 +49,33 @@ if __name__ == "__main__":
     # Frames to keep for DFT
     builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
 
+    mace_train_settings = {
+        "name": "nnp_training_test",
+        "energy_key": "free_energy",
+        "valid_fraction": 0.1,
+        "config_type_weights": {"Default": 1.0},
+        "weight_decay": 9.336844675542452e-07,
+        "E0s": "average",
+        "num_interactions": 2,
+        "model": "MACE",
+        "correlation": 3,
+        "hidden_irreps": "16x0e + 16x1o",
+        "lr": 0.005626773506534471,
+        "r_max": 6.0,
+        "max_ell": 3,
+        "max_L": 2,
+        "batch_size": 64,
+        "max_num_epochs": 30,
+        "swa": True,
+        "ema": True,
+        "ema_decay": 0.99,
+        "amsgrad": True,
+        "restart_latest": True,
+        "device": "cuda",
+        "default_dtype": "float32",
+        "wandb": False,
+    }
+
     # MACE training settings
     mace_train_dict = {
         "code": "mace_run_train_gpu@tekla2-new-test",
@@ -69,6 +96,7 @@ if __name__ == "__main__":
             },
         },
         "result_force_weight": 0.1,
+        "train_settings": mace_train_settings,
     }
     builder.active_learning.mace_train = Dict(value=mace_train_dict)
 

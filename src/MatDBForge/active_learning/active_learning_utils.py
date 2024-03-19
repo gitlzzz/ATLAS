@@ -252,7 +252,7 @@ def prepare_output_dataframe(md_seed_results_df):
 def load_mace_settings_json(
     settings_path: str, train_data_path: str, curr_model: str, curr_iter: int
 ):
-    if isinstance(curr_model, Str):
+    if isinstance(settings_path, Str):
         settings_path = settings_path.value
 
     with open(settings_path, "r") as f:
@@ -281,6 +281,38 @@ def load_mace_settings_json(
     )
 
     return Dict(training_settings_dict)
+
+
+@calcfunction
+def update_mace_train_settings_dict(
+    settings_dict: dict, train_data_path: str, curr_model: str, curr_iter: int
+):
+    if isinstance(settings_dict, Dict):
+        settings_dict: Dict = settings_dict.get_dict()
+
+    # Update training file path in mace train settings
+    # to include the new database.
+    if isinstance(train_data_path, Str):
+        train_data_path: Path = Path(train_data_path.value)
+    elif isinstance(train_data_path, str):
+        train_data_path: Path = Path(train_data_path)
+
+    settings_dict["train_file"] = str(train_data_path.name)
+
+    # Updating name to include model and iteration number
+    curr_name = settings_dict["name"]
+
+    if isinstance(curr_model, Str):
+        curr_model = curr_model.value
+
+    if isinstance(curr_iter, Int):
+        curr_iter = curr_iter.value
+
+    settings_dict["name"] = (
+        str(curr_model) + "_" + curr_name + "_al-iteration_" + str(curr_iter)
+    )
+
+    return Dict(settings_dict)
 
 
 @calcfunction

@@ -202,11 +202,6 @@ class TrainMACEModelCalculation(CalcJob):
 
         return calcinfo
 
-    def _build_process_label(self):
-        model_name = self.inputs.model_name.value
-        label = f"Training MACE model - {model_name}"
-        return label
-
 
 class ActiveLearningWorkChain(WorkChain):
     """
@@ -343,11 +338,10 @@ class ActiveLearningWorkChain(WorkChain):
         for model_num in range(self.inputs.commitee_num_models.value + 1):
             model_name = mdb_al.generate_model_name()
 
-            # TODO: Use a general toml configuration file that includes all settings
-            # Load training settings from json.
-            mace_train_settings: Dict = mdb_al.load_mace_settings_json(
-                self.inputs.mace_settings_path,
-                updated_path,
+            # Load training settings from inputs and update path and model names.
+            mace_train_settings: Dict = mdb_al.update_mace_train_settings_dict(
+                settings_dict=self.inputs.mace_train.get("train_settings"),
+                train_data_path=updated_path,
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
             )
@@ -371,6 +365,7 @@ class ActiveLearningWorkChain(WorkChain):
             mace_builder.metadata.options.output_filename = (
                 f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
             )
+            mace_builder.metadata.label = model_name
 
             future = self.submit(mace_builder)
             self.to_context(mace_training_results=append_(future))
@@ -976,7 +971,7 @@ class ActiveLearningWorkChain(WorkChain):
         # cluster, material_name, unique_id
         for idx, row in self.ctx.md_seed_results_df.iterrows():
             # Getting all energy predictions
-            # TODO For E: Do variance
+            # TODO - For E: Do variance, For F: Do variance
             model_energies_dict = row["energy"]
             energies_std = mdb_al.get_model_energies_std(model_energies_dict)
 
@@ -984,7 +979,6 @@ class ActiveLearningWorkChain(WorkChain):
             # and must be sent to calculate with DFT.
             error_e_structures = np.ma.make_mask(energies_std >= e_error_threshold)
 
-            # TODO For F: Do variance
             model_forces_dict = row["forces"]
             forces_std = mdb_al.get_model_energies_std(model_forces_dict)
             forces_std_norm = np.linalg.norm(forces_std, axis=2)
@@ -1110,7 +1104,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
     def define(cls, spec):
         """Define the process specification."""
         super().define(spec)
-
 
         spec.expose_inputs(
             ActiveLearningWorkChain,
