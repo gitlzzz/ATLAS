@@ -1111,11 +1111,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """Define the process specification."""
         super().define(spec)
 
-        ##########
-        # FIXME  #
-        ##########
-        # TODO: There are some problems when exposing the inputs and outputs
-        ##########
+
         spec.expose_inputs(
             ActiveLearningWorkChain,
             namespace="active_learning",
