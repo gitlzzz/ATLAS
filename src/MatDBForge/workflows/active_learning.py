@@ -250,13 +250,12 @@ class ActiveLearningWorkChain(WorkChain):
             valid_type=Str,
             serializer=to_aiida_type,
         )
-        spec.input("mace_train", valid_type=Dict)
-
         spec.input(
             "mace_train",
             valid_type=Dict,
             serializer=to_aiida_type,
         )
+        spec.input("lammps_mace", valid_type=Dict)
 
         spec.outline(
             # Training the main mace model (M0) and the commitee models
@@ -574,11 +573,14 @@ class ActiveLearningWorkChain(WorkChain):
         self.ctx.current_train_seed = []
 
         # this string with the label used in the code setup.
-        code = load_code("mace-lammps@localhost-mpirun.mpich")
+        # code = load_code("mace-lammps@localhost-mpirun.mpich")
+        # code = load_code("mace-lammps-gpu@tekla2-updated-2024")
+        code_str = self.inputs.lammps_mace.get("code")
         builder = CalculationFactory("lammps.raw").get_builder()
-        builder.code = code
+        builder.code = load_code(code_str)
+        print('builder.code: ', builder.code)
 
-        # Getting the lammps potential file in a temporary foler
+        # Getting the lammps potential file in a temporary folder
         with self.ctx.lammps_potential_file.as_path() as lmp_pot_path:
             lmp_pot_filename = Path(lmp_pot_path).name
             lmp_pot_path = str(lmp_pot_path)
@@ -611,6 +613,7 @@ class ActiveLearningWorkChain(WorkChain):
                 curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
                 struct_properties = curr_structure.properties
 
+                # TODO: Check how to include parameters from here as initial parameters (TOML)
                 curr_input = self.gen_md_input(
                     structure=curr_structure,
                     potential_path=lmp_pot_filename,
@@ -636,17 +639,16 @@ class ActiveLearningWorkChain(WorkChain):
                 index_in_db = self.inputs.current_train_seed_structs_idx[idx]
 
                 # TODO: Add this as initial parameters (TOML)
-                # HACK: During debugging, run the calculation on 1 CPU and kill it
-                # if it runs longer than 1800 seconds.
-                builder.metadata.options = {
-                    "resources": {
-                        "num_machines": 1,
-                        "num_mpiprocs_per_machine": 1,
-                        "num_cores_per_mpiproc": 2,
-                    },
-                    "max_wallclock_seconds": 1800,
-                    "withmpi": True,
-                }
+                # builder.metadata.options = {
+                #     "resources": {
+                #         "num_machines": 1,
+                #         "num_mpiprocs_per_machine": 1,
+                #         "num_cores_per_mpiproc": 2,
+                #     },
+                #     "max_wallclock_seconds": 1800,
+                #     "withmpi": True,
+                # }
+                builder.metadata = self.inputs.lammps_mace.get("metadata")
 
                 # Submitting current calculation
                 future = self.submit(builder)
@@ -971,7 +973,7 @@ class ActiveLearningWorkChain(WorkChain):
         # cluster, material_name, unique_id
         for idx, row in self.ctx.md_seed_results_df.iterrows():
             # Getting all energy predictions
-            # TODO - For E: Do variance, For F: Do variance
+            # TODO - For E and F: Do variance
             model_energies_dict = row["energy"]
             energies_std = mdb_al.get_model_energies_std(model_energies_dict)
 
