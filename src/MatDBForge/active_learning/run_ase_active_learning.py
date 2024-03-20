@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Size of the seed generating database in percentage of the total number of
     # available training structures
     # TESTING: Update seed size once debugging is done
-    builder.active_learning.seed_size_frac = 0.02  # TESTING: 0.0010
+    builder.active_learning.seed_size_frac = 0.12  # TESTING: 0.0010
     builder.active_learning.md_temperature_K = 300.0
     builder.active_learning.md_num_steps = 100  # TESTING: 33334
     builder.active_learning.md_timestep_duration_ps = 0.003
@@ -49,6 +49,7 @@ if __name__ == "__main__":
     # Frames to keep for DFT
     builder.active_learning.al_keep_frame_interval_perc = 0.005  # TESTING: 0.01 # 0.005
 
+    # Settings for the MACE NNP training.
     mace_train_settings = {
         "name": "nnp_training_test",
         "energy_key": "free_energy",
@@ -75,6 +76,32 @@ if __name__ == "__main__":
         "default_dtype": "float32",
         "wandb": False,
     }
+
+    # HACK: During debugging, run the calculation on 1 CPU and kill it
+    # if it runs longer than 1800 seconds.
+    # Settings for MACE-LAMMPS MD
+    lammps_mace_settings = {
+        "code": "mace-lammps-gpu@tekla2-updated-2024",
+        "metadata": {
+            "options": {
+                "resources": {
+                    # "num_machines": 1,
+                    # "num_mpiprocs_per_machine": 1,
+                    # "num_cores_per_mpiproc": 2,
+                    "parallel_env": "c128m1024ib_mpi_32slots",
+                    "tot_num_mpiprocs": 1,
+                },
+                "queue_name": "c128m1024ibgpu4.q",
+                "max_memory_kb": 102400000,
+                "max_wallclock_seconds": 117280000,
+                "account": "",
+                "qos": "",
+                "withmpi": False,
+                "custom_scheduler_commands": ("#$ -l gpu=1"),
+            }
+        }
+    }
+    builder.active_learning.lammps_mace = Dict(value=lammps_mace_settings)
 
     # MACE training settings
     mace_train_dict = {
