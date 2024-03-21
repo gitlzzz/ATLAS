@@ -85,9 +85,6 @@ if __name__ == "__main__":
         "metadata": {
             "options": {
                 "resources": {
-                    # "num_machines": 1,
-                    # "num_mpiprocs_per_machine": 1,
-                    # "num_cores_per_mpiproc": 2,
                     "parallel_env": "c128m1024ib_mpi_32slots",
                     "tot_num_mpiprocs": 1,
                 },

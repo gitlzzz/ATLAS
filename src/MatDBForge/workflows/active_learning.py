@@ -578,7 +578,7 @@ class ActiveLearningWorkChain(WorkChain):
         code_str = self.inputs.lammps_mace.get("code")
         builder = CalculationFactory("lammps.raw").get_builder()
         builder.code = load_code(code_str)
-        print('builder.code: ', builder.code)
+        print("builder.code: ", builder.code)
 
         # Getting the lammps potential file in a temporary folder
         with self.ctx.lammps_potential_file.as_path() as lmp_pot_path:
@@ -638,16 +638,7 @@ class ActiveLearningWorkChain(WorkChain):
 
                 index_in_db = self.inputs.current_train_seed_structs_idx[idx]
 
-                # TODO: Add this as initial parameters (TOML)
-                # builder.metadata.options = {
-                #     "resources": {
-                #         "num_machines": 1,
-                #         "num_mpiprocs_per_machine": 1,
-                #         "num_cores_per_mpiproc": 2,
-                #     },
-                #     "max_wallclock_seconds": 1800,
-                #     "withmpi": True,
-                # }
+                # Loading metadata settings from workchain inputs
                 builder.metadata = self.inputs.lammps_mace.get("metadata")
 
                 # Submitting current calculation
