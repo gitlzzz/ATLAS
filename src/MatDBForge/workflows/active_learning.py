@@ -208,7 +208,6 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("init_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("final_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("data_path", valid_type=Str, serializer=to_aiida_type)
-        spec.input("mace_settings_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
         spec.input("seed_size_frac", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
