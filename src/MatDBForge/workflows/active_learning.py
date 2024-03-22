@@ -143,8 +143,6 @@ class TrainMACEModelCalculation(CalcJob):
         # TODO: Add a way of checking if validation_file was given.
         params_list = []
         for key, val in self.inputs.mace_settings_dict.items():
-            # print("\nkey: ", key)
-            # print("val: ", val)
             if key == "train_file":
                 val = Path(val).resolve().name
 
@@ -163,13 +161,6 @@ class TrainMACEModelCalculation(CalcJob):
         path = Path(self.inputs.mace_train_file_path.value)
         caller_uuid = mdb_al.process_call_root(self.node)
         final_db_path = path.parent / (str(path.stem) + f"_{caller_uuid}{path.suffix}")
-
-        # train_db_length = len(ase_read(final_db_path, format="extxyz", index=":"))
-        # self.report(f"Training database size: {train_db_length} configurations.")
-        # print(
-        #     "self.inputs.mace_train_file_path.value: ",
-        #     self.inputs.mace_train_file_path.value,
-        # )
 
         # Copying database to temporary folder
         folder.insert_path(
@@ -256,6 +247,7 @@ class ActiveLearningWorkChain(WorkChain):
             serializer=to_aiida_type,
         )
         spec.input("lammps_mace", valid_type=Dict)
+        spec.input("committee_eval", valid_type=Dict)
 
         spec.outline(
             # Training the main mace model (M0) and the commitee models
@@ -352,9 +344,6 @@ class ActiveLearningWorkChain(WorkChain):
             mace_builder.model_name = model_name
             mace_builder.mace_settings_dict = Dict(mace_train_settings)
             mace_builder.mace_train_file_path = self.inputs.final_db_path.value
-
-            # # TODO: This should be set in the code?
-            # mace_builder.metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
 
             mace_builder.code = load_code(self.inputs.mace_train.dict.code)
             mace_builder.metadata.options.withmpi = True
@@ -578,7 +567,6 @@ class ActiveLearningWorkChain(WorkChain):
         code_str = self.inputs.lammps_mace.get("code")
         builder = CalculationFactory("lammps.raw").get_builder()
         builder.code = load_code(code_str)
-        print("builder.code: ", builder.code)
 
         # Getting the lammps potential file in a temporary folder
         with self.ctx.lammps_potential_file.as_path() as lmp_pot_path:
@@ -825,12 +813,7 @@ class ActiveLearningWorkChain(WorkChain):
                 row[cnt] = lattice_vals[posc]
                 cnt += 1
 
-            # species = [ele.split()[1] for ele in curr_struct_coords]
             species = curr_struct_coords[:, 1]
-
-            # coord_array = np.array(
-            #     [ele.split()[2:] for ele in curr_struct_coords], dtype=float
-            # )
             coord_array = curr_struct_coords[:, 2:5].astype(np.float32)
 
             curr_struct = Structure(
@@ -842,10 +825,10 @@ class ActiveLearningWorkChain(WorkChain):
             struct_list.append(curr_struct)
             forces_list.append(curr_struct_forces)
 
-        # TODO: Add a way to change constant lattice.
+        cnt_lat_setting = self.inputs.lammps_mace.get("gather_traj_cnt_lattice", True)
         traj = Trajectory.from_structures(
             struct_list,
-            constant_lattice=True,
+            constant_lattice=cnt_lat_setting,
             time_step=self.inputs.md_timestep_duration_ps.value,
         )
 
@@ -861,16 +844,19 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Working with all models
             for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
-                # model_id += 1
-                # model_path = str(Path(model.value).resolve())
-                # model_name = "m" + str(model_id)
-
-                # TODO: Use MACE settings input to set the settings.
-
                 with load_node(model).as_path() as model_path:
-                    device_type = "cuda"
-                    # mace_tools.torch_tools.set_default_dtype("float32")
+                    # Getting device type from inputs. If not set, CPU will be used as a
+                    # fallback.
+                    device_type = self.inputs.committee_eval.get_dict().get(
+                        "device", "cpu"
+                    )
                     device = mace_tools.torch_tools.init_device(device_type)
+
+                    # Setting dtype. float32 will be set as default.
+                    dtype = self.inputs.committee_eval.get_dict().get(
+                        "dtype", "float32"
+                    )
+                    mace_tools.torch_tools.set_default_dtype(dtype)
 
                     # Load MACE model
                     model = torch.load(f=model_path, map_location=device_type)
@@ -893,6 +879,10 @@ class ActiveLearningWorkChain(WorkChain):
                         [int(z) for z in model.atomic_numbers]
                     )
 
+                    # TODO: Use MACE settings input to set the settings.
+                    batch_size = self.inputs.committee_eval.get_dict().get(
+                        "batch_size", 64
+                    )
                     data_loader = mace_tools.torch_geometric.dataloader.DataLoader(
                         dataset=[
                             mace_data.AtomicData.from_config(
@@ -900,7 +890,7 @@ class ActiveLearningWorkChain(WorkChain):
                             )
                             for config in configs
                         ],
-                        batch_size=64,
+                        batch_size=batch_size,
                         shuffle=False,
                         drop_last=False,
                     )
@@ -909,10 +899,12 @@ class ActiveLearningWorkChain(WorkChain):
                     energies_list = []
                     forces_collection = []
 
+                    compute_stress = self.inputs.committee_eval.get_dict().get(
+                        "compute_stress", True
+                    )
                     for batch in data_loader:
                         batch = batch.to(device)
-                        output = model(batch.to_dict(), compute_stress=True)
-                        # print("\n\noutput: ", output.keys())
+                        output = model(batch.to_dict(), compute_stress=compute_stress)
                         energies_list.append(
                             mace_tools.torch_tools.to_numpy(output["energy"])
                         )
@@ -935,7 +927,6 @@ class ActiveLearningWorkChain(WorkChain):
                     updated_ene_dict = row[1]["energy"]
                     updated_ene_dict.update({model_name: energies})
                     self.ctx.md_seed_results_df.at[row[0], "energy"] = updated_ene_dict
-
                     # TODO: Check if this is the proper way of gathering the forces
                     # forces_list = np.array(forces_list)
                     # forces_norm = np.linalg.norm(forces_list, axis=2)
@@ -1239,7 +1230,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         path = Path(self.ctx.inputs.final_db_path.value)
         caller_uuid = mdb_al.process_call_root(self.node)
         final_db_path = path.parent / (str(path.stem) + f"_{caller_uuid}{path.suffix}")
-        print("final_db_path in add_dft_results_to_db: ", final_db_path)
 
         ase_write(
             filename=final_db_path,
@@ -1437,6 +1427,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # This should avoid tring to select more structures than available
         if seed_size > db_length:
             seed_size = db_length
+
+        # For small databases or percentages, the number of structures might be 0
+        # if this happens, make it 1.
+        if seed_size == 0:
+            seed_size = 1
 
         # Choosing structures at random to create the training seed
         selected_structs = np.random.choice(

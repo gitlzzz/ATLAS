@@ -32,13 +32,15 @@ if __name__ == "__main__":
     builder.active_learning.final_db_path = str(final_db_path)
 
     # General AL settings
-    builder.active_learning.max_iterations = Int(10)
+    builder.active_learning.max_iterations = Int(3)
 
     # AL-MD settings
     # Size of the seed generating database in percentage of the total number of
     # available training structures
     # TESTING: Update seed size once debugging is done
-    builder.active_learning.seed_size_frac = 0.12  # TESTING: 0.0010
+
+    # Sets total structures in seed, which influences number of MD calculations
+    builder.active_learning.seed_size_frac = 0.01  # TESTING: 0.0010
     builder.active_learning.md_temperature_K = 300.0
     builder.active_learning.md_num_steps = 100  # TESTING: 33334
     builder.active_learning.md_timestep_duration_ps = 0.003
@@ -77,36 +79,13 @@ if __name__ == "__main__":
         "wandb": False,
     }
 
-    # HACK: During debugging, run the calculation on 1 CPU and kill it
-    # if it runs longer than 1800 seconds.
-    # Settings for MACE-LAMMPS MD
-    lammps_mace_settings = {
-        "code": "mace-lammps-gpu@tekla2-updated-2024",
-        "metadata": {
-            "options": {
-                "resources": {
-                    "parallel_env": "c128m1024ib_mpi_32slots",
-                    "tot_num_mpiprocs": 1,
-                },
-                "queue_name": "c128m1024ibgpu4.q",
-                "max_memory_kb": 102400000,
-                "max_wallclock_seconds": 117280000,
-                "account": "",
-                "qos": "",
-                "withmpi": False,
-                "custom_scheduler_commands": ("#$ -l gpu=1"),
-            }
-        }
-    }
-    builder.active_learning.lammps_mace = Dict(value=lammps_mace_settings)
-
-    # MACE training settings
+    # MACE model training settings
     mace_train_dict = {
         "code": "mace_run_train_gpu@tekla2-new-test",
         "metadata": {
             "options": {
                 "resources": {
-                    "parallel_env": "c128m1024ib_mpi_32slotsbis",
+                    "parallel_env": "c128m1024ib_mpi_32slots",
                     "tot_num_mpiprocs": 32,
                 },
                 "parser_name": "mace-training-parser",
@@ -116,7 +95,7 @@ if __name__ == "__main__":
                 "account": "",
                 "qos": "",
                 "withmpi": True,
-                "custom_scheduler_commands": ("#$ -l gpu=1"),
+                "custom_scheduler_commands": '#$ -l gpu=1\n#$ -l hostname="tekla2188"',
             },
         },
         "result_force_weight": 0.1,
@@ -124,6 +103,37 @@ if __name__ == "__main__":
     }
     builder.active_learning.mace_train = Dict(value=mace_train_dict)
 
+    # HACK: During debugging, run the calculation on 1 CPU and kill it
+    # if it runs longer than 1800 seconds.
+    # Settings for MACE-LAMMPS MD
+    lammps_mace_settings = {
+        "code": "mace-lammps-gpu@tekla2-updated-2024",
+        "metadata": {
+            "options": {
+                "resources": {
+                    "parallel_env": "c128m1024ib_mpi_32slots",
+                    "tot_num_mpiprocs": 4,
+                },
+                "queue_name": "c128m1024ibgpu4.q",
+                "max_memory_kb": 102400000,
+                "max_wallclock_seconds": 117280000,
+                "account": "",
+                "qos": "",
+                "withmpi": False,
+                "custom_scheduler_commands": "#$ -l gpu=1",
+            }
+        },
+        "gather_traj_cnt_lattice": True,
+    }
+    builder.active_learning.lammps_mace = Dict(value=lammps_mace_settings)
+
+    committee_eval_dict = {
+        "device": "cuda",
+        "dtype": "float32",
+        "batch_size": 64,
+        "compute_stress": True,
+    }
+    builder.active_learning.committee_eval = Dict(value=committee_eval_dict)
+
     # TESTING: This should use aiida.engine.submit function once all debugging is done.
     node = run(builder)
-    # print("node: ", node.pk)
