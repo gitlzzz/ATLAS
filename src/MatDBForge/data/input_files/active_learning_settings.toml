@@ -28,11 +28,11 @@ md_timestep_duration_ps = 0.003
 
 # Total number of MACE models. 
 # Increases resources necessary for training.
-commitee_num_models = 2
+commitee_num_models = 4
 
-# Multiplier for chemical accuracy. Loosens model accuracy threshold.
-# Structures in which RMSE E or F > model_acc*chem_acc_multiplier will be considered incorrect.
-chem_acc_multiplier = 10
+# Multiplier for model accuracy. Loosens model accuracy threshold.
+# Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
+model_acc_multiplier = 10
 
 # Every how many ps keep a structure. 
 # Influences the total number of energy evaluations and possibly DFT calculations.
