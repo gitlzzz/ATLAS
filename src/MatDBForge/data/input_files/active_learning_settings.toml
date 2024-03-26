@@ -17,7 +17,7 @@ max_iterations = 3
 # This influences the amount of MD calculations and E, F evaluations.
 seed_size_frac = 0.01
 
-# MD temperature
+# MD temperature.
 md_temperature_K = 300.0
 
 # Total number of timesteps for the MD simulations
@@ -26,19 +26,16 @@ md_num_steps = 1000
 # Duration of each timestep.
 md_timestep_duration_ps = 0.003
 
-# Total number of MACE models
+# Total number of MACE models. 
+# Increases resources necessary for training.
 commitee_num_models = 2
 
-# Threshold value for chemical accuracy in meV. 
-chem_acc = 43
-
 # Multiplier for chemical accuracy. Loosens model accuracy threshold.
-# Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
+# Structures in which RMSE E or F > model_acc*chem_acc_multiplier will be considered incorrect.
 chem_acc_multiplier = 10
 
-# Amount of DFT calculations. "Every that %". # REMOVE
-al_keep_frame_interval_perc = 1
-# TODO: Use this one instead. Every how many ps keep a structure.
+# Every how many ps keep a structure. 
+# Influences the total number of energy evaluations and possibly DFT calculations.
 al_keep_struct_every_n_ps = 1
 
 # MACE training code and scheduler settings (aiida)

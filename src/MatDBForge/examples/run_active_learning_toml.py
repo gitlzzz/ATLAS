@@ -42,8 +42,8 @@ def create_builder(toml_dict: dict):
     builder.active_learning.commitee_num_models = al_conf["commitee_num_models"]
     builder.active_learning.chem_acc = al_conf["chem_acc"]
     builder.active_learning.chem_acc_multiplier = al_conf["chem_acc_multiplier"]
-    builder.active_learning.al_keep_frame_interval_perc = al_conf[
-        "al_keep_frame_interval_perc"
+    builder.active_learning.al_keep_struct_every_n_ps = al_conf[
+        "al_keep_struct_every_n_ps"
     ]
 
     # MACE training settings

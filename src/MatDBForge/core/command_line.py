@@ -9,7 +9,7 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 from aiida import load_profile
-from aiida.engine import submit
+from aiida.engine import run
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 
@@ -17,7 +17,7 @@ from MatDBForge.core import DATA_DIR
 from MatDBForge.core.utils import custom_print as cp
 
 
-def create_builder(toml_dict: dict):
+def create_active_learning_builder(toml_dict: dict):
     """
     Create builder object for the ActiveLearningWorkChain.
 
@@ -47,10 +47,9 @@ def create_builder(toml_dict: dict):
     builder.active_learning.md_num_steps = al_conf["md_num_steps"]
     builder.active_learning.md_timestep_duration_ps = al_conf["md_timestep_duration_ps"]
     builder.active_learning.commitee_num_models = al_conf["commitee_num_models"]
-    builder.active_learning.chem_acc = al_conf["chem_acc"]
-    builder.active_learning.chem_acc_multiplier = al_conf["chem_acc_multiplier"]
-    builder.active_learning.al_keep_frame_interval_perc = al_conf[
-        "al_keep_frame_interval_perc"
+    builder.active_learning.model_acc_multiplier = al_conf["model_acc_multiplier"]
+    builder.active_learning.al_keep_struct_every_n_ps = al_conf[
+        "al_keep_struct_every_n_ps"
     ]
 
     # MACE training settings
@@ -93,9 +92,9 @@ def run_active_learning():
     load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
 
     # Parsing settings from TOML and creating builder for aiida
-    builder = create_builder(toml_dict)
+    builder = create_active_learning_builder(toml_dict)
 
-    node = submit(builder)
+    node = run(builder)
 
 
 def gen_default_config():

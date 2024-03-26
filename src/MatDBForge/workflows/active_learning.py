@@ -213,13 +213,12 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
         spec.input("commitee_num_models", valid_type=Int, serializer=to_aiida_type)
-        spec.input("chem_acc", valid_type=Int, serializer=to_aiida_type)
-        spec.input("chem_acc_multiplier", valid_type=Int, serializer=to_aiida_type)
+        spec.input("model_acc_multiplier", valid_type=Int, serializer=to_aiida_type)
         spec.input(
             "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
         )
         spec.input(
-            "al_keep_frame_interval_perc", valid_type=Int, serializer=to_aiida_type
+            "al_keep_struct_every_n_ps", valid_type=Int, serializer=to_aiida_type
         )
         spec.input(
             "current_train_seed_structs", valid_type=List, serializer=to_aiida_type
@@ -665,14 +664,11 @@ class ActiveLearningWorkChain(WorkChain):
             workchain_results = workchain.outputs.retrieved
             steps_E_F_arr = self.gather_energies_from_workchain(workchain_results)
             traj, forces = self.gather_traj_from_workchain(workchain_results)
-            print("traj: ", len(traj))
-            print("steps_E_F_arr: ", steps_E_F_arr.shape)
-            print("forces: ", forces.shape)
 
             # Instead of keeping all frames, select some of them
             # Get 1 frame every n picoseconds of MD simulation
             traj, steps_E_F_arr, forces = mdb_al.select_md_frames_to_keep(
-                frame_interval=self.inputs.al_keep_frame_interval_perc,
+                frame_interval=self.inputs.al_keep_struct_every_n_ps,
                 total_n_frames=self.inputs.md_num_steps.value,
                 md_tstep_duration_ps=self.inputs.md_timestep_duration_ps.value,
                 traj=traj,
@@ -952,13 +948,12 @@ class ActiveLearningWorkChain(WorkChain):
     def send_calc_or_remove_structures(self):
         self.report("Deciding which structures to keep...")
 
-        chem_acc = self.inputs.chem_acc.value
-        chem_acc_multiplier = self.inputs.chem_acc_multiplier.value
+        model_acc_multiplier = self.inputs.model_acc_multiplier.value
         e_rmse = self.ctx.m0_rmse_e.value
-        e_error_threshold = chem_acc_multiplier * e_rmse
+        e_error_threshold = model_acc_multiplier * e_rmse
 
         f_rmse = self.ctx.m0_rmse_f.value
-        f_error_threshold = chem_acc_multiplier * f_rmse
+        f_error_threshold = model_acc_multiplier * f_rmse
 
         delete_indices = []
         dft_structures = []
