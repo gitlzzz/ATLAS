@@ -14,7 +14,6 @@ from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 
 from MatDBForge.core import DATA_DIR
-from MatDBForge.core.utils import custom_print as cp
 
 
 def create_active_learning_builder(toml_dict: dict):
