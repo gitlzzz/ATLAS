@@ -995,20 +995,15 @@ class ActiveLearningWorkChain(WorkChain):
             # structure from D0.
             flag_no_error_structs = np.all(error_all_structures == 0)
 
-            # True if the model is above chemical accuracy (bad performance)
-            if (e_rmse > chem_acc) or (f_rmse > chem_acc):
-                flag_above_chemical_acc = True
-                self.report("Current model not reaching chemical accuracy.")
-
             # The index of the structure to delete will
             # be added to a list, which will be used as a mask to select
             # which structures to remove outside of the loop.
-            if flag_no_error_structs and not flag_above_chemical_acc:
+            if flag_no_error_structs:
                 delete_indices.append(row["unique_id"])
 
-            # If there are some structures to submit or the model does not reach
-            # chemical accuracy, select some of them and mark them for DFT.
-            elif not flag_no_error_structs or flag_above_chemical_acc:
+            # If there are some structures to submit, select some of them and
+            # mark them for DFT.
+            elif not flag_no_error_structs:
                 struct_arr = error_all_structures
 
                 if isinstance(error_all_structures, np.bool_):
