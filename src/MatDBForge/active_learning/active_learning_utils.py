@@ -1,18 +1,16 @@
-import ast
 import json
+import math as m
 from pathlib import Path
 
 import numpy as np
 import torch
 import wonderwords as ww
-from aiida.common.extendeddicts import AttributeDict
 from aiida.engine import (
     calcfunction,
 )
 from aiida.orm import (
     Bool,
     Dict,
-    Float,
     Int,
     List,
     SinglefileData,
@@ -20,21 +18,10 @@ from aiida.orm import (
     load_node,
 )
 from ase import Atoms
-from e3nn import o3
 from e3nn.util import jit
-from mace import data as mace_data
-from mace import modules as mace_modules
-from mace import tools as mace_tools
 from mace.calculators import LAMMPS_MACE
-from mace.tools.scripts_utils import (
-    LRScheduler,
-    create_error_table,
-    get_dataset_from_xyz,
-)
 from MatDBForge.training import conversion as mdb_conv
 from MatDBForge.workflows import aiida_utils as mdb_aut
-from torch.optim.swa_utils import SWALR, AveragedModel
-from torch_ema import ExponentialMovingAverage
 
 
 def model_res_dict_to_arr(res_dict):
@@ -120,6 +107,32 @@ def select_dft_structures(struct_arr, frame_interval):
     return selected_high_error_idxs
 
 
+def select_md_frames_to_keep(
+    frame_interval: int,
+    total_n_frames: int,
+    md_tstep_duration_ps: float,
+    traj,
+    steps_E_F_arr: np.array,
+    forces: np.array,
+):
+    # Get total MD time in picoseconds
+    total_duration_ps = total_n_frames * md_tstep_duration_ps
+
+    # Get total number of frames in that time
+    total_num_frames = m.ceil(total_duration_ps * frame_interval)
+
+    # Choose the number of frames evenly and create a mask for the arrays
+    mask = np.linspace(0, len(traj) - 1, total_num_frames, dtype=int)
+
+    # Apply the mask to traj, steps_E_F_arr and forces
+    traj_sampled = traj[mask]
+    steps_E_F_arr_sampled = steps_E_F_arr[mask]
+    forces_sampled = forces[mask]
+
+    print('steps_E_F_arr_sampled: ', steps_E_F_arr_sampled.shape)
+    return traj_sampled, steps_E_F_arr_sampled, forces_sampled
+
+
 def get_dft_calc_builder(struct, row, calc_idx, group):
     struct_type = row["mdb_struct_type"]
 
@@ -131,8 +144,8 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
         curr_phase,
     ) = mdb_aut.gather_calc_data_from_row(row, curr_structure=struct)
 
-    # TODO
-    # HACK: Move this to a central yaml/json file in the CWD or data folder.
+    # HACK
+    # TODO: Move this to the central TOML file.
     kspacing_dict = {
         "alpha": 0.135088484104361,
         # "m1": 0.100530964914873,
@@ -150,6 +163,8 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
     # vasp-std-5.4.4-new@tekla2-new-test
     # vasp-std-5.3.3-new@tekla2-updated-2024
     # ################
+    # HACK
+    # TODO: Move this to the central TOML file.
     queue_dict = {
         2: {
             "type": "sge",
@@ -184,6 +199,8 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
     }
 
     # TESTING # potential_family = "vasp-5.3-PBE"
+    # HACK
+    # TODO: Move this to the central TOML file.
     potential_family = "vasp-5.4-PBE-2023"
     potential_mapping = mdb_aut.generate_potential_mapping()
 
@@ -252,7 +269,7 @@ def prepare_output_dataframe(md_seed_results_df):
 def load_mace_settings_json(
     settings_path: str, train_data_path: str, curr_model: str, curr_iter: int
 ):
-    if isinstance(curr_model, Str):
+    if isinstance(settings_path, Str):
         settings_path = settings_path.value
 
     with open(settings_path, "r") as f:
@@ -284,6 +301,38 @@ def load_mace_settings_json(
 
 
 @calcfunction
+def update_mace_train_settings_dict(
+    settings_dict: dict, train_data_path: str, curr_model: str, curr_iter: int
+):
+    if isinstance(settings_dict, Dict):
+        settings_dict: Dict = settings_dict.get_dict()
+
+    # Update training file path in mace train settings
+    # to include the new database.
+    if isinstance(train_data_path, Str):
+        train_data_path: Path = Path(train_data_path.value)
+    elif isinstance(train_data_path, str):
+        train_data_path: Path = Path(train_data_path)
+
+    settings_dict["train_file"] = str(train_data_path.name)
+
+    # Updating name to include model and iteration number
+    curr_name = settings_dict["name"]
+
+    if isinstance(curr_model, Str):
+        curr_model = curr_model.value
+
+    if isinstance(curr_iter, Int):
+        curr_iter = curr_iter.value
+
+    settings_dict["name"] = (
+        str(curr_model) + "_" + curr_name + "_al-iteration_" + str(curr_iter)
+    )
+
+    return Dict(settings_dict)
+
+
+@calcfunction
 def create_mace_lammps_model(model_file):
     with model_file.as_path() as model_path:
         # Loading model
@@ -298,7 +347,6 @@ def create_mace_lammps_model(model_file):
         # Saving LAMMPS model
         lammps_model_compiled.save(new_model_path)
 
-        # TODO: Create SingleileData for lammps model?
         return SinglefileData(file=new_model_path)
 
 

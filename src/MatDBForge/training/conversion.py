@@ -353,7 +353,6 @@ def gen_mace_train_structure_list(
     skip_stress=True,
     skip_free_energy=False,
 ):
-    print("2 - path in gen_mace_train_structure_list: ", path)
     # Handling path
     if path and isinstance(path, str):
         path = pathlib.Path(path).resolve()
@@ -369,7 +368,6 @@ def gen_mace_train_structure_list(
         # len_struct = len(structure_list)
         structure_list = structure_list.get_list()
         for idd, struct in enumerate(structure_list):
-            # print(f'struct: {idd}/{len_struct}', end='\r')
             new_struct = {}
 
             dict_keys_set = set(list(struct.keys()))

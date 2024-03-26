@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MatDBForge",
-    version="0.2.4",
+    version="0.2.5",
     description="MatDBForge",
     author="Pol Sanz",
     author_email="me@polsanz.xyz",
@@ -23,6 +23,10 @@ setup(
         ],
         "aiida.parsers": [
             "mace-training-parser = MatDBForge.workflows.active_learning:TrainMACEModelCalculationParser",
+        ],
+        "console_scripts": [
+            "mdb_active_learning=MatDBForge.core.command_line:run_active_learning",
+            "mdb_conf_gen=MatDBForge.core.command_line:gen_default_config"
         ],
     },
 )

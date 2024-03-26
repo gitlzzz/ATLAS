@@ -1,0 +1,99 @@
+# Active Learning Settings
+[active_learning]
+# Name of the aiida profile to be used
+aiida_profile = ""
+
+# Path to the folder where the initial database is contained.
+data_path = ""
+
+# Path to the folder where the initial database is contained.
+init_db_path = ""
+final_db_path = ""
+
+# Maximum number of AL loop iterations.
+max_iterations = 3
+
+# Sets total structures in AL seed
+# This influences the amount of MD calculations and E, F evaluations.
+seed_size_frac = 0.01
+
+# MD temperature.
+md_temperature_K = 300.0
+
+# Total number of timesteps for the MD simulations
+md_num_steps = 1000
+
+# Duration of each timestep.
+md_timestep_duration_ps = 0.003
+
+# Total number of MACE models. 
+# Increases resources necessary for training.
+commitee_num_models = 2
+
+# Multiplier for chemical accuracy. Loosens model accuracy threshold.
+# Structures in which RMSE E or F > model_acc*chem_acc_multiplier will be considered incorrect.
+chem_acc_multiplier = 10
+
+# Every how many ps keep a structure. 
+# Influences the total number of energy evaluations and possibly DFT calculations.
+al_keep_struct_every_n_ps = 1
+
+# MACE training code and scheduler settings (aiida)
+[mace_train]
+code = "mace_run_train_gpu@tekla2-new-test"
+metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
+metadata.options.resources.tot_num_mpiprocs = 32
+metadata.options.parser_name = "mace-training-parser"
+metadata.options.queue_name = "c128m1024ibgpu4.q"
+metadata.options.max_wallclock_seconds = 117280000
+metadata.options.max_memory_kb = 102400000
+metadata.options.withmpi = true
+metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2188"'''
+result_force_weight = 0.1
+
+# MACE Training Settings (run_mace_train)
+[mace_train.train_settings]
+name = "nnp_training_test"
+energy_key = "free_energy"
+valid_fraction = 0.1
+config_type_weights = { Default = 1.0 }
+weight_decay = 9.34e-07
+E0s = "average"
+num_interactions = 2
+model = "MACE"
+correlation = 3
+hidden_irreps = "16x0e + 16x1o"
+lr = 0.005626773506534471
+r_max = 6.0
+max_ell = 3
+max_L = 2
+batch_size = 64
+max_num_epochs = 30
+swa = true
+ema = true
+ema_decay = 0.99
+amsgrad = true
+restart_latest = true
+device = "cuda"
+default_dtype = "float32"
+wandb = false
+
+# LAMMPS-MACE MD Settings (aiida)
+[lammps_mace]
+code = "mace-lammps-gpu@tekla2-updated-2024"
+metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
+metadata.options.resources.tot_num_mpiprocs = 4
+metadata.options.queue_name = "c128m1024ibgpu4.q"
+metadata.options.max_memory_kb = 102400000
+metadata.options.max_wallclock_seconds = 117280000
+metadata.options.withmpi = false
+metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
+gather_traj_cnt_lattice = true
+
+# Committee Evaluation Settings (MACE)
+[committee_eval]
+device = "cuda"
+dtype = "float32"
+batch_size = 64
+compute_stress = true
