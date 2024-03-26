@@ -1,20 +1,47 @@
 # Active Learning Settings
 [active_learning]
+# Name of the aiida profile to be used
 aiida_profile = ""
-data_path = "/WAREHOUSE/projects/P2/nnp/nnp_tests/active_learning_devel"
-init_db_path = "/WAREHOUSE/projects/P2/nnp/nnp_tests/active_learning_devel/train_data_test.xyz"
-final_db_path = "/WAREHOUSE/projects/P2/nnp/nnp_tests/active_learning_devel/results_db/final_data_test.xyz"
-max_iterations = 3
-seed_size_frac = 0.01
-md_temperature_K = 300.0
-md_num_steps = 100
-md_timestep_duration_ps = 0.003
-commitee_num_models = 2
-chem_acc = 30
-chem_acc_multiplier = 10
-al_keep_frame_interval_perc = 0.005
 
-# MACE training AiiDA code and scheduler settings
+# Path to the folder where the initial database is contained.
+data_path = ""
+
+# Path to the folder where the initial database is contained.
+init_db_path = ""
+final_db_path = ""
+
+# Maximum number of AL loop iterations.
+max_iterations = 3
+
+# Sets total structures in AL seed
+# This influences the amount of MD calculations and E, F evaluations.
+seed_size_frac = 0.01
+
+# MD temperature
+md_temperature_K = 300.0
+
+# Total number of timesteps for the MD simulations
+md_num_steps = 1000
+
+# Duration of each timestep.
+md_timestep_duration_ps = 0.003
+
+# Total number of MACE models
+commitee_num_models = 2
+
+# Threshold value for chemical accuracy in meV. 
+chem_acc = 43
+
+# Multiplier for chemical accuracy. Loosens model accuracy threshold.
+# Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
+chem_acc_multiplier = 10
+
+# Amount of DFT calculations. "Every that %". # REMOVE
+al_keep_frame_interval_perc = 1
+# TODO: Use this one instead. Every how many ps keep a structure.
+al_keep_struct_every_n_ps = 1
+
+# MACE training code and scheduler settings (aiida)
 [mace_train]
 code = "mace_run_train_gpu@tekla2-new-test"
 metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
@@ -28,7 +55,7 @@ metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
 #$ -l hostname="tekla2188"'''
 result_force_weight = 0.1
 
-# MACE Training Settings
+# MACE Training Settings (run_mace_train)
 [mace_train.train_settings]
 name = "nnp_training_test"
 energy_key = "free_energy"
@@ -55,7 +82,7 @@ device = "cuda"
 default_dtype = "float32"
 wandb = false
 
-# LAMMPS-MACE MD Settings
+# LAMMPS-MACE MD Settings (aiida)
 [lammps_mace]
 code = "mace-lammps-gpu@tekla2-updated-2024"
 metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
@@ -67,10 +94,9 @@ metadata.options.withmpi = false
 metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
 gather_traj_cnt_lattice = true
 
-# Committee Evaluation Settings
+# Committee Evaluation Settings (MACE)
 [committee_eval]
 device = "cuda"
 dtype = "float32"
 batch_size = 64
 compute_stress = true
-
