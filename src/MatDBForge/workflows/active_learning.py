@@ -219,7 +219,7 @@ class ActiveLearningWorkChain(WorkChain):
             "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
         )
         spec.input(
-            "al_keep_frame_interval_perc", valid_type=Float, serializer=to_aiida_type
+            "al_keep_frame_interval_perc", valid_type=Int, serializer=to_aiida_type
         )
         spec.input(
             "current_train_seed_structs", valid_type=List, serializer=to_aiida_type
@@ -665,6 +665,20 @@ class ActiveLearningWorkChain(WorkChain):
             workchain_results = workchain.outputs.retrieved
             steps_E_F_arr = self.gather_energies_from_workchain(workchain_results)
             traj, forces = self.gather_traj_from_workchain(workchain_results)
+            print("traj: ", len(traj))
+            print("steps_E_F_arr: ", steps_E_F_arr.shape)
+            print("forces: ", forces.shape)
+
+            # Instead of keeping all frames, select some of them
+            # Get 1 frame every n picoseconds of MD simulation
+            traj, steps_E_F_arr, forces = mdb_al.select_md_frames_to_keep(
+                frame_interval=self.inputs.al_keep_frame_interval_perc,
+                total_n_frames=self.inputs.md_num_steps.value,
+                md_tstep_duration_ps=self.inputs.md_timestep_duration_ps.value,
+                traj=traj,
+                steps_E_F_arr=steps_E_F_arr,
+                forces=forces,
+            )
 
             new_rows.append(
                 {
@@ -952,7 +966,7 @@ class ActiveLearningWorkChain(WorkChain):
         # Every row contains the results of MD for a single structure, which are:
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
-        for idx, row in self.ctx.md_seed_results_df.iterrows():
+        for _, row in self.ctx.md_seed_results_df.iterrows():
             # Getting all energy predictions
             # TODO - For E and F: Do variance
             model_energies_dict = row["energy"]
@@ -993,22 +1007,17 @@ class ActiveLearningWorkChain(WorkChain):
                 delete_indices.append(row["unique_id"])
 
             # If there are some structures to submit or the model does not reach
-            # chemical accuracy, select some of them and send them to DFT.
+            # chemical accuracy, select some of them and mark them for DFT.
             elif not flag_no_error_structs or flag_above_chemical_acc:
                 struct_arr = error_all_structures
 
                 if isinstance(error_all_structures, np.bool_):
                     struct_arr = np.ones_like(energies_std)
 
-                # Instead of keeping them all, select some of them (get 1 frame
-                # every n frames)
-                dft_structures = mdb_al.select_dft_structures(
-                    struct_arr=struct_arr,
-                    frame_interval=self.inputs.al_keep_frame_interval_perc,
-                )
+                selected_high_error = np.nonzero(struct_arr)[0]
 
                 dft_structures = [
-                    row["trajectory"][int(struct)] for struct in dft_structures
+                    row["trajectory"][int(struct)] for struct in selected_high_error
                 ]
 
                 # REMOVE: For testing purposes. Remove this!
