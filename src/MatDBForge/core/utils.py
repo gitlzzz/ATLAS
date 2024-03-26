@@ -60,10 +60,11 @@ def custom_print(string: str, print_type: str = "default", end="\n"):
         Text to be printed
     print_type : str, optional, `default=info`
         Style to use when printing. Available styles are:
-        - `info/default`: prefixes [i] before the string
-        - `warning`: prefixes [!] before the string
-        - `debug`: prefixes [...] before the string
-        - `done`: prefixes [ ✔ ] before the string
+        - `info/default`: prefixes [i] before the string.
+        - `warning/warn`: prefixes [!] before the string.
+        - `debug/extra`: prefixes [...] before the string.
+        - `done/ok`: prefixes [ ✔ ] before the string.
+        - `error/problem`: prefixes [ X ] before the string.
     """
     normal = "\u001b[0m"
 
@@ -91,7 +92,7 @@ def custom_print(string: str, print_type: str = "default", end="\n"):
         logging.getLogger("mdb").debug(
             f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
         )
-    elif print_type in ["done"]:
+    elif print_type in ["done", "ok"]:
         prefix = "\u001b[38;5;46m [ ✔ ]"
         # print(f"{prefix}{normal}\t{string}", end=end)
         logging.getLogger("mdb").info(
@@ -166,9 +167,7 @@ def check_incorrect_ratios(df, curr_phase_diag):
             )
 
             # Checking the total atom number
-            assert (
-                tot_cu + tot_zn == tot_atoms
-            ), f"""Total count does not match.
+            assert tot_cu + tot_zn == tot_atoms, f"""Total count does not match.
             tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}.
             Species: {set(strct.species)}"""
 
@@ -504,9 +503,7 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
     filtered_df = filtered_df[filtered_df["phase"].isin(phase_list)]
 
     # Getting the remaining structures after selecting the phase
-    remaining_df = remaining_df.loc[
-        remaining_df.index.difference(filtered_df.index)
-    ]
+    remaining_df = remaining_df.loc[remaining_df.index.difference(filtered_df.index)]
 
     custom_print(
         f"Number of filtered structures: {filtered_df.shape[0]}",
