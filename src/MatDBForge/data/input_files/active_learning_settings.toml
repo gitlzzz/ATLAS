@@ -34,7 +34,7 @@ name = "nnp_training_test"
 energy_key = "free_energy"
 valid_fraction = 0.1
 config_type_weights = { Default = 1.0 }
-weight_decay = 9.336844675542452e-07
+weight_decay = 9.34e-07
 E0s = "average"
 num_interactions = 2
 model = "MACE"

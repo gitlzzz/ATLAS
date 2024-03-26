@@ -22,7 +22,7 @@ def create_builder(toml_dict: dict):
     Returns
     -------
     ProcessBuilder
-        A process builder that helps setting up the inputs for 
+        A process builder that helps setting up the inputs for
         an ActiveLearningWorkChain.
     """
     # Getting builder for workchain
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         "--config_file",
         help=(
             "path pointing to a TOML settings file. "
-            "The default filename is `active_learning_settings.toml`."
+            "By default `active_learning_settings.toml` will be searched in the CWD."
         ),
         type=pl.Path,
         default="./active_learning_settings.toml",
