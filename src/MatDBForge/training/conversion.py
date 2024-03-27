@@ -366,8 +366,13 @@ def gen_mace_train_structure_list(
         ase_structs = []
         # Converting into ase atoms object
         # len_struct = len(structure_list)
-        structure_list = structure_list.get_list()
+        if not isinstance(structure_list, list):
+            structure_list = structure_list.get_list()
+
         for idd, struct in enumerate(structure_list):
+            if not isinstance(struct, dict):
+                struct = struct.todict()
+
             new_struct = {}
 
             dict_keys_set = set(list(struct.keys()))

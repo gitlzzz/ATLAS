@@ -18,6 +18,8 @@ from aiida.orm import (
     load_node,
 )
 from ase import Atoms
+from ase.io import read as ase_read
+from ase.io import write as ase_write
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
 from MatDBForge.training import conversion as mdb_conv
@@ -58,6 +60,15 @@ def get_model_energies_std(energies_dict):
     energies_std = energies_model_list.std(axis=0)
 
     return energies_std
+
+
+def load_database(path: str):
+    database = ase_read(
+        filename=path,
+        format="extxyz",
+        index=":",
+    )
+    return database
 
 
 # @calcfunction
@@ -129,7 +140,6 @@ def select_md_frames_to_keep(
     steps_E_F_arr_sampled = steps_E_F_arr[mask]
     forces_sampled = forces[mask]
 
-    print('steps_E_F_arr_sampled: ', steps_E_F_arr_sampled.shape)
     return traj_sampled, steps_E_F_arr_sampled, forces_sampled
 
 
@@ -379,13 +389,9 @@ def serialize_ase(curr_s) -> dict:
 
 
 @calcfunction
-def prepare_output_final_training_db(training_db_list):
-    # Converting training_db to aiida types
-    struct_list = []
-    for ase_struct in training_db_list:
-        struct_list.append(ase_struct)
-
-    return List(struct_list)
+def prepare_output_final_training_db(training_db_path):
+    train_db = SinglefileData(file=training_db_path.value)
+    return train_db
 
 
 @calcfunction
@@ -473,40 +479,48 @@ def vasprun_add_info_dict(vasprun_dict, calc_info_dict):
 
 
 @calcfunction
-def remove_structs_from_seed_gen_db(seed_gen: List, delete_indices: list) -> List:
+def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) -> List:
     """
     Remove specified structures from a seed generation database based on UUIDs.
 
     This function iterates over a list of UUIDs (delete_indices) and removes the
     corresponding structures from a seed generation database. The database is accessed
-    and modified via the `seed_gen` object, which is converted to a list.
+    via the `seed_gen_db` object, which is loaded from the `seed_gen_path` using ASE.
     Each element of the list is an ase.Atoms object with an unique identifier
     (`aiida_uuid`) in the info attribute.
-    The function returns the modified list of structures after the specified ones
-    have been removed.
+    The function writes the modified list back into `seed_gen_path` after the specified
+    ones have been removed. No list is returned into the workchain to avoid having
+    to serialize the atoms list.
 
     Parameters
     ----------
-    seed_gen : List
-        An object that contains the seed generation database.
+    seed_gen : Str | str
+        The path to the seed generation database.
     delete_indices : list
         A list of UUIDs (strings) identifying the structures to be removed
         from the seed generation database.
 
-    Returns
-    -------
-    List
-        An aiida List of the remaining structures in the seed generation database
-        after the specified structures have been removed.
     """
-    seed_gen_db = seed_gen.get_list()
+    if isinstance(seed_gen_path, str):
+        seed_gen_db = load_database(seed_gen_path.value)
+    elif isinstance(seed_gen_path, Str):
+        seed_gen_db = load_database(seed_gen_path.value)
+
+    if not isinstance(seed_gen_db, list):
+        seed_gen_db = seed_gen_path.get_list()
+
     for curr_uuid in delete_indices:
         for del_idx, struct in enumerate(seed_gen_db):
+            struct: Atoms = struct.todict()
             struct_uuid = struct["info"]["aiida_uuid"]
             if curr_uuid == struct_uuid:
                 del seed_gen_db[del_idx]
 
-    return List(seed_gen_db)
+    ase_write(
+        filename=seed_gen_path.value,
+        images=seed_gen_db,
+        format="extxyz",
+    )
 
 
 @calcfunction

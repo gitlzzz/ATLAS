@@ -9,12 +9,11 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 from aiida import load_profile
-from aiida.engine import run
+from aiida.engine import submit
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 
 from MatDBForge.core import DATA_DIR
-from MatDBForge.core.utils import custom_print as cp
 
 
 def create_active_learning_builder(toml_dict: dict):
@@ -39,6 +38,7 @@ def create_active_learning_builder(toml_dict: dict):
     # General AL settings
     al_conf = toml_dict["active_learning"]
     builder.active_learning.data_path = al_conf["data_path"]
+    builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.init_db_path = al_conf["init_db_path"]
     builder.active_learning.final_db_path = al_conf["final_db_path"]
     builder.active_learning.max_iterations = Int(al_conf["max_iterations"])
@@ -94,7 +94,7 @@ def run_active_learning():
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)
 
-    node = run(builder)
+    node = submit(builder)
 
 
 def gen_default_config():

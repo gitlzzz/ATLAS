@@ -2,6 +2,7 @@
 
 import io
 import json
+import shutil
 import time
 from pathlib import Path
 
@@ -208,6 +209,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("init_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("final_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("data_path", valid_type=Str, serializer=to_aiida_type)
+        spec.input("results_dir", valid_type=Str, serializer=to_aiida_type)
         spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
         spec.input("seed_size_frac", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
@@ -223,12 +225,8 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input(
             "current_train_seed_structs", valid_type=List, serializer=to_aiida_type
         )
-        spec.input(
-            "seed_gen_db",
-            valid_type=List,
-            non_db=True,
-        )
-        spec.input("database_training", valid_type=List, serializer=to_aiida_type)
+        spec.input("seed_db_path", valid_type=Str, serializer=to_aiida_type)
+        spec.input("training_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input(
             "current_train_seed_structs_idx",
             valid_type=List,
@@ -273,7 +271,6 @@ class ActiveLearningWorkChain(WorkChain):
         )
         spec.output("dft_calcs", valid_type=List, required=False)
         spec.output("m0_model_file", valid_type=SinglefileData)
-        spec.output("upd_seed_gen_db", valid_type=List)
         spec.output("stop_md_seed_no_disagreement", valid_type=Bool)
 
         # spec.exit_code(
@@ -309,10 +306,12 @@ class ActiveLearningWorkChain(WorkChain):
             path.parent / (str(path.stem) + f"_{caller_uuid}{path.suffix}")
         )
 
+        database_training = mdb_al.load_database(self.inputs.training_db_path.value)
+
         # Generate new training data file
         mdb_conv.gen_mace_train_structure_list(
             path=updated_path,
-            structure_list=self.inputs.database_training,
+            structure_list=database_training,
         )
 
         # Train n models (M1-Mn)
@@ -324,7 +323,7 @@ class ActiveLearningWorkChain(WorkChain):
             "current iteration data."
         )
 
-        for model_num in range(self.inputs.commitee_num_models.value + 1):
+        for model_num in range(self.inputs.commitee_num_models.value):
             model_name = mdb_al.generate_model_name()
 
             # Load training settings from inputs and update path and model names.
@@ -1037,20 +1036,14 @@ class ActiveLearningWorkChain(WorkChain):
                 f"Deleting {len(delete_indices)} structures from seed"
                 " generating DB (Ds)"
             )
-            seed_gen_db = mdb_al.remove_structs_from_seed_gen_db(
-                self.inputs.seed_gen_db, delete_indices
-            )
 
-            self.inputs.seed_gen_db = seed_gen_db
-            self.out("upd_seed_gen_db", seed_gen_db)
+            mdb_al.remove_structs_from_seed_gen_db(
+                self.inputs.seed_db_path, delete_indices
+            )
 
         # If no structure is well represented, nothing will be deleted.
         else:
             self.report("Nothing removed from DB.")
-            self.out("upd_seed_gen_db", self.inputs.seed_gen_db)
-
-        # if isinstance(seed_gen_db, list):
-        # self.inputs.seed_gen_db = List(self.inputs.seed_gen_db)
 
     def return_seed_dft(self):
         """
@@ -1096,6 +1089,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "al_loop_iteration",
                 "train_seed_group",
                 "seed_gen_db",
+                "seed_db_path",
+                "training_db_path",
                 "database_training",
             ],
         )
@@ -1113,7 +1108,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # training database (Dt) without changing the original database.
             # Additionally, create a copy of the database (seed_gen_db, Ds),
             # this will be used to generate the MD seeds.
-            cls.get_database,
+            # cls.get_database,
             # Create inputs for workchains and initialize iterative counter
             cls.setup,
             # This part will loop to complete the process
@@ -1140,7 +1135,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         spec.output(
             "final_training_db",
-            valid_type=List,
+            valid_type=SinglefileData,
         )
         spec.output("final_model_file", valid_type=SinglefileData)
 
@@ -1173,7 +1168,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
 
     def results_loop(self):
-        """Attach the outputs specified in the output specification from the last completed process."""
+        """Attach the outputs specified in the spec from the last completed process."""
         node = self.ctx.children[self.ctx.iteration - 1]
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
@@ -1182,15 +1177,18 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     def add_dft_results_to_db(self):
         """
-        Incorporate DFT calculation results into the training and seed generation databases.
+        Incorporate DFT calculation results into the training/seed generation databases.
 
-        This method updates the training and seed generation databases with DFT calculation
-        results. If any DFT calculations have been performed, their results are appended to
-        both the training database and the seed generation database.
+        This method updates the training and seed generation databases with DFT
+        calculation results. If any DFT calculations have been performed,
+        their results are appended to both the training database and the seed
+        generation database.
         """
         # Updating current training seed
-        self.ctx.seed_gen_db = self.outputs["upd_seed_gen_db"]
-        self.ctx.inputs.seed_gen_db = self.outputs["upd_seed_gen_db"]
+        seed_gen_db = mdb_al.load_database(self.ctx.seed_db_path)
+        training_db = mdb_al.load_database(self.ctx.training_db_path)
+        # self.ctx.seed_gen_db = self.outputs["upd_seed_gen_db"]
+        # self.ctx.inputs.seed_gen_db = self.outputs["upd_seed_gen_db"]
 
         try:
             cnt_dft_calcs = len(self.outputs["dft_calcs"])
@@ -1200,45 +1198,32 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if cnt_dft_calcs > 0:
             self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
 
-            seed_gen_db = self.ctx.seed_gen_db.get_list()
             # Adding calculations to training database and seed_generation database
             for dft_calc in self.outputs["dft_calcs"]:
-                self.ctx.database_training = np.append(
-                    self.ctx.database_training, dft_calc
-                )
                 seed_gen_db.append(dft_calc)
-
-            self.ctx.seed_gen_db = List(seed_gen_db)
-            self.ctx.seed_gen_db.store()
-            self.ctx.inputs.seed_gen_db = self.ctx.seed_gen_db
+                training_db.append(dft_calc)
 
         self.report(
             f"Iteration {self.ctx.iteration}: "
-            f"seed_gen_db {len(self.ctx.seed_gen_db)}, "
-            f"training_db: {len(self.ctx.database_training)} entries"
+            f"seed_gen_db {len(seed_gen_db)}, "
+            f"training_db: {len(training_db)} entries"
         )
 
-        # Updating final database
-        self.report("Updating database file...")
-
-        database_training_all_ase = mdb_al.convert_database_to_ase_atoms(
-            self.ctx.database_training, deserialize=True
-        )
-
-        path = Path(self.ctx.inputs.final_db_path.value)
-        caller_uuid = mdb_al.process_call_root(self.node)
-        final_db_path = path.parent / (str(path.stem) + f"_{caller_uuid}{path.suffix}")
+        # Updating final and seed database.
+        self.report("Updating database files...")
 
         ase_write(
-            filename=final_db_path,
-            images=database_training_all_ase,
+            filename=self.ctx.training_db_path,
+            images=training_db,
+            format="extxyz",
+        )
+        ase_write(
+            filename=self.ctx.seed_db_path,
+            images=seed_gen_db,
             format="extxyz",
         )
 
-        for idx, struct in enumerate(database_training_all_ase):
-            database_training_all_ase[idx] = mdb_al.serialize_ase(struct)
-
-        self.report("Database file updated.")
+        self.report("Database files updated.")
 
     def get_al_loop_break_conditions(self):
         """
@@ -1260,7 +1245,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         ]
 
         # Sending empty seed_gen_db flag to context
-        if len(self.ctx.inputs.seed_gen_db) == 0:
+        seed_gen_db = mdb_al.load_database(self.ctx.inputs.seed_db_path)
+        if len(seed_gen_db) == 0:
             self.ctx.seed_gen_db_all_structs_removed = Bool(True)
         else:
             self.ctx.seed_gen_db_all_structs_removed = Bool(False)
@@ -1316,17 +1302,20 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.stop_md_seed_no_disagreement = Bool(False)
         self.ctx.seed_gen_db_all_structs_removed = Bool(False)
 
-        seed_db_serialized = []
-        database_training_serialized = []
-        for s in self.ctx.seed_gen_db:
-            curr_s = mdb_al.serialize_ase(s)
-            seed_db_serialized.append(curr_s)
-            database_training_serialized.append(curr_s)
+        # HACK: Temporary. Use pathlib. Move this to cls.get_database. Add uuid to flename.
+        # Create files for database_training and seed_gen_db
+        results_dir_path = Path(self.ctx.inputs.results_dir.value)
+        if not results_dir_path.exists():
+            results_dir_path.mkdir()
 
-        self.ctx.inputs.seed_gen_db = List(seed_db_serialized)
-        self.ctx.inputs.database_training = List(database_training_serialized)
+        self.ctx.seed_db_path = results_dir_path / "seed_db.xyz"
+        shutil.copy(self.ctx.inputs.init_db_path.value, self.ctx.seed_db_path)
+        self.ctx.training_db_path = results_dir_path / "training_db.xyz"
+        shutil.copy(self.ctx.inputs.init_db_path.value, self.ctx.training_db_path)
 
-        self.ctx.init_seed_gen_db_size = len(seed_db_serialized)
+        self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
+        self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
+
         self.report("Workchain setup finished.")
 
     def check_al_loop_conditions(self) -> bool:
@@ -1382,7 +1371,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
         else:
             self.report(
-                f"Proceeding with iteration-{self.ctx.iteration} of AL Loop "
+                f"Proceeding with iteration-{self.ctx.iteration+1} of AL Loop "
                 "as stopping conditions not met."
             )
             self.ctx.inputs.al_loop_iteration = self.ctx.iteration
@@ -1404,7 +1393,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             structures.
         """
         self.report(
-            f"Starting AL Loop iteration {self.ctx.iteration}/"
+            f"Starting AL Loop iteration {self.ctx.iteration+1}/"
             f"{self.inputs.active_learning.max_iterations.value}..."
         )
         self.report("Getting training seed...")
@@ -1414,13 +1403,12 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         self.ctx.inputs.metadata.label = f"Step - {self.ctx.inputs.al_loop_iteration}"
 
+        seed_gen_db = mdb_al.load_database(self.ctx.seed_db_path)
         # Getting length of the seed generating database
-        db_length = len(self.ctx.seed_gen_db)
+        db_length = len(seed_gen_db)
 
         # Defining the current seed size as a function of the intial seed size
-        seed_size = int(
-            self.ctx.inputs.seed_size_frac.value * self.ctx.init_seed_gen_db_size
-        )
+        seed_size = int(self.ctx.inputs.seed_size_frac.value * db_length)
 
         # This should avoid tring to select more structures than available
         if seed_size > db_length:
@@ -1446,7 +1434,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Populating training seed with the selected random structures
         for idx in selected_structs:
-            self.ctx.current_train_seed_structs.append(self.ctx.seed_gen_db[idx])
+            self.ctx.current_train_seed_structs.append(seed_gen_db[idx])
 
         self.report(
             f"Created training seed with {seed_size}"
@@ -1474,16 +1462,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """
         self.report("Returning final results...")
 
-        # Converting final training_db to aiida types
-        struct_list_serialized = []
-        for curr_s in list(self.ctx.database_training):
-            curr_s = mdb_al.serialize_ase(curr_s)
-            struct_list_serialized.append(curr_s)
-
-        self.ctx.serialized_struct_list = struct_list_serialized
-
+        # Storing final database as a SingleFileData object
         train_db = mdb_al.prepare_output_final_training_db(
-            self.ctx.serialized_struct_list
+            training_db_path=self.ctx.inputs.training_db_path
         )
 
         self.out("final_training_db", train_db)
