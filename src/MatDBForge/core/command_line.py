@@ -9,12 +9,11 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 from aiida import load_profile
-from aiida.engine import run
+from aiida.engine import submit, run
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 
 from MatDBForge.core import DATA_DIR
-from MatDBForge.core.utils import custom_print as cp
 
 
 def create_active_learning_builder(toml_dict: dict):
@@ -39,8 +38,9 @@ def create_active_learning_builder(toml_dict: dict):
     # General AL settings
     al_conf = toml_dict["active_learning"]
     builder.active_learning.data_path = al_conf["data_path"]
+    builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.init_db_path = al_conf["init_db_path"]
-    builder.active_learning.final_db_path = al_conf["final_db_path"]
+    builder.active_learning.final_db_name = al_conf["final_db_name"]
     builder.active_learning.max_iterations = Int(al_conf["max_iterations"])
     builder.active_learning.seed_size_frac = al_conf["seed_size_frac"]
     builder.active_learning.md_temperature_K = al_conf["md_temperature_K"]
@@ -81,6 +81,7 @@ def run_active_learning():
         default="./active_learning_settings.toml",
         metavar="PATH",
     )
+
     # Getting CLI arguments
     args = parser.parse_args()
 
@@ -95,6 +96,7 @@ def run_active_learning():
     builder = create_active_learning_builder(toml_dict)
 
     node = run(builder)
+    # print("Calculation uuid: ", node.uuid)
 
 
 def gen_default_config():

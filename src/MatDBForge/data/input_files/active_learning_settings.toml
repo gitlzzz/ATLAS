@@ -10,6 +10,9 @@ data_path = ""
 init_db_path = ""
 final_db_path = ""
 
+# Path to the folder where the results will be stored.
+results_dir = ""
+
 # Maximum number of AL loop iterations.
 max_iterations = 3
 

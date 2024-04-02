@@ -30,15 +30,15 @@ def mdb_database_to_mace_train(mdb_database: "mdb_indb.InitialDatabase"):
     # Gathering all structures in an InitialDatabase.
     # Generate an entry for every structure.
     # Write the entry into a file. Use Multithread?
-    ...
+    raise NotImplementedError
 
 
 def _vasprun_to_extended_xyz(structure: "mdb_strc.Structure"):
-    ...
+    raise NotImplementedError
 
 
 def _structure_to_extended_xyz(structure: "mdb_strc.Structure"):
-    ...
+    raise NotImplementedError
 
 
 def _add_entry_to_mace_input(
@@ -354,7 +354,7 @@ def gen_mace_train_structure_list(
     skip_free_energy=False,
 ):
     # Handling path
-    if path and isinstance(path, str):
+    if path and isinstance(path, (str, pathlib.Path)):
         path = pathlib.Path(path).resolve()
     else:
         path = pathlib.Path().resolve()
@@ -366,8 +366,13 @@ def gen_mace_train_structure_list(
         ase_structs = []
         # Converting into ase atoms object
         # len_struct = len(structure_list)
-        structure_list = structure_list.get_list()
+        if not isinstance(structure_list, list):
+            structure_list = structure_list.get_list()
+
         for idd, struct in enumerate(structure_list):
+            if not isinstance(struct, dict):
+                struct = struct.todict()
+
             new_struct = {}
 
             dict_keys_set = set(list(struct.keys()))
