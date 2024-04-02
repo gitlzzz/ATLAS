@@ -2,6 +2,7 @@
 
 import io
 import json
+import re
 import shutil
 import time
 from pathlib import Path
@@ -787,16 +788,19 @@ class ActiveLearningWorkChain(WorkChain):
         # Separate the file the file into lines
         lines = traj_data.splitlines()
 
-        num_atoms = 0
-        num_frames = 0
+        # Typical LAMMPS structure header size
         offset = 9
 
-        # Get the number of atoms and the total number of frames
-        for posc, line in enumerate(lines):
-            if "ITEM: NUMBER OF ATOMS" in line:
-                num_atoms = int(lines[posc + 1])
-            elif "ITEM: TIMESTEP" in line:
-                num_frames = int(lines[posc + 1])
+        # Get the number of atoms
+        num_atoms_list = re.findall(
+            r"ITEM: NUMBER OF ATOMS\s\d*",
+            string=traj_data,
+        )
+        num_atoms = int(num_atoms_list[0].split("\n")[1])
+
+        # Get the total number of frames
+        num_frames_list = re.findall(r"ITEM: TIMESTEP\s\d*", string=traj_data)
+        num_frames = int(num_frames_list[-1].split("\n")[1])
 
         # assembling a pymatgen structure
         struct_list = []
@@ -809,6 +813,15 @@ class ActiveLearningWorkChain(WorkChain):
             curr_struct_info = np.array([line.split() for line in curr_struct_list[9:]])
 
             curr_struct_coords = curr_struct_info[:, :5]
+
+            # This will skip the current structure if the number of atoms is
+            # different than expected.
+            # This situation may arise when the potential is not good
+            # enough and results in very high forces applied to the structure,
+            # sending some atoms outside of the cell.
+            if curr_struct_coords.shape[0] != num_atoms:
+                continue
+
             curr_struct_forces = curr_struct_info[:, 5:].astype(np.float32)
 
             # Lammps box bounds snapshot format
@@ -836,7 +849,13 @@ class ActiveLearningWorkChain(WorkChain):
             struct_list.append(curr_struct)
             forces_list.append(curr_struct_forces)
 
-        cnt_lat_setting = self.inputs.lammps_mace.get("gather_traj_cnt_lattice", True)
+        # This flag selects if a constant lattice volume is assumed
+        # for all frames.
+        cnt_lat_setting = self.inputs.lammps_mace.get(
+            "gather_traj_cnt_lattice",
+            True,
+        )
+
         traj = Trajectory.from_structures(
             struct_list,
             constant_lattice=cnt_lat_setting,
