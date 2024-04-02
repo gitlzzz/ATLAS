@@ -159,11 +159,8 @@ class TrainMACEModelCalculation(CalcJob):
         # Adding random seed
         params_list.append(f"--seed={np.random.randint(1, 100000000)}")
 
-        path = Path(self.inputs.mace_train_file_path.value)
-        caller_uuid = mdb_al.process_call_root(self.node)
-        final_db_path = path.parent / (str(path.stem) + f"_{caller_uuid}{path.suffix}")
-
         # Copying database to temporary folder
+        final_db_path = self.inputs.mace_train_file_path.value
         folder.insert_path(
             src=final_db_path,
             dest_name=self.inputs.mace_settings_dict["train_file"],
@@ -207,7 +204,7 @@ class ActiveLearningWorkChain(WorkChain):
         super().define(spec)
 
         spec.input("init_db_path", valid_type=Str, serializer=to_aiida_type)
-        spec.input("final_db_path", valid_type=Str, serializer=to_aiida_type)
+        spec.input("final_db_name", valid_type=Str, serializer=to_aiida_type)
         spec.input("data_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("results_dir", valid_type=Str, serializer=to_aiida_type)
         spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
@@ -215,12 +212,12 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
         spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
         spec.input("commitee_num_models", valid_type=Int, serializer=to_aiida_type)
-        spec.input("model_acc_multiplier", valid_type=Int, serializer=to_aiida_type)
+        spec.input("model_acc_multiplier", valid_type=Float, serializer=to_aiida_type)
         spec.input(
             "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
         )
         spec.input(
-            "al_keep_struct_every_n_ps", valid_type=Int, serializer=to_aiida_type
+            "al_keep_struct_every_n_ps", valid_type=Float, serializer=to_aiida_type
         )
         spec.input(
             "current_train_seed_structs", valid_type=List, serializer=to_aiida_type
@@ -300,10 +297,10 @@ class ActiveLearningWorkChain(WorkChain):
         self.report("Generating new training database file.")
 
         # Adding workchain uuid input.data filename to path
-        caller_uuid = mdb_al.process_call_root(load_node(self.uuid))
-        path = Path(self.inputs.final_db_path.value)
-        updated_path = str(
-            path.parent / (str(path.stem) + f"_{caller_uuid}{path.suffix}")
+        updated_path, _ = mdb_al.get_final_db_path(
+            result_dir_path=self.inputs.results_dir.value,
+            final_db_name=self.inputs.final_db_name.value,
+            node=mdb_al.process_call_root(load_node(self.uuid)),
         )
 
         database_training = mdb_al.load_database(self.inputs.training_db_path.value)
@@ -329,7 +326,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Load training settings from inputs and update path and model names.
             mace_train_settings: Dict = mdb_al.update_mace_train_settings_dict(
                 settings_dict=self.inputs.mace_train.get("train_settings"),
-                train_data_path=updated_path,
+                train_data_path=str(updated_path),
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
             )
@@ -340,7 +337,13 @@ class ActiveLearningWorkChain(WorkChain):
 
             mace_builder.model_name = model_name
             mace_builder.mace_settings_dict = Dict(mace_train_settings)
-            mace_builder.mace_train_file_path = self.inputs.final_db_path.value
+
+            mace_train_file_path, _ = mdb_al.get_final_db_path(
+                result_dir_path=self.inputs.results_dir.value,
+                final_db_name=self.inputs.final_db_name.value,
+                node=self.node,
+            )
+            mace_builder.mace_train_file_path = str(mace_train_file_path)
 
             mace_builder.code = load_code(self.inputs.mace_train.dict.code)
             mace_builder.metadata.options.withmpi = True
@@ -1308,9 +1311,16 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if not results_dir_path.exists():
             results_dir_path.mkdir()
 
-        self.ctx.seed_db_path = results_dir_path / "seed_db.xyz"
+        final_db_path, curr_run_results_dir = mdb_al.get_final_db_path(
+            result_dir_path=results_dir_path,
+            final_db_name=self.inputs.active_learning.final_db_name.value,
+            node=self.node,
+        )
+
+        self.ctx.seed_db_path = curr_run_results_dir / "seed_db.xyz"
         shutil.copy(self.ctx.inputs.init_db_path.value, self.ctx.seed_db_path)
-        self.ctx.training_db_path = results_dir_path / "training_db.xyz"
+        # self.ctx.training_db_path = curr_run_results_dir / "training_db.xyz"
+        self.ctx.training_db_path = final_db_path
         shutil.copy(self.ctx.inputs.init_db_path.value, self.ctx.training_db_path)
 
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)

@@ -354,7 +354,7 @@ def gen_mace_train_structure_list(
     skip_free_energy=False,
 ):
     # Handling path
-    if path and isinstance(path, str):
+    if path and isinstance(path, (str, pathlib.Path)):
         path = pathlib.Path(path).resolve()
     else:
         path = pathlib.Path().resolve()
