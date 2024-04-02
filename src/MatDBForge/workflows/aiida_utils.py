@@ -436,7 +436,7 @@ def submit_aiida_calculation(
     builder = workchain.get_builder()
 
     # Passing the all inputs to the builder object
-    
+
     builder["code"] = orm.load_code(code_string)
     # builder["converge"] = CONVERGE
 

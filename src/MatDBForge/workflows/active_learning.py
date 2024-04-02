@@ -967,9 +967,9 @@ class ActiveLearningWorkChain(WorkChain):
                     # forces_norm = np.linalg.norm(forces_list, axis=2)
                     # total_force_norm_per_frame = forces_norm.sum(axis=1)
 
-                    self.ctx.md_seed_results_df.at[row[0], "forces"][
-                        model_name
-                    ] = forces_list  # total_force_norm_per_frame
+                    self.ctx.md_seed_results_df.at[row[0], "forces"][model_name] = (
+                        forces_list  # total_force_norm_per_frame
+                    )
 
     def send_calc_or_remove_structures(self):
         self.report("Deciding which structures to keep...")
