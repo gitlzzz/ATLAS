@@ -82,6 +82,7 @@ def run_active_learning():
         default="./active_learning_settings.toml",
         metavar="PATH",
     )
+
     # Getting CLI arguments
     args = parser.parse_args()
 

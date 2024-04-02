@@ -56,7 +56,7 @@ def get_model_forces_std(forces_dict):
 
 
 def get_model_energies_std(energies_dict):
-    energies_model_list = model_res_dict_to_arr(energies_dict)
+    energies_model_list: np.ndarray = model_res_dict_to_arr(energies_dict)
     energies_std = energies_model_list.std(axis=0)
 
     return energies_std
@@ -178,31 +178,31 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
     queue_dict = {
         2: {
             "type": "sge",
-            "node_cpus": 48,
+            "node_cpus": 24,
             "code_string": "vasp-std-5.4.4-new@tekla2-new-test",
             "options_resources": {
-                "parallel_env": "c48m256ib_mpi",
-                "tot_num_mpiprocs": 48,
+                "parallel_env": "c24m128ib_mpi",
+                "tot_num_mpiprocs": 24,
             },
             "multiple": 1,
         },
         5: {
             "type": "sge",
-            "node_cpus": 48,
+            "node_cpus": 24,
             "code_string": "vasp-std-5.4.4-new@tekla2-new-test",
             "options_resources": {
-                "parallel_env": "c48m256ib_mpi",
-                "tot_num_mpiprocs": 48,
+                "parallel_env": "c24m128ib_mpi",
+                "tot_num_mpiprocs": 24,
             },
             "multiple": 1,
         },
         40: {
             "type": "sge",
-            "node_cpus": 48,
+            "node_cpus": 24,
             "code_string": "vasp-std-5.4.4-new@tekla2-new-test",
             "options_resources": {
-                "parallel_env": "c48m256ib_mpi",
-                "tot_num_mpiprocs": 48,
+                "parallel_env": "c24m128ib_mpi",
+                "tot_num_mpiprocs": 24,
             },
             "multiple": 1,
         },
@@ -231,10 +231,6 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
         group=group,
     )
     return builder
-
-
-def identify_struct_type(struct):
-    ...
 
 
 def generate_model_name():

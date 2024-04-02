@@ -30,15 +30,15 @@ def mdb_database_to_mace_train(mdb_database: "mdb_indb.InitialDatabase"):
     # Gathering all structures in an InitialDatabase.
     # Generate an entry for every structure.
     # Write the entry into a file. Use Multithread?
-    ...
+    raise NotImplementedError
 
 
 def _vasprun_to_extended_xyz(structure: "mdb_strc.Structure"):
-    ...
+    raise NotImplementedError
 
 
 def _structure_to_extended_xyz(structure: "mdb_strc.Structure"):
-    ...
+    raise NotImplementedError
 
 
 def _add_entry_to_mace_input(

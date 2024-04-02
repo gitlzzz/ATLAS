@@ -312,12 +312,12 @@ class ActiveLearningWorkChain(WorkChain):
             structure_list=database_training,
         )
 
-        # Train n models (M1-Mn)
+        # Train n models (M0-Mn)
         # The most accurate model (during validation) will be chosen as the main model,
         # and used to drive the MD simulations. The remaining models will act as
         # commitee models and will only be used to evaluate energies.
         self.report(
-            f"Training M0 - M{self.inputs.commitee_num_models.value} using "
+            f"Training M0 - M{self.inputs.commitee_num_models.value-1} using "
             "current iteration data."
         )
 
@@ -392,7 +392,10 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Adding E + F multiplied by a weight value, in order to consider
             # forces when deciding which model to keep
-            force_weight = self.inputs.mace_train.get("result_force_weight", 0.1)
+            force_weight = self.inputs.mace_train.get(
+                "result_force_weight",
+                0.1,
+            )
             weighted_E_F_sum = curr_calc.outputs.m_rmse_e.value + (
                 force_weight * curr_calc.outputs.m_rmse_f
             )
@@ -435,8 +438,8 @@ class ActiveLearningWorkChain(WorkChain):
             else:
                 self.report(
                     f"Trained commitee model '{model_name}' - "
-                    f"RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV / at, "
-                    f"RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV / Å"
+                    f"RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV/at, "
+                    f"RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV/Å"
                 )
                 commitee_models_tupl_name_uuid.append((model_name, model_file.uuid))
 
@@ -659,7 +662,7 @@ class ActiveLearningWorkChain(WorkChain):
         aggregates these into a structured format. The collected data is then organized
         into a pandas DataFrame, which is stored in the workflow's context.
         """
-        self.report("Gathering M0 MD results for the current seed...")
+        self.report("Gathering best model MD results for the current seed...")
         new_rows = []
 
         # Gathering all results
@@ -756,31 +759,34 @@ class ActiveLearningWorkChain(WorkChain):
 
     def gather_traj_from_workchain(self, workchain_results: FolderData) -> Trajectory:
         """
-        Extracts trajectory data from a LammpsRawCalculation as pymatgen Trajectory.
+        Extracts trajectory data from a `LammpsRawCalculation` as pymatgen Trajectory.
 
-        This function parses 'structure.lammpstrj' from the given workchain results to
-        extract atomic coordinates and lattice information. It then constructs a
-        sequence of pymatgen Structure objects, representing each frame of the
-        trajectory, which are combined into a pymatgen Trajectory object.
+        This function parses `structure.lammpstrj` from the given workchain
+        results to extract atomic coordinates and lattice information.
+        It then constructs a sequence of pymatgen Structure objects
+        representing each frame of the trajectory which are combined
+        into a pymatgen Trajectory object.
 
         Parameters
         ----------
-        workchain_results : object
-            An object containing the results of a workchain, expected to have a method
-            `get_object_content` to retrieve the content of 'structure.lammpstrj'.
+        workchain_results : FolderData
+            A FolderData containing the results of a workchain, expected to have
+            a method `get_object_content` to retrieve the contents of `structure.lammpstrj`.
 
         Returns
         -------
         Trajectory
-            A pymatgen Trajectory object representing the sequence of structures over time.
+            A pymatgen Trajectory object representing the structure over time.
         np.array
-            A (n_frames x n x 3) numpy array containing the forces of every atom.
+            A (n_frames x n x 3) numpy array containing the
+            forces of every atom.
 
         Notes
         -----
-        The function currently assumes a constant lattice across all frames and extracts
-        the number of atoms and frames from the trajectory file. The time step duration is
-        taken from `self.inputs.md_timestep_duration_ps.value`.
+        The user can change the `gather_traj_cnt_lattice` input to True/False to
+        select if the lattice changes during the simulation.
+        The function extracts the num of atoms and frames from the traj file.
+        The step duration is `self.inputs.md_timestep_duration_ps.value`
         """
         # Get trajectory file from aiida repo node
         traj_data = workchain_results.get_object_content("structure.lammpstrj")
@@ -909,7 +915,6 @@ class ActiveLearningWorkChain(WorkChain):
                         [int(z) for z in model.atomic_numbers]
                     )
 
-                    # TODO: Use MACE settings input to set the settings.
                     batch_size = self.inputs.committee_eval.get_dict().get(
                         "batch_size", 64
                     )
@@ -993,7 +998,7 @@ class ActiveLearningWorkChain(WorkChain):
             error_e_structures = np.ma.make_mask(energies_std >= e_error_threshold)
 
             model_forces_dict = row["forces"]
-            forces_std = mdb_al.get_model_energies_std(model_forces_dict)
+            forces_std = mdb_al.get_model_forces_std(model_forces_dict)
             forces_std_norm = np.linalg.norm(forces_std, axis=2)
             forces_std_norm_max = np.amax(forces_std_norm, axis=1)
 
@@ -1003,8 +1008,8 @@ class ActiveLearningWorkChain(WorkChain):
                 forces_std_norm_max >= f_error_threshold
             )
 
-            # Joining both error masks to get a single True/False array marking structures
-            # to be computed
+            # Joining both error masks to get a single True/False array marking
+            # structures to be computed
             error_all_structures = np.ma.mask_or(error_e_structures, error_f_structures)
 
             # If all values in error_all_structures are false, delete the main
@@ -1130,6 +1135,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # training database (Dt) without changing the original database.
             # Additionally, create a copy of the database (seed_gen_db, Ds),
             # this will be used to generate the MD seeds.
+            # TODO: Move some things that are in functions below
             # cls.get_database,
             # Create inputs for workchains and initialize iterative counter
             cls.setup,
@@ -1399,10 +1405,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "Stopping AL Loop as seed generating database has been depleted."
             )
         else:
-            self.report(
-                f"Proceeding with iteration-{self.ctx.iteration+1} of AL Loop "
-                "as stopping conditions not met."
-            )
+            if self.ctx.iteration != 0:
+                self.report(
+                    f"Proceeding with iteration-{self.ctx.iteration+1} of AL Loop "
+                    "as stopping conditions not met."
+                )
             self.ctx.inputs.al_loop_iteration = self.ctx.iteration
 
         return continue_cond
@@ -1430,7 +1437,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             "Perform MD simulations, evaluate and refine ML models. "
             f"Step: {self.ctx.inputs.al_loop_iteration}"
         )
-        self.ctx.inputs.metadata.label = f"Step - {self.ctx.inputs.al_loop_iteration}"
+        self.ctx.inputs.metadata.label = f"Step - {self.ctx.iteration+1}"
 
         seed_gen_db = mdb_al.load_database(self.ctx.seed_db_path)
         # Getting length of the seed generating database
