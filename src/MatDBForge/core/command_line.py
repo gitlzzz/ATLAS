@@ -9,7 +9,7 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 from aiida import load_profile
-from aiida.engine import submit
+from aiida.engine import submit, run
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 
@@ -40,7 +40,6 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.data_path = al_conf["data_path"]
     builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.init_db_path = al_conf["init_db_path"]
-    # builder.active_learning.final_db_path = al_conf["final_db_path"]
     builder.active_learning.final_db_name = al_conf["final_db_name"]
     builder.active_learning.max_iterations = Int(al_conf["max_iterations"])
     builder.active_learning.seed_size_frac = al_conf["seed_size_frac"]
@@ -96,7 +95,8 @@ def run_active_learning():
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)
 
-    node = submit(builder)
+    node = run(builder)
+    # print("Calculation uuid: ", node.uuid)
 
 
 def gen_default_config():
