@@ -1,8 +1,8 @@
 """Generate inputs for the MACE potential."""
 import pathlib as pl
 
+import MatDBForge.active_learning.conversion as mdb_train_cnv
 import MatDBForge.core.utils as mdb_ut
-import MatDBForge.training.conversion as mdb_train_cnv
 
 LOG_PATH = "/tmp"
 mdb_ut.init_logger(source=pl.Path(__file__).stem, log_path=LOG_PATH)

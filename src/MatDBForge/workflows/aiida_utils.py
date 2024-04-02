@@ -12,17 +12,17 @@ import numpy as np
 import pymatgen.core.structure as pymg_struct
 from aiida import load_profile, orm
 from aiida.engine import submit
-from aiida.orm import Bool, Code, Dict, Group, Int, List, Str, StructureData
+from aiida.orm import Bool, Dict, Group, Int, List, Str, StructureData
 from aiida.orm.nodes.data.array.kpoints import KpointsData
 from aiida.plugins import WorkflowFactory
 from aiida_vasp.utils.aiida_utils import get_data_node
 from pymatgen.core.surface import Slab
 from pymatgen.io.vasp import Poscar
 
+from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import DATA_DIR
 from MatDBForge.core import initial_db as mdb_indb
 from MatDBForge.core import utils as mdb_ut
-from MatDBForge.training import conversion as mdb_conv
 
 VDW_DATA_PATH = pl.Path(DATA_DIR / "vdw-data")
 

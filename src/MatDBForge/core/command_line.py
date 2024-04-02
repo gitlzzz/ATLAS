@@ -9,7 +9,7 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 from aiida import load_profile
-from aiida.engine import submit, run
+from aiida.engine import run
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 

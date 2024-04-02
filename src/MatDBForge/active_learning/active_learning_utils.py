@@ -22,7 +22,7 @@ from ase.io import read as ase_read
 from ase.io import write as ase_write
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
-from MatDBForge.training import conversion as mdb_conv
+from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.workflows import aiida_utils as mdb_aut
 
 

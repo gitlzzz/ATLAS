@@ -48,8 +48,8 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
 
 from MatDBForge.active_learning import active_learning_utils as mdb_al
+from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import DATA_DIR
-from MatDBForge.training import conversion as mdb_conv
 
 
 class TrainMACEModelCalculationParser(Parser):
