@@ -1131,8 +1131,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # training database (Dt) without changing the original database.
             # Additionally, create a copy of the database (seed_gen_db, Ds),
             # this will be used to generate the MD seeds.
-            # TODO: Move some things that are in functions below
-            # cls.get_database,
+            cls.get_database,
             # Create inputs for workchains and initialize iterative counter
             cls.setup,
             # This part will loop to complete the process
@@ -1168,27 +1167,39 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.report("Reading database file...")
 
         # The training database (Dt) from which copies are made
-        # for further processing.
-        # New structures will be added here.
-        self.ctx.database_training = ase_read(
+        # for further processing. New structures will be added here.
+        database_training = ase_read(
             filename=self.inputs.active_learning.init_db_path.value,
             format="extxyz",
             index=":",
         )
 
-        # If dtype=object is not used, numpy won't be able to create this jagged array.
-        # We need an array to have an easier time indexing and using masks for item
-        # removal.
-        self.ctx.database_training = np.array(self.ctx.database_training, dtype=object)
+        # Create files for database_training and seed_gen_db
+        results_dir_path = Path(self.inputs.active_learning.results_dir.value)
+        if not results_dir_path.exists():
+            results_dir_path.mkdir()
+
+        final_db_path, curr_run_results_dir = mdb_al.get_final_db_path(
+            result_dir_path=results_dir_path,
+            final_db_name=self.inputs.active_learning.final_db_name.value,
+            node=self.node,
+        )
 
         # A copy of the initial database, (Ds)
-        # used specifically for generating training seeds and running the MDs.
+        # used specifically for generating MD seeds and running the MDs.
         # New structures will be added and well represented configs removed from here.
-        # TODO: Is this necessary?
-        self.ctx.seed_gen_db = self.ctx.database_training.copy()
+        self.ctx.seed_db_path = curr_run_results_dir / "seed_db.xyz"
+        shutil.copy(
+            self.inputs.active_learning.init_db_path.value, self.ctx.seed_db_path
+        )
+
+        self.ctx.training_db_path = final_db_path
+        shutil.copy(
+            self.inputs.active_learning.init_db_path.value, self.ctx.training_db_path
+        )
 
         self.report(
-            f"Loaded initial database containing {len(self.ctx.seed_gen_db)} structures."
+            f"Loaded initial database containing {len(database_training)} structures."
         )
 
     def results_loop(self):
@@ -1289,7 +1300,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         descriptor_list = []
 
         # TODO: Check what to use: database_training or seed_gen_db?
-        for struct in self.ctx.database_training:
+        for struct in ...:
             curr_struct_descriptors = calculator.get_descriptors(struct)
             descriptor_list.append(curr_struct_descriptors)
 
@@ -1326,24 +1337,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.stop_md_seed_no_disagreement = Bool(False)
         self.ctx.seed_gen_db_all_structs_removed = Bool(False)
 
-        # HACK: Temporary. Use pathlib. Move this to cls.get_database. Add uuid to flename.
-        # Create files for database_training and seed_gen_db
-        results_dir_path = Path(self.ctx.inputs.results_dir.value)
-        if not results_dir_path.exists():
-            results_dir_path.mkdir()
-
-        final_db_path, curr_run_results_dir = mdb_al.get_final_db_path(
-            result_dir_path=results_dir_path,
-            final_db_name=self.inputs.active_learning.final_db_name.value,
-            node=self.node,
-        )
-
-        self.ctx.seed_db_path = curr_run_results_dir / "seed_db.xyz"
-        shutil.copy(self.ctx.inputs.init_db_path.value, self.ctx.seed_db_path)
-        # self.ctx.training_db_path = curr_run_results_dir / "training_db.xyz"
-        self.ctx.training_db_path = final_db_path
-        shutil.copy(self.ctx.inputs.init_db_path.value, self.ctx.training_db_path)
-
+        # Adding database paths to inputs
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
 
@@ -1470,7 +1464,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.report(
             f"Created MD seed with {seed_size}"
-            f" structures ({self.ctx.inputs.seed_size_frac.value*100}% of initial size)."
+            f" structures ({self.ctx.inputs.seed_size_frac.value*100}% of init. size)."
         )
         # Adding current train seed to the context
         current_MD_seed_serialized = []
