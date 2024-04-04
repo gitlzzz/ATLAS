@@ -220,13 +220,11 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input(
             "al_keep_struct_every_n_ps", valid_type=Float, serializer=to_aiida_type
         )
-        spec.input(
-            "current_train_seed_structs", valid_type=List, serializer=to_aiida_type
-        )
+        spec.input("current_md_seed_structs", valid_type=List, serializer=to_aiida_type)
         spec.input("seed_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("training_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input(
-            "current_train_seed_structs_idx",
+            "current_md_seed_structs_idx",
             valid_type=List,
             serializer=to_aiida_type,
         )
@@ -592,9 +590,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             builder.settings = Dict(builder_settings)
 
-            for idx, curr_structure in enumerate(
-                self.inputs.current_train_seed_structs
-            ):
+            for idx, curr_structure in enumerate(self.inputs.current_md_seed_structs):
                 # Structures are stored as a dict in order to be json-serializable
                 for key in ["pbc", "cell", "numbers", "positions", "forces"]:
                     curr_structure[key] = np.array(curr_structure[key])
@@ -628,7 +624,7 @@ class ActiveLearningWorkChain(WorkChain):
                     "mace_potential": lmp_pot_filename,
                 }
 
-                index_in_db = self.inputs.current_train_seed_structs_idx[idx]
+                index_in_db = self.inputs.current_md_seed_structs_idx[idx]
 
                 # Loading metadata settings from workchain inputs
                 builder.metadata = self.inputs.lammps_mace.get("metadata")
@@ -1111,8 +1107,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             ActiveLearningWorkChain,
             namespace="active_learning",
             exclude=[
-                "current_train_seed_structs",
-                "current_train_seed_structs_idx",
+                "current_md_seed_structs",
+                "current_md_seed_structs_idx",
                 "al_loop_iteration",
                 "train_seed_group",
                 "seed_gen_db",
@@ -1417,22 +1413,22 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
     def get_training_seed(self):
         """
         Selects a random subset of structures from the seed generation database to
-        create a training seed for the active learning loop.
+        create a MD seed for the active learning loop.
 
-        This function calculates the number of structures to be included in the training
+        This function calculates the number of structures to be included in the MD
         seed based on the specified fraction of the seed generation database's length.
         It then randomly selects and populates the training seed with these structures.
 
         Returns
         -------
-            None. The function updates self.ctx.current_train_seed_structs with the selected
-            structures.
+            None. The function updates self.ctx.current_md_seed_structs with the
+            selected structures.
         """
         self.report(
             f"Starting AL Loop iteration {self.ctx.iteration+1}/"
             f"{self.inputs.active_learning.max_iterations.value}..."
         )
-        self.report("Getting training seed...")
+        self.report("Getting MD seed...")
         self.ctx.inputs.metadata.description = (
             "Perform MD simulations, evaluate and refine ML models. "
             f"Step: {self.ctx.inputs.al_loop_iteration}"
@@ -1462,27 +1458,27 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             replace=False,
         )
 
-        self.ctx.inputs.current_train_seed_structs_idx = list(selected_structs)
+        self.ctx.inputs.current_md_seed_structs_idx = list(selected_structs)
 
         # The set of random structures selected from the seed generation
         # database to be used in training.
-        self.ctx.current_train_seed_structs = []
+        self.ctx.current_md_seed_structs = []
 
         # Populating training seed with the selected random structures
         for idx in selected_structs:
-            self.ctx.current_train_seed_structs.append(seed_gen_db[idx])
+            self.ctx.current_md_seed_structs.append(seed_gen_db[idx])
 
         self.report(
-            f"Created training seed with {seed_size}"
+            f"Created MD seed with {seed_size}"
             f" structures ({self.ctx.inputs.seed_size_frac.value*100}% of initial size)."
         )
         # Adding current train seed to the context
-        current_train_seed_serialized = []
-        for curr_s in self.ctx.current_train_seed_structs:
+        current_MD_seed_serialized = []
+        for curr_s in self.ctx.current_md_seed_structs:
             curr_s = mdb_al.serialize_ase(curr_s)
-            current_train_seed_serialized.append(curr_s)
+            current_MD_seed_serialized.append(curr_s)
 
-        self.ctx.inputs.current_train_seed_structs = current_train_seed_serialized
+        self.ctx.inputs.current_md_seed_structs = current_MD_seed_serialized
 
     def results_final(self):
         """
