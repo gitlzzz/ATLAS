@@ -178,31 +178,31 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
     queue_dict = {
         2: {
             "type": "sge",
-            "node_cpus": 24,
-            "code_string": "vasp-std-5.4.4-new@tekla2-new-test",
+            "node_cpus": 48,
+            "code_string": "vasp-std-5.4.4-new@tekla2",
             "options_resources": {
-                "parallel_env": "c24m128ib_mpi",
-                "tot_num_mpiprocs": 24,
+                "parallel_env": "c48m256ib_mpi",
+                "tot_num_mpiprocs": 48,
             },
             "multiple": 1,
         },
         5: {
             "type": "sge",
-            "node_cpus": 24,
-            "code_string": "vasp-std-5.4.4-new@tekla2-new-test",
+            "node_cpus": 48,
+            "code_string": "vasp-std-5.4.4-new@tekla2",
             "options_resources": {
-                "parallel_env": "c24m128ib_mpi",
-                "tot_num_mpiprocs": 24,
+                "parallel_env": "c48m256ib_mpi",
+                "tot_num_mpiprocs": 48,
             },
             "multiple": 1,
         },
         40: {
             "type": "sge",
-            "node_cpus": 24,
-            "code_string": "vasp-std-5.4.4-new@tekla2-new-test",
+            "node_cpus": 48,
+            "code_string": "vasp-std-5.4.4-new@tekla2",
             "options_resources": {
-                "parallel_env": "c24m128ib_mpi",
-                "tot_num_mpiprocs": 24,
+                "parallel_env": "c48m256ib_mpi",
+                "tot_num_mpiprocs": 48,
             },
             "multiple": 1,
         },
@@ -514,7 +514,7 @@ def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) ->
 
     """
     if isinstance(seed_gen_path, str):
-        seed_gen_db = load_database(seed_gen_path.value)
+        seed_gen_db = load_database(seed_gen_path)
     elif isinstance(seed_gen_path, Str):
         seed_gen_db = load_database(seed_gen_path.value)
 

@@ -41,16 +41,18 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.init_db_path = al_conf["init_db_path"]
     builder.active_learning.final_db_name = al_conf["final_db_name"]
-    builder.active_learning.max_iterations = Int(al_conf["max_iterations"])
-    builder.active_learning.seed_size_frac = al_conf["seed_size_frac"]
-    builder.active_learning.md_temperature_K = al_conf["md_temperature_K"]
-    builder.active_learning.md_num_steps = al_conf["md_num_steps"]
-    builder.active_learning.md_timestep_duration_ps = al_conf["md_timestep_duration_ps"]
-    builder.active_learning.commitee_num_models = al_conf["commitee_num_models"]
-    builder.active_learning.model_acc_multiplier = al_conf["model_acc_multiplier"]
-    builder.active_learning.al_keep_struct_every_n_ps = al_conf[
-        "al_keep_struct_every_n_ps"
-    ]
+    builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
+    builder.active_learning.seed_size_frac = float(al_conf["seed_size_frac"])
+    builder.active_learning.md_temperature_K = float(al_conf["md_temperature_K"])
+    builder.active_learning.md_num_steps = int(al_conf["md_num_steps"])
+    builder.active_learning.md_timestep_duration_ps = float(al_conf["md_timestep_duration_ps"])
+    builder.active_learning.commitee_num_models = int(al_conf["commitee_num_models"])
+    builder.active_learning.model_acc_multiplier = float(
+        al_conf["model_acc_multiplier"]
+    )
+    builder.active_learning.al_keep_struct_every_n_ps = float(
+        al_conf["al_keep_struct_every_n_ps"]
+    )
 
     # MACE training settings
     builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])
