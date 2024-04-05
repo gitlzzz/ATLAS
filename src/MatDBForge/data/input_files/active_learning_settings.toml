@@ -1,5 +1,6 @@
 # Active Learning Settings
 [active_learning]
+
 # Name of the aiida profile to be used
 aiida_profile = ""
 
@@ -8,15 +9,19 @@ data_path = ""
 
 # Path to the folder where the initial database is contained.
 init_db_path = ""
-final_db_path = ""
 
-# Path to the folder where the results will be stored.
+# Path for final results. Will be created if not existent.
+# It will contain a folder named run_{uuid}.
 results_dir = ""
+
+# Name for the final database
+# The database will be stored in the extxyz format
+final_db_name = "final_data_test"
 
 # Maximum number of AL loop iterations.
 max_iterations = 3
 
-# Sets total structures in AL seed
+# Sets total structures in AL seed as a function of the training db size.
 # This influences the amount of MD calculations and E, F evaluations.
 seed_size_frac = 0.01
 
@@ -34,10 +39,11 @@ md_timestep_duration_ps = 0.003
 commitee_num_models = 4
 
 # Multiplier for model accuracy. Loosens model accuracy threshold.
+# Tighter thresholds will result in more DFT calculations.
 # Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
 model_acc_multiplier = 10
 
-# Every how many ps keep a structure. 
+# Every how many ps of MD simulation keep a structure. 
 # Influences the total number of energy evaluations and possibly DFT calculations.
 al_keep_struct_every_n_ps = 1
 
