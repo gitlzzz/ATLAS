@@ -315,7 +315,7 @@ class ActiveLearningWorkChain(WorkChain):
         # and used to drive the MD simulations. The remaining models will act as
         # commitee models and will only be used to evaluate energies.
         self.report(
-            f"Training M0 - M{self.inputs.commitee_num_models.value-1} using "
+            f"Training {self.inputs.commitee_num_models.value} models using "
             "current iteration data."
         )
 
@@ -1088,6 +1088,8 @@ class ActiveLearningWorkChain(WorkChain):
             [node.uuid for node in self.ctx.dft_struct_seed_calcs]
         )
 
+
+
         self.out("dft_calcs", return_list)
         self.out(
             "stop_md_seed_no_disagreement",
@@ -1231,12 +1233,34 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cnt_dft_calcs = 0
 
         if cnt_dft_calcs > 0:
+
             self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
 
             # Adding calculations to training database and seed_generation database
             for dft_calc in self.outputs["dft_calcs"]:
+
+                # Converting serialized structures to Atoms object.
+                if isinstance(dft_calc, dict):
+                    dft_calc = mdb_al.aiida_serialized_ase_dict_to_atoms(dft_calc)
+
                 seed_gen_db.append(dft_calc)
                 training_db.append(dft_calc)
+
+            # Updating final and seed database.
+            self.report("Updating database files...")
+
+            ase_write(
+                filename=self.ctx.training_db_path,
+                images=training_db,
+                format="extxyz",
+            )
+            ase_write(
+                filename=self.ctx.seed_db_path,
+                images=seed_gen_db,
+                format="extxyz",
+            )
+
+            self.report("Database files updated.")
 
         self.report(
             f"Iteration {self.ctx.iteration}: "
@@ -1244,21 +1268,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f"training_db: {len(training_db)} entries"
         )
 
-        # Updating final and seed database.
-        self.report("Updating database files...")
-
-        ase_write(
-            filename=self.ctx.training_db_path,
-            images=training_db,
-            format="extxyz",
-        )
-        ase_write(
-            filename=self.ctx.seed_db_path,
-            images=seed_gen_db,
-            format="extxyz",
-        )
-
-        self.report("Database files updated.")
 
     def get_al_loop_break_conditions(self):
         """

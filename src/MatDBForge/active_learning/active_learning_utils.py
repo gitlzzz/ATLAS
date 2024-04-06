@@ -408,17 +408,55 @@ def prepare_output_final_training_db(training_db_path):
 
 @calcfunction
 def gather_dft_calcs(dft_calc_list: list) -> List:
+    """
+    Collect and preprocess VASP DFT calculation results for active learning input.
+
+    This function takes a list of DFT calculation nodes, extracts the calculation
+    results, and processes these results into a format suitable for active learning
+    input. Specifically, it converts VASP runs into ASE Atoms objects and collects
+    additional calculation data like forces. It also augments the Atoms objects with
+    metadata necessary for the active learning workflow. Failed calculations are skipped
+    ensuring that only successfully completed calculations are included.
+    The function returns a list of serialized ASE Atoms objects, ready for inclusion
+    in the active learning database.
+
+    Parameters
+    ----------
+    dft_calc_list : list
+        A list of identifiers for completed DFT calculation nodes.
+
+    Returns
+    -------
+    List
+        An AiiDA List object containing serialized ASE Atoms objects, each representing
+        a completed DFT calculation augmented with necessary metadata and calculation
+        results.
+
+    Notes
+    -----
+    - The ASE Atoms objects are serialized to ensure compatibility with AiiDA's data
+    storage and manipulation frameworks.
+    - Extra care is taken to include forces (and optionally, stress) in the Atoms objects,
+    as these are critical for many active learning applications but are not included by
+    default in the extxyz format's `Properties` tag.
+    - Skips any DFT calculations that encountered errors..
+    """
     vasprun_list = []
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
         finished_dft_calc = load_node(finished_dft_calc)
 
-        # Gathering the vasprun as an ASE Atoms object. This object won't
-        # collect automatically all of the extra information such as forces
-        # or energies, and must be collected using methods from ase.calc.u
-        vasprun: Atoms = mdb_conv._gather_mace_req_calc_data_from_node(
-            finished_dft_calc
-        )
+        try:
+            # Gathering the vasprun as an ASE Atoms object. This object won't
+            # collect automatically all of the extra information such as forces
+            # or energies, and must be collected using methods from ase.calc.u
+            vasprun: Atoms = mdb_conv._gather_mace_req_calc_data_from_node(
+                finished_dft_calc
+            )
+
+        except Exception:
+            # If the calculation fails for any reason, skip this calculation
+            continue
 
         # Gathering extra DFT calculation information from vasprun.xml
         calc_info_dict = mdb_conv.gather_calc_data_from_node(
@@ -428,7 +466,7 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
         # Adding forces manually as an array into the atoms object.
         # This is needed for the atoms object to be able to include the forces in the
         # extxyz format `Properties` tag.
-        if "forces" not in vasprun.arrays.keys():
+        if "forces" not in vasprun.arrays:
             vasprun.new_array(
                 name="forces",
                 a=np.array(calc_info_dict["forces"]),
