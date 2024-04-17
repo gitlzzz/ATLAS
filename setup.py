@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MatDBForge",
-    version="0.2.5",
+    version="0.2.7",
     description="MatDBForge",
     author="Pol Sanz",
     author_email="me@polsanz.xyz",
@@ -12,7 +12,8 @@ setup(
     packages=find_packages("src"),
     entry_points={
         "aiida.calculations": [
-            "mace-train = MatDBForge.workflows.active_learning:TrainMACEModelCalculation"
+            "mace-train = MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation",
+            "mace-get-descriptors = MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
         ],
         "aiida.calculations.monitors": [
             "monitor.davwarning = MatDBForge.workflows.monitors:output_monitor"
@@ -22,7 +23,8 @@ setup(
             "mdb-active-learning-base = MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain",
         ],
         "aiida.parsers": [
-            "mace-training-parser = MatDBForge.workflows.active_learning:TrainMACEModelCalculationParser",
+            "mace-training-parser = MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser",
+            "mace-descriptors-parser = MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser",
         ],
         "console_scripts": [
             "mdb_active_learning=MatDBForge.core.command_line:run_active_learning",

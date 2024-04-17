@@ -47,6 +47,7 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.md_num_steps = int(al_conf["md_num_steps"])
     builder.active_learning.md_timestep_duration_ps = float(al_conf["md_timestep_duration_ps"])
     builder.active_learning.commitee_num_models = int(al_conf["commitee_num_models"])
+    builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
     builder.active_learning.model_acc_multiplier = float(
         al_conf["model_acc_multiplier"]
     )

@@ -1,22 +1,22 @@
 """Definition of an aiida workchain for MACE active learning loops using MD."""
 
 import io
-import json
+import pickle
 import re
 import shutil
 import time
+from contextlib import redirect_stdout, suppress
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pymatgen.io.ase as pmg_ase
 import torch
-from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.engine import (
     BaseRestartWorkChain,
-    CalcJob,
     WorkChain,
     append_,
+    if_,
     while_,
 )
 from aiida.orm import (
@@ -27,170 +27,30 @@ from aiida.orm import (
     Group,
     Int,
     List,
+    PortableCode,
     SinglefileData,
     Str,
     load_code,
+    load_computer,
     load_group,
     load_node,
     to_aiida_type,
 )
-from aiida.parsers.parser import Parser
 from aiida.plugins import CalculationFactory
 from ase import Atoms
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from mace import data as mace_data
 from mace import tools as mace_tools
-from mace.calculators import MACECalculator
 from pymatgen.core import Structure
 from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
 
+from MatDBForge import ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import DATA_DIR
-
-
-class TrainMACEModelCalculationParser(Parser):
-    def parse(self, **kwargs):
-        """Parse the retrieved files of the calculation job."""
-        # str that represents the absolute filepath to the temporary folder
-        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
-
-        for child_file in retrieved_temporary_folder.iterdir():
-            # create singlefile data for the model
-            if "swa.model" in child_file.name:
-                model_file = SinglefileData(file=child_file)
-
-            if "train.txt" in child_file.name:
-                # TODO: gather rmse_e, rmse_f
-                with open(child_file) as f:
-                    for line in f:
-                        line_dict = json.loads(line)
-                        if "rmse_e" in line_dict.keys():
-                            last_dict = line_dict
-
-                rmse_e = float(last_dict["rmse_e_per_atom"]) * 1000  # meV / atom
-                rmse_f = float(last_dict["rmse_f"]) * 1000  # meV / A
-
-        # Return CalcJob outputs
-        self.out("model_file", model_file)
-        self.out("m_rmse_e", Float(rmse_e))
-        self.out("m_rmse_f", Float(rmse_f))
-
-
-class TrainMACEModelCalculation(CalcJob):
-    """Implementation of CalcJob to perform a MACE training using a settings dir."""
-
-    @classmethod
-    def define(cls, spec):
-        super().define(spec)
-        spec.input(
-            "mace_settings_dict",
-            valid_type=Dict,
-            help="Dictionary containing MACE training settings.",
-        )
-        spec.input(
-            "mace_train_file_path",
-            valid_type=Str,
-            help=(
-                "Path to the file containing the structures to be used for training, "
-                "in the extxyz format."
-            ),
-            # non_db=True,
-            serializer=to_aiida_type,
-        )
-        spec.input(
-            "test_file",
-            valid_type=SinglefileData,
-            help=(
-                "File containing the structures to be used for training, "
-                "in the extxyz format."
-            ),
-            required=False,
-            default=None,
-        )
-
-        spec.input(
-            "model_name",
-            valid_type=Str,
-            help=("Name given to the model."),
-            serializer=to_aiida_type,
-        )
-
-        spec.output(
-            "model_file",
-            valid_type=SinglefileData,
-            help="Path of the trained MACE model.",
-        )
-        spec.output(
-            "m_rmse_e",
-            valid_type=Float,
-            help="Validation RMSE for the energy, in meV / atom.",
-        )
-        spec.output(
-            "m_rmse_f",
-            valid_type=Float,
-            help="Validation RMSE for the forces, in meV / Å.",
-        )
-
-    def prepare_for_submission(self, folder):
-        """Write the input files that are required for the code to run.
-
-        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
-        :return: `~aiida.common.datastructures.CalcInfo` instance
-        """
-        # Parsing mace settings dict
-        # TODO: Add a way of checking if validation_file was given.
-        params_list = []
-        for key, val in self.inputs.mace_settings_dict.items():
-            if key == "train_file":
-                val = Path(val).resolve().name
-
-            if isinstance(val, str):
-                curr_key = f"--{key}={val}"
-            elif isinstance(val, bool):
-                if val:
-                    curr_key = f"--{key}"
-            else:
-                curr_key = f"--{key}={val}"
-            params_list.append(curr_key)
-
-        # Adding random seed
-        params_list.append(f"--seed={np.random.randint(1, 100000000)}")
-
-        # Copying database to temporary folder
-        final_db_path = self.inputs.mace_train_file_path.value
-        folder.insert_path(
-            src=final_db_path,
-            dest_name=self.inputs.mace_settings_dict["train_file"],
-        )
-
-        codeinfo = CodeInfo()
-        codeinfo.code_uuid = self.inputs.code.uuid
-        codeinfo.stdout_name = self.options.output_filename
-        codeinfo.cmdline_params = params_list
-
-        calcinfo = CalcInfo()
-        calcinfo.codes_info = [codeinfo]
-        calcinfo.local_copy_list = []
-        calcinfo.provenance_exclude_list = [
-            self.inputs.mace_settings_dict["train_file"]
-        ]
-        calcinfo.remote_copy_list = []
-
-        # Gathering files. They won't be added to the repository,
-        # and instead kept into a temporary folder.
-        # They can later be processed during the parse function
-        # by accessing the temporary folder.
-        calcinfo.retrieve_temporary_list = [
-            self.metadata.options.output_filename,
-            "./*.model",
-            "./results/*",
-        ]
-
-        return calcinfo
 
 
 class ActiveLearningWorkChain(WorkChain):
@@ -240,6 +100,7 @@ class ActiveLearningWorkChain(WorkChain):
         )
         spec.input("lammps_mace", valid_type=Dict)
         spec.input("committee_eval", valid_type=Dict)
+        spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
 
         spec.outline(
             # Training the main mace model (M0) and the commitee models
@@ -247,6 +108,13 @@ class ActiveLearningWorkChain(WorkChain):
             cls.train_mace_model,
             # Gathering results from mace training.
             cls.get_mace_train_output,
+            if_(cls.check_extrapolation_enabled)(
+                # Generate MACE descriptors for the current seed.
+                cls.generate_descriptors,
+                # Gather the descriptors from the calcjob and store them
+                # in the workchain context.
+                cls.get_mace_descriptors_output,
+            ),
             # All of the structures in the seed will be run using the MD
             # code selected, using the main model (M0)
             cls.run_md_seed,
@@ -255,13 +123,17 @@ class ActiveLearningWorkChain(WorkChain):
             cls.gather_m0_md_results,
             # The structures from M0 will be evaluated using M1, M2 and M3.
             cls.check_commitee_results,
+            if_(cls.check_extrapolation_enabled)(
+                # Getting MACE descriptors for the structures obtained with MD.
+                cls.get_descriptors_from_md_results,
+            ),
             # According to the difference in error between the models either:
             # The original structure will be removed from D0, or
             # The problematic structure will be calcualated using DFT
             cls.send_calc_or_remove_structures,
+            # Return the generated DFT calculations to the workchain as an output
             cls.return_seed_dft,
-            # TODO:
-            # If high error (define this) is found on a training seed,
+            # TODO: If high error (define this) is found on a training seed,
             # do not change seed until the error is decreased
             # cls.choose_next_seed,
         )
@@ -319,7 +191,7 @@ class ActiveLearningWorkChain(WorkChain):
             "current iteration data."
         )
 
-        for model_num in range(self.inputs.commitee_num_models.value):
+        for _ in range(self.inputs.commitee_num_models.value):
             model_name = mdb_al.generate_model_name()
 
             # Load training settings from inputs and update path and model names.
@@ -401,7 +273,7 @@ class ActiveLearningWorkChain(WorkChain):
 
         # Get the most accurate model name during the validation by checking
         # the lowest E+F*weight.
-        best_model_name = model_name_list[np.argmin(weighted_E_F_sum_list)]
+        self.ctx.best_model_name = model_name_list[np.argmin(weighted_E_F_sum_list)]
 
         commitee_models_tupl_name_uuid = []
         for idx, calc in enumerate(mace_training_results):
@@ -416,7 +288,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Use checking if the currentt case is the best model.
             # Saving model results
-            if model_name == best_model_name:
+            if model_name == self.ctx.best_model_name:
                 # Overwriting m0_rmse values with actual training values
                 self.ctx.m0_rmse_e = curr_calc.outputs.m_rmse_e
                 self.ctx.m0_rmse_f = curr_calc.outputs.m_rmse_f
@@ -443,6 +315,88 @@ class ActiveLearningWorkChain(WorkChain):
 
         # Sending commitee model paths to current context
         self.ctx.commitee_models_tupl_name_uuid = commitee_models_tupl_name_uuid
+
+    def check_extrapolation_enabled(self):
+        return self.inputs.check_extrapolation
+
+    def generate_descriptors(self):
+        self.report("Generating descriptors...")
+
+        for _, calc in enumerate(self.ctx.mace_training_results):
+            # Loading calculation node
+            curr_calc = load_node(calc.uuid)
+
+            # Getting model name
+            model_name = curr_calc.inputs.model_name.value
+
+            # Using the best model
+            if model_name == self.ctx.best_model_name:
+                best_calc = curr_calc
+                break
+
+        # Getting model file
+        self.ctx.best_model_file = best_calc.outputs.model_file
+
+        # Prepare GetMACEDescriptorsCalculation
+        mace_descr_calc = CalculationFactory("mace-get-descriptors")
+        mace_builder = mace_descr_calc.get_builder()
+        mace_builder.model_file = self.ctx.best_model_file
+
+        mace_train_file_path, _ = mdb_al.get_final_db_path(
+            result_dir_path=self.inputs.results_dir.value,
+            final_db_name=self.inputs.final_db_name.value,
+            node=self.node,
+        )
+        mace_builder.mace_train_file_path = str(mace_train_file_path)
+        descriptor_code_path = Path(f"{ROOT_DIR}/active_learning/mace_code")
+        code = PortableCode(
+            label="mace_get_descriptors",
+            filepath_files=descriptor_code_path,
+            filepath_executable="./mace_get_descriptors.py",
+            # TODO: Add to TOML
+            prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+        )
+        mace_builder.code = code
+
+        # TODO: Add to TOML
+        mace_builder.metadata.options = {
+            "resources": {
+                "parallel_env": "c128m1024ib_mpi_32slots",
+                "tot_num_mpiprocs": 4,
+            },
+            "queue_name": "c128m1024ibgpu4.q",
+            "max_memory_kb": 102400000,
+            "parser_name": "mace-descriptors-parser",
+            "max_wallclock_seconds": 117280000,
+            "withmpi": False,
+            "custom_scheduler_commands": "#$ -l gpu=1",
+        }
+        mace_builder.metadata.label = model_name + "_descriptors"
+        mace_builder.metadata.computer = load_computer("tekla2-new-test")
+
+        mace_builder.metadata.options.output_filename = (
+            f"descriptors_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
+        )
+
+        future = self.submit(mace_builder)
+        self.to_context(mace_descriptor_results=append_(future))
+
+    def get_mace_descriptors_output(self):
+        mace_descriptor_results = self.ctx.mace_descriptor_results
+        for calc in mace_descriptor_results:
+            # Loading calculation node
+            curr_calc = load_node(calc.uuid)
+
+            # Storing results in context
+            self.ctx.descriptors_min_array = (
+                curr_calc.outputs.descriptors_min_array.get_array()
+            )
+
+            self.ctx.descriptors_max_array = (
+                curr_calc.outputs.descriptors_max_array.get_array()
+            )
+
+        self.report("Gathered descriptor ranges.")
 
     def gen_md_input(
         self,
@@ -483,7 +437,7 @@ class ActiveLearningWorkChain(WorkChain):
         - Future versions may include more dynamic options based on LAMMPS's extensive
         configurability.
         """
-        with open(f"{DATA_DIR}/input_files/input.lammps", "r") as f:
+        with open(f"{DATA_DIR}/input_files/input.lammps") as f:
             lammps_template = f.read()
 
         lammps_template = lammps_template.replace(
@@ -967,6 +921,78 @@ class ActiveLearningWorkChain(WorkChain):
                         forces_list  # total_force_norm_per_frame
                     )
 
+    def get_descriptors_from_md_results(self):
+        # Getting descriptors for generated structures
+        # Store all frames from the trajectory into a list
+        all_frames_list = []
+        for _, row in self.ctx.md_seed_results_df.iterrows():
+            curr_traj = row["trajectory"]
+            traj_frames = [AseAtomsAdaptor.get_atoms(frame) for frame in curr_traj]
+            traj_frames = []
+
+            for frame in curr_traj:
+                curr_frame: Atoms = AseAtomsAdaptor.get_atoms(frame)
+                curr_frame.info["aiida_uuid"] = row["unique_id"]
+                traj_frames.append(curr_frame)
+
+            all_frames_list.extend(traj_frames)
+
+        # Write xyz file into a string captured in the stdout,
+        # write it to a temporary file.
+        f = io.StringIO()
+        with redirect_stdout(f):
+            ase_write(
+                filename="-",
+                format="extxyz",
+                images=all_frames_list,
+            )
+        xyz_string = f.getvalue()
+
+        # Generating tmp file
+        md_xyz_file = SinglefileData(
+            file=io.BytesIO(str.encode(xyz_string)),
+            filename="md_db.xyz",
+        )
+
+        # Prepare GetMACEDescriptorsCalculation
+        mace_descr_calc = CalculationFactory("mace-get-descriptors")
+        mace_builder = mace_descr_calc.get_builder()
+        mace_builder.model_file = self.ctx.best_model_file
+        mace_builder.mace_train_file_path = md_xyz_file
+        descriptor_code_path = Path(f"{ROOT_DIR}/active_learning/mace_code")
+        code = PortableCode(
+            label="mace_get_descriptors",
+            filepath_files=descriptor_code_path,
+            filepath_executable="./mace_get_descriptors.py",
+            # TODO: Add to TOML
+            prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+        )
+        mace_builder.code = code
+
+        # TODO: Add to TOML
+        mace_builder.metadata.options = {
+            "resources": {
+                "parallel_env": "c128m1024ib_mpi_32slots",
+                "tot_num_mpiprocs": 4,
+            },
+            "queue_name": "c128m1024ibgpu4.q",
+            "max_memory_kb": 102400000,
+            "parser_name": "mace-descriptors-parser",
+            "max_wallclock_seconds": 117280000,
+            "withmpi": False,
+            "custom_scheduler_commands": "#$ -l gpu=1",
+        }
+        mace_builder.metadata.label = self.ctx.best_model_name + "_md_descriptors"
+        mace_builder.metadata.computer = load_computer("tekla2-new-test")
+
+        mace_builder.metadata.options.output_filename = (
+            f"descriptors_{self.ctx.best_model_name}_iter"
+            f"-{self.inputs.al_loop_iteration.value}"
+        )
+
+        future = self.submit(mace_builder)
+        self.to_context(md_descriptor_results=append_(future))
+
     def send_calc_or_remove_structures(self):
         self.report("Deciding which structures to keep...")
 
@@ -980,10 +1006,51 @@ class ActiveLearningWorkChain(WorkChain):
         delete_indices = []
         dft_structures = []
 
+        if self.inputs.check_extrapolation:
+            for calc in self.ctx.md_descriptor_results:
+                # Loading calculation node
+                curr_calc = load_node(calc.uuid)
+
+                # Storing results in context
+                with curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path, open(
+                    md_descr_file_path, "rb"
+                ) as descr_file:
+                    md_descr_dict: list[list[list]] = pickle.load(descr_file)
+                    # md_descr_array: np.ndarray = np.load(file=md_descr_file_path)
+
+            extrapolation_column_list: list[dict[str, list]] = []
+            for _, row in self.ctx.md_seed_results_df.iterrows():
+                df_uuid = row["unique_id"]
+                desc_f_curr_row: list = md_descr_dict[df_uuid]
+                # print('desc_f_curr_row: ', len(desc_f_curr_row))
+                # print('desc_f_curr_row: ', desc_f_curr_row.shape)
+                # descriptor_arr = np.vstack(desc_f_curr_row)
+                # print('descriptor_arr: ', descriptor_arr.shape)
+                # extrapolation_column_list.append({'m0': descriptor_arr})
+                extrapolation_column_list.append({"m0": desc_f_curr_row})
+
+            self.ctx.md_seed_results_df["extrapolation"] = extrapolation_column_list
+
         # Every row contains the results of MD for a single structure, which are:
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
         for _, row in self.ctx.md_seed_results_df.iterrows():
+            # Make len(traj) sized array filled with 'False'.
+            extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
+
+            if self.inputs.check_extrapolation:
+                curr_struct_descr = row["extrapolation"]["m0"]
+
+                # Checking if the frames for the current structure are extrapolating
+                for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
+                    below_min = frame_descriptors < self.ctx.descriptors_min_array
+                    above_max = frame_descriptors > self.ctx.descriptors_max_array
+                    is_frame_extrapolating = np.any(np.logical_or(below_min, above_max))
+
+                    # Change to True the ones that are extrapolating.
+                    if is_frame_extrapolating:
+                        extrapolating_frames[frame_idx] = 1
+
             # Getting all energy predictions
             # TODO - For E and F: Do variance
             model_energies_dict = row["energy"]
@@ -1005,8 +1072,11 @@ class ActiveLearningWorkChain(WorkChain):
             )
 
             # Joining both error masks to get a single True/False array marking
-            # structures to be computed
-            error_all_structures = np.ma.mask_or(error_e_structures, error_f_structures)
+            # structures to be computed with True
+            error_all_structures = np.logical_or(
+                np.logical_or(error_e_structures, error_f_structures),
+                extrapolating_frames,
+            )
 
             # If all values in error_all_structures are false, delete the main
             # structure from D0.
@@ -1032,7 +1102,8 @@ class ActiveLearningWorkChain(WorkChain):
                     row["trajectory"][int(struct)] for struct in selected_high_error
                 ]
 
-                # REMOVE: For testing purposes. Remove this!
+                # REMOVE: For testing purposes.
+                # TESTING
                 # dft_structures = [row["trajectory"][5]]
 
                 for calc_idx, dft_struct in enumerate(dft_structures):
@@ -1081,16 +1152,16 @@ class ActiveLearningWorkChain(WorkChain):
         try:
             dft_calcs = len(self.ctx.dft_struct_seed_calcs)
             self.report(f"Gathered {dft_calcs} DFT calculations.")
+
+            return_list = mdb_al.gather_dft_calcs(
+                [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+            )
+
         except AttributeError:
-            self.ctx.dft_struct_seed_calcs = []
+            # self.ctx.dft_struct_seed_calcs = []
+            return_list = List([])
 
-        return_list = mdb_al.gather_dft_calcs(
-            [node.uuid for node in self.ctx.dft_struct_seed_calcs]
-        )
-
-
-
-        self.out("dft_calcs", return_list)
+        self.out("dft_calcs", return_list)  # list[dict]
         self.out(
             "stop_md_seed_no_disagreement",
             mdb_al.check_md_seed_agreement(return_list),
@@ -1142,15 +1213,12 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             while_(cls.check_al_loop_conditions)(
                 # Get random structures from Ds to generate the MD seed.
                 cls.get_training_seed,
-                # TODO: Implement this function correctly.
-                # Generate descriptors for the current seed.
-                # cls.generate_descriptors,
                 # Run training seed
                 cls.run_process,
                 # Check for correct results
                 # cls.inspect_process,
                 # Get results from workchain
-                cls.results_loop,
+                cls.get_results_loop,
                 # Update Ds and Di to include results from DFT.
                 # Update the inputs for the next workchain.
                 cls.add_dft_results_to_db,
@@ -1204,12 +1272,13 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f"Loaded initial database containing {len(database_training)} structures."
         )
 
-    def results_loop(self):
+    def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
         node = self.ctx.children[self.ctx.iteration - 1]
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
         self._attach_outputs(node)
+        self.ctx.last_workchain_completed = node
         return None
 
     def add_dft_results_to_db(self):
@@ -1227,18 +1296,19 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # self.ctx.seed_gen_db = self.outputs["upd_seed_gen_db"]
         # self.ctx.inputs.seed_gen_db = self.outputs["upd_seed_gen_db"]
 
+        last_wc = self.ctx.last_workchain_completed
+
         try:
-            cnt_dft_calcs = len(self.outputs["dft_calcs"])
+            cnt_dft_calcs = len(last_wc.outputs["dft_calcs"])
+
         except KeyError:
             cnt_dft_calcs = 0
 
         if cnt_dft_calcs > 0:
-
             self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
 
             # Adding calculations to training database and seed_generation database
-            for dft_calc in self.outputs["dft_calcs"]:
-
+            for dft_calc in last_wc.outputs["dft_calcs"]:
                 # Converting serialized structures to Atoms object.
                 if isinstance(dft_calc, dict):
                     dft_calc = mdb_al.aiida_serialized_ase_dict_to_atoms(dft_calc)
@@ -1268,7 +1338,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f"training_db: {len(training_db)} entries"
         )
 
-
     def get_al_loop_break_conditions(self):
         """
         Evaluate and set conditions to potentially break the active learning loop.
@@ -1294,27 +1363,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.seed_gen_db_all_structs_removed = Bool(True)
         else:
             self.ctx.seed_gen_db_all_structs_removed = Bool(False)
-
-    def generate_descriptors(self):
-        self.report("Generating descriptors...")
-
-        # TODO: This does not work
-        model_path = (
-            self.inputs.active_learning.data_path.value + "/"
-            # + self.inputs.active_learning.mace_potential_names[0]
-        )
-        calculator = MACECalculator(
-            model_paths=model_path, device="cuda", default_dtype="float32"
-        )
-        descriptor_list = []
-
-        # TODO: Check what to use: database_training or seed_gen_db?
-        for struct in ...:
-            curr_struct_descriptors = calculator.get_descriptors(struct)
-            descriptor_list.append(curr_struct_descriptors)
-
-        np.vstack(descriptor_list)
-        self.ctx.database_descriptors = descriptor_list
 
     def setup(self):
         """Call BaseRestartWorkChain setup and create inputs dict in self.ctx.inputs.
