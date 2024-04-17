@@ -156,21 +156,33 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
 
     # HACK
     # TODO: Move this to the central TOML file.
+    # kspacing_dict = {
+    #     "alpha": 0.135088484104361,
+    #     # "m1": 0.100530964914873,
+    #     "beta-prime": 0.102415920507027,
+    #     # "m2": 0.100530964914873,
+    #     "gamma": 0.141371669411541,
+    #     # "m3": 0.166504410640259,
+    #     "epsilon": 0.105557513160617,
+    #     "eta": 0.0993371597065093,
+    #     # "m4": 0.0948760981384118,
+    #     "delta": 0.0994491889005363,
+    # }
+    # TESTING
     kspacing_dict = {
-        "alpha": 0.135088484104361,
-        # "m1": 0.100530964914873,
-        "beta-prime": 0.102415920507027,
-        # "m2": 0.100530964914873,
-        "gamma": 0.141371669411541,
-        # "m3": 0.166504410640259,
-        "epsilon": 0.105557513160617,
-        "eta": 0.0993371597065093,
-        # "m4": 0.0948760981384118,
-        "delta": 0.0994491889005363,
+        "alpha": 0.9,
+        # "m1": 0.9,
+        "beta-prime": 0.9,
+        # "m2": 0.9,
+        "gamma": 0.9,
+        # "m3": 0.9,
+        "epsilon": 0.9,
+        "eta": 0.9,
+        # "m4": 0.9,
+        "delta": 0.9,
     }
-
     # REMOVE # TESTING
-    # vasp-std-5.4.4-new@tekla2-new-test
+    # vasp-std-5.4.4-new@tekla2
     # vasp-std-5.3.3-new@tekla2-updated-2024
     # ################
     # HACK
@@ -178,39 +190,42 @@ def get_dft_calc_builder(struct, row, calc_idx, group):
     queue_dict = {
         2: {
             "type": "sge",
-            "node_cpus": 48,
+            "node_cpus": 12,
             "code_string": "vasp-std-5.4.4-new@tekla2",
             "options_resources": {
-                "parallel_env": "c48m256ib_mpi",
-                "tot_num_mpiprocs": 48,
+                "parallel_env": "c12m48ib_mpi",
+                "tot_num_mpiprocs": 12,
             },
             "multiple": 1,
         },
         5: {
             "type": "sge",
-            "node_cpus": 48,
+            "node_cpus": 12,
             "code_string": "vasp-std-5.4.4-new@tekla2",
             "options_resources": {
-                "parallel_env": "c48m256ib_mpi",
-                "tot_num_mpiprocs": 48,
+                "parallel_env": "c12m48ib_mpi",
+                "tot_num_mpiprocs": 12,
             },
             "multiple": 1,
         },
         40: {
             "type": "sge",
-            "node_cpus": 48,
+            "node_cpus": 12,
             "code_string": "vasp-std-5.4.4-new@tekla2",
             "options_resources": {
-                "parallel_env": "c48m256ib_mpi",
-                "tot_num_mpiprocs": 48,
+                "parallel_env": "c12m48ib_mpi",
+                "tot_num_mpiprocs": 12,
             },
             "multiple": 1,
         },
     }
 
-    # TESTING # potential_family = "vasp-5.3-PBE"
     # HACK
     # TODO: Move this to the central TOML file.
+    # potential_family = "vasp-5.4-PBE-2023"
+    # potential_family = "vasp-5.3-PBE"
+
+    # TESTING
     potential_family = "vasp-5.4-PBE-2023"
     potential_mapping = mdb_aut.generate_potential_mapping()
 
@@ -294,7 +309,7 @@ def load_mace_settings_json(
     if isinstance(settings_path, Str):
         settings_path = settings_path.value
 
-    with open(settings_path, "r") as f:
+    with open(settings_path) as f:
         training_settings_dict = json.load(f)
 
     # Update training file path in mace train settings
@@ -379,7 +394,7 @@ def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
         if key != "pbc" and isinstance(val, list):
             struct_dict[key] = np.array(val)
 
-    if "info" in struct_dict.keys():
+    if "info" in struct_dict:
         for key, val in struct_dict["info"].items():
             if key != "pbc" and isinstance(val, list):
                 struct_dict["info"][key] = np.array(val)
@@ -416,7 +431,7 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
     input. Specifically, it converts VASP runs into ASE Atoms objects and collects
     additional calculation data like forces. It also augments the Atoms objects with
     metadata necessary for the active learning workflow. Failed calculations are skipped
-    ensuring that only successfully completed calculations are included.
+    ensuring that only successfully completed CalcJobs are included.
     The function returns a list of serialized ASE Atoms objects, ready for inclusion
     in the active learning database.
 
@@ -439,9 +454,10 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
     - Extra care is taken to include forces (and optionally, stress) in the Atoms objects,
     as these are critical for many active learning applications but are not included by
     default in the extxyz format's `Properties` tag.
-    - Skips any DFT calculations that encountered errors..
+    - Skips any DFT calculations that encountered errors.
     """
     vasprun_list = []
+
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
         finished_dft_calc = load_node(finished_dft_calc)
@@ -483,7 +499,7 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
         calc_info_dict["mdb_struct_type"] = struct_type
         vasprun = vasprun_add_info_dict(vasprun, calc_info_dict)
 
-        # Using this function to generate a structure name and gathering the aiida_uuid.
+        # Generate a structure name and gathering the aiida_uuid
         vasprun: Atoms = mdb_conv._add_entry_to_mace_input(
             vasprun=vasprun,
             node=finished_dft_calc,

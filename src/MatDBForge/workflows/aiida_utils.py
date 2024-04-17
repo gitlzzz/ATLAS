@@ -126,7 +126,7 @@ INCAR_SP = {
         "nelm": 60,
         # ionic steps:
         "ibrion": -1,
-        "nsw": 2,
+        "nsw": 1,
         "ediffg": -0.03,
         "isif": 2,
         "potim": 0.3,
@@ -335,6 +335,10 @@ def choose_queue_from_struct(structure, assign_dict: dict):
     OPTIONS["qos"] = queue_data.get("qos", None)
     OPTIONS["max_wallclock_seconds"] = queue_data.get("max_wallclock_seconds", None)
     OPTIONS["max_memory_kb"] = queue_data.get("max_memory_kb", None)
+
+    # TESTING
+    # REMOVE
+    OPTIONS["custom_scheduler_commands"] = '#$ -l hostname="tekla2044"'
 
     # Getting code string
     CODE_STRING = queue_data["code_string"]

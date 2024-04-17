@@ -131,10 +131,8 @@ class ActiveLearningWorkChain(WorkChain):
             # The original structure will be removed from D0, or
             # The problematic structure will be calcualated using DFT
             cls.send_calc_or_remove_structures,
-
             # Return the generated DFT calculations to the workchain as an output
             cls.return_seed_dft,
-
             # TODO: If high error (define this) is found on a training seed,
             # do not change seed until the error is decreased
             # cls.choose_next_seed,
@@ -193,7 +191,7 @@ class ActiveLearningWorkChain(WorkChain):
             "current iteration data."
         )
 
-        for model_num in range(self.inputs.commitee_num_models.value):
+        for _ in range(self.inputs.commitee_num_models.value):
             model_name = mdb_al.generate_model_name()
 
             # Load training settings from inputs and update path and model names.
@@ -319,7 +317,6 @@ class ActiveLearningWorkChain(WorkChain):
         self.ctx.commitee_models_tupl_name_uuid = commitee_models_tupl_name_uuid
 
     def check_extrapolation_enabled(self):
-        print('self.inputs.check_extrapolation: ', self.inputs.check_extrapolation)
         return self.inputs.check_extrapolation
 
     def generate_descriptors(self):
@@ -352,7 +349,6 @@ class ActiveLearningWorkChain(WorkChain):
         )
         mace_builder.mace_train_file_path = str(mace_train_file_path)
         descriptor_code_path = Path(f"{ROOT_DIR}/active_learning/mace_code")
-        print("descriptor_code_path: ", descriptor_code_path)
         code = PortableCode(
             label="mace_get_descriptors",
             filepath_files=descriptor_code_path,
@@ -624,8 +620,6 @@ class ActiveLearningWorkChain(WorkChain):
             workchain_results = workchain.outputs.retrieved
             steps_E_F_arr = self.gather_energies_from_workchain(workchain_results)
             traj, forces = self.gather_traj_from_workchain(workchain_results)
-            print("before traj: ", len(traj))
-            print("before select md frames to keep steps_E_F_arr: ", len(steps_E_F_arr))
 
             # Instead of keeping all frames, select some of them
             # Get 1 frame every n picoseconds of MD simulation
@@ -637,8 +631,6 @@ class ActiveLearningWorkChain(WorkChain):
                 steps_E_F_arr=steps_E_F_arr,
                 forces=forces,
             )
-            print("after traj: ", len(traj))
-            print("after select md frames to keep steps_E_F_arr: ", len(steps_E_F_arr))
 
             new_rows.append(
                 {
@@ -939,10 +931,10 @@ class ActiveLearningWorkChain(WorkChain):
             traj_frames = []
 
             for frame in curr_traj:
-                curr_frame:Atoms = AseAtomsAdaptor.get_atoms(frame)
-                curr_frame.info['aiida_uuid'] = row["unique_id"]
+                curr_frame: Atoms = AseAtomsAdaptor.get_atoms(frame)
+                curr_frame.info["aiida_uuid"] = row["unique_id"]
                 traj_frames.append(curr_frame)
-    
+
             all_frames_list.extend(traj_frames)
 
         # Write xyz file into a string captured in the stdout,
@@ -1026,34 +1018,31 @@ class ActiveLearningWorkChain(WorkChain):
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
                     # md_descr_array: np.ndarray = np.load(file=md_descr_file_path)
 
-            
-            extrapolation_column_list: list[dict[str,list]] = []
+            extrapolation_column_list: list[dict[str, list]] = []
             for _, row in self.ctx.md_seed_results_df.iterrows():
-                df_uuid = row['unique_id']
-                desc_f_curr_row:list = md_descr_dict[df_uuid]
+                df_uuid = row["unique_id"]
+                desc_f_curr_row: list = md_descr_dict[df_uuid]
                 # print('desc_f_curr_row: ', len(desc_f_curr_row))
                 # print('desc_f_curr_row: ', desc_f_curr_row.shape)
                 # descriptor_arr = np.vstack(desc_f_curr_row)
                 # print('descriptor_arr: ', descriptor_arr.shape)
                 # extrapolation_column_list.append({'m0': descriptor_arr})
-                extrapolation_column_list.append({'m0': desc_f_curr_row})
+                extrapolation_column_list.append({"m0": desc_f_curr_row})
 
-            self.ctx.md_seed_results_df['extrapolation'] = extrapolation_column_list
+            self.ctx.md_seed_results_df["extrapolation"] = extrapolation_column_list
 
         # Every row contains the results of MD for a single structure, which are:
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
         for _, row in self.ctx.md_seed_results_df.iterrows():
-
             # Make len(traj) sized array filled with 'False'.
-            extrapolating_frames = np.zeros(shape=len(row['trajectory']))
+            extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
 
             if self.inputs.check_extrapolation:
-                curr_struct_descr = row['extrapolation']['m0']
+                curr_struct_descr = row["extrapolation"]["m0"]
 
                 # Checking if the frames for the current structure are extrapolating
                 for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
-
                     below_min = frame_descriptors < self.ctx.descriptors_min_array
                     above_max = frame_descriptors > self.ctx.descriptors_max_array
                     is_frame_extrapolating = np.any(np.logical_or(below_min, above_max))
@@ -1113,7 +1102,8 @@ class ActiveLearningWorkChain(WorkChain):
                     row["trajectory"][int(struct)] for struct in selected_high_error
                 ]
 
-                # REMOVE: For testing purposes. Remove this!
+                # REMOVE: For testing purposes.
+                # TESTING
                 # dft_structures = [row["trajectory"][5]]
 
                 for calc_idx, dft_struct in enumerate(dft_structures):
@@ -1162,14 +1152,16 @@ class ActiveLearningWorkChain(WorkChain):
         try:
             dft_calcs = len(self.ctx.dft_struct_seed_calcs)
             self.report(f"Gathered {dft_calcs} DFT calculations.")
+
+            return_list = mdb_al.gather_dft_calcs(
+                [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+            )
+
         except AttributeError:
-            self.ctx.dft_struct_seed_calcs = []
+            # self.ctx.dft_struct_seed_calcs = []
+            return_list = List([])
 
-        return_list = mdb_al.gather_dft_calcs(
-            [node.uuid for node in self.ctx.dft_struct_seed_calcs]
-        )
-
-        self.out("dft_calcs", return_list)
+        self.out("dft_calcs", return_list)  # list[dict]
         self.out(
             "stop_md_seed_no_disagreement",
             mdb_al.check_md_seed_agreement(return_list),
@@ -1226,7 +1218,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 # Check for correct results
                 # cls.inspect_process,
                 # Get results from workchain
-                cls.results_loop,
+                cls.get_results_loop,
                 # Update Ds and Di to include results from DFT.
                 # Update the inputs for the next workchain.
                 cls.add_dft_results_to_db,
@@ -1280,12 +1272,13 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f"Loaded initial database containing {len(database_training)} structures."
         )
 
-    def results_loop(self):
+    def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
         node = self.ctx.children[self.ctx.iteration - 1]
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
         self._attach_outputs(node)
+        self.ctx.last_workchain_completed = node
         return None
 
     def add_dft_results_to_db(self):
@@ -1303,8 +1296,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # self.ctx.seed_gen_db = self.outputs["upd_seed_gen_db"]
         # self.ctx.inputs.seed_gen_db = self.outputs["upd_seed_gen_db"]
 
+        last_wc = self.ctx.last_workchain_completed
+
         try:
-            cnt_dft_calcs = len(self.outputs["dft_calcs"])
+            cnt_dft_calcs = len(last_wc.outputs["dft_calcs"])
+
         except KeyError:
             cnt_dft_calcs = 0
 
@@ -1312,7 +1308,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
 
             # Adding calculations to training database and seed_generation database
-            for dft_calc in self.outputs["dft_calcs"]:
+            for dft_calc in last_wc.outputs["dft_calcs"]:
                 # Converting serialized structures to Atoms object.
                 if isinstance(dft_calc, dict):
                     dft_calc = mdb_al.aiida_serialized_ase_dict_to_atoms(dft_calc)

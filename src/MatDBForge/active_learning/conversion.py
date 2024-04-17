@@ -428,6 +428,6 @@ def gen_mace_train_structure_list(
         # Writing the file
         aseio.write(path, ase_structs, "extxyz")
 
-    # REMOVE
-    else:
-        print("Path already exists, not overwriting final db.")
+    # # REMOVE
+    # else:
+    #     print("Path already exists, not overwriting final db.")
