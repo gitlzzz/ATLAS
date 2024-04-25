@@ -1,119 +1,183 @@
 # Active Learning Settings
 [active_learning]
 
-    # Name of the aiida profile to be used
-    aiida_profile = ""
+# Name of the aiida profile to be used
+aiida_profile = ""
 
-    # Path to the folder where the initial database is contained.
-    data_path = ""
+# Path to the folder where the initial database is contained.
+data_path = ""
 
-    # Path to the folder where the initial database is contained.
-    init_db_path = ""
+# Path to the folder where the initial database is contained.
+init_db_path = ""
 
-    # Path for final results. Will be created if not existent.
-    # It will contain a folder named run_{uuid}.
-    results_dir = ""
+# Path for final results. Will be created if not existent.
+# It will contain a folder named run_{uuid}.
+results_dir = ""
 
-    # Name for the final database
-    # The database will be stored in the extxyz format
-    final_db_name = "final_data_test"
+# Name for the final database
+# The database will be stored in the extxyz format
+final_db_name = "final_data_test"
 
-    # Maximum number of AL loop iterations.
-    max_iterations = 3
+# Maximum number of AL loop iterations.
+max_iterations = 3
 
-    # Sets total structures in AL seed as a function of the training db size.
-    # This influences the amount of MD calculations and E, F evaluations.
-    seed_size_frac = 0.01
+# Sets total structures in AL seed as a function of the training db size.
+# This influences the amount of MD calculations and E F evaluations.
+seed_size_frac = 0.01
 
-    # MD temperature.
-    md_temperature_K = 300.0
+# MD temperature.
+md_temperature_K = 300.0
 
-    # Total number of timesteps for the MD simulations
-    md_num_steps = 1000
+# Total number of timesteps for the MD simulations
+md_num_steps = 1000
 
-    # Duration of each timestep.
-    md_timestep_duration_ps = 0.003
+# Duration of each timestep.
+md_timestep_duration_ps = 0.003
 
-    # Total number of MACE models. 
-    # Increases resources necessary for training.
-    commitee_num_models = 4
+# Total number of MACE models. 
+# Increases resources necessary for training.
+commitee_num_models = 4
 
-    # Multiplier for model accuracy. Loosens model accuracy threshold.
-    # Tighter thresholds will result in more DFT calculations.
-    # Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
-    model_acc_multiplier = 10
+# Multiplier for model accuracy. Loosens model accuracy threshold.
+# Tighter thresholds will result in more DFT calculations.
+# Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
+model_acc_multiplier = 10
 
-    # Every how many ps of MD simulation keep a structure. 
-    # Influences the total number of energy evaluations and possibly DFT calculations.
-    al_keep_struct_every_n_ps = 1
+# Every how many ps of MD simulation keep a structure. 
+# Influences the total number of energy evaluations and possibly DFT calculations.
+al_keep_struct_every_n_ps = 1
 
-    # Whether to check for extrapolation using the MACE descriptors
-    check_extrapolation = true
+# Whether to check for extrapolation using the MACE descriptors
+check_extrapolation = true
 
 
 # MACE training code and scheduler settings (aiida)
 [mace_train]
 
-    # Weight of the force when considering model performance, used in:
-    # weighted_sum = RMSE_E + (force_weight * RMSE_F)
-    # The lowest weighted_sum will be considered as the most performant model.
-    result_force_weight = 0.1
+# Weight of the force when considering model performance used in:
+# weighted_sum = RMSE_E + (force_weight * RMSE_F)
+# The lowest weighted_sum will be considered as the most performant model.
+result_force_weight = 0.1
 
-    # Scheduler options for MACE Training
-    code = "mace_run_train_gpu@tekla2-new-test"
-    metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
-    metadata.options.resources.tot_num_mpiprocs = 32
-    metadata.options.parser_name = "mace-training-parser"
-    metadata.options.queue_name = "c128m1024ibgpu4.q"
-    metadata.options.max_wallclock_seconds = 117280000
-    metadata.options.max_memory_kb = 102400000
-    metadata.options.withmpi = true
-    metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
+# Scheduler options for MACE Training
+code = "mace_run_train_gpu@tekla2-new-test"
+metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
+metadata.options.resources.tot_num_mpiprocs = 32
+metadata.options.parser_name = "mace-training-parser"
+metadata.options.queue_name = "c128m1024ibgpu4.q"
+metadata.options.max_wallclock_seconds = 117280000
+metadata.options.max_memory_kb = 102400000
+metadata.options.withmpi = true
+metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
     #$ -l hostname="tekla2188"'''
 
-    # MACE Training Settings (run_mace_train)
-    [mace_train.train_settings]
-    name = "nnp_training_test"
-    energy_key = "free_energy"
-    valid_fraction = 0.1
-    config_type_weights = { Default = 1.0 }
-    weight_decay = 9.34e-07
-    E0s = "average"
-    num_interactions = 2
-    model = "MACE"
-    correlation = 3
-    hidden_irreps = "16x0e + 16x1o"
-    lr = 0.005626773506534471
-    r_max = 6.0
-    max_ell = 3
-    max_L = 2
-    batch_size = 64
-    max_num_epochs = 30
-    swa = true
-    ema = true
-    ema_decay = 0.99
-    amsgrad = true
-    restart_latest = true
-    device = "cuda"
-    default_dtype = "float32"
-    wandb = false
+# MACE Training Settings (run_mace_train)
+[mace_train.train_settings]
+name = "nnp_training_test"
+energy_key = "free_energy"
+valid_fraction = 0.1
+config_type_weights = { Default = 1.0 }
+weight_decay = 9.34e-07
+E0s = "average"
+num_interactions = 2
+model = "MACE"
+correlation = 3
+hidden_irreps = "16x0e + 16x1o"
+lr = 0.005626773506534471
+r_max = 6.0
+max_ell = 3
+max_L = 2
+batch_size = 64
+max_num_epochs = 30
+swa = true
+ema = true
+ema_decay = 0.99
+amsgrad = true
+restart_latest = true
+device = "cuda"
+default_dtype = "float32"
+wandb = false
 
 
 # LAMMPS-MACE MD Settings (aiida)
 [lammps_mace]
-    code = "mace-lammps-gpu@tekla2-updated-2024"
-    metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
-    metadata.options.resources.tot_num_mpiprocs = 4
-    metadata.options.queue_name = "c128m1024ibgpu4.q"
-    metadata.options.max_memory_kb = 102400000
-    metadata.options.max_wallclock_seconds = 117280000
-    metadata.options.withmpi = false
-    metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
-    gather_traj_cnt_lattice = true
+code = "mace-lammps-gpu@tekla2-updated-2024"
+metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
+metadata.options.resources.tot_num_mpiprocs = 4
+metadata.options.queue_name = "c128m1024ibgpu4.q"
+metadata.options.max_memory_kb = 102400000
+metadata.options.max_wallclock_seconds = 117280000
+metadata.options.withmpi = false
+metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
+gather_traj_cnt_lattice = true
 
 # Committee Evaluation Settings (MACE)
 [committee_eval]
-    device = "cuda"
-    dtype = "float32"
-    batch_size = 64
-    compute_stress = true
+device = "cuda"
+dtype = "float32"
+batch_size = 64
+compute_stress = true
+
+# VASP DFT Settings
+[vasp]
+# potential_family = "vasp-5.3-PBE"
+potential_family = "vasp-5.4-PBE-2023"
+structure_types = ['bulk', 'surface', 'cluster']
+
+[vasp.queue]
+type = "sge"
+node_cpus = 12
+code_string = "vasp-std-5.4.4-new@tekla2"
+options_resources = { parallel_env = "c12m48ib_mpi", tot_num_mpiprocs = 12 }
+multiple = 1
+custom_scheduler_commands = '#$ -l hostname="tekla2044"'
+
+[vasp.kspacing]
+alpha = 0.135088484104361
+# m1 = 0.100530964914873
+beta-prime = 0.102415920507027
+# m2 = 0.100530964914873
+gamma = 0.141371669411541
+# m3 = 0.166504410640259
+epsilon = 0.105557513160617
+eta = 0.0993371597065093
+# m4 = 0.0948760981384118
+delta = 0.0994491889005363
+
+# general incar settings to be used as a template for all calculations
+[vasp.incar]
+istart = 0
+icharg = 2
+gga = "Pe"
+ispin = 1
+encut = 450    # electronic steps
+ediff = 1e-6
+ismear = 0
+sigma = 0.03
+algo = "Fast"
+lreal = "Auto"
+nelm = 60      # ionic steps
+ibrion = -1
+nsw = 1
+ediffg = -0.03
+isif = 2
+potim = 0.3
+lwave = false
+lcharg = false
+ncore = 4
+lelf = false
+ivdw = 11      # van der Waals
+
+[vasp.relax.incar]
+ibrion = 2
+nsw = 350
+isif = 3
+
+[vasp.surface.incar]
+ldipol = true
+idipol = 3
+
+[vasp.cluster.incar]
+ldipol = true
+dipol = [0.5, 0.5, 0.5]
+idipol = 4

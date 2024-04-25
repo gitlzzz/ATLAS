@@ -5,7 +5,7 @@ import pickle
 import re
 import shutil
 import time
-from contextlib import redirect_stdout, suppress
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
@@ -21,6 +21,7 @@ from aiida.engine import (
 )
 from aiida.orm import (
     Bool,
+    CalcJobNode,
     Dict,
     Float,
     FolderData,
@@ -48,7 +49,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
 
 from MatDBForge import ROOT_DIR
-from MatDBForge.active_learning import active_learning_utils as mdb_al
+from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import DATA_DIR
 
@@ -99,6 +100,7 @@ class ActiveLearningWorkChain(WorkChain):
             serializer=to_aiida_type,
         )
         spec.input("lammps_mace", valid_type=Dict)
+        spec.input("dft_settings", valid_type=Dict)
         spec.input("committee_eval", valid_type=Dict)
         spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
 
@@ -141,11 +143,9 @@ class ActiveLearningWorkChain(WorkChain):
         spec.output("m0_model_file", valid_type=SinglefileData)
         spec.output("stop_md_seed_no_disagreement", valid_type=Bool)
 
-        # spec.exit_code(
-        #     400,
-        #     "ERROR_NEGATIVE_NUMBER",
-        #     message="The result is a negative number.",
-        # )
+        spec.exit_code(
+            420, "ERROR_SCHEDULER_MACE", "error when submitting a MACE calculation."
+        )
 
     def train_mace_model(self):
         """
@@ -168,13 +168,13 @@ class ActiveLearningWorkChain(WorkChain):
         self.report("Generating new training database file.")
 
         # Adding workchain uuid input.data filename to path
-        updated_path, _ = mdb_al.get_final_db_path(
+        updated_path, _ = mdb_al_ut.get_final_db_path(
             result_dir_path=self.inputs.results_dir.value,
             final_db_name=self.inputs.final_db_name.value,
-            node=mdb_al.process_call_root(load_node(self.uuid)),
+            node=mdb_al_ut.process_call_root(load_node(self.uuid)),
         )
 
-        database_training = mdb_al.load_database(self.inputs.training_db_path.value)
+        database_training = mdb_al_ut.load_database(self.inputs.training_db_path.value)
 
         # Generate new training data file
         mdb_conv.gen_mace_train_structure_list(
@@ -192,10 +192,10 @@ class ActiveLearningWorkChain(WorkChain):
         )
 
         for _ in range(self.inputs.commitee_num_models.value):
-            model_name = mdb_al.generate_model_name()
+            model_name = mdb_al_ut.generate_model_name()
 
             # Load training settings from inputs and update path and model names.
-            mace_train_settings: Dict = mdb_al.update_mace_train_settings_dict(
+            mace_train_settings: Dict = mdb_al_ut.update_mace_train_settings_dict(
                 settings_dict=self.inputs.mace_train.get("train_settings"),
                 train_data_path=str(updated_path),
                 curr_model=model_name,
@@ -209,7 +209,7 @@ class ActiveLearningWorkChain(WorkChain):
             mace_builder.model_name = model_name
             mace_builder.mace_settings_dict = Dict(mace_train_settings)
 
-            mace_train_file_path, _ = mdb_al.get_final_db_path(
+            mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
                 result_dir_path=self.inputs.results_dir.value,
                 final_db_name=self.inputs.final_db_name.value,
                 node=self.node,
@@ -255,7 +255,11 @@ class ActiveLearningWorkChain(WorkChain):
         # Iterate over all models and get weighted sum of E and F
         for calc in mace_training_results:
             # Loading calculation node
-            curr_calc = load_node(calc.uuid)
+            curr_calc: CalcJobNode = load_node(calc.uuid)
+
+            # Skipping model if training hasn't finished correctly.
+            if curr_calc.exit_status != 0:
+                continue
 
             # Getting model name
             model_name_list.append(curr_calc.inputs.model_name.value)
@@ -276,9 +280,14 @@ class ActiveLearningWorkChain(WorkChain):
         self.ctx.best_model_name = model_name_list[np.argmin(weighted_E_F_sum_list)]
 
         commitee_models_tupl_name_uuid = []
-        for idx, calc in enumerate(mace_training_results):
+        for calc in mace_training_results:
             # Loading calculation node
-            curr_calc = load_node(calc.uuid)
+            curr_calc: CalcJobNode = load_node(calc.uuid)
+
+            # Skipping model if training hasn't finished correctly.
+            if curr_calc.exit_status != 0:
+                self.report("Skipping CalcJob with errors.")
+                continue
 
             # Loading model name
             model_name = curr_calc.inputs.model_name.value
@@ -295,8 +304,8 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # Convert model to LAMMPS compatible format
                 # and return it to workchain context
-                self.ctx.lammps_potential_file = mdb_al.create_mace_lammps_model(
-                    model_file
+                self.ctx.lammps_potential_file = mdb_al_ut.create_mace_lammps_model(
+                    model_file, self.ctx.m0_rmse_e, self.ctx.m0_rmse_f
                 )
 
                 self.report(
@@ -342,7 +351,7 @@ class ActiveLearningWorkChain(WorkChain):
         mace_builder = mace_descr_calc.get_builder()
         mace_builder.model_file = self.ctx.best_model_file
 
-        mace_train_file_path, _ = mdb_al.get_final_db_path(
+        mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
             result_dir_path=self.inputs.results_dir.value,
             final_db_name=self.inputs.final_db_name.value,
             node=self.node,
@@ -555,7 +564,7 @@ class ActiveLearningWorkChain(WorkChain):
                 curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
                 struct_properties = curr_structure.properties
 
-                # TODO: Check how to include parameters from here as initial parameters (TOML)
+                # TODO: Add to TOML. Check how to include parameters from here as initial parameters (TOML)
                 curr_input = self.gen_md_input(
                     structure=curr_structure,
                     potential_path=lmp_pot_filename,
@@ -623,7 +632,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Instead of keeping all frames, select some of them
             # Get 1 frame every n picoseconds of MD simulation
-            traj, steps_E_F_arr, forces = mdb_al.select_md_frames_to_keep(
+            traj, steps_E_F_arr, forces = mdb_al_ut.select_md_frames_to_keep(
                 frame_interval=self.inputs.al_keep_struct_every_n_ps,
                 total_n_frames=self.inputs.md_num_steps.value,
                 md_tstep_duration_ps=self.inputs.md_timestep_duration_ps.value,
@@ -923,6 +932,7 @@ class ActiveLearningWorkChain(WorkChain):
 
     def get_descriptors_from_md_results(self):
         # Getting descriptors for generated structures
+        self.report("Getting descriptors for MD generated structures...")
         # Store all frames from the trajectory into a list
         all_frames_list = []
         for _, row in self.ctx.md_seed_results_df.iterrows():
@@ -1054,14 +1064,14 @@ class ActiveLearningWorkChain(WorkChain):
             # Getting all energy predictions
             # TODO - For E and F: Do variance
             model_energies_dict = row["energy"]
-            energies_std = mdb_al.get_model_energies_std(model_energies_dict)
+            energies_std = mdb_al_ut.get_model_energies_std(model_energies_dict)
 
             # Any True value in this array is over the energy error threshold
             # and must be sent to calculate with DFT.
             error_e_structures = np.ma.make_mask(energies_std >= e_error_threshold)
 
             model_forces_dict = row["forces"]
-            forces_std = mdb_al.get_model_forces_std(model_forces_dict)
+            forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
             forces_std_norm = np.linalg.norm(forces_std, axis=2)
             forces_std_norm_max = np.amax(forces_std_norm, axis=1)
 
@@ -1087,10 +1097,9 @@ class ActiveLearningWorkChain(WorkChain):
             # which structures to remove outside of the loop.
             if flag_no_error_structs:
                 delete_indices.append(row["unique_id"])
-
-            # If there are some structures to submit, select some of them and
-            # mark them for DFT.
             elif not flag_no_error_structs:
+                # If there are some structures to submit, select some of them and
+                # mark them for DFT.
                 struct_arr = error_all_structures
 
                 if isinstance(error_all_structures, np.bool_):
@@ -1104,20 +1113,29 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # REMOVE: For testing purposes.
                 # TESTING
-                # dft_structures = [row["trajectory"][5]]
+                # dft_structures = [row["trajectory"][0]]
+                # print('dft_structures: ', dft_structures)
 
                 for calc_idx, dft_struct in enumerate(dft_structures):
-                    builder = mdb_al.get_dft_calc_builder(
+                    builder = mdb_al_ut.get_dft_calc_builder(
                         dft_struct,
                         row,
                         calc_idx,
                         self.inputs.train_seed_group.value,
+                        dft_settings=self.inputs.dft_settings.get_dict(),
                     )
 
+                    self.report(builder)
                     # Submitting current calculation
                     future = self.submit(builder)
                     future.base.extras.set("mdb_calc_uuid", row["unique_id"])
+                    future.base.extras.set("mdb_struct_type", row["mdb_struct_type"])
+                    future.base.extras.set("struct_name", row["material_name"])
                     self.to_context(dft_struct_seed_calcs=append_(future))
+
+                    if self.inputs.train_seed_group.value:
+                        group = load_group(self.inputs.train_seed_group.value)
+                        group.add_nodes(future)
 
         self.report(
             f"Commitee decision: {len(dft_structures)} DFT / "
@@ -1131,7 +1149,7 @@ class ActiveLearningWorkChain(WorkChain):
                 " generating DB (Ds)"
             )
 
-            mdb_al.remove_structs_from_seed_gen_db(
+            mdb_al_ut.remove_structs_from_seed_gen_db(
                 self.inputs.seed_db_path, delete_indices
             )
 
@@ -1153,7 +1171,7 @@ class ActiveLearningWorkChain(WorkChain):
             dft_calcs = len(self.ctx.dft_struct_seed_calcs)
             self.report(f"Gathered {dft_calcs} DFT calculations.")
 
-            return_list = mdb_al.gather_dft_calcs(
+            return_list = mdb_al_ut.gather_dft_calcs(
                 [node.uuid for node in self.ctx.dft_struct_seed_calcs]
             )
 
@@ -1164,7 +1182,7 @@ class ActiveLearningWorkChain(WorkChain):
         self.out("dft_calcs", return_list)  # list[dict]
         self.out(
             "stop_md_seed_no_disagreement",
-            mdb_al.check_md_seed_agreement(return_list),
+            mdb_al_ut.check_md_seed_agreement(return_list),
         )
 
 
@@ -1249,7 +1267,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if not results_dir_path.exists():
             results_dir_path.mkdir()
 
-        final_db_path, curr_run_results_dir = mdb_al.get_final_db_path(
+        final_db_path, curr_run_results_dir = mdb_al_ut.get_final_db_path(
             result_dir_path=results_dir_path,
             final_db_name=self.inputs.active_learning.final_db_name.value,
             node=self.node,
@@ -1291,8 +1309,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         generation database.
         """
         # Updating current training seed
-        seed_gen_db = mdb_al.load_database(self.ctx.seed_db_path)
-        training_db = mdb_al.load_database(self.ctx.training_db_path)
+        seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
+        training_db = mdb_al_ut.load_database(self.ctx.training_db_path)
         # self.ctx.seed_gen_db = self.outputs["upd_seed_gen_db"]
         # self.ctx.inputs.seed_gen_db = self.outputs["upd_seed_gen_db"]
 
@@ -1311,7 +1329,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             for dft_calc in last_wc.outputs["dft_calcs"]:
                 # Converting serialized structures to Atoms object.
                 if isinstance(dft_calc, dict):
-                    dft_calc = mdb_al.aiida_serialized_ase_dict_to_atoms(dft_calc)
+                    dft_calc = mdb_al_ut.aiida_serialized_ase_dict_to_atoms(dft_calc)
 
                 seed_gen_db.append(dft_calc)
                 training_db.append(dft_calc)
@@ -1358,7 +1376,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         ]
 
         # Sending empty seed_gen_db flag to context
-        seed_gen_db = mdb_al.load_database(self.ctx.inputs.seed_db_path)
+        seed_gen_db = mdb_al_ut.load_database(self.ctx.inputs.seed_db_path)
         if len(seed_gen_db) == 0:
             self.ctx.seed_gen_db_all_structs_removed = Bool(True)
         else:
@@ -1482,11 +1500,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.report("Getting MD seed...")
         self.ctx.inputs.metadata.description = (
             "Perform MD simulations, evaluate and refine ML models. "
-            f"Step: {self.ctx.inputs.al_loop_iteration}"
+            f"Step: {self.ctx.iteration+1}"
         )
         self.ctx.inputs.metadata.label = f"Step - {self.ctx.iteration+1}"
 
-        seed_gen_db = mdb_al.load_database(self.ctx.seed_db_path)
+        seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
         # Getting length of the seed generating database
         db_length = len(seed_gen_db)
 
@@ -1526,7 +1544,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Adding current train seed to the context
         current_MD_seed_serialized = []
         for curr_s in self.ctx.current_md_seed_structs:
-            curr_s = mdb_al.serialize_ase(curr_s)
+            curr_s = mdb_al_ut.serialize_ase(curr_s)
             current_MD_seed_serialized.append(curr_s)
 
         self.ctx.inputs.current_md_seed_structs = current_MD_seed_serialized
@@ -1546,7 +1564,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.report("Returning final results...")
 
         # Storing final database as a SingleFileData object
-        train_db = mdb_al.prepare_output_final_training_db(
+        train_db = mdb_al_ut.prepare_output_final_training_db(
             training_db_path=self.ctx.inputs.training_db_path
         )
 

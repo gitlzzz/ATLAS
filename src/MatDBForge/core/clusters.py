@@ -175,8 +175,8 @@ def center_structure(
     Returns
     -------
     Structure
-        Pymatgen structure containing a structure placed on the center,
-        with the same attributes as the original.
+        Pymatgen structure containing a structure placed on the center 
+        of the cell, with the same attributes as the original.
     """
     # Getting the center of mass
     com = get_center_of_mass(structure)

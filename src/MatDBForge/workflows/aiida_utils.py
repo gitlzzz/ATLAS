@@ -23,6 +23,7 @@ from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import DATA_DIR
 from MatDBForge.core import initial_db as mdb_indb
 from MatDBForge.core import utils as mdb_ut
+from MatDBForge.core.clusters import center_structure
 
 VDW_DATA_PATH = pl.Path(DATA_DIR / "vdw-data")
 
@@ -70,44 +71,7 @@ SEL_DYNAMICS = None
 
 # INCAR equivalent
 # Set input parameters
-# INCAR_CLUSTER = {
-#     "incar": {
-#         ## general:
-#         "istart": 0,
-#         "icharg": 2,
-#         "gga": "Pe",
-#         "ispin": 1,
-#         # "lorbit": 11,
-#         # electronic steps:
-#         "encut": 450,
-#         "ediff": 1e-6,
-#         "ismear": 0,
-#         "sigma": 0.03,
-#         "algo": "Fast",
-#         "lreal": "Auto",
-#         "nelm": 120,
-#         # ionic steps:
-#         "ibrion": -1,
-#         "nsw": 2,
-#         "ediffg": -0.03,
-#         "isif": 2,
-#         "potim": 0.3,
-#         # files to write:
-#         "lwave": False,
-#         "lcharg": False,
-#         # parallelization:
-#         "ncore": 4,
-#         # "kpar": 4,
-#         # dipole correction
-#         "lelf": False,
-#         # van der Waals:
-#         "ivdw": 11,
-#         # surface
-#         "idipol": 4,
-#         "ldipol": True,
-#     }
-# }
-
+# TODO: Move to /data
 INCAR_SP = {
     "incar": {
         # general:
@@ -280,7 +244,7 @@ def choose_queue(node_type: int, tot_procs: int = None):
     return OPTIONS, CODE_STRING
 
 
-def choose_queue_from_struct(structure, assign_dict: dict):
+def choose_queue_from_struct(queue_data: dict):
     """
     Choose scheduler options for aiida.
 
@@ -291,7 +255,7 @@ def choose_queue_from_struct(structure, assign_dict: dict):
     ----------
     structure : pymatgen.core.structure.Structure
         Structure
-    assign_dict : dict
+    queue_data : dict
         Dictionary specifying which queue gets assigned to every atom
         interval.
 
@@ -304,68 +268,42 @@ def choose_queue_from_struct(structure, assign_dict: dict):
     int
         The number of nodes that will be used.
     """
-    # Getting the number of atoms
-    num_atom = len(structure.sites)
-
-    # Code_string is chosen among the list given by 'verdi code list'
-    keys_list = list(assign_dict.keys())
-    sort_keys_list = keys_list.copy()
-    sort_keys_list.append(num_atom)
-    sort_keys_list = sorted(sort_keys_list)
-    num_atom_posc = sort_keys_list.index(num_atom)
-
-    # If our target structure is larger than the maximum
-    if num_atom_posc == (len(sort_keys_list) - 1):
-        next_val = keys_list[num_atom_posc - 1]
-
-    # Every other case
-    elif num_atom_posc == 0:
-        next_val = keys_list[0]
-    else:
-        next_val = keys_list[num_atom_posc - 1]
-
-    # Getting our data for the the largest queue
-    queue_data = assign_dict.get(next_val, keys_list[-1])
-
     # Jobfile equivalent
     # In OPTIONS, we typically set scheduler options. See:
     # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
-    OPTIONS = {}
-    OPTIONS["account"] = ""
-    OPTIONS["qos"] = queue_data.get("qos", None)
-    OPTIONS["max_wallclock_seconds"] = queue_data.get("max_wallclock_seconds", None)
-    OPTIONS["max_memory_kb"] = queue_data.get("max_memory_kb", None)
-
-    # TESTING
-    # REMOVE
-    OPTIONS["custom_scheduler_commands"] = '#$ -l hostname="tekla2044"'
+    options = {}
+    options["account"] = ""
+    options["qos"] = queue_data.get("qos")
+    options["max_wallclock_seconds"] = queue_data.get("max_wallclock_seconds")
+    options["max_memory_kb"] = queue_data.get("max_memory_kb")
+    options["custom_scheduler_commands"] = queue_data.get("custom_scheduler_commands")
 
     # Getting code string
-    CODE_STRING = queue_data["code_string"]
-    OPTIONS["resources"] = queue_data["options_resources"]
+    code_string = queue_data["code_string"]
+    options["resources"] = queue_data["options_resources"]
 
     # Getting options
     node_cpus = queue_data["node_cpus"]
 
     mult_nodes = queue_data["multiple"]
 
-    # Specific setting for slurm scheduler
+    # Specific settings for slurm scheduler
     if queue_data.get("type") == "slurm":
-        OPTIONS["resources"]["num_cores_per_machine"] = node_cpus
+        options["resources"]["num_cores_per_machine"] = node_cpus
 
-    OPTIONS["resources"]["tot_num_mpiprocs"] = node_cpus * mult_nodes
+    options["resources"]["tot_num_mpiprocs"] = node_cpus * mult_nodes
 
-    return OPTIONS, CODE_STRING, mult_nodes
+    return options, code_string, mult_nodes
 
 
-def submit_aiida_calculation(
+def submit_aiida_vasp_calculation(
     index,
     target_structure,
     phase,
     material_name,
     unique_id,
     kspacing_dict,
-    incar_dict,
+    incar_settings_dict,
     calc_type,
     queue_dict,
     potential_family,
@@ -379,9 +317,13 @@ def submit_aiida_calculation(
     struct_formula = target_structure.formula.replace(" ", "")
     kspacing = kspacing_dict[phase]
 
-    if incar_dict:
+    if incar_settings_dict:
         # TODO: Implement manual INCAR submission.
-        raise NotImplementedError("Manual INCAR submission not yet implemented.")
+        # incar = incar_settings_dict["incar"]
+        incar = incar_settings_dict
+        kspacing_vec = select_kspacing(
+            target_structure, incar, phase, kspacing_dict, calc_type
+        )
     else:
         # Generate INCAR with correct kspacing
         incar, kspacing_vec = generate_incar(
@@ -391,9 +333,15 @@ def submit_aiida_calculation(
             kspacing=kspacing_dict,
         )
 
+    # Changing all keys to uppercase to match the VASP INCAR format
+    upper_incar = {"incar": {}}
+    for key, value in incar.items():
+        upper_incar["incar"][key.upper()] = value
+
     # Dictionary containing metadata for the calculation
+    struct_name = f"{material_name}-{struct_formula}-{index}_{calc_type}"
     metadata_dict = {
-        "label": (f"{material_name}-{struct_formula}-{index}_{calc_type}"),
+        "label": struct_name,
         "description": (
             f"Relaxation for {struct_formula} in CuZn initial database."
             # "options": {"dry_run": True},
@@ -405,6 +353,10 @@ def submit_aiida_calculation(
     # first.
     if isinstance(target_structure, Slab):
         target_structure = _convert_Slab_to_Structure(target_structure)
+
+    # Centering the structure if it is a cluster
+    if calc_type == "cluster":
+        target_structure = center_structure(target_structure)
 
     # Getting structure as an aiida structure from pymatgen.
     structure = StructureData(pymatgen=target_structure)
@@ -429,7 +381,8 @@ def submit_aiida_calculation(
     # In options, we typically set scheduler options. See:
     # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
     options, code_string, mult = choose_queue_from_struct(
-        structure=target_structure, assign_dict=queue_dict
+        # structure=target_structure, assign_dict=queue_dict
+        queue_data=queue_dict
     )
 
     # Defining the vasp.relax workchain object
@@ -451,7 +404,9 @@ def submit_aiida_calculation(
     # Entries available for the options dict:
     # https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/calculations/usage.html?highlight=options#options
     builder["options"] = Dict(options)
-    builder["parameters"] = Dict(incar)
+    # builder["parameters"] = Dict(incar)
+    builder["parameters"] = Dict(upper_incar)
+    print('builder["parameters"]: ', builder["parameters"])
     builder["potential_family"] = Str(potential_family)
     builder["potential_mapping"] = Dict(potential_mapping)
     builder["structure"] = structure
@@ -513,6 +468,8 @@ def submit_aiida_calculation(
         # of its last children node will be gathered and added to the DB.
         # node.base.extras.set("mdb_calc_uuid", target_row.unique_id.hex)
         node.base.extras.set("mdb_calc_uuid", unique_id.hex)
+        node.base.extras.set("mdb_struct_type", calc_type.lower())
+        node.base.extras.set("struct_name", struct_name)
 
         if group:
             group.add_nodes(node)
@@ -597,7 +554,7 @@ def run_dataframe_vasp_simulations_aiida(
                 curr_phase,
             ) = gather_calc_data_from_row(target_row)
 
-            node = submit_aiida_calculation(
+            node = submit_aiida_vasp_calculation(
                 index=it,
                 target_structure=curr_structure,
                 phase=curr_phase,
@@ -778,7 +735,7 @@ def run_dataframe_vasp_aiida_queue(
             # for it, target_row in chunk.iterrows():
             # Gathering calculation information and
             # submitting the calculation through AiiDA.
-            node = submit_aiida_calculation(
+            node = submit_aiida_vasp_calculation(
                 index=current_row_index,
                 target_structure=curr_structure,
                 phase=curr_phase,
@@ -1082,10 +1039,7 @@ def generate_potential_mapping() -> dict:
 
         # Checking for 0D arrays which appear when only 1 potential is
         # specified
-        if atom_array.ndim == 0:
-            atom_list = [str(atom_array)]
-        else:
-            atom_list = list(atom_array)
+        atom_list = [str(atom_array)] if atom_array.ndim == 0 else list(atom_array)
 
         # Creating a dictionary with the custom potentials
         atom_dict = {}

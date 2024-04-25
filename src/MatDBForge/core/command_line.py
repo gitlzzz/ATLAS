@@ -5,6 +5,7 @@ import argparse
 import pathlib as pl
 import shutil
 import sys
+import warnings
 from argparse import RawTextHelpFormatter
 
 import tomli
@@ -15,6 +16,7 @@ from aiida.plugins import WorkflowFactory
 
 from MatDBForge.core import DATA_DIR
 
+warnings.filterwarnings("ignore")
 
 def create_active_learning_builder(toml_dict: dict):
     """
@@ -63,6 +65,9 @@ def create_active_learning_builder(toml_dict: dict):
 
     # Committee Evaluation Settings
     builder.active_learning.committee_eval = Dict(value=toml_dict["committee_eval"])
+
+    # DFT Settings
+    builder.active_learning.dft_settings = Dict(value=toml_dict["vasp"])
 
     return builder
 

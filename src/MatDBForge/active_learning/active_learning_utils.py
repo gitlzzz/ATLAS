@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import wonderwords as ww
+from aiida.cmdline.utils import echo_info
 from aiida.engine import (
     calcfunction,
 )
@@ -143,112 +144,75 @@ def select_md_frames_to_keep(
     return traj_sampled, steps_E_F_arr_sampled, forces_sampled
 
 
-def get_dft_calc_builder(struct, row, calc_idx, group):
+def get_dft_calc_builder(
+    struct,
+    row,
+    calc_idx: int,
+    group,
+    dft_settings: dict,
+):
     struct_type = row["mdb_struct_type"]
 
     # Gathering row information
-    (
-        curr_structure,
-        curr_material_name,
-        curr_unique_id,
-        curr_phase,
-    ) = mdb_aut.gather_calc_data_from_row(row, curr_structure=struct)
+    (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
+        mdb_aut.gather_calc_data_from_row(row, curr_structure=struct)
+    )
 
-    # HACK
-    # TODO: Move this to the central TOML file.
-    # kspacing_dict = {
-    #     "alpha": 0.135088484104361,
-    #     # "m1": 0.100530964914873,
-    #     "beta-prime": 0.102415920507027,
-    #     # "m2": 0.100530964914873,
-    #     "gamma": 0.141371669411541,
-    #     # "m3": 0.166504410640259,
-    #     "epsilon": 0.105557513160617,
-    #     "eta": 0.0993371597065093,
-    #     # "m4": 0.0948760981384118,
-    #     "delta": 0.0994491889005363,
-    # }
-    # TESTING
-    kspacing_dict = {
-        "alpha": 0.9,
-        # "m1": 0.9,
-        "beta-prime": 0.9,
-        # "m2": 0.9,
-        "gamma": 0.9,
-        # "m3": 0.9,
-        "epsilon": 0.9,
-        "eta": 0.9,
-        # "m4": 0.9,
-        "delta": 0.9,
-    }
-    # REMOVE # TESTING
-    # vasp-std-5.4.4-new@tekla2
-    # vasp-std-5.3.3-new@tekla2-updated-2024
-    # ################
-    # HACK
-    # TODO: Move this to the central TOML file.
-    queue_dict = {
-        2: {
-            "type": "sge",
-            "node_cpus": 12,
-            "code_string": "vasp-std-5.4.4-new@tekla2",
-            "options_resources": {
-                "parallel_env": "c12m48ib_mpi",
-                "tot_num_mpiprocs": 12,
-            },
-            "multiple": 1,
-        },
-        5: {
-            "type": "sge",
-            "node_cpus": 12,
-            "code_string": "vasp-std-5.4.4-new@tekla2",
-            "options_resources": {
-                "parallel_env": "c12m48ib_mpi",
-                "tot_num_mpiprocs": 12,
-            },
-            "multiple": 1,
-        },
-        40: {
-            "type": "sge",
-            "node_cpus": 12,
-            "code_string": "vasp-std-5.4.4-new@tekla2",
-            "options_resources": {
-                "parallel_env": "c12m48ib_mpi",
-                "tot_num_mpiprocs": 12,
-            },
-            "multiple": 1,
-        },
-    }
-
-    # HACK
-    # TODO: Move this to the central TOML file.
-    # potential_family = "vasp-5.4-PBE-2023"
-    # potential_family = "vasp-5.3-PBE"
-
-    # TESTING
-    potential_family = "vasp-5.4-PBE-2023"
     potential_mapping = mdb_aut.generate_potential_mapping()
 
-    builder = mdb_aut.submit_aiida_calculation(
+    # Updating general INCAR with calc type specific options
+
+    specific_options = dft_settings.get(struct_type)
+    echo_info(str(specific_options))
+
+    # Applying structure-specific options from the input config.
+    if specific_options:
+        print('\nspecific_options: ', specific_options)
+        specific_options = specific_options.get("incar")
+        print('specific_options incar: ', specific_options)
+        for setting, val in specific_options.items():
+            print('setting: ', setting)
+            print('val: ', val)
+            dft_settings["incar"][setting] = val
+
+
+    builder = mdb_aut.submit_aiida_vasp_calculation(
         index=calc_idx,
         target_structure=struct,
         phase=curr_phase,
         material_name=curr_material_name,
         unique_id=curr_unique_id,
-        kspacing_dict=kspacing_dict,
+        # kspacing_dict=kspacing_dict,
+        kspacing_dict=dft_settings["kspacing"],
         calc_type=struct_type,
-        queue_dict=queue_dict,
-        potential_family=potential_family,
+        # queue_dict=queue_dict,
+        queue_dict=dft_settings["queue"],
+        # potential_family=potential_family,
+        potential_family=dft_settings["potential_family"],
         potential_mapping=potential_mapping,
         return_builder=True,
         dry_run=False,
-        incar_dict=None,
+        incar_settings_dict=dft_settings["incar"],
         group=group,
     )
     return builder
 
 
 def generate_model_name():
+    """
+    Generate a unique NNP model name combining random words and a number.
+
+    This function creates a unique model name by concatenating randomly selected
+    adjective, noun, and verb, followed by a random number. This combination ensures
+    the generation of distinctive and memorable names suitable for labeling models
+    in simulations or learning tasks.
+
+    Returns
+    -------
+    str
+        A string consisting of a random adjective, noun, and verb followed by a hyphen
+        and a random number between 1 and 99, forming a unique model name.
+    """
     r = ww.RandomWord()
     randint = np.random.randint(low=1, high=100)
     adj = r.word(include_parts_of_speech=["adjective"])
@@ -288,11 +252,6 @@ def process_call_root(process):
         caller = next_caller
 
     return caller.uuid
-
-
-@calcfunction
-def generate_placeholder_text():
-    return Str("placeholder text")
 
 
 @calcfunction
@@ -370,7 +329,7 @@ def update_mace_train_settings_dict(
 
 
 @calcfunction
-def create_mace_lammps_model(model_file):
+def create_mace_lammps_model(model_file, rmse_e, rmse_f):
     with model_file.as_path() as model_path:
         # Loading model
         model = torch.load(model_path)
@@ -495,7 +454,7 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
         #     )
 
         # Adding the type of structure to the atoms.info dict
-        struct_type = mdb_conv.get_struct_type(vasprun)
+        struct_type = mdb_conv.get_struct_type(vasprun=vasprun, dft_calc_node=finished_dft_calc)
         calc_info_dict["mdb_struct_type"] = struct_type
         vasprun = vasprun_add_info_dict(vasprun, calc_info_dict)
 

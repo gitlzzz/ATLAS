@@ -133,7 +133,8 @@ def gather_calc_data_from_node(node, units="atomic"):
     # Getting properties from the vasprun
     # Free energy can be gathered with self.get_potential_energy(force_consistent=True)
     # energy_zero can be gathered with self.get_potential_energy(force_consistent=False)
-    pot_energy = vasprun.get_potential_energy(force_consistent=False) * energy_unit
+    # TODO: Add flag to activate/deactivate pot_energy
+    # pot_energy = vasprun.get_potential_energy(force_consistent=False) * energy_unit
     tot_energy = vasprun.get_total_energy() * energy_unit
 
     # Getting forces
@@ -145,7 +146,9 @@ def gather_calc_data_from_node(node, units="atomic"):
     structure = vasprun.get_positions() * length_unit
     symbols = vasprun.get_chemical_symbols()
     numbers = vasprun.get_atomic_numbers()
-    dipole = vasprun.get_dipole_moment()
+
+    # TODO: Add flag to activate/deactivate dipole
+    # dipole = vasprun.get_dipole_moment()
 
     # voigt=False is needed to get a 3x3 array, which gets used by the
     # extxyz format
@@ -155,7 +158,7 @@ def gather_calc_data_from_node(node, units="atomic"):
     # charge = contcar.structure.charge
     charge = 0
 
-    struct_type = get_struct_type(vasprun)
+    struct_type = get_struct_type(vasprun, dft_calc_node=node)
 
     # MACE by default checks the 'energy' key for the energies in the training files.
     # However, we decided to use free_energy to store the energy.
@@ -181,23 +184,24 @@ def gather_calc_data_from_node(node, units="atomic"):
     return data_dict
 
 
-def get_struct_type(vasprun):
-    # HACK: Structure type is now inferred from calc settings.
-    # TODO: Add a calc type identifier to aiida dft calculations and use
-    # that instead.
+def get_struct_type(vasprun, dft_calc_node):
 
-    run_params = vasprun.calc.parameters
-    # kpt_arr = run_params["kpoints_generation"]["divisions"]
+    try:
+        # Using a calc type identifier in aiida dft calculations.
+        struct_type = dft_calc_node.caller.extras["mdb_struct_type"]
+    except Exception:
+        # Here structure type is now inferred from calc settings.
+        # Settings won't be always like this
+        run_params = vasprun.calc.parameters
 
-    if not run_params["ldipol"]:
-        struct_type = "bulk"
-    # HACK: This won't be always like this
-    elif run_params["dipol"] == [0.5, 0.5, 0.5]:
-        struct_type = "cluster"
-    elif run_params["idipol"] == 3:
-        struct_type = "surface"
-    else:
-        struct_type = "unknown"
+        if not run_params["ldipol"]:
+            struct_type = "bulk"
+        elif run_params["dipol"] == [0.5, 0.5, 0.5]:
+            struct_type = "cluster"
+        elif run_params["idipol"] == 3:
+            struct_type = "surface"
+        else:
+            struct_type = "unknown"
 
     return struct_type
 
@@ -427,7 +431,3 @@ def gen_mace_train_structure_list(
 
         # Writing the file
         aseio.write(path, ase_structs, "extxyz")
-
-    # # REMOVE
-    # else:
-    #     print("Path already exists, not overwriting final db.")
