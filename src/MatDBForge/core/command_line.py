@@ -128,7 +128,10 @@ def run_active_learning():
         with open(args.config_file, "rb") as f:
             toml_dict = tomli.load(f)
     except FileNotFoundError as e:
-        error_message = f"The specified config file {args.config_file} does not exist."
+        error_message = (
+            f"The specified config file {args.config_file} does not exist."
+            "Please make sure that is the correct name or input a different path."
+        )
         raise FileNotFoundError(error_message) from e
 
     # Loading default aiida profile
@@ -141,11 +144,10 @@ def run_active_learning():
         node = run(builder)
     else:
         node = submit(builder)
-        print('Active learning workchain node: ', node)
-        run_training_dashboard(workchain_node_id=node.pk, n_sec=args.n_sec, port=args.port)
-
-    # print("Calculation uuid: ", node.uuid)
-
+        print("Active learning workchain node: ", node)
+        run_training_dashboard(
+            workchain_node_id=node.pk, n_sec=args.n_sec, port=args.port
+        )
 
 def gen_default_config():
     parser = argparse.ArgumentParser(
@@ -220,9 +222,7 @@ def monitor_al_loop():
     )
     parser.add_argument(
         "--process_id",
-        help=(
-            "Process id (pk/uuid) of the WorkChain to monitor.\n"
-        ),
+        help=("Process id (pk/uuid) of the WorkChain to monitor.\n"),
         type=str,
         metavar="UUID/PK",
     )
@@ -243,4 +243,6 @@ def monitor_al_loop():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    run_training_dashboard(workchain_node_id=args.process_id, n_sec=args.update_interval, port=args.port)
+    run_training_dashboard(
+        workchain_node_id=args.process_id, n_sec=args.update_interval, port=args.port
+    )

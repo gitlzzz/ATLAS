@@ -16,9 +16,9 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
     )
     def toggle_interval(value, max_value, state_model, state_general):
         if value == max_value:
-            return 10000, 10000
+            return 100000, 100000
         else:
-            return n_sec, n_sec
+            return n_sec*1000, n_sec*1000
 
     @callback(
         Output("progress-update", "className"),
