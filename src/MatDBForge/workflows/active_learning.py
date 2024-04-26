@@ -1125,7 +1125,6 @@ class ActiveLearningWorkChain(WorkChain):
                         dft_settings=self.inputs.dft_settings.get_dict(),
                     )
 
-                    self.report(builder)
                     # Submitting current calculation
                     future = self.submit(builder)
                     future.base.extras.set("mdb_calc_uuid", row["unique_id"])

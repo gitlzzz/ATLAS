@@ -1,0 +1,328 @@
+/* General body styling */
+body {
+    font-family: "Space Grotesk", sans-serif;
+    background: #c9d9f3;
+    /* background: linear-gradient(27deg, rgb(226, 248, 248) 0%, rgb(248, 235, 205) 100%);  */
+    background-size: 200% 200%;
+    -webkit-animation: BackgroundGradient 18s ease infinite;
+    -moz-animation: BackgroundGradient 18s ease infinite;
+    animation: BackgroundGradient 18s ease infinite;
+}
+
+
+@-webkit-keyframes HeaderGradient {
+    0%{background-position:94% 0%}
+    50%{background-position:7% 100%}
+    100%{background-position:94% 0%}
+}
+@-moz-keyframes HeaderGradient {
+    0%{background-position:94% 0%}
+    50%{background-position:7% 100%}
+    100%{background-position:94% 0%}
+}
+@keyframes HeaderGradient {
+    0%{background-position:94% 0%}
+    50%{background-position:7% 100%}
+    100%{background-position:94% 0%}
+}
+
+
+@-webkit-keyframes BackgroundGradient {
+    0%{background-position:94% 0%}
+    50%{background-position:7% 100%}
+    100%{background-position:94% 0%}
+}
+@-moz-keyframes BackgroundGradient {
+    0%{background-position:94% 0%}
+    50%{background-position:7% 100%}
+    100%{background-position:94% 0%}
+}
+@keyframes BackgroundGradient {
+    0%{background-position:94% 0%}
+    50%{background-position:7% 100%}
+    100%{background-position:94% 0%}
+}
+
+/* Main header style */
+.header {
+    text-align: left;
+    /* font-size: 28px; */
+    height: 7.5vh;
+    /* padding: 1vh 1%; */
+    margin-top: -1vh;
+    margin-left: -1vh;
+    margin-right: -1vh;
+    background: linear-gradient(-90deg, #4b6cb7 0%, #182848 100%);
+    border: 0px solid #282828;
+    border-bottom-width: 3px;
+    display: flex;
+    flex-direction: row;
+    flex-flow: row;
+    align-items:center
+    /* background: linear-gradient(270deg, #4e74a8, #734c7b, #ffb55a);
+    background: linear-gradient(90deg, rgb(85, 134, 191) 25%, rgb(14, 40, 70) 81%);
+    background-size: 600% 600%;
+    -webkit-animation: HeaderGradient 10s ease infinite;
+    -moz-animation: HeaderGradient 10s ease infinite;
+    animation: HeaderGradient 10s ease infinite;
+     */
+}
+
+.title {
+    text-align: left;
+    font-size: 24px;
+    font-weight: 1000;
+    font-variant: bold;
+    color: #ffffff;
+    flex-grow: 3;
+    /* padding: 0.25vh 1%; */
+    padding-left: 1%;
+    padding-top: 0.5%;
+}
+
+.logo-right {
+    width: 3%;
+
+    /* padding: 0.75vh 0% 0.25vh 0%; */
+    /* padding: 0.75vh 1% 0.25vh 0%; */
+    /* margin-top: -1vh;
+    1padding-left: 1%;
+    padding-top: 0.5%;
+    margin-left: -1vh;
+    margin-right: -1vh; */
+    text-align: center;
+    /* padding-top: 0.5%; */
+    /* margin-top: 1%; */
+    padding-right: 2%;
+    /* max-width: 75px; */
+}
+
+.logo-left {
+    width: 10%;
+    /* height: 10%; */
+    /* padding: 0.75vh 0% 0.25vh 0%; */
+    /* padding: 0.75vh 1% 0.25vh 0%; */
+    /* margin-top: -1vh;
+    margin-left: -1vh;
+    margin-right: -1vh; */
+    text-align: center;
+    /* margin-top: 1.5%; */
+    padding-right: 2%;
+    /* max-width: 150px; */
+}
+
+/* Styling for top boxes */
+.top-box-headers {
+    display: flex;
+    flex-direction: row;
+    flex-flow: row;
+}
+
+.title-upper {
+    /* flex-grow: 1; */
+    text-align: left;
+    font-weight: bold;
+    font-size: 16px;
+    margin-top:10px !important;
+    margin-bottom:10px;
+    /* background-color: #ffffff; */
+}
+
+/* .right-title {
+    text-align: left;
+    font-weight: bold;
+    font-size: 16px;
+    /* background-color: #ffffff; }*/
+
+/* Styling for top boxes */
+.top-box {
+    display: flex;
+    flex-direction: row;
+    flex-flow: row;
+    /* height: 7.5vh; */
+    /* border-radius: 15px; */
+    gap: 2%;
+    margin-top: 1vh;
+    margin-bottom: 1vh;
+}
+
+.left-box, .right-box {
+    /* border: 1px solid black; */
+    /* border-radius: 10px; */
+    vertical-align: top;
+    /* padding: 0.1vh 0; */
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
+    font-size: 12px;
+
+}
+
+.top-box-left-headers{
+    display: flex;
+    flex-flow: column;
+    width:100%;
+    align-items: baseline;
+    /* padding: 0.1vh 0.5%; */
+}
+
+.top-box left-box{
+    display: flex;
+    flex-flow: column;
+    width:100%;
+    align-items: baseline;
+}
+
+.top-box-right-headers{
+    flex-flow: column;
+    /* padding: 0.1vh 0.5%; */
+}
+
+.left-box {
+    flex-grow: 4;
+    background-color: #ffffff;
+    padding: 0.1vh 0.5%;
+    font-size: 12;
+}
+
+.right-box {
+    flex-grow: 1;
+    padding: 0.1vh 0.5%;
+    background-color: #ffffff;
+    font-size: 12;
+}
+
+.workchain-progress-container {
+    display: flex;
+    flex-direction: row;
+    align-items: end;
+    flex-flow: row;
+    /* padding: 2%; */
+    width: 100%;
+}
+
+.workchain-progbar{
+    flex-grow: 4;
+    /* margin: 0 auto; */
+    margin-left: 2%;
+    width: auto;
+    /* color:  linear-gradient(90deg,#ff6161,#1ecd1e); */
+    background-color:  lightgrey;;
+    border-radius: 2%;
+}
+
+
+@-webkit-keyframes ProgBar {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+}
+@-moz-keyframes ProgBar {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+}
+@keyframes ProgBar {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+}
+.workchain-progbar::-moz-progress-bar {
+        background: linear-gradient(270deg, #186396, #a4bbca, #186396);
+        background-size: 400% 400%;
+        -webkit-animation: ProgBar 4s ease infinite;
+        -moz-animation: ProgBar 4s ease infinite;
+        animation: ProgBar 4s ease infinite;
+
+}
+
+.workchain-progbar::-webkit-progress-value {background-color: green !important;}
+
+.workchain-progbar-done{
+    flex-grow: 4;
+    /* margin: 0 auto; */
+    margin-left: 2%;
+    width: auto;
+    background-color:  lightgrey;;
+    border-radius: 2%;
+}
+
+.workchain-progbar-done::-moz-progress-bar {background-color: green !important;}
+.workchain-progbar-done::-webkit-progress-value {background-color: green !important;}
+
+.top-text{
+    /* flex-grow: 1; */
+    /* margin: 0 auto; */
+    width: auto;
+    margin: 0;
+    /* padding-bottom: 10px; */
+}
+
+/* Column container styles */
+.column-container {
+    width: 100%;
+    height: 75vh;
+    display: flex;
+    /* border-radius: 2%; */
+    /* border-radius: 10px; */
+    
+}
+
+.column {
+    /* border: 1px solid black; */
+    display: inline-block;
+    vertical-align: top;
+    /* border-radius: 2%; */
+}
+
+.left-column {
+    width: 20%;
+    /* border-radius: 15px; */
+    background-color: #ffffff;
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
+}
+
+.right-column {
+    width: 80%;
+    font-family: monospace;
+    overflow-y: auto;
+    /* border-radius: 2%; */
+    background-color: #ffffff;
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
+    padding-left: 0.5%;
+    margin-left: 15px;
+    font-size: 12px;
+}
+
+/* Dynamic text styles */
+.dynamic-text {
+    color: green;
+    font-size: 12px;
+}
+
+.report-text {
+    white-space: pre-wrap;
+}
+
+.date-part {
+    color: blue;
+}
+
+.label-part {
+    color: grey;
+}
+
+/* Scrollbars customization */
+.right-column::-webkit-scrollbar {
+    width: 8px;
+}
+
+.right-column::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.right-column::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+.right-column::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

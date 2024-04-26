@@ -158,23 +158,15 @@ def get_dft_calc_builder(
         mdb_aut.gather_calc_data_from_row(row, curr_structure=struct)
     )
 
+    # Getting default potential mapping
     potential_mapping = mdb_aut.generate_potential_mapping()
 
     # Updating general INCAR with calc type specific options
-
     specific_options = dft_settings.get(struct_type)
-    echo_info(str(specific_options))
-
-    # Applying structure-specific options from the input config.
     if specific_options:
-        print('\nspecific_options: ', specific_options)
         specific_options = specific_options.get("incar")
-        print('specific_options incar: ', specific_options)
         for setting, val in specific_options.items():
-            print('setting: ', setting)
-            print('val: ', val)
             dft_settings["incar"][setting] = val
-
 
     builder = mdb_aut.submit_aiida_vasp_calculation(
         index=calc_idx,
@@ -182,12 +174,9 @@ def get_dft_calc_builder(
         phase=curr_phase,
         material_name=curr_material_name,
         unique_id=curr_unique_id,
-        # kspacing_dict=kspacing_dict,
         kspacing_dict=dft_settings["kspacing"],
         calc_type=struct_type,
-        # queue_dict=queue_dict,
         queue_dict=dft_settings["queue"],
-        # potential_family=potential_family,
         potential_family=dft_settings["potential_family"],
         potential_mapping=potential_mapping,
         return_builder=True,
@@ -454,7 +443,9 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
         #     )
 
         # Adding the type of structure to the atoms.info dict
-        struct_type = mdb_conv.get_struct_type(vasprun=vasprun, dft_calc_node=finished_dft_calc)
+        struct_type = mdb_conv.get_struct_type(
+            vasprun=vasprun, dft_calc_node=finished_dft_calc
+        )
         calc_info_dict["mdb_struct_type"] = struct_type
         vasprun = vasprun_add_info_dict(vasprun, calc_info_dict)
 

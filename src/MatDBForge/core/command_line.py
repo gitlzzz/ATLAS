@@ -10,13 +10,17 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 from aiida import load_profile
-from aiida.engine import run
+from aiida.engine import run, submit
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 
+from MatDBForge.active_learning.dashboard.training_dashboard import (
+    run_training_dashboard,
+)
 from MatDBForge.core import DATA_DIR
 
 warnings.filterwarnings("ignore")
+
 
 def create_active_learning_builder(toml_dict: dict):
     """
@@ -47,7 +51,9 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.seed_size_frac = float(al_conf["seed_size_frac"])
     builder.active_learning.md_temperature_K = float(al_conf["md_temperature_K"])
     builder.active_learning.md_num_steps = int(al_conf["md_num_steps"])
-    builder.active_learning.md_timestep_duration_ps = float(al_conf["md_timestep_duration_ps"])
+    builder.active_learning.md_timestep_duration_ps = float(
+        al_conf["md_timestep_duration_ps"]
+    )
     builder.active_learning.commitee_num_models = int(al_conf["commitee_num_models"])
     builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
     builder.active_learning.model_acc_multiplier = float(
@@ -89,6 +95,13 @@ def run_active_learning():
         default="./active_learning_settings.toml",
         metavar="PATH",
     )
+    parser.add_argument(
+        "--gui",
+        help=("Launch a dashboard to keep track of the active learning loop"),
+        action="store_const",
+        const=True,
+        default=False,
+    )
 
     # Getting CLI arguments
     args = parser.parse_args()
@@ -103,7 +116,13 @@ def run_active_learning():
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)
 
-    node = run(builder)
+    if not args.gui:
+        node = run(builder)
+    else:
+        node = submit(builder)
+        print('Active learning workchain node: ', node)
+        run_training_dashboard(workchain_node_id=node.pk, n_sec=30)
+
     # print("Calculation uuid: ", node.uuid)
 
 
@@ -170,3 +189,30 @@ def gen_default_config():
             "File already exists. Not overwriting as flag -o / --overwrite not set.",
         )
         sys.exit(1)
+
+
+def monitor_al_loop():
+    parser = argparse.ArgumentParser(
+        prog="monitor_al_loop",
+        description="Monitor a MDB active learning loop.",
+        formatter_class=RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "--process_id",
+        help=(
+            "Process id (pk/uuid) of the WorkChain to monitor.\n"
+        ),
+        type=str,
+        metavar="UUID/PK",
+    )
+    parser.add_argument(
+        "--update_interval",
+        help=("Refresh time interval in seconds"),
+        type=int,
+        default=30,
+        metavar="n_sec",
+    )
+    # Getting CLI arguments
+    args = parser.parse_args()
+
+    run_training_dashboard(workchain_node_id=args.process_id, n_sec=args.update_interval)
