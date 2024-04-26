@@ -1,9 +1,9 @@
 from aiida import load_profile, orm
 from aiida.cmdline.utils.common import get_workchain_report
-from dash import Dash, Input, Output, callback, dcc, html, State
+from dash import Dash, Input, Output, State, callback, dcc, html
 
 
-def run_training_dashboard(workchain_node_id, n_sec):
+def run_training_dashboard(workchain_node_id, n_sec, port=8050):
     load_profile()
 
     @callback(
@@ -15,8 +15,6 @@ def run_training_dashboard(workchain_node_id, n_sec):
         State("interval-general", "disabled"),
     )
     def toggle_interval(value, max_value, state_model, state_general):
-        print('state_general: ', state_general)
-        print('state_model: ', state_model)
         if value == max_value:
             return 10000, 10000
         else:
@@ -29,10 +27,8 @@ def run_training_dashboard(workchain_node_id, n_sec):
     )
     def progressbar_done(value, max_value):
         if value == max_value:
-            print('progbar: ', "workchain-progbar-done")
             return "workchain-progbar-done"
         else:
-            print('progbar: ', "workchain-progbar")
             return "workchain-progbar"
 
     @callback(
@@ -56,13 +52,7 @@ def run_training_dashboard(workchain_node_id, n_sec):
 
         if has_model:
             result.append(
-                html.P(
-                    [
-                        html.Span(
-                            f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/at"
-                        ),
-                    ]
-                )
+                html.P(f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/at"),
             )
         else:
             result.append("No model available yet.")
@@ -112,9 +102,6 @@ def run_training_dashboard(workchain_node_id, n_sec):
         if node.is_finished:
             # Filling up and restyling the progress bar.
             curr_iter = max_iters
-            print('curr_iter: ', curr_iter)
-            # toggle_interval(curr_iter, max_iters)
-            # progressbar_done(curr_iter, max_iters)
         else:
             children = [
                 child
@@ -126,6 +113,7 @@ def run_training_dashboard(workchain_node_id, n_sec):
         return styled_report, max_iters, curr_iter
 
     app = Dash(__name__)
+    app.title = "MDB AL Loop"
     app.layout = html.Div(
         [
             html.Div(
@@ -152,7 +140,6 @@ def run_training_dashboard(workchain_node_id, n_sec):
                                     html.H3(
                                         f"Target workchain - {workchain_node_id}",
                                         className="title-upper",
-                                        # style={"padding-bottom": "5px"},
                                     ),
                                     html.Div(
                                         [
@@ -166,7 +153,6 @@ def run_training_dashboard(workchain_node_id, n_sec):
                                             ),
                                         ],
                                         className="workchain-progress-container",
-                                        # style={'margin-bottom': "12.5%"},
                                     ),
                                 ],
                                 className="top-box-left-headers",
@@ -184,6 +170,7 @@ def run_training_dashboard(workchain_node_id, n_sec):
                                         className="title-upper",
                                     ),
                                     html.P(
+                                        "No model available yet.",
                                         id="model-score-text",
                                         className="top-text",
                                     ),
@@ -233,11 +220,4 @@ def run_training_dashboard(workchain_node_id, n_sec):
         ]
     )
 
-    app.run(debug=True)
-
-
-# if __name__ == "__main__":
-#     workchain_node_id = 1270919
-#     n_sec = 10
-#     load_profile()
-#     run_training_dashboard(workchain_node_id, n_sec)
+    app.run(debug=False, port=port)

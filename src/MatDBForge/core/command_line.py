@@ -93,22 +93,43 @@ def run_active_learning():
         ),
         type=pl.Path,
         default="./active_learning_settings.toml",
+        # required=True,
         metavar="PATH",
     )
-    parser.add_argument(
-        "--gui",
-        help=("Launch a dashboard to keep track of the active learning loop"),
-        action="store_const",
-        const=True,
-        default=False,
+
+    # Create a subparsers object
+    subparsers = parser.add_subparsers(dest="command", help="Sub-command help")
+
+    # Create the subparser for the 'gui' command
+    gui_parser = subparsers.add_parser(
+        "gui", help="Launch a dashboard to keep track of the active learning loop"
+    )
+
+    # Add arguments specific to the 'gui' subcommand
+    gui_parser.add_argument(
+        "--n_sec",
+        type=int,
+        required=True,
+        help="Number of seconds to wait between updates (integer)",
+    )
+
+    gui_parser.add_argument(
+        "--port",
+        type=int,
+        required=True,
+        help="Port number for the GUI server (integer)",
     )
 
     # Getting CLI arguments
     args = parser.parse_args()
 
     # Loading TOML config file
-    with open(args.config_file, "rb") as f:
-        toml_dict = tomli.load(f)
+    try:
+        with open(args.config_file, "rb") as f:
+            toml_dict = tomli.load(f)
+    except FileNotFoundError as e:
+        error_message = f"The specified config file {args.config_file} does not exist."
+        raise FileNotFoundError(error_message) from e
 
     # Loading default aiida profile
     load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
@@ -116,12 +137,12 @@ def run_active_learning():
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)
 
-    if not args.gui:
+    if args.command != "gui":
         node = run(builder)
     else:
         node = submit(builder)
         print('Active learning workchain node: ', node)
-        run_training_dashboard(workchain_node_id=node.pk, n_sec=30)
+        run_training_dashboard(workchain_node_id=node.pk, n_sec=args.n_sec, port=args.port)
 
     # print("Calculation uuid: ", node.uuid)
 
@@ -212,7 +233,14 @@ def monitor_al_loop():
         default=30,
         metavar="n_sec",
     )
+    parser.add_argument(
+        "--port",
+        help=("Port to use for the webapp"),
+        type=int,
+        default=8050,
+        metavar="port",
+    )
     # Getting CLI arguments
     args = parser.parse_args()
 
-    run_training_dashboard(workchain_node_id=args.process_id, n_sec=args.update_interval)
+    run_training_dashboard(workchain_node_id=args.process_id, n_sec=args.update_interval, port=args.port)
