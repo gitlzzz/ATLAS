@@ -43,19 +43,18 @@ def create_active_learning_builder(toml_dict: dict):
 
     # General AL settings
     al_conf = toml_dict["active_learning"]
+    builder.active_learning.run_name = al_conf["run_name"]
     builder.active_learning.data_path = al_conf["data_path"]
-    builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.init_db_path = al_conf["init_db_path"]
+    builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.final_db_name = al_conf["final_db_name"]
     builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
     builder.active_learning.seed_size_frac = float(al_conf["seed_size_frac"])
-    builder.active_learning.md_temperature_K = float(al_conf["md_temperature_K"])
-    builder.active_learning.md_num_steps = int(al_conf["md_num_steps"])
-    builder.active_learning.md_timestep_duration_ps = float(
-        al_conf["md_timestep_duration_ps"]
-    )
-    builder.active_learning.commitee_num_models = int(al_conf["commitee_num_models"])
     builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
+
+    builder.active_learning.commitee_num_models = int(
+        toml_dict["committee_eval"]["commitee_num_models"]
+    )
     builder.active_learning.model_acc_multiplier = float(
         al_conf["model_acc_multiplier"]
     )
@@ -63,11 +62,23 @@ def create_active_learning_builder(toml_dict: dict):
         al_conf["al_keep_struct_every_n_ps"]
     )
 
+    # MD settings
+    md_params = toml_dict["md"]["parameters"]
+    builder.active_learning.md_temperature_list_K = md_params["temperature_list_K"]
+    builder.active_learning.md_max_temp_multiplier = md_params["max_temp_multiplier"]
+    builder.active_learning.md_num_steps = int(md_params["num_steps"])
+    builder.active_learning.md_timestep_duration_ps = float(
+        md_params["timestep_duration_ps"]
+    )
+    builder.active_learning.gather_traj_cnt_lattice = md_params[
+        "gather_traj_cnt_lattice"
+    ]
+
     # MACE training settings
     builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])
 
     # LAMMPS-MACE MD Settings
-    builder.active_learning.lammps_mace = Dict(value=toml_dict["lammps_mace"])
+    builder.active_learning.lammps_mace = Dict(value=toml_dict["md"]["queue"])
 
     # Committee Evaluation Settings
     builder.active_learning.committee_eval = Dict(value=toml_dict["committee_eval"])
@@ -107,17 +118,18 @@ def run_active_learning():
 
     # Add arguments specific to the 'gui' subcommand
     gui_parser.add_argument(
-        "--n_sec",
+        "--update_interval",
+        help=("Refresh time interval in seconds"),
         type=int,
-        required=True,
-        help="Number of seconds to wait between updates (integer)",
+        default=60,
+        metavar="n_sec",
     )
-
     gui_parser.add_argument(
         "--port",
+        help=("Port to use for the webapp"),
         type=int,
-        required=True,
-        help="Port number for the GUI server (integer)",
+        default=8050,
+        metavar="port",
     )
 
     # Getting CLI arguments
@@ -148,6 +160,7 @@ def run_active_learning():
         run_training_dashboard(
             workchain_node_id=node.pk, n_sec=args.n_sec, port=args.port
         )
+
 
 def gen_default_config():
     parser = argparse.ArgumentParser(
@@ -230,7 +243,7 @@ def monitor_al_loop():
         "--update_interval",
         help=("Refresh time interval in seconds"),
         type=int,
-        default=30,
+        default=60,
         metavar="n_sec",
     )
     parser.add_argument(

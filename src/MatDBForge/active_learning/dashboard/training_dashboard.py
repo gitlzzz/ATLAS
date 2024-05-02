@@ -1,6 +1,7 @@
 from aiida import load_profile, orm
-from aiida.cmdline.utils.common import get_workchain_report
-from dash import Dash, Input, Output, State, callback, dcc, html
+from aiida.cmdline.utils.common import get_workchain_report, get_calcjob_report
+from dash import Dash, Input, Output, State, callback, dcc, html, ALL, MATCH
+import dash_daq as daq
 
 
 def run_training_dashboard(workchain_node_id, n_sec, port=8050):
@@ -18,7 +19,7 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
         if value == max_value:
             return 100000, 100000
         else:
-            return n_sec*1000, n_sec*1000
+            return n_sec * 1000, n_sec * 1000
 
     @callback(
         Output("progress-update", "className"),
@@ -60,10 +61,72 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
         return result
 
     @callback(
-        Output("live-update-text", "children"),
+        Output("subprocess-list", "children"),
+        Input("interval-model-score", "n_intervals"),
+    )
+    def display_subprocesses(n):
+        node = orm.load_node(workchain_node_id)
+        children = node.called_descendants
+
+        result = []
+
+        if len(children) > 0:
+            for child in children:
+                if isinstance(child, orm.CalcJobNode):
+                    if child.exit_status == 0:
+                        exit_status = "󰱒"
+                    elif not child.exit_status:
+                        exit_status = ""
+                        # exit_status = "\uebff"
+                    else:
+                        exit_status = child.exit_status
+
+                    child_str = f"{exit_status} - ({child.pk}) {child.process_label}"
+                    button = html.Button(
+                        child_str,
+                        id=f"button-{child.pk}",
+                        type="calcjob-button",
+                        value=str(child.pk),
+                        n_clicks=0,
+                    )
+                    result.append(button)
+
+        else:
+            result.append("No children spawned yet.")
+
+        return result
+
+    @callback(
+        Output(
+            {"id": "live-update-text", "n_clicks": MATCH},
+            "children",
+            allow_duplicate=True,
+        ),
+        Input(
+            {"type": "calcjob-button", "n_clicks": MATCH},
+            "n_clicks",
+        ),
+        State({"type": "calcjob-button", "n_clicks": MATCH}, "value"),
+        # Input({"id": "ALL", "type": ALL}, "value"),
+        prevent_initial_call=True,
+    )
+    def display_calcjob(n_clicks, value):
+        print("n_clicks: ", n_clicks)
+        print("value: ", value)
+        # [ ] Stop right column from updating
+        # [ ] Reenable right column update
+        # node = orm.load_node(value)
+        # report = get_calcjob_report(node)
+        # print("report: ", report)
+        # return report
+        print(n_clicks)
+
+    @callback(
+        Output("live-update-text", "children", allow_duplicate=True),
         Output("progress-update", "max"),
         Output("progress-update", "value"),
         Input("interval-general", "n_intervals"),
+        prevent_initial_call="initial_duplicate",
     )
     def update_metrics(n):
         node = orm.load_node(workchain_node_id)
@@ -75,16 +138,36 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
             if len(parts) > 1:
                 date_part = parts[0].split(" ")[0]
                 date_part += " " + parts[0].split(" ")[1]
-                report_part = parts[2:]
+                id_part = str(parts[1].split("|")[0]).replace("[", "")
+                num_spaces = id_part.count(" ")
+                id_part = id_part.replace(" ", "")
+                id_part = f" [{id_part}] "
+
+                label_part = (
+                    "["
+                    + str(parts[1].split("|")[1])
+                    .replace("[", "")
+                    .replace("'", "")
+                    .replace(",", "")
+                    + "]: "
+                )
+                report_part = parts[2]
                 styled_report.append(
                     html.P(
                         [
                             html.Span(
-                                date_part + " ",
+                                date_part,
                                 className="date-part",
+                                style={
+                                    "padding-left": f"{num_spaces//2}em",
+                                },
                             ),
                             html.Span(
-                                parts[1] + "]: ",
+                                id_part,
+                                className="id-part",
+                            ),
+                            html.Span(
+                                label_part,
                                 className="label-part",
                             ),
                             html.Span(
@@ -108,7 +191,10 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
                 for child in node.called_descendants
                 if child.process_label == "ActiveLearningWorkChain"
             ]
-            curr_iter = str(children[-1].inputs.al_loop_iteration.value + 1)
+            if len(children) > 0:
+                curr_iter = str(children[-1].inputs.al_loop_iteration.value + 1)
+            else:
+                curr_iter = 0
 
         return styled_report, max_iters, curr_iter
 
@@ -189,8 +275,8 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
                     # Left Column
                     html.Div(
                         [
-                            # Your empty box with black border here
-                            html.Div()
+                            # Empty box with black border
+                            html.Div(id="subprocess-list", className="subprocess-list")
                         ],
                         className="column left-column",
                     ),
@@ -220,4 +306,4 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
         ]
     )
 
-    app.run(debug=False, port=port)
+    app.run(debug=True, port=port)

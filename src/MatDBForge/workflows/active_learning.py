@@ -67,14 +67,16 @@ class ActiveLearningWorkChain(WorkChain):
 
         spec.input("init_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("final_db_name", valid_type=Str, serializer=to_aiida_type)
+        spec.input("run_name", valid_type=Str, serializer=to_aiida_type)
         spec.input("data_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("results_dir", valid_type=Str, serializer=to_aiida_type)
         spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
         spec.input("seed_size_frac", valid_type=Float, serializer=to_aiida_type)
-        spec.input("md_temperature_K", valid_type=Float, serializer=to_aiida_type)
-        spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
         spec.input("commitee_num_models", valid_type=Int, serializer=to_aiida_type)
         spec.input("model_acc_multiplier", valid_type=Float, serializer=to_aiida_type)
+        spec.input("md_temperature_list_K", valid_type=List, serializer=to_aiida_type)
+        spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
+        spec.input("md_max_temp_multiplier", valid_type=Float, serializer=to_aiida_type)
         spec.input(
             "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
         )
@@ -103,6 +105,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("dft_settings", valid_type=Dict)
         spec.input("committee_eval", valid_type=Dict)
         spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
+        spec.input("gather_traj_cnt_lattice", valid_type=Bool, serializer=to_aiida_type)
 
         spec.outline(
             # Training the main mace model (M0) and the commitee models
@@ -411,6 +414,7 @@ class ActiveLearningWorkChain(WorkChain):
         self,
         structure: Structure,
         potential_path: str,
+        current_temp: float,
     ) -> str:
         """
         Generate a MACE-LAMMPS input file for MD simulations using a template.
@@ -431,6 +435,9 @@ class ActiveLearningWorkChain(WorkChain):
             set species-specific parameters in the LAMMPS input file.
         potential_path : str
             Path to the potential file to be used in the pair_coeff directive.
+        current_temperature : float
+            The temperature value (in Kelvin) to be used for setting initial velocities
+            and maintaining simulation temperature
 
         Returns
         -------
@@ -440,7 +447,7 @@ class ActiveLearningWorkChain(WorkChain):
 
         Notes
         -----
-        - The template file is expected to be in the `DATA_DIR/input_files` directory.
+        - The template file is located in the `DATA_DIR/input_files` directory.
         - This function replaces placeholders in the template with actual values from
         the function's inputs and the structure's composition.
         - Future versions may include more dynamic options based on LAMMPS's extensive
@@ -475,14 +482,17 @@ class ActiveLearningWorkChain(WorkChain):
         timestep_val = self.inputs.md_timestep_duration_ps.value
         lammps_template = lammps_template.replace("$TSTEP_SIZE", str(timestep_val))
 
-        # Setting temperature
-        temp_val = self.inputs.md_temperature_K.value
-        temp_arr = f"{temp_val} {temp_val} {100 * timestep_val}"
+        # Setting start and end temperature and the damping parameter.
+        # The max T is calculated using a multiplier applied to the initial T.
+        # The damping coefficient is computed as 100*dt as by the lammps docs,
+        # see note in: https://docs.lammps.org/fix_nh.html#description
+        temp_coeff = self.inputs.md_max_temp_multiplier.value
+        temp_arr = f"{current_temp} {current_temp*temp_coeff} {100 * timestep_val}"
         lammps_template = lammps_template.replace("$TEMPARR", temp_arr)
 
         # Setting intial velocities.
         seed = np.random.randint(low=1, high=1000000)
-        vel_str = f"{temp_val} {seed}"
+        vel_str = f"{current_temp} {seed}"
         lammps_template = lammps_template.replace("$VELOCITY", vel_str)
 
         # Setting number of timesteps
@@ -564,52 +574,60 @@ class ActiveLearningWorkChain(WorkChain):
                 curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
                 struct_properties = curr_structure.properties
 
-                # TODO: Add to TOML. Check how to include parameters from here as initial parameters (TOML)
-                curr_input = self.gen_md_input(
-                    structure=curr_structure,
-                    potential_path=lmp_pot_filename,
-                )
+                # Running a MD calculation for every T specified by the user
+                for temp_val in self.inputs.md_temperature_list_K:
+                    # TODO: Add to TOML. Check how to include parameters needed here as
+                    # initial parameters (TOML)
+                    curr_input = self.gen_md_input(
+                        structure=curr_structure,
+                        potential_path=lmp_pot_filename,
+                        current_temp=temp_val,
+                    )
 
-                script = SinglefileData(io.StringIO(curr_input))
-                builder.script = script
+                    script = SinglefileData(io.StringIO(curr_input))
+                    builder.script = script
 
-                lammps_struct_str = LammpsData.from_structure(
-                    curr_structure, atom_style="atomic"
-                ).get_str()
+                    lammps_struct_str = LammpsData.from_structure(
+                        curr_structure, atom_style="atomic"
+                    ).get_str()
 
-                data = SinglefileData(io.StringIO(lammps_struct_str))
-                builder.files = {
-                    "data": data,
-                    "mace_potential": self.ctx.lammps_potential_file,
-                }
-                builder.filenames = {
-                    "data": "structure.lammps",
-                    "mace_potential": lmp_pot_filename,
-                }
+                    data = SinglefileData(io.StringIO(lammps_struct_str))
+                    builder.files = {
+                        "data": data,
+                        "mace_potential": self.ctx.lammps_potential_file,
+                    }
+                    builder.filenames = {
+                        "data": "structure.lammps",
+                        "mace_potential": lmp_pot_filename,
+                    }
 
-                index_in_db = self.inputs.current_md_seed_structs_idx[idx]
+                    index_in_db = self.inputs.current_md_seed_structs_idx[idx]
 
-                # Loading metadata settings from workchain inputs
-                builder.metadata = self.inputs.lammps_mace.get("metadata")
+                    # Loading metadata settings from workchain inputs
+                    builder.metadata = self.inputs.lammps_mace.get("metadata")
+                    builder.metadata.label = (
+                        f"struct_{index_in_db}_mace_lammps_md_{temp_val}_K"
+                    )
 
-                # Submitting current calculation
-                future = self.submit(builder)
+                    # Submitting current calculation
+                    future = self.submit(builder)
 
-                # Add calculation to the workchain's aiida group.
-                self.ctx.current_train_seed.append(future)
-                curr_group = load_group(uuid=self.inputs.train_seed_group.value)
-                curr_group.add_nodes(future)
+                    # Add calculation to the workchain's aiida group.
+                    self.ctx.current_train_seed.append(future)
+                    curr_group = load_group(uuid=self.inputs.train_seed_group.value)
+                    curr_group.add_nodes(future)
 
-                # Writing extra information that helps associating the calculation
-                # with its position on the database.
-                for key, val in struct_properties.items():
-                    future.base.extras.set(key, val)
-                future.base.extras.set("index_in_db", index_in_db)
+                    # Writing extra information that helps associating the calculation
+                    # with its position on the database.
+                    for key, val in struct_properties.items():
+                        future.base.extras.set(key, val)
+                    future.base.extras.set("index_in_db", index_in_db)
+                    future.base.extras.set("md_temperature", temp_val)
 
-                # Telling the work chain to wait for the md to finish
-                # before continuing the workflow.
-                # We append the future to a list of workflows.
-                self.to_context(md_seed_workchains=append_(future))
+                    # Telling the work chain to wait for the md to finish
+                    # before continuing the workflow.
+                    # We append the future to a list of workflows.
+                    self.to_context(md_seed_workchains=append_(future))
 
     def gather_m0_md_results(self):
         """
@@ -651,6 +669,8 @@ class ActiveLearningWorkChain(WorkChain):
                     "mdb_struct_type": workchain.base.extras.all["mdb_struct_type"],
                     "material_name": workchain.base.extras.all["struct_name"],
                     "unique_id": workchain.base.extras.all["aiida_uuid"],
+                    "md_temperature": workchain.base.extras.all["md_temperature"],
+                    "extrapolation": np.nan,
                 }
             )
 
@@ -816,10 +836,12 @@ class ActiveLearningWorkChain(WorkChain):
 
         # This flag selects if a constant lattice volume is assumed
         # for all frames.
-        cnt_lat_setting = self.inputs.lammps_mace.get(
+        cnt_lat_setting = self.inputs.get(
             "gather_traj_cnt_lattice",
             True,
         )
+        if isinstance(cnt_lat_setting, Bool):
+            cnt_lat_setting = cnt_lat_setting.value
 
         traj = Trajectory.from_structures(
             struct_list,
@@ -933,75 +955,79 @@ class ActiveLearningWorkChain(WorkChain):
     def get_descriptors_from_md_results(self):
         # Getting descriptors for generated structures
         self.report("Getting descriptors for MD generated structures...")
+
         # Store all frames from the trajectory into a list
-        all_frames_list = []
         for _, row in self.ctx.md_seed_results_df.iterrows():
+            # all_frames_list = []
             curr_traj = row["trajectory"]
-            traj_frames = [AseAtomsAdaptor.get_atoms(frame) for frame in curr_traj]
             traj_frames = []
 
             for frame in curr_traj:
                 curr_frame: Atoms = AseAtomsAdaptor.get_atoms(frame)
                 curr_frame.info["aiida_uuid"] = row["unique_id"]
+                curr_frame.info["md_temperature"] = row["md_temperature"]
                 traj_frames.append(curr_frame)
 
-            all_frames_list.extend(traj_frames)
+            # Write xyz file into a string captured in the stdout,
+            # write it to a temporary file.
+            f = io.StringIO()
+            with redirect_stdout(f):
+                ase_write(
+                    filename="-",
+                    format="extxyz",
+                    images=traj_frames,
+                )
+            xyz_string = f.getvalue()
 
-        # Write xyz file into a string captured in the stdout,
-        # write it to a temporary file.
-        f = io.StringIO()
-        with redirect_stdout(f):
-            ase_write(
-                filename="-",
-                format="extxyz",
-                images=all_frames_list,
+            # Generating tmp file
+            md_xyz_file = SinglefileData(
+                file=io.BytesIO(str.encode(xyz_string)),
+                filename="md_db.xyz",
             )
-        xyz_string = f.getvalue()
 
-        # Generating tmp file
-        md_xyz_file = SinglefileData(
-            file=io.BytesIO(str.encode(xyz_string)),
-            filename="md_db.xyz",
-        )
+            # Prepare GetMACEDescriptorsCalculation
+            mace_descr_calc = CalculationFactory("mace-get-descriptors")
+            mace_builder = mace_descr_calc.get_builder()
+            mace_builder.model_file = self.ctx.best_model_file
+            mace_builder.mace_train_file_path = md_xyz_file
+            descriptor_code_path = Path(f"{ROOT_DIR}/active_learning/mace_code")
+            code = PortableCode(
+                label="mace_get_descriptors",
+                filepath_files=descriptor_code_path,
+                filepath_executable="./mace_get_descriptors.py",
+                # TODO: Add to TOML
+                prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+            )
+            mace_builder.code = code
 
-        # Prepare GetMACEDescriptorsCalculation
-        mace_descr_calc = CalculationFactory("mace-get-descriptors")
-        mace_builder = mace_descr_calc.get_builder()
-        mace_builder.model_file = self.ctx.best_model_file
-        mace_builder.mace_train_file_path = md_xyz_file
-        descriptor_code_path = Path(f"{ROOT_DIR}/active_learning/mace_code")
-        code = PortableCode(
-            label="mace_get_descriptors",
-            filepath_files=descriptor_code_path,
-            filepath_executable="./mace_get_descriptors.py",
             # TODO: Add to TOML
-            prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
-        )
-        mace_builder.code = code
+            mace_builder.metadata.options = {
+                "resources": {
+                    "parallel_env": "c128m1024ib_mpi_32slots",
+                    "tot_num_mpiprocs": 4,
+                },
+                "queue_name": "c128m1024ibgpu4.q",
+                "max_memory_kb": 102400000,
+                "parser_name": "mace-descriptors-parser",
+                "max_wallclock_seconds": 117280000,
+                "withmpi": False,
+                "custom_scheduler_commands": "#$ -l gpu=1",
+            }
+            mace_builder.metadata.label = (
+                row["unique_id"][:8] + "_md_descriptors_" + f"{row['md_temperature']}_K"
+            )
+            mace_builder.metadata.computer = load_computer("tekla2-new-test")
 
-        # TODO: Add to TOML
-        mace_builder.metadata.options = {
-            "resources": {
-                "parallel_env": "c128m1024ib_mpi_32slots",
-                "tot_num_mpiprocs": 4,
-            },
-            "queue_name": "c128m1024ibgpu4.q",
-            "max_memory_kb": 102400000,
-            "parser_name": "mace-descriptors-parser",
-            "max_wallclock_seconds": 117280000,
-            "withmpi": False,
-            "custom_scheduler_commands": "#$ -l gpu=1",
-        }
-        mace_builder.metadata.label = self.ctx.best_model_name + "_md_descriptors"
-        mace_builder.metadata.computer = load_computer("tekla2-new-test")
+            mace_builder.metadata.options.output_filename = (
+                f"descriptors_{self.ctx.best_model_name}_iter"
+                f"-{self.inputs.al_loop_iteration.value}"
+            )
 
-        mace_builder.metadata.options.output_filename = (
-            f"descriptors_{self.ctx.best_model_name}_iter"
-            f"-{self.inputs.al_loop_iteration.value}"
-        )
+            future = self.submit(mace_builder)
+            future.base.extras.set("unique_id", row["unique_id"])
+            future.base.extras.set("md_temperature", row["md_temperature"])
 
-        future = self.submit(mace_builder)
-        self.to_context(md_descriptor_results=append_(future))
+            self.to_context(md_descriptor_results=append_(future))
 
     def send_calc_or_remove_structures(self):
         self.report("Deciding which structures to keep...")
@@ -1016,40 +1042,51 @@ class ActiveLearningWorkChain(WorkChain):
         delete_indices = []
         dft_structures = []
 
+        # Gathering MD descriptor results and adding them to dataframe
         if self.inputs.check_extrapolation:
-            for calc in self.ctx.md_descriptor_results:
+            for curr_calc in self.ctx.md_descriptor_results:
                 # Loading calculation node
-                curr_calc = load_node(calc.uuid)
+                # curr_calc = load_node(calc.uuid)
+                curr_unique_id = curr_calc.extras["unique_id"]
+                curr_md_temperature = curr_calc.extras["md_temperature"]
 
-                # Storing results in context
+                # Creating context manager to load descriptor result files
+                # descr_file
                 with curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path, open(
                     md_descr_file_path, "rb"
                 ) as descr_file:
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
                     # md_descr_array: np.ndarray = np.load(file=md_descr_file_path)
 
-            extrapolation_column_list: list[dict[str, list]] = []
-            for _, row in self.ctx.md_seed_results_df.iterrows():
-                df_uuid = row["unique_id"]
-                desc_f_curr_row: list = md_descr_dict[df_uuid]
-                # print('desc_f_curr_row: ', len(desc_f_curr_row))
-                # print('desc_f_curr_row: ', desc_f_curr_row.shape)
-                # descriptor_arr = np.vstack(desc_f_curr_row)
-                # print('descriptor_arr: ', descriptor_arr.shape)
-                # extrapolation_column_list.append({'m0': descriptor_arr})
-                extrapolation_column_list.append({"m0": desc_f_curr_row})
+                # Find row matching the calculation using curr_unique_id and
+                # current_temperature
+                row_index = self.ctx.md_seed_results_df[
+                    self.ctx.md_seed_results_df.unique_id == curr_unique_id
+                ][
+                    self.ctx.md_seed_results_df.md_temperature == curr_md_temperature
+                ].index[0]
 
-            self.ctx.md_seed_results_df["extrapolation"] = extrapolation_column_list
+                # Assign matching descriptors to the extrapolation column
+                desc_f_curr_row: list = md_descr_dict[curr_unique_id]
+
+                # Overwrite row in dataframe
+                self.ctx.md_seed_results_df.loc[[row_index], "extrapolation"] = (
+                    pd.Series(
+                        [desc_f_curr_row],
+                        index=self.ctx.md_seed_results_df.index[[row_index]],
+                    )
+                )
 
         # Every row contains the results of MD for a single structure, which are:
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
+        submitted_dft_cnt = 0
         for _, row in self.ctx.md_seed_results_df.iterrows():
             # Make len(traj) sized array filled with 'False'.
             extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
 
             if self.inputs.check_extrapolation:
-                curr_struct_descr = row["extrapolation"]["m0"]
+                curr_struct_descr = row["extrapolation"]
 
                 # Checking if the frames for the current structure are extrapolating
                 for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
@@ -1131,14 +1168,15 @@ class ActiveLearningWorkChain(WorkChain):
                     future.base.extras.set("mdb_struct_type", row["mdb_struct_type"])
                     future.base.extras.set("struct_name", row["material_name"])
                     self.to_context(dft_struct_seed_calcs=append_(future))
+                    submitted_dft_cnt += 1
 
                     if self.inputs.train_seed_group.value:
                         group = load_group(self.inputs.train_seed_group.value)
                         group.add_nodes(future)
 
         self.report(
-            f"Commitee decision: {len(dft_structures)} DFT / "
-            f"{len(delete_indices)} delete"
+            f"Committee decision: {submitted_dft_cnt} DFT / "
+            f"{len(delete_indices)} delete."
         )
 
         # Deleting well represented structures from seed_gen_db (Ds), if any.
@@ -1396,9 +1434,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Creating aiida group to store all calculations
         ctime = time.strftime("%Y%m%dT%H%M%S")
+
         # TESTING: Change this back to the string below
         seed_group = Group(label=f"remove_test_{ctime}")
         # seed_group = Group(label=f"train_md_seed_{ctime}")
+
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
         self.report(f"Created group: '{self.ctx.inputs.train_seed_group}'.")
