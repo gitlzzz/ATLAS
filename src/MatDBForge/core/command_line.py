@@ -107,17 +107,18 @@ def run_active_learning():
 
     # Add arguments specific to the 'gui' subcommand
     gui_parser.add_argument(
-        "--n_sec",
+        "--update_interval",
+        help=("Refresh time interval in seconds"),
         type=int,
-        required=True,
-        help="Number of seconds to wait between updates (integer)",
+        default=60,
+        metavar="n_sec",
     )
-
     gui_parser.add_argument(
         "--port",
+        help=("Port to use for the webapp"),
         type=int,
-        required=True,
-        help="Port number for the GUI server (integer)",
+        default=8050,
+        metavar="port",
     )
 
     # Getting CLI arguments
@@ -230,7 +231,7 @@ def monitor_al_loop():
         "--update_interval",
         help=("Refresh time interval in seconds"),
         type=int,
-        default=30,
+        default=60,
         metavar="n_sec",
     )
     parser.add_argument(
