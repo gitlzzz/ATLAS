@@ -83,8 +83,12 @@ def create_active_learning_builder(toml_dict: dict):
     # Committee Evaluation Settings
     builder.active_learning.committee_eval = Dict(value=toml_dict["committee_eval"])
 
-    # DFT Settings
-    builder.active_learning.dft_settings = Dict(value=toml_dict["vasp"])
+    # DFT method selection and settings
+    builder.active_learning.dft_method = al_conf["dft_method"]
+    if al_conf["dft_method"] == "vasp":
+        builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["vasp"])
+    elif al_conf["dft_method"] == "mace":
+        builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["mace"])
 
     return builder
 

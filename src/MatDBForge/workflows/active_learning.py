@@ -102,6 +102,7 @@ class ActiveLearningWorkChain(WorkChain):
             serializer=to_aiida_type,
         )
         spec.input("lammps_mace", valid_type=Dict)
+        spec.input("dft_method", valid_type=Str, serializer=to_aiida_type)
         spec.input("dft_settings", valid_type=Dict)
         spec.input("committee_eval", valid_type=Dict)
         spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
@@ -1154,13 +1155,24 @@ class ActiveLearningWorkChain(WorkChain):
                 # print('dft_structures: ', dft_structures)
 
                 for calc_idx, dft_struct in enumerate(dft_structures):
-                    builder = mdb_al_ut.get_dft_calc_builder(
-                        dft_struct,
-                        row,
-                        calc_idx,
-                        self.inputs.train_seed_group.value,
-                        dft_settings=self.inputs.dft_settings.get_dict(),
-                    )
+                    if self.inputs.dft_method == "vasp":
+
+                        builder = mdb_al_ut.get_dft_calc_builder_vasp(
+                            dft_struct,
+                            row,
+                            calc_idx,
+                            self.inputs.train_seed_group.value,
+                            dft_settings=self.inputs.dft_settings.get_dict(),
+                        )
+
+                    elif self.inputs.dft_method == "mace":
+                            builder = mdb_al_ut.get_dft_calc_builder_mace(
+                            dft_struct,
+                            row,
+                            calc_idx,
+                            self.inputs.train_seed_group.value,
+                            dft_settings=self.inputs.dft_settings.get_dict(),
+                        )
 
                     # Submitting current calculation
                     future = self.submit(builder)
@@ -1204,17 +1216,28 @@ class ActiveLearningWorkChain(WorkChain):
         MACE models, and this check also outputted to the workchain using the
         namespace `stop_md_seed_no_disagreement`.
         """
-        try:
-            dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-            self.report(f"Gathered {dft_calcs} DFT calculations.")
+        if self.inputs.dft_method == "vasp":
+            try:
+                dft_calcs = len(self.ctx.dft_struct_seed_calcs)
+                self.report(f"Gathered {dft_calcs} VASP DFT calculations.")
 
-            return_list = mdb_al_ut.gather_dft_calcs(
-                [node.uuid for node in self.ctx.dft_struct_seed_calcs]
-            )
+                return_list = mdb_al_ut.gather_dft_calcs_vasp(
+                    [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+                )
 
-        except AttributeError:
-            # self.ctx.dft_struct_seed_calcs = []
-            return_list = List([])
+            except AttributeError:
+                return_list = List([])
+
+        elif self.inputs.dft_method == "mace":
+            try:
+                dft_calcs = len(self.ctx.dft_struct_seed_calcs)
+                self.report(f"Gathered {dft_calcs} MACE DFT calculations.")
+
+                return_list = mdb_al_ut.gather_dft_calcs_mace(
+                    [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+                )
+            except AttributeError:
+                return_list = List([])
 
         self.out("dft_calcs", return_list)  # list[dict]
         self.out(

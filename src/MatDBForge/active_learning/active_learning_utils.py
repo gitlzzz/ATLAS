@@ -5,7 +5,6 @@ from pathlib import Path
 import numpy as np
 import torch
 import wonderwords as ww
-from aiida.cmdline.utils import echo_info
 from aiida.engine import (
     calcfunction,
 )
@@ -16,8 +15,11 @@ from aiida.orm import (
     List,
     SinglefileData,
     Str,
+    StructureData,
+    load_code,
     load_node,
 )
+from aiida.plugins import CalculationFactory
 from ase import Atoms
 from ase.io import read as ase_read
 from ase.io import write as ase_write
@@ -144,7 +146,7 @@ def select_md_frames_to_keep(
     return traj_sampled, steps_E_F_arr_sampled, forces_sampled
 
 
-def get_dft_calc_builder(
+def get_dft_calc_builder_vasp(
     struct,
     row,
     calc_idx: int,
@@ -185,6 +187,49 @@ def get_dft_calc_builder(
         group=group,
     )
     return builder
+
+
+def get_dft_calc_builder_mace(
+    struct,
+    row,
+    calc_idx: int,
+    group,
+    dft_settings: dict,
+):
+    struct_type = row["mdb_struct_type"]
+
+    # Gathering row information
+    (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
+        mdb_aut.gather_calc_data_from_row(row, curr_structure=struct)
+    )
+
+    # Prepare GetMACEDescriptorsCalculation
+    # Generate builder
+    mace_descr_calc = CalculationFactory("mace-eval")
+    mace_builder = mace_descr_calc.get_builder()
+
+    mace_builder.mace_settings_dict = dft_settings["settings"]
+
+    # Load model
+    model = SinglefileData(dft_settings["mace_potential_path"])
+    mace_builder.model_file = model
+
+    # Load structure as StructureData
+    mace_builder.configuration_to_evaluate = StructureData(pymatgen=curr_structure)
+
+    # Get code and remove from settings dict
+    mace_builder.code = load_code(dft_settings["options"]["code_string"])
+    dft_settings["options"].pop("code_string")
+
+    # Load scheduler and resources options
+    mace_builder.metadata.options = dft_settings["options"]
+
+    # Generating label for the CalcJob
+    struct_formula = curr_structure.formula.replace(" ", "")
+    struct_name = f"{curr_material_name}-{struct_formula}-{calc_idx}_{struct_type}"
+    mace_builder.metadata.label = struct_name
+
+    return mace_builder
 
 
 def generate_model_name():
@@ -370,7 +415,7 @@ def prepare_output_final_training_db(training_db_path):
 
 
 @calcfunction
-def gather_dft_calcs(dft_calc_list: list) -> List:
+def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
     """
     Collect and preprocess VASP DFT calculation results for active learning input.
 
@@ -462,6 +507,51 @@ def gather_dft_calcs(dft_calc_list: list) -> List:
         vasprun_list.append(vasprun)
 
     return_list = List([val for val in vasprun_list])
+    return return_list
+
+
+@calcfunction
+def gather_dft_calcs_mace(dft_calc_list: list) -> List:
+    """Collect and preprocess MACE DFT calculation results for active learning input."""
+    result_list = []
+
+    # Adding structures to the initial DB
+    for finished_dft_calc in dft_calc_list:
+        calc_node = load_node(finished_dft_calc)
+
+        try:
+            # Gathering the vasprun as an ASE Atoms object. This object won't
+            # collect automatically all of the extra information such as forces
+            # or energies, and must be collected using methods from ase.calc.u
+            struct_serial_dict = calc_node.outputs.configuration_result_dict.get_dict()
+
+        except Exception:
+            # If the calculation fails for any reason, skip it.
+            continue
+
+        # Gathering extra DFT calculation information from calculation
+        # and its extras
+        calc_info_dict = {
+            "name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
+            "mdb_calc_uuid": calc_node.extras["mdb_calc_uuid"],
+            "mdb_struct_type": calc_node.extras["mdb_struct_type"],
+        }
+
+        for key, val in calc_info_dict.items():
+            struct_serial_dict["info"][key] = val
+
+        # Renaming energy key
+        struct_serial_dict["info"]["energy"] = struct_serial_dict["info"].pop(
+            "mdb_mace_eval_energy"
+        )
+
+        # Renaming forces dict
+        struct_serial_dict["forces"] = struct_serial_dict.pop("mdb_mace_eval_forces")
+
+        # struct = aiida_serialized_ase_dict_to_atoms(struct_serial_dict)
+        result_list.append(struct_serial_dict)
+
+    return_list = List([val for val in result_list])
     return return_list
 
 

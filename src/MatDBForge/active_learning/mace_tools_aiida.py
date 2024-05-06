@@ -1,4 +1,5 @@
 import json
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -10,16 +11,12 @@ from aiida.orm import (
     Float,
     SinglefileData,
     Str,
-    JsonableData,
     StructureData,
     to_aiida_type,
 )
 from aiida.parsers.parser import Parser
-from ase.io import write as ase_write
 from ase.io import read as ase_read
-import io
-import tempfile
-
+from ase.io import write as ase_write
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
 
@@ -211,12 +208,10 @@ class GetMACEDescriptorsCalculation(CalcJob):
         )
         spec.input(
             "mace_train_file_path",
-            # valid_type=Str,
             help=(
                 "Path to the file containing the structures to be used for training, "
                 "in the extxyz format."
             ),
-            # non_db=True,
             serializer=to_aiida_type,
         )
 
@@ -325,6 +320,9 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             valid_type=ArrayData,
             help="Array of values for the force prediction.",
         )
+        spec.exit_code(
+            420, "ERROR_INVALID_OUTPUT", "training calculation could not run"
+        )
 
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
@@ -333,7 +331,6 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         :return: `~aiida.common.datastructures.CalcInfo` instance
         """
         # Parsing mace settings dict
-        # TODO: Add a way of checking if validation_file was given.
         params_list = []
         params_list.append("--model=current_mace_model.model")
         params_list.append("--configs=current_configuration.xyz")
@@ -409,6 +406,10 @@ class EvaluateMACEConfigsCalculationParser(Parser):
                 result_structure = ase_read(child_file, format="extxyz")
                 result_dict = mdb_al_ut.serialize_ase(result_structure)
                 forces_dict = np.vstack(result_dict["mdb_mace_eval_forces"])
+
+        # Return failed code if output files not found
+        if not result_structure or not result_dict:
+            return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
         self.out("configuration_result_dict", Dict(result_dict))
