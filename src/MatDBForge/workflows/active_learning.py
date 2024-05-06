@@ -1459,8 +1459,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         ctime = time.strftime("%Y%m%dT%H%M%S")
 
         # TESTING: Change this back to the string below
-        seed_group = Group(label=f"remove_test_{ctime}")
-        # seed_group = Group(label=f"train_md_seed_{ctime}")
+        # seed_group = Group(label=f"remove_test_{ctime}")
+        seed_group = Group(label=f"train_md_seed_{ctime}")
 
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
