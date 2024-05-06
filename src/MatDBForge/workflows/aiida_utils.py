@@ -430,17 +430,7 @@ def submit_aiida_vasp_calculation(
         builder["relax"]["perform"] = Bool(True)
 
     if dry_run:
-        # print('dir builder:\n',dir(builder))
-        # print(builder.metadata)
-        # print(type(builder.metadata))
-        # print(dir(builder.metadata))
-        # print(builder.metadata._port_namespace)
-        # print("\nmetadata valid fields: ",builder.metadata._valid_fields)
-        # # print("\nsettings valid fields: ",builder.settings._valid_fields)
-        # print("\nparameters valid fields: ",builder.parameters._valid_fields)
-        # print("\noptions valid fields: ",builder.options._valid_fields)
-
-        # Generate a fake node and return it?
+        # TODO: Generate a fake node and return it
         mdb_ut.custom_print("Dry run: nothing generated.", "debug")
 
     if return_builder:

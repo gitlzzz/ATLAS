@@ -40,8 +40,12 @@ al_keep_struct_every_n_ps = 1
 # Whether to check for extrapolation using the MACE descriptors
 check_extrapolation = true
 
+# Selection of DFT calculator.
+dft_method = "vasp" # Options: "vasp", "mace"
+
 ###############################################
 
+# Settings for MD simulations using LAMMPS
 [md]
 [md.parameters]
 # List of different temperatures (in K) to be used for the MD simulations.
@@ -138,14 +142,41 @@ device = "cuda"
 default_dtype = "float32"
 wandb = false
 
+###############################################
 
-# VASP DFT Settings
-[vasp]
+# DFT Settings
+[dft]
+
+# MACE Settings as DFT calculator. Ignored if dft_method = "vasp" 
+[dft.mace]
+mace_potential_path = "" # Path to MACE potential file
+
+# Options for MACE. Will be passed as arguments during MACE execution.
+[dft.mace.settings]
+device = "cuda"           # Options: "cpu", "cuda"
+default_dtype = "float32" # Options: "float32", "float64"
+batch_size = 64
+compute_stress = false    # Options: true, false
+
+# Scheduler options. Will be used in the builder.metadata.options.
+[dft.mace.options]
+parser_name = "mace-eval-parser"
+code_string = "mace_run_eval_gpu@tekla2-new-test"
+resources = { parallel_env = "c128m1024ib_mpi_32slots", tot_num_mpiprocs = 32 }
+max_wallclock_seconds = 117280000
+max_memory_kb = 102400000
+custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2189"'''
+withmpi = false
+
+
+# Settings for VASP as DFT calculator. Ignored if dft_method = "mace" 
+[dft.vasp]
 # potential_family = "vasp-5.3-PBE"
 potential_family = "vasp-5.4-PBE-2023"
 structure_types = ['bulk', 'surface', 'cluster']
 
-[vasp.queue]
+[dft.vasp.queue]
 type = "sge"
 node_cpus = 12
 code_string = "vasp-std-5.4.4-new@tekla2"
@@ -153,7 +184,7 @@ options_resources = { parallel_env = "c12m48ib_mpi", tot_num_mpiprocs = 12 }
 multiple = 1
 custom_scheduler_commands = '#$ -l hostname="tekla2044"'
 
-[vasp.kspacing]
+[dft.vasp.kspacing]
 alpha = 0.135088484104361
 # m1 = 0.100530964914873
 beta-prime = 0.102415920507027
@@ -166,7 +197,7 @@ eta = 0.0993371597065093
 delta = 0.0994491889005363
 
 # general incar settings to be used as a template for all calculations
-[vasp.incar]
+[dft.vasp.incar]
 istart = 0
 icharg = 2
 gga = "Pe"
@@ -189,16 +220,16 @@ ncore = 4
 lelf = false
 ivdw = 11      # van der Waals
 
-[vasp.relax.incar]
+[dft.vasp.relax.incar]
 ibrion = 2
 nsw = 350
 isif = 3
 
-[vasp.surface.incar]
+[dft.vasp.surface.incar]
 ldipol = true
 idipol = 3
 
-[vasp.cluster.incar]
+[dft.vasp.cluster.incar]
 ldipol = true
 dipol = [0.5, 0.5, 0.5]
 idipol = 4
