@@ -105,7 +105,7 @@ class InitialDatabase:
             self.df = self._load_database()
 
         # Loading materials project API key from a json file
-        self.secrets = ut.gather_secrets()
+        # ut.gather_secrets() = ut.gather_secrets()
 
     def __repr__(self):
         # Getting the class name
@@ -377,6 +377,29 @@ class InitialDatabase:
         else:
             return False
 
+    def _get_structure_type_row(self, bulk: bool, surface: bool, cluster: bool) -> str:
+        """
+        Determines the type of a structure based on boolean flags.
+
+        Parameters
+        ----------
+        - bulk (bool): True if the structure is a bulk.
+        - surface (bool): True if the structure is a surface.
+        - cluster (bool): True if the structure is a cluster.
+
+        Returns
+        -------
+        - str: The type of the structure ("bulk", "surface", or "cluster").
+        """
+        if bulk:
+            return "bulk"
+        elif surface:
+            return "surface"
+        elif cluster:
+            return "cluster"
+        else:
+            return "unknown"  # handle the case where no flags are True
+
     def get_structure_list(self) -> list[ase_atoms]:
         """
         Retrieve all structures from the dataframe and return them as a list.
@@ -387,8 +410,22 @@ class InitialDatabase:
             A list of ASE Atoms objects representing the structures stored in the dataframe.
         """
         structure_list = []
-        for struct in self.df.structure:
-            structure_list.append(struct)
+
+        for _, row in self.df.iterrows():
+            # Get ASE structure
+            pmg_curr_struct = row["structure"]
+            ase_curr_struct = AseAtomsAdaptor().get_atoms(pmg_curr_struct)
+
+            # Populate structure with information
+            ase_curr_struct.info["mdb_struct_type"] = self._get_structure_type_row(
+                bulk=row["bulk"],
+                surface=row["surface"],
+                cluster=row["cluster"],
+            )
+            ase_curr_struct.info["aiida_uuid"] = str(row["unique_id"])
+            ase_curr_struct.info["struct_name"] = row["material_name"]
+
+            structure_list.append(ase_curr_struct)
 
         return structure_list
 
@@ -530,7 +567,7 @@ class InitialDatabase:
         missing_mat = set(target_structures) - set(self.df["material_id"].values)
 
         # Querying materials project database.
-        with MPRester(self.secrets["API_KEY"]) as mpr:
+        with MPRester(ut.gather_secrets()["API_KEY"]) as mpr:
             query_result = mpr.summary.search(material_ids=missing_mat)
             for material in query_result:
                 for phase in CuZnInitialDatabase.DB_PHASE_DIAGRAM.phases:
@@ -1103,7 +1140,7 @@ class CuZnInitialDatabase(InitialDatabase):
         # Querying CuZn alpha prototype structure
         else:
             ut.custom_print("Querying the MP API...", "debug")
-            with MPRester(self.secrets["API_KEY"]) as mpr:
+            with MPRester(ut.gather_secrets()["API_KEY"]) as mpr:
                 query_result = mpr.summary.search(material_ids=[prototype])[0]
                 structure = query_result.structure
                 material_id_prefix = query_result.material_id
