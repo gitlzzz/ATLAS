@@ -1,5 +1,5 @@
 """
-This script generates a pandas dataframe containing a set of
+Generates a pandas dataframe containing a set of
 base (unperturbed) structures and a certain number of structures
 with an applied perturbation with respect to the temperature.
 """
@@ -23,6 +23,7 @@ import rich.live as riliv
 import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
+from ase import Atoms as ase_atoms
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from mp_api.client import MPRester
@@ -129,7 +130,7 @@ class InitialDatabase:
             "replacement": bool,
         }
 
-        for col in columns_to_add.keys():
+        for col in columns_to_add:
             database_old[col] = None
 
         return database_old
@@ -147,6 +148,7 @@ class InitialDatabase:
         ut.custom_print(f"Loading database: '{self.database_name}'", "debug")
         self.database_name = db_path.name.replace(db_path.suffix, "")
 
+        print("db_path.suffixes: ", db_path.suffixes)
         if len(db_path.suffixes) == 0:
             suffix = ".xz"
         else:
@@ -188,7 +190,7 @@ class InitialDatabase:
 
     def _check_database(self) -> bool:
         """
-        This method check if a database with the name 'self.database_name'
+        Check if a database with the name 'self.database_name'
         exists in the current working directory or is a path to a existing
         database.
 
@@ -215,7 +217,7 @@ class InitialDatabase:
 
     def _create_database(self) -> pd.DataFrame:
         """
-        Create an empty  dataframe in order to be used in the class
+        Create an empty  dataframe in order to be used in the class.
 
         Returns
         -------
@@ -247,6 +249,7 @@ class InitialDatabase:
                 "calc_performed",
                 "calc_type",
                 "calc_output",
+                "replacement",
             ]
         )
 
@@ -373,6 +376,21 @@ class InitialDatabase:
 
         else:
             return False
+
+    def get_structure_list(self) -> list[ase_atoms]:
+        """
+        Retrieve all structures from the dataframe and return them as a list.
+
+        Returns
+        -------
+        list[ase.Atoms]
+            A list of ASE Atoms objects representing the structures stored in the dataframe.
+        """
+        structure_list = []
+        for struct in self.df.structure:
+            structure_list.append(struct)
+
+        return structure_list
 
     def find_repeat_structures(
         self,
@@ -542,15 +560,14 @@ class InitialDatabase:
         ut.custom_print("Reading relaxed structures...")
 
         # Getting the path where the calculations will be searched for.
-        if path:
-            read_path = pathlib.Path(path)
-        else:
-            read_path = pathlib.Path()
+        read_path = pathlib.Path(path) if path else pathlib.Path()
 
         if target_structures:
             selection_criteria = target_structures
         else:
             selection_criteria = CuZnInitialDatabase.DB_PHASE_DIAGRAM.keys()
+
+        selection_criteria = [crit.name for crit in selection_criteria]
 
         folders = read_path.glob("./*")
         list_dir = [
@@ -592,6 +609,7 @@ class InitialDatabase:
                 cluster=False,
                 surface=False,
                 material_id=curr_mat_id,
+                replacement=False,
             )
 
             # Saving the structure to the database
@@ -832,6 +850,15 @@ class CuZnInitialDatabase(InitialDatabase):
     """
 
     # CuZn alloy phase diagram data
+    all_cu = mdb_pd.Phase(
+        name="pure",
+        base_elem="Zn",
+        cluster_elem="Cu",
+        base_elem_comp_min=0,
+        base_elem_comp_max=0,
+        prototype="mp-30",
+        offset=0,
+    )
     alpha_phase = mdb_pd.Phase(
         name="alpha",
         base_elem="Zn",
@@ -924,7 +951,18 @@ class CuZnInitialDatabase(InitialDatabase):
     )
 
     DB_PHASE_DIAGRAM = mdb_pd.BinaryPhaseDiagram(
-        "CuZn", alpha_phase, m1, beta_prime, m2, gamma, m3, delta, epsilon, m4, eta
+        "CuZn",
+        all_cu,
+        alpha_phase,
+        m1,
+        beta_prime,
+        m2,
+        gamma,
+        m3,
+        delta,
+        epsilon,
+        m4,
+        eta,
     )
 
     # Which atoms are involved in the alloy.
@@ -1016,7 +1054,7 @@ class CuZnInitialDatabase(InitialDatabase):
     ):
         """
         Gather the structure for a prototype from the materials project database,
-        while checking that the phase given for the material is correct
+        while checking that the phase given for the material is correct.
 
         Parameters
         ----------

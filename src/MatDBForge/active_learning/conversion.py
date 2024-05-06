@@ -13,6 +13,7 @@ import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
 from ase.atoms import Atoms
+from pymatgen.core import Structure as pmg_structure
 
 
 class Units(Enum):
@@ -26,11 +27,42 @@ class Units(Enum):
     eV2Eh = 1 / Eh2eV
 
 
-def mdb_database_to_mace_train(mdb_database: "mdb_indb.InitialDatabase"):
-    # Gathering all structures in an InitialDatabase.
-    # Generate an entry for every structure.
-    # Write the entry into a file. Use Multithread?
-    raise NotImplementedError
+def mdb_database_to_mace_train(
+    mdb_database: "mdb_indb.InitialDatabase",
+    path: Union[str, pathlib.Path],
+    skip_dipole=True,
+    skip_stress=True,
+    skip_free_energy=False,
+):
+    """
+    Converts an initial database to an extended XYZ format file suitable
+    for MACE training.
+
+    Parameters
+    ----------
+    mdb_database : mdb_indb.InitialDatabase
+        The initial database containing molecular structures.
+    path : Union[str, pathlib.Path]
+        The file path where the extxyz file will be written.
+    skip_dipole : bool, optional
+        If True, dipole information is not written to the file (default is True).
+    skip_stress : bool, optional
+        If True, stress information is not written to the file (default is True).
+    skip_free_energy : bool, optional
+        If False, free energy information is included in the file (default is False).
+    """
+    # Gathering all structures from an InitialDatabase into a list.
+    struct_list = mdb_database.get_structure_list()
+
+    # Generate an entry for every structure and write them into a extxyz file.
+    gen_mace_train_structure_list(
+        structure_list=struct_list,
+        path=path,
+        disable=False,
+        skip_dipole=skip_dipole,
+        skip_stress=skip_stress,
+        skip_free_energy=skip_free_energy,
+    )
 
 
 def _vasprun_to_extended_xyz(structure: "mdb_strc.Structure"):
@@ -185,7 +217,6 @@ def gather_calc_data_from_node(node, units="atomic"):
 
 
 def get_struct_type(vasprun, dft_calc_node):
-
     try:
         # Using a calc type identifier in aiida dft calculations.
         struct_type = dft_calc_node.caller.extras["mdb_struct_type"]
@@ -373,14 +404,20 @@ def gen_mace_train_structure_list(
         if not isinstance(structure_list, list):
             structure_list = structure_list.get_list()
 
-        for idd, struct in enumerate(structure_list):
+        for _, struct in enumerate(structure_list):
+            if isinstance(struct, pmg_structure):
+                struct = struct.to_ase_atoms()
+
             if not isinstance(struct, dict):
                 struct = struct.todict()
 
             new_struct = {}
 
             dict_keys_set = set(list(struct.keys()))
-            info_keys_set = set(list(struct["info"].keys()))
+            try:
+                info_keys_set = set(list(struct["info"].keys()))
+            except KeyError:
+                info_keys_set = {}
             dict_to_array_set = set(
                 [
                     "pbc",
