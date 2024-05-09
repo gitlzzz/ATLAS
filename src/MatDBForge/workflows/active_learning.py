@@ -1048,6 +1048,11 @@ class ActiveLearningWorkChain(WorkChain):
             for curr_calc in self.ctx.md_descriptor_results:
                 # Loading calculation node
                 # curr_calc = load_node(calc.uuid)
+
+                # Ignore failed calculations
+                if not curr_calc.is_finished_ok:
+                    continue
+
                 curr_unique_id = curr_calc.extras["unique_id"]
                 curr_md_temperature = curr_calc.extras["md_temperature"]
 
@@ -1082,22 +1087,26 @@ class ActiveLearningWorkChain(WorkChain):
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
         submitted_dft_cnt = 0
-        for _, row in self.ctx.md_seed_results_df.iterrows():
+        for db_row_idx, row in self.ctx.md_seed_results_df.iterrows():
             # Make len(traj) sized array filled with 'False'.
             extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
-
             if self.inputs.check_extrapolation:
                 curr_struct_descr = row["extrapolation"]
 
-                # Checking if the frames for the current structure are extrapolating
-                for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
-                    below_min = frame_descriptors < self.ctx.descriptors_min_array
-                    above_max = frame_descriptors > self.ctx.descriptors_max_array
-                    is_frame_extrapolating = np.any(np.logical_or(below_min, above_max))
+                try:
+                    # Checking if the frames for the current structure are extrapolating
+                    for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
+                        below_min = frame_descriptors < self.ctx.descriptors_min_array
+                        above_max = frame_descriptors > self.ctx.descriptors_max_array
+                        is_frame_extrapolating = np.any(
+                            np.logical_or(below_min, above_max)
+                        )
 
-                    # Change to True the ones that are extrapolating.
-                    if is_frame_extrapolating:
-                        extrapolating_frames[frame_idx] = 1
+                        # Change to True the ones that are extrapolating.
+                        if is_frame_extrapolating:
+                            extrapolating_frames[frame_idx] = 1
+                except TypeError:
+                    pass
 
             # Getting all energy predictions
             # TODO - For E and F: Do variance
@@ -1154,9 +1163,11 @@ class ActiveLearningWorkChain(WorkChain):
                 # dft_structures = [row["trajectory"][0]]
                 # print('dft_structures: ', dft_structures)
 
+                mace_calcs_struct_list = []
+                mace_calcs_idx_list = []
+
                 for calc_idx, dft_struct in enumerate(dft_structures):
                     if self.inputs.dft_method == "vasp":
-
                         builder = mdb_al_ut.get_dft_calc_builder_vasp(
                             dft_struct,
                             row,
@@ -1165,14 +1176,33 @@ class ActiveLearningWorkChain(WorkChain):
                             dft_settings=self.inputs.dft_settings.get_dict(),
                         )
 
-                    elif self.inputs.dft_method == "mace":
-                            builder = mdb_al_ut.get_dft_calc_builder_mace(
-                            dft_struct,
-                            row,
-                            calc_idx,
-                            self.inputs.train_seed_group.value,
-                            dft_settings=self.inputs.dft_settings.get_dict(),
+                        # Submitting current calculation
+                        future = self.submit(builder)
+                        future.base.extras.set("mdb_calc_uuid", row["unique_id"])
+                        future.base.extras.set(
+                            "mdb_struct_type", row["mdb_struct_type"]
                         )
+                        future.base.extras.set("struct_name", row["material_name"])
+                        self.to_context(dft_struct_seed_calcs=append_(future))
+
+                        if self.inputs.train_seed_group.value:
+                            group = load_group(self.inputs.train_seed_group.value)
+                            group.add_nodes(future)
+
+                    elif self.inputs.dft_method == "mace":
+                        mace_calcs_struct_list.append(dft_struct)
+                        mace_calcs_idx_list.append(calc_idx)
+
+                    submitted_dft_cnt += 1
+
+                if self.inputs.dft_method == "mace":
+                    builder = mdb_al_ut.get_dft_calc_builder_mace_list(
+                        mace_calcs_struct_list,
+                        row,
+                        db_row_idx,
+                        self.inputs.train_seed_group.value,
+                        dft_settings=self.inputs.dft_settings.get_dict(),
+                    )
 
                     # Submitting current calculation
                     future = self.submit(builder)
@@ -1180,7 +1210,6 @@ class ActiveLearningWorkChain(WorkChain):
                     future.base.extras.set("mdb_struct_type", row["mdb_struct_type"])
                     future.base.extras.set("struct_name", row["material_name"])
                     self.to_context(dft_struct_seed_calcs=append_(future))
-                    submitted_dft_cnt += 1
 
                     if self.inputs.train_seed_group.value:
                         group = load_group(self.inputs.train_seed_group.value)
@@ -1457,11 +1486,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Creating aiida group to store all calculations
         ctime = time.strftime("%Y%m%dT%H%M%S")
-
-        # TESTING: Change this back to the string below
-        # seed_group = Group(label=f"remove_test_{ctime}")
-        seed_group = Group(label=f"train_md_seed_{ctime}")
-
+        seed_group = Group(
+            label=f"{self.inputs.active_learning.run_name}_train_md_seed_{ctime}"
+        )
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
         self.report(f"Created group: '{self.ctx.inputs.train_seed_group}'.")

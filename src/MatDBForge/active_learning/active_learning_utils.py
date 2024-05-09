@@ -1,5 +1,7 @@
+import io
 import json
 import math as m
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +29,7 @@ from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.workflows import aiida_utils as mdb_aut
+from pymatgen.io.ase import AseAtomsAdaptor
 
 
 def model_res_dict_to_arr(res_dict):
@@ -227,6 +230,73 @@ def get_dft_calc_builder_mace(
     # Generating label for the CalcJob
     struct_formula = curr_structure.formula.replace(" ", "")
     struct_name = f"{curr_material_name}-{struct_formula}-{calc_idx}_{struct_type}"
+    mace_builder.metadata.label = struct_name
+
+    return mace_builder
+
+
+def get_dft_calc_builder_mace_list(
+    struct_list: list,
+    row: int,
+    db_row_idx,
+    group,
+    dft_settings: dict,
+):
+    updated_struct_list = []
+    struct_type = row["mdb_struct_type"]
+
+    for idx, curr_struct in enumerate(struct_list):
+        curr_struct = struct_list[idx]
+
+        # Gathering row information
+        (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
+            mdb_aut.gather_calc_data_from_row(row, curr_structure=curr_struct)
+        )
+
+        struct_ase = AseAtomsAdaptor().get_atoms(curr_struct)
+        updated_struct_list.append(struct_ase)
+
+    # Write xyz file into a string captured in the stdout,
+    # write it to a temporary file.
+    f = io.StringIO()
+    with redirect_stdout(f):
+        ase_write(
+            filename="-",
+            format="extxyz",
+            images=updated_struct_list,
+        )
+    xyz_string = f.getvalue()
+
+    # Generating tmp file
+    mace_xyz_file = SinglefileData(
+        file=io.BytesIO(str.encode(xyz_string)),
+        filename="mace_structures.xyz",
+    )
+
+    # Prepare GetMACEDescriptorsCalculation
+    # Generate builder
+    mace_descr_calc = CalculationFactory("mace-eval")
+    mace_builder = mace_descr_calc.get_builder()
+
+    mace_builder.mace_settings_dict = dft_settings["settings"]
+
+    # Load model
+    model = SinglefileData(dft_settings["mace_potential_path"])
+    mace_builder.model_file = model
+
+    # Load structure as SinglefileData
+    mace_builder.configuration_to_evaluate = mace_xyz_file
+
+    # Get code and remove from settings dict
+    mace_builder.code = load_code(dft_settings["options"]["code_string"])
+    dft_settings["options"].pop("code_string")
+
+    # Load scheduler and resources options
+    mace_builder.metadata.options = dft_settings["options"]
+
+    # Generating label for the CalcJob
+    struct_formula = curr_structure.formula.replace(" ", "")
+    struct_name = f"{curr_material_name}-{struct_formula}-{db_row_idx}_{struct_type}"
     mace_builder.metadata.label = struct_name
 
     return mace_builder
@@ -520,36 +590,40 @@ def gather_dft_calcs_mace(dft_calc_list: list) -> List:
         calc_node = load_node(finished_dft_calc)
 
         try:
-            # Gathering the vasprun as an ASE Atoms object. This object won't
-            # collect automatically all of the extra information such as forces
-            # or energies, and must be collected using methods from ase.calc.u
-            struct_serial_dict = calc_node.outputs.configuration_result_dict.get_dict()
+            # Gathering the calculation data as a list of ASE Atoms dicts.
+            # This object won't collect automatically all of the extra information
+            # such as forces or energies, and must be collected using methods
+            # from ase.calc.
+            struct_serial_dict_list = calc_node.outputs.configuration_result_list
 
         except Exception:
             # If the calculation fails for any reason, skip it.
             continue
 
-        # Gathering extra DFT calculation information from calculation
-        # and its extras
-        calc_info_dict = {
-            "name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
-            "mdb_calc_uuid": calc_node.extras["mdb_calc_uuid"],
-            "mdb_struct_type": calc_node.extras["mdb_struct_type"],
-        }
+        for struct_serial_dict in struct_serial_dict_list:
+            # Gathering extra DFT calculation information from calculation
+            # and its extras
+            calc_info_dict = {
+                "struct_name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
+                "aiida_uuid": calc_node.extras["mdb_calc_uuid"],
+                "mdb_struct_type": calc_node.extras["mdb_struct_type"],
+            }
 
-        for key, val in calc_info_dict.items():
-            struct_serial_dict["info"][key] = val
+            for key, val in calc_info_dict.items():
+                struct_serial_dict["info"][key] = val
 
-        # Renaming energy key
-        struct_serial_dict["info"]["energy"] = struct_serial_dict["info"].pop(
-            "mdb_mace_eval_energy"
-        )
+            # Renaming energy key
+            struct_serial_dict["info"]["energy"] = struct_serial_dict["info"].pop(
+                "mdb_mace_eval_energy"
+            )
 
-        # Renaming forces dict
-        struct_serial_dict["forces"] = struct_serial_dict.pop("mdb_mace_eval_forces")
+            # Renaming forces dict
+            struct_serial_dict["forces"] = struct_serial_dict.pop(
+                "mdb_mace_eval_forces"
+            )
 
-        # struct = aiida_serialized_ase_dict_to_atoms(struct_serial_dict)
-        result_list.append(struct_serial_dict)
+            # struct = aiida_serialized_ase_dict_to_atoms(struct_serial_dict)
+            result_list.append(struct_serial_dict)
 
     return_list = List([val for val in result_list])
     return return_list
@@ -579,7 +653,10 @@ def vasprun_add_info_dict(vasprun_dict, calc_info_dict):
         vasprun_dict["info"] = {}
 
     for key, val in calc_info_dict.items():
-        if key not in vasprun_dict["info"].keys() and key in info_list:
+        if key not in vasprun_dict["info"] and key in info_list:
+            if key == "free_energy":
+                key.replace("free_", "")
+
             vasprun_dict["info"][key] = val
     return vasprun_dict
 

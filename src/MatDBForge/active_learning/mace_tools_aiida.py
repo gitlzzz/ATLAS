@@ -1,5 +1,4 @@
 import json
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -9,14 +8,13 @@ from aiida.orm import (
     ArrayData,
     Dict,
     Float,
+    List,
     SinglefileData,
     Str,
-    StructureData,
     to_aiida_type,
 )
 from aiida.parsers.parser import Parser
 from ase.io import read as ase_read
-from ase.io import write as ase_write
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
 
@@ -178,6 +176,10 @@ class GetMACEDescriptorsCalculationParser(Parser):
         # str that represents the absolute filepath to the temporary folder
         retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
 
+        descriptor_arr_file = None
+        descr_max_arr = None
+        descr_min_arr = None
+
         for child_file in retrieved_temporary_folder.iterdir():
             # create singlefile data for the descriptors
             if "curr_it_db_descriptors.pkl" in child_file.name:
@@ -188,6 +190,10 @@ class GetMACEDescriptorsCalculationParser(Parser):
 
             if "curr_it_db_min.npy" in child_file.name:
                 descr_min_arr = ArrayData(np.load(child_file))
+
+        # Return failed code if output files not found
+        if not descriptor_arr_file or not descr_max_arr or not descr_min_arr:
+            return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
         self.out("descriptors_file", descriptor_arr_file)
@@ -302,23 +308,23 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         )
         spec.input(
             "configuration_to_evaluate",
-            valid_type=StructureData,
+            valid_type=SinglefileData,
             help="Path of the trained MACE model.",
         )
         spec.output(
-            "configuration_result_dict",
-            valid_type=Dict,
-            help="Dict representation of the predicted configuration using MACE.",
+            "configuration_result_list",
+            valid_type=List,
+            help="List of dicts representation of the predicted configuration using MACE.",
         )
         spec.output(
-            "energy_result",
-            valid_type=Float,
-            help="Value for the energy prediction.",
+            "energy_result_list",
+            valid_type=List,
+            help="List of values for the energy prediction.",
         )
         spec.output(
-            "forces_result",
-            valid_type=ArrayData,
-            help="Array of values for the force prediction.",
+            "forces_result_list",
+            valid_type=List,
+            help="List of array of values for the force prediction.",
         )
         spec.exit_code(
             420, "ERROR_INVALID_OUTPUT", "training calculation could not run"
@@ -351,6 +357,9 @@ class EvaluateMACEConfigsCalculation(CalcJob):
 
         params_list.append("--info_prefix=mdb_mace_eval_")
 
+        # Remove duplicate entries
+        params_list = list(set(params_list))
+
         # Copying configuration to temporary folder
         with self.inputs.model_file.as_path() as model_path:
             folder.insert_path(
@@ -358,17 +367,13 @@ class EvaluateMACEConfigsCalculation(CalcJob):
                 dest_name="current_mace_model.model",
             )
 
-        curr_structure: StructureData = self.inputs.configuration_to_evaluate
-        curr_structure_ase = curr_structure.get_ase()
-        tmp_struct_file = tempfile.NamedTemporaryFile(delete=False)
-        ase_write(
-            filename=tmp_struct_file.name, images=curr_structure_ase, format="extxyz"
-        )
+        curr_structure_file: SinglefileData = self.inputs.configuration_to_evaluate
 
-        folder.insert_path(
-            src=tmp_struct_file.name,
-            dest_name="current_configuration.xyz",
-        )
+        with curr_structure_file.as_path() as path:
+            folder.insert_path(
+                src=path,
+                dest_name="current_configuration.xyz",
+            )
 
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
@@ -400,18 +405,34 @@ class EvaluateMACEConfigsCalculationParser(Parser):
         # str that represents the absolute filepath to the temporary folder
         retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
 
+        result_dict_list = []
+        forces_dict_list = []
+        result_structures = None
+        result_dict = None
+
         for child_file in retrieved_temporary_folder.iterdir():
             # create singlefile data for the descriptors
             if child_file.name == "results.out":
-                result_structure = ase_read(child_file, format="extxyz")
-                result_dict = mdb_al_ut.serialize_ase(result_structure)
-                forces_dict = np.vstack(result_dict["mdb_mace_eval_forces"])
+                result_structures = ase_read(child_file, format="extxyz", index=":")
+                for curr_structure in result_structures:
+                    result_dict = mdb_al_ut.serialize_ase(curr_structure)
+                    result_dict_list.append(result_dict)
 
-        # Return failed code if output files not found
-        if not result_structure or not result_dict:
+                    forces_dict = np.vstack(result_dict["mdb_mace_eval_forces"])
+                    forces_dict_list.append(forces_dict)
+
+        energy_float_list = [
+            ene_dict["info"]["mdb_mace_eval_energy"] for ene_dict in result_dict_list
+        ]
+
+        try:
+            # Return failed code if output files not found
+            if not result_structures or not result_dict:
+                return self.exit_codes.ERROR_INVALID_OUTPUT
+        except Exception:
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
-        self.out("configuration_result_dict", Dict(result_dict))
-        self.out("energy_result", Float(result_dict["info"]["mdb_mace_eval_energy"]))
-        self.out("forces_result", ArrayData(forces_dict))
+        self.out("configuration_result_list", List(result_dict_list))
+        self.out("energy_result_list", List(energy_float_list))
+        self.out("forces_result_list", List(forces_dict_list))
