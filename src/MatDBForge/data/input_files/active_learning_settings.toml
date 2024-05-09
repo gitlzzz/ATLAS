@@ -65,7 +65,7 @@ timestep_duration_ps = 0.003
 gather_traj_cnt_lattice = true
 
 # AiiDA options for the MD code to be used (only LAMMPS-MACE for now)
-[md.aiida_options]
+[md.queue]
 
 # AiiDA code name for MD software to be used
 code = "mace-lammps-gpu@tekla2-updated-2024"
@@ -104,6 +104,7 @@ result_force_weight = 0.1
 
 # AiiDA code name
 code = "mace_run_train_gpu@tekla2-new-test"
+
 # AiiDA scheduler options for MACE Training
 metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
 metadata.options.resources.tot_num_mpiprocs = 32
@@ -118,7 +119,7 @@ metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
 # MACE Training Settings (run_mace_train)
 [mace_train.train_settings]
 name = "nnp_training_test"
-energy_key = "free_energy"
+energy_key = "energy"
 valid_fraction = 0.1
 config_type_weights = { Default = 1.0 }
 weight_decay = 9.34e-07
@@ -156,7 +157,7 @@ mace_potential_path = "" # Path to MACE potential file
 device = "cuda"           # Options: "cpu", "cuda"
 default_dtype = "float32" # Options: "float32", "float64"
 batch_size = 64
-compute_stress = false    # Options: true, false
+compute_stress = true     # Options: true, false
 
 # Scheduler options. Will be used in the builder.metadata.options.
 [dft.mace.options]

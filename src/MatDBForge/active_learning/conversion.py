@@ -193,8 +193,7 @@ def gather_calc_data_from_node(node, units="atomic"):
     struct_type = get_struct_type(vasprun, dft_calc_node=node)
 
     # MACE by default checks the 'energy' key for the energies in the training files.
-    # However, we decided to use free_energy to store the energy.
-    # Which key is used by MACE training can be set on the launch arguments.
+    # Which key is used by MACE training can be set on the launch arguments for training.
     # TODO: Re-add dipole and potential_energy.
     data_dict = {
         "name": name,
@@ -203,7 +202,7 @@ def gather_calc_data_from_node(node, units="atomic"):
         "symbols": symbols,
         "numbers": numbers,
         # "pot_energy": pot_energy,
-        "free_energy": tot_energy,
+        "energy": tot_energy,
         "charge": charge,
         "pbc": pbc,
         "stress": stress,
@@ -426,7 +425,7 @@ def gen_mace_train_structure_list(
                     "positions",
                     "energy",
                     "numbers",
-                    "free_energy",
+                    "energy",
                 ]
             )
 
@@ -437,14 +436,14 @@ def gen_mace_train_structure_list(
                 "struct_name",
                 "energy",
                 "aiida_uuid",
-                "free_energy",
+                "energy",
                 "mdb_struct_type",
             ]
 
             # Whether to keep or remove stress, dipole and energy
             if skip_stress:
                 info_list.remove("stress")
-            if skip_free_energy:
+            if skip_free_energy and "free_energy" in info_list:
                 info_list.remove("free_energy")
             if skip_dipole:
                 info_list.remove("dipole")
