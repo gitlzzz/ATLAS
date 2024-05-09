@@ -1,14 +1,14 @@
-@font-face{
+@font-face {
     font-family: Manrope;
     src: local('Manrope-VariableFont_wght.ttf'),
-    url(../assets/fonts/Manrope-VariableFont_wght.ttf) format('truetype');
+        url(../assets/fonts/Manrope-VariableFont_wght.ttf) format('truetype');
     font-weight: normal;
 }
 
-@font-face{
+@font-face {
     font-family: Overpass Nerd Font;
     src: local('Overpass Nerd Font'),
-    url(../assets/fonts/OverpassMNerdFont-Regular.otf) format('truetype');
+        url(../assets/fonts/OverpassMNerdFont-Regular.otf) format('truetype');
     font-weight: normal;
 }
 
@@ -133,7 +133,6 @@ body {
     color: #ffffff;
     flex-grow: 3;
     padding-left: 1%;
-    /* padding-top: 0.5%; */
 }
 
 .logo-right {
@@ -169,8 +168,6 @@ body {
     display: flex;
     flex-direction: row;
     flex-flow: row;
-    /* height: 7.5vh; */
-    /* border-radius: 15px; */
     gap: 2%;
     margin-top: 1vh;
     margin-bottom: 1vh;
@@ -178,10 +175,7 @@ body {
 
 .left-box,
 .right-box {
-    /* border: 1px solid black; */
-    /* border-radius: 10px; */
     vertical-align: top;
-    /* padding: 0.1vh 0; */
     box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
     font-size: 14px;
 
@@ -209,7 +203,7 @@ body {
 
 .left-box {
     flex-grow: 4;
-    background-color: #ffffff;
+    background-color: #F2F3F4;
     padding: 0.1vh 0.5%;
     font-size: 12;
 }
@@ -217,7 +211,7 @@ body {
 .right-box {
     flex-grow: 1;
     padding: 0.1vh 0.5%;
-    background-color: #ffffff;
+    background-color: #F2F3F4;
     font-size: 12;
 }
 
@@ -233,11 +227,20 @@ body {
 .workchain-progbar {
     flex-grow: 4;
     margin-left: 2%;
+    margin-right: 2%;
     width: auto;
     background-color: lightgrey;
     border-radius: 2%;
 }
 
+.workchain-progbar-error {
+    flex-grow: 4;
+    margin-left: 2%;
+    margin-right: 2%;
+    width: auto;
+    background-color: #961818;
+    border-radius: 2%;
+}
 
 @-webkit-keyframes ProgBar {
     0% {
@@ -287,8 +290,16 @@ body {
     -webkit-animation: ProgBar 4s ease infinite;
     -moz-animation: ProgBar 4s ease infinite;
     animation: ProgBar 4s ease infinite;
-
 }
+
+.workchain-progbar-error::-moz-progress-bar {
+    background: linear-gradient(270deg, #961818, #fb1818, #961818);
+    background-size: 400% 400%;
+    -webkit-animation: ProgBar 3s ease infinite;
+    -moz-animation: ProgBar 3s ease infinite;
+    animation: ProgBar 3s ease infinite;
+}
+
 
 .workchain-progbar::-webkit-progress-value {
     background-color: green !important;
@@ -300,7 +311,6 @@ body {
     margin-left: 2%;
     width: auto;
     background-color: lightgrey;
-    ;
     border-radius: 2%;
 }
 
@@ -313,11 +323,8 @@ body {
 }
 
 .top-text {
-    /* flex-grow: 1; */
-    /* margin: 0 auto; */
     width: auto;
     margin: 0;
-    /* padding-bottom: 10px; */
 }
 
 /* Column container styles */
@@ -325,36 +332,35 @@ body {
     width: 100%;
     height: 75vh;
     display: flex;
-    /* border-radius: 2%; */
-    /* border-radius: 10px; */
-
 }
 
 .column {
-    /* border: 1px solid black; */
     display: inline-block;
     vertical-align: top;
-    /* border-radius: 2%; */
 }
 
 .left-column {
     width: 20%;
-    /* border-radius: 15px; */
-    background-color: #ffffff;
+    background-color: #F2F3F4;
     box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
     overflow-y: auto;
 }
 
 .right-column {
     width: 80%;
-    font-family: monospace;
+
     overflow-y: auto;
-    /* border-radius: 2%; */
-    background-color: #ffffff;
+    background-color: #F2F3F4;
     box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
     padding-left: 0.5%;
     margin-left: 15px;
     font-size: 14px;
+}
+
+.live-text {
+    font-family: monospace;
+    padding-top: 0.5%;
+    padding-right: 0.5%;
 }
 
 /* Dynamic text styles */
@@ -392,16 +398,16 @@ body {
     background: #555;
 }
 
-.subprocess-list{
-    display: flex;;
+.subprocess-list {
+    display: flex;
     flex-direction: column;
-    /* overflow-y: auto; */
+    background-color: #dde4f0;
 }
 
 .subprocess-list [id^="button-"] {
-    background-color: #3c3836;
-    color: #ebdbb2;
-    border: 1px solid #ebdbb2;;
+    background-color: #F2F3F4;
+    color: #282828;
+    border: 1px solid #282828;
     height: 50px;
     margin: 1%;
     padding: 3%;
@@ -412,8 +418,8 @@ body {
 }
 
 .subprocess-list [id^="button-"]:hover {
-    background-color: #504b48;
-    color: #ebdbb2;
+    background-color: #c9d9f3;
+    color: #282828;
 }
 
 
@@ -433,6 +439,23 @@ body {
         background-color: #282828;
         border: 1.5px solid #ebdbb2;
     }
+
+    .subprocess-list {
+        background-color: #282828;
+    }
+
+    .subprocess-list [id^="button-"] {
+        background-color: #3c3836;
+        color: #ebdbb2;
+        border: 1px solid #ebdbb2;
+        ;
+    }
+
+    .subprocess-list [id^="button-"]:hover {
+        background-color: #504b48;
+        color: #ebdbb2;
+    }
+
 
     .header {
         /* Darker header gradient */
@@ -486,9 +509,6 @@ body {
         -webkit-animation: ProgBar 4s ease infinite;
         -moz-animation: ProgBar 4s ease infinite;
         animation: ProgBar 4s ease infinite;
-
     }
-
-
 
 }

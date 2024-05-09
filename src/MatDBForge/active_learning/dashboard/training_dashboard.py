@@ -21,16 +21,16 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
         else:
             return n_sec * 1000, n_sec * 1000
 
-    @callback(
-        Output("progress-update", "className"),
-        Input("progress-update", "value"),
-        Input("progress-update", "max"),
-    )
-    def progressbar_done(value, max_value):
-        if value == max_value:
-            return "workchain-progbar-done"
-        else:
-            return "workchain-progbar"
+    # @callback(
+    #     Output("progress-update", "className"),
+    #     Input("progress-update", "value"),
+    #     Input("progress-update", "max"),
+    # )
+    # def progressbar_done(value, max_value):
+    #     if value == max_value:
+    #         return "workchain-progbar-done"
+    #     else:
+    #         return "workchain-progbar"
 
     @callback(
         Output("model-score-text", "children"),
@@ -77,7 +77,6 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
                         exit_status = "󰱒"
                     elif not child.exit_status:
                         exit_status = ""
-                        # exit_status = "\uebff"
                     else:
                         exit_status = child.exit_status
 
@@ -96,35 +95,37 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
 
         return result
 
-    @callback(
-        Output(
-            {"id": "live-update-text", "n_clicks": MATCH},
-            "children",
-            allow_duplicate=True,
-        ),
-        Input(
-            {"type": "calcjob-button", "n_clicks": MATCH},
-            "n_clicks",
-        ),
-        State({"type": "calcjob-button", "n_clicks": MATCH}, "value"),
-        # Input({"id": "ALL", "type": ALL}, "value"),
-        prevent_initial_call=True,
-    )
-    def display_calcjob(n_clicks, value):
-        print("n_clicks: ", n_clicks)
-        print("value: ", value)
-        # [ ] Stop right column from updating
-        # [ ] Reenable right column update
-        # node = orm.load_node(value)
-        # report = get_calcjob_report(node)
-        # print("report: ", report)
-        # return report
-        print(n_clicks)
+    # @callback(
+    #     Output(
+    #         {"id": "live-update-text", "n_clicks": MATCH},
+    #         "children",
+    #         allow_duplicate=True,
+    #     ),
+    #     Input(
+    #         {"type": "calcjob-button", "n_clicks": MATCH},
+    #         "n_clicks",
+    #     ),
+    #     State({"type": "calcjob-button", "n_clicks": MATCH}, "value"),
+    #     # Input({"id": "ALL", "type": ALL}, "value"),
+    #     prevent_initial_call=True,
+    # )
+    # def display_calcjob(n_clicks, value):
+    #     print("n_clicks: ", n_clicks)
+    #     print("value: ", value)
+    #     # [ ] Stop right column from updating
+    #     # [ ] Reenable right column update
+    #     # node = orm.load_node(value)
+    #     # report = get_calcjob_report(node)
+    #     # print("report: ", report)
+    #     # return report
+    #     print(n_clicks)
 
     @callback(
         Output("live-update-text", "children", allow_duplicate=True),
         Output("progress-update", "max"),
         Output("progress-update", "value"),
+        Output("iter-text", "children"),
+        Output("progress-update", "className"),
         Input("interval-general", "n_intervals"),
         prevent_initial_call="initial_duplicate",
     )
@@ -180,11 +181,17 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
             else:
                 styled_report.append(html.P(line))
 
-        max_iters = str(node.inputs.max_iterations.value)
+        max_iters = str(node.inputs.active_learning.max_iterations.value)
+        class_name = "workchain-progbar"
 
         if node.is_finished:
             # Filling up and restyling the progress bar.
             curr_iter = max_iters
+            class_name = "workchain-progbar-done"
+        if node.is_excepted or node.is_failed:
+            curr_iter = max_iters
+            class_name = "workchain-progbar-error"
+            iter_text = f"ERROR"
         else:
             children = [
                 child
@@ -196,7 +203,15 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
             else:
                 curr_iter = 0
 
-        return styled_report, max_iters, curr_iter
+            iter_text = f"{curr_iter} / {max_iters}"
+
+        return (
+            styled_report,
+            max_iters,
+            curr_iter,
+            iter_text,
+            class_name,
+        )
 
     app = Dash(__name__)
     app.title = "MDB AL Loop"
@@ -236,6 +251,11 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
                                             html.Progress(
                                                 className="workchain-progbar",
                                                 id="progress-update",
+                                            ),
+                                            html.P(
+                                                "1 / ?",
+                                                id="iter-text",
+                                                className="top-text",
                                             ),
                                         ],
                                         className="workchain-progress-container",
@@ -285,7 +305,9 @@ def run_training_dashboard(workchain_node_id, n_sec, port=8050):
                         [
                             # Box containing text and with a black border
                             html.Div(
+                                children="Loading...",
                                 id="live-update-text",
+                                className="live-text",
                             ),
                         ],
                         className="column right-column",
