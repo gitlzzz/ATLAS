@@ -290,7 +290,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Skipping model if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
-                self.report("Skipping CalcJob with errors.")
+                self.report("Skipping MACE training that finished with errors.")
                 continue
 
             # Loading model name
@@ -1216,7 +1216,7 @@ class ActiveLearningWorkChain(WorkChain):
                         group.add_nodes(future)
 
         self.report(
-            f"Committee decision: {submitted_dft_cnt} DFT / "
+            f"Committee decision: {submitted_dft_cnt} get info / "
             f"{len(delete_indices)} delete."
         )
 
