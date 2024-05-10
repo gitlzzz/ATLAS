@@ -77,7 +77,8 @@ metadata.options.queue_name = "c128m1024ibgpu4.q"
 metadata.options.max_memory_kb = 102400000
 metadata.options.max_wallclock_seconds = 117280000
 metadata.options.withmpi = false
-metadata.options.custom_scheduler_commands = "#$ -l gpu=1"
+metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2189"'''
 
 ###############################################
 
@@ -114,7 +115,7 @@ metadata.options.max_wallclock_seconds = 117280000
 metadata.options.max_memory_kb = 102400000
 metadata.options.withmpi = true
 metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
-    #$ -l hostname="tekla2188"'''
+#$ -l hostname="tekla2188"'''
 
 # MACE Training Settings (run_mace_train)
 [mace_train.train_settings]
@@ -133,7 +134,7 @@ r_max = 6.0
 max_ell = 3
 max_L = 2
 batch_size = 64
-max_num_epochs = 30
+max_num_epochs = 35
 swa = true
 ema = true
 ema_decay = 0.99
