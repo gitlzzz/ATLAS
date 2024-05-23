@@ -1,8 +1,10 @@
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
 from aiida.common.datastructures import CalcInfo, CodeInfo
+from aiida.common.folders import Folder
 from aiida.engine import CalcJob
 from aiida.orm import (
     ArrayData,
@@ -14,6 +16,7 @@ from aiida.orm import (
     to_aiida_type,
 )
 from aiida.parsers.parser import Parser
+from aiida_lammps.calculations.raw import LammpsRawCalculation
 from ase.io import read as ase_read
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
@@ -436,3 +439,58 @@ class EvaluateMACEConfigsCalculationParser(Parser):
         self.out("configuration_result_list", List(result_dict_list))
         self.out("energy_result_list", List(energy_float_list))
         self.out("forces_result_list", List(forces_dict_list))
+
+
+class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
+    """aiida-lammps raw calculation modified to run on gpu using kokkos."""
+
+    def prepare_for_submission(self, folder: Folder) -> CalcInfo:
+        """Prepare the calculation for submission.
+
+        :param folder: A temporary folder on the local file system.
+        :returns: A :class:`aiida.common.datastructures.CalcInfo` instance.
+        """
+        filename_input = self.inputs.metadata.options.input_filename
+        filename_output = self.inputs.metadata.options.output_filename
+        filenames = (
+            self.inputs["filenames"].get_dict() if "filenames" in self.inputs else {}
+        )
+        provenance_exclude_list = []
+
+        with folder.open(filename_input, "w") as handle:
+            handle.write(self.inputs.script.get_content())
+
+        for key, node in self.inputs.get("files", {}).items():
+            # The filename with which the file is written to the working directory is defined by the ``filenames`` input
+            # namespace, falling back to the filename of the ``SinglefileData`` node if not defined.
+            filename = filenames.get(key, node.filename)
+
+            with folder.open(filename, "wb") as target, node.open(mode="rb") as source:
+                shutil.copyfileobj(source, target)
+
+            provenance_exclude_list.append(filename)
+
+        codeinfo = CodeInfo()
+        codeinfo.cmdline_params = [
+            "-in",
+            filename_input,
+            "-k",
+            "on",
+            "g",
+            "1",
+            "-sf",
+            "kk",
+        ]
+        codeinfo.code_uuid = self.inputs.code.uuid
+        codeinfo.stdout_name = self.inputs.metadata.options.output_filename
+
+        calcinfo = CalcInfo()
+        calcinfo.provenance_exclude_list = provenance_exclude_list
+        calcinfo.retrieve_list = [filename_output]
+        if "settings" in self.inputs:
+            calcinfo.retrieve_list += self.inputs.settings.get_dict().get(
+                "additional_retrieve_list", []
+            )
+        calcinfo.codes_info = [codeinfo]
+
+        return calcinfo

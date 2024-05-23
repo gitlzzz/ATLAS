@@ -73,6 +73,7 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.gather_traj_cnt_lattice = md_params[
         "gather_traj_cnt_lattice"
     ]
+    builder.active_learning.use_kokkos = md_params["use_kokkos"]
 
     # MACE training settings
     builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])

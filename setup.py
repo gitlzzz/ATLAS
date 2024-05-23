@@ -15,6 +15,7 @@ setup(
             "mace-train = MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation",
             "mace-get-descriptors = MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation",
             "mace-eval = MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation",
+            "mace-lammps-gpu-md = MatDBForge.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE",
         ],
         "aiida.calculations.monitors": [
             "monitor.davwarning = MatDBForge.workflows.monitors:output_monitor"

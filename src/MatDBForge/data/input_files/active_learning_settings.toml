@@ -64,6 +64,9 @@ timestep_duration_ps = 0.003
 # Consider constant lattice when gathering trajectories
 gather_traj_cnt_lattice = true
 
+# Whether to use kokkos to run the MD
+use_kokkos = true
+
 # AiiDA options for the MD code to be used (only LAMMPS-MACE for now)
 [md.queue]
 

@@ -107,6 +107,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("committee_eval", valid_type=Dict)
         spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
         spec.input("gather_traj_cnt_lattice", valid_type=Bool, serializer=to_aiida_type)
+        spec.input("use_kokkos", valid_type=Bool, serializer=to_aiida_type)
 
         spec.outline(
             # Training the main mace model (M0) and the commitee models
@@ -290,7 +291,9 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Skipping model if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
-                self.report("Skipping MACE training that finished with errors.")
+                self.report(
+                    f"Skipping MACE model that finished with errors (pk: {calc.pk})."
+                )
                 continue
 
             # Loading model name
@@ -456,6 +459,9 @@ class ActiveLearningWorkChain(WorkChain):
         """
         with open(f"{DATA_DIR}/input_files/input.lammps") as f:
             lammps_template = f.read()
+
+        if self.inputs.use_kokkos:
+            lammps_template = "newton on\n" + lammps_template
 
         lammps_template = lammps_template.replace(
             "$MACESTYLE", "mace no_domain_decomposition"
