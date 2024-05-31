@@ -1,6 +1,6 @@
 import pathlib as pl
 
 # Root of package
-ROOT_DIR = (pl.Path(__file__).parent).resolve()
+MDB_ROOT_DIR = (pl.Path(__file__).parent).resolve()
 
-__version__ = "0.2"
+__version__ = "0.3.5"

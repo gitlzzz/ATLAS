@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import json
 import shutil
 from pathlib import Path
@@ -307,12 +308,12 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         spec.input(
             "model_file",
             valid_type=SinglefileData,
-            help="Path of the trained MACE model.",
+            help="Path to the trained MACE model.",
         )
         spec.input(
             "configuration_to_evaluate",
             valid_type=SinglefileData,
-            help="Path of the trained MACE model.",
+            help="Path to the configurations to evaluate in extxyz format.",
         )
         spec.output(
             "configuration_result_list",
@@ -494,3 +495,220 @@ class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
         calcinfo.codes_info = [codeinfo]
 
         return calcinfo
+
+
+class CheckMACECommitteeResultsCalculation(CalcJob):
+    """CalcJob to check the E and F of structures using a committee of MACE models."""
+
+    @classmethod
+    def define(cls, spec):
+        """
+        Define the input and output specifications for the CalcJob.
+
+        Parameters
+        ----------
+        spec : aiida.engine.processes.ports.PortNamespace
+            The process specification to define the inputs, outputs, and exit codes.
+
+        Inputs
+        ------
+        commitee_models : PortNamespace
+            A namespace to hold an arbitrary number of committee MACE potentials.
+        mace_settings_dict : aiida.orm.Dict
+            Dictionary containing MACE settings.
+        configurations_to_evaluate : aiida.orm.SinglefileData
+            Path to the configurations to evaluate in extxyz format.
+
+        Outputs
+        -------
+        energy_result_dict : aiida.orm.Dict
+            Dictionary of values for the energy prediction. 
+            The dict has the following format:
+            `{"model_1": [E1, E2...], "model_2": [E1, E2...], ..."}`
+        forces_result_dict : aiida.orm.Dict
+            Dictionary of arrays of values for the force prediction.
+            The dict has the following format:
+            `{"model_1": <ndarray shape n_at, 3, n_frames>, "model_2": ..."}`
+
+        Exit Codes
+        ----------
+        420 : ERROR_OUT_OF_VRAM
+            CUDA out of GPU memory.
+        421 : ERROR_OUTPUT_NOT_FOUND
+            Missing output file.
+        """
+        super().define(spec)
+
+        # Namespace that will hold an arbitrary number of committee MACE potentials
+        spec.input_namespace(
+            "commitee_models",
+            dynamic=True,
+            valid_type=SinglefileData,
+        )
+
+        spec.input(
+            "mace_settings_dict",
+            valid_type=Dict,
+            help="Dictionary containing MACE settings.",
+            serializer=to_aiida_type,
+        )
+
+        spec.input(
+            "configurations_to_evaluate",
+            valid_type=SinglefileData,
+            help="Path to the configurations to evaluate in extxyz format.",
+        )
+        # spec.output(
+        #     "configuration_result_list",
+        #     valid_type=List,
+        #     help="List of dicts representation of the predicted configuration using MACE.",
+        # )
+        spec.output(
+            "energy_result_dict",
+            valid_type=Dict,
+            help="Dicvt of values for the energy prediction.",
+        )
+        spec.output(
+            "forces_result_dict",
+            valid_type=Dict,
+            help="Dict of array of values for the force prediction.",
+        )
+        spec.exit_code(420, "ERROR_OUT_OF_VRAM", "CUDA out of GPU memory.")
+        spec.exit_code(421, "ERROR_OUTPUT_NOT_FOUND", "Missing output file.")
+
+    def prepare_for_submission(self, folder):
+        """Write the input files that are required for the code to run.
+
+        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
+        :return: `~aiida.common.datastructures.CalcInfo` instance
+        """
+        # Parsing mace settings dict
+        params_list = []
+        # params_list.append("--model=current_mace_model.model")
+        # params_list.append("--output=results.out")
+        params_list.append("--configs=configurations_to_evaluate.xyz")
+
+        for key, val in self.inputs.mace_settings_dict.items():
+            if key == "train_file":
+                val = Path(val).resolve().name
+
+            if isinstance(val, str):
+                curr_key = f"--{key}={val}"
+            elif isinstance(val, bool):
+                if val:
+                    curr_key = f"--{key}"
+            else:
+                curr_key = f"--{key}={val}"
+            params_list.append(curr_key)
+
+        params_list.append("--info_prefix=mdb_mace_eval_")
+
+        # Remove duplicate entries
+        params_list = list(set(params_list))
+
+        # Copying configuration to temporary folder
+        # print('self.commitee_models: ', self.commitee_models)
+        for model_str, model_singlefile in self.inputs.commitee_models.items():
+            with model_singlefile.as_path() as model_path:
+                folder.insert_path(
+                    src=model_path,
+                    dest_name=f"{model_str}.model",
+                )
+
+        curr_structure_file: SinglefileData = self.inputs.configurations_to_evaluate
+
+        with curr_structure_file.as_path() as path:
+            folder.insert_path(
+                src=path,
+                dest_name="configurations_to_evaluate.xyz",
+            )
+
+        codeinfo = CodeInfo()
+        codeinfo.code_uuid = self.inputs.code.uuid
+        codeinfo.cmdline_params = params_list
+
+        calcinfo = CalcInfo()
+        calcinfo.codes_info = [codeinfo]
+        calcinfo.local_copy_list = []
+        calcinfo.provenance_exclude_list = []
+        calcinfo.remote_copy_list = []
+
+        # Gathering files.
+        calcinfo.retrieve_list = [
+            "results.out",
+        ]
+
+        # They won't be added to the repository,
+        # and instead kept into a temporary folder.
+        calcinfo.retrieve_temporary_list = [
+            "*_output.out",
+        ]
+
+        return calcinfo
+
+
+class CheckMACECommiteeResultsCalculationParser(Parser):
+    """
+    Parser for processing the retrieved files from a MACE committee results calculation job.
+
+    Methods
+    -------
+    parse(**kwargs)
+        Parses the retrieved files and extracts the predicted energies and forces for each
+        committee model. Outputs are stored in AiiDA Dict objects.
+    """
+
+    def parse(self, **kwargs):
+        """
+        Parse the retrieved files of the calculation job.
+
+        Returns
+        -------
+        421 - ERROR_OUTPUT_NOT_FOUND
+            Returns a 421 error exit code if the required output files are not found.
+
+        Outputs
+        -------
+        energy_result_dict : aiida.orm.Dict
+            Dictionary containing the energies predicted by each committee model.
+        forces_result_dict : aiida.orm.Dict
+            Dictionary containing the forces predicted by each committee model.
+        """
+        # str that represents the absolute filepath to the temporary folder
+        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+
+        result_model_forces = {}
+        result_model_energies = {}
+
+        for child_file in retrieved_temporary_folder.iterdir():
+            # Gathering results from the output for each committee model
+            if "_output.out" in child_file.name:
+                model_name = child_file.name.replace("_output.out", "")
+                curr_model_forces_dict_list = []
+                curr_model_energy_float_list = []
+
+                result_structures = ase_read(child_file, format="extxyz", index=":")
+
+                # Iterating over every structure to get predicted energies and forces
+                for structure in result_structures:
+                    forces_dict = np.vstack(structure.arrays["mdb_mace_eval_forces"])
+
+                    curr_model_forces_dict_list.append(forces_dict)
+
+                    curr_model_energy_float_list.append(
+                        structure.info["mdb_mace_eval_energy"]
+                    )
+
+                result_model_forces[model_name] = curr_model_forces_dict_list
+                result_model_energies[model_name] = curr_model_energy_float_list
+
+        # Return failed code if result lists are not populated
+        if len(result_model_energies) == 0 or len(result_model_forces) == 0:
+            return self.exit_codes.ERROR_OUTPUT_NOT_FOUND
+
+        # Return CalcJob outputs
+        result_model_forces = Dict(result_model_forces)
+        result_model_energies = Dict(result_model_energies)
+
+        self.out("energy_result_dict", Dict(result_model_energies))
+        self.out("forces_result_dict", Dict(result_model_forces))

@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="MatDBForge",
-    version="0.3.3",
+    version="0.3.6",
     description="MatDBForge",
     author="Pol Sanz",
     author_email="me@polsanz.xyz",
@@ -16,6 +16,7 @@ setup(
             "mace-get-descriptors = MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation",
             "mace-eval = MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation",
             "mace-lammps-gpu-md = MatDBForge.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE",
+            "mace-committee-eval = MatDBForge.active_learning.mace_tools_aiida:CheckMACECommitteeResultsCalculation",
         ],
         "aiida.calculations.monitors": [
             "monitor.davwarning = MatDBForge.workflows.monitors:output_monitor"
@@ -28,6 +29,7 @@ setup(
             "mace-training-parser = MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser",
             "mace-descriptors-parser = MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser",
             "mace-eval-parser = MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser",
+            "mace-committee-eval-parser = MatDBForge.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser",
         ],
         "console_scripts": [
             "mdb_active_learning=MatDBForge.core.command_line:run_active_learning",

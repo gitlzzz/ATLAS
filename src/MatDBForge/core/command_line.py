@@ -17,7 +17,7 @@ from aiida.plugins import WorkflowFactory
 from MatDBForge.active_learning.dashboard.training_dashboard import (
     run_training_dashboard,
 )
-from MatDBForge.core import DATA_DIR
+from MatDBForge.core import MDB_DATA_DIR
 
 warnings.filterwarnings("ignore")
 
@@ -52,8 +52,8 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.seed_size_frac = float(al_conf["seed_size_frac"])
     builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
 
-    builder.active_learning.commitee_num_models = int(
-        toml_dict["committee_eval"]["commitee_num_models"]
+    builder.active_learning.committee_num_models = int(
+        toml_dict["committee_eval"]["committee_num_models"]
     )
     builder.active_learning.model_acc_multiplier = float(
         al_conf["model_acc_multiplier"]
@@ -215,7 +215,7 @@ def gen_default_config():
 
     # Choosing config file to write.
     if args.config_type == "active_learning":
-        config_file_path = pl.Path(DATA_DIR) / "input_files" / default_config_name
+        config_file_path = pl.Path(MDB_DATA_DIR) / "input_files" / default_config_name
 
     # Copying file to path.
     final_path: pl.Path = args.path / default_config_name
@@ -264,3 +264,35 @@ def monitor_al_loop():
     run_training_dashboard(
         workchain_node_id=args.process_id, n_sec=args.update_interval, port=args.port
     )
+
+
+def parse_input_toml(toml_dict: dict, type: str):
+    """
+    Parses and validates the input TOML dictionary based on the specified type.
+
+    Parameters
+    ----------
+    toml_dict : dict
+        The input dictionary parsed from a TOML file.
+    type : str
+        The type of configuration to validate. Currently supports "active_learning".
+
+    Raises
+    ------
+    MissingMandatoryParameterError
+        If any mandatory keys are missing from the input TOML dictionary.
+    """
+    if type == "active_learning":
+        mandatory_keys_list = ["active_learning", "md", "committee_eval", "dft"]
+
+        for key in mandatory_keys_list:
+            if key not in list(toml_dict.keys()):
+                raise MissingMandatoryParameterError(
+                    f"Input toml file missing mandatory key: {key}."
+                )
+    elif type == "generate_database":
+        raise NotImplementedError("Database generation toml not implemented yet.")
+
+
+class MissingMandatoryParameterError(Exception):
+    """Raised when a mandatory parameter is missing in the toml dictionary."""

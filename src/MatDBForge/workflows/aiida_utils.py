@@ -20,12 +20,12 @@ from pymatgen.core.surface import Slab
 from pymatgen.io.vasp import Poscar
 
 from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.core import DATA_DIR
+from MatDBForge.core import MDB_DATA_DIR
 from MatDBForge.core import initial_db as mdb_indb
 from MatDBForge.core import utils as mdb_ut
 from MatDBForge.core.clusters import center_structure
 
-VDW_DATA_PATH = pl.Path(DATA_DIR / "vdw-data")
+VDW_DATA_PATH = pl.Path(MDB_DATA_DIR / "vdw-data")
 
 # Loading default aiida user profile
 load_profile()

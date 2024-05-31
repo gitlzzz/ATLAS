@@ -47,13 +47,6 @@ def get_model_forces_variance(forces_dict):
     return forces_var
 
 
-def get_model_energies_variance(energies_dict):
-    energies_model_list = model_res_dict_to_arr(energies_dict)
-    energies_var = energies_model_list.var(axis=0)
-
-    return energies_var
-
-
 def get_model_forces_std(forces_dict):
     forces_model_list = model_res_dict_to_arr(forces_dict)
     forces_std = forces_model_list.std(axis=0)
@@ -66,6 +59,13 @@ def get_model_energies_std(energies_dict):
     energies_std = energies_model_list.std(axis=0)
 
     return energies_std
+
+
+def get_model_energies_var(energies_dict):
+    energies_model_list: np.ndarray = model_res_dict_to_arr(energies_dict)
+    energies_var = energies_model_list.var(axis=0)
+
+    return energies_var
 
 
 def load_database(path: str):
