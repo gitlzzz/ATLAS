@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="{{ refresh_interval }}" />
+    <title>Active Learning Loop</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="header">
+        <h1 class="title">Active Learning Loop</h1>
+        <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
+    </div>
+    <div class="top-box">
+        <div class="top-box left-box">
+            <div class="top-box-left-headers">
+                <div class="top-box-title">
+                    <h3 class="title-upper">Target workchain - {{ workchain_node_id }}</h3>
+                    <h3 class="last-updated">(last updated - {{ update_time }})</h3>
+                </div>
+                <div class="workchain-progress-container">
+                    <p class="top-text">Total progress:</p>
+                    <progress class="{{ progbar_class_name }}" id="progress-update" value="{{ curr_iter }}"
+                        max="{{ max_iters }}"></progress>
+                    <p id="iter-text" class="top-text">{{ iter_text }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="top-box right-box">
+            <div class="top-box-left-headers">
+                <h3 class="title-upper">Current iteration performance</h3>
+                <p id="model-score-text" class="top-text">{{ model_stats }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="column-container">
+        <div class="column left-column">
+            <div id="subprocess-list" class="subprocess-list">
+                {% for entry in subprocess_list %}
+                <button id="{{  entry['id'] }}" type="calcjob-button" value="{{ entry['value'] }}"
+                    onclick="copy_pk(this.value)">{{ entry["child_str"]
+                    }}</button>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="column right-column">
+            <div id="live-update-text" class="live-text">
+                {% for entry in report %}
+                <p>
+                    <span class="date-part">{{ entry["date_part"] }} </span>
+                    <span class="id-part">{{ entry["id_part"] }} </span>
+                    <span class="label-part">{{ entry["label_part"] }} </span>
+                    <span class="report-text">{{ entry["report_part"] }} </span>
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        function copy_pk(clicked_id) {
+            var copyText = clicked_id;
+            // copyText.select();
+            // copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText);
+        }
+    </script>
+</body>
+
+</html>

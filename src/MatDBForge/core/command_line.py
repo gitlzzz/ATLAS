@@ -13,13 +13,27 @@ from aiida import load_profile
 from aiida.engine import run, submit
 from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
+from gunicorn.app.wsgiapp import WSGIApplication
 
-from MatDBForge.active_learning.dashboard.training_dashboard import (
-    run_training_dashboard,
-)
 from MatDBForge.core import MDB_DATA_DIR
 
 warnings.filterwarnings("ignore")
+
+
+class StandaloneApplication(WSGIApplication):
+    def __init__(self, app_uri, options=None):
+        self.options = options or {}
+        self.app_uri = app_uri
+        super().__init__()
+
+    def load_config(self):
+        config = {
+            key: value
+            for key, value in self.options.items()
+            if key in self.cfg.settings and value is not None
+        }
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
 
 
 def create_active_learning_builder(toml_dict: dict):
@@ -133,7 +147,7 @@ def run_active_learning():
         "--port",
         help=("Port to use for the webapp"),
         type=int,
-        default=8050,
+        default=5000,
         metavar="port",
     )
 
@@ -162,9 +176,17 @@ def run_active_learning():
     else:
         node = submit(builder)
         print("Active learning workchain node: ", node)
-        run_training_dashboard(
-            workchain_node_id=node.pk, n_sec=args.n_sec, port=args.port
+        print(
+            f"Running dashboard in the background as daemon. Access: http://127.0.0.1:{args.port}"
         )
+
+        app = StandaloneApplication(
+            f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
+            f":run_training_dashboard(workchain_node_id={args.process_id}, "
+            f"refresh_interval={args.update_interval}, port={args.port})",
+            options={"daemon": True},
+        )
+        app.run()
 
 
 def gen_default_config():
@@ -255,15 +277,22 @@ def monitor_al_loop():
         "--port",
         help=("Port to use for the webapp"),
         type=int,
-        default=8050,
+        default=5000,
         metavar="port",
     )
     # Getting CLI arguments
     args = parser.parse_args()
 
-    run_training_dashboard(
-        workchain_node_id=args.process_id, n_sec=args.update_interval, port=args.port
+    print(
+        f"Running dashboard to monitor process: {args.process_id}. Access: http://127.0.0.1:{args.port}."
     )
+    print("Pres Ctrl+C to stop the dashboard.")
+    app = StandaloneApplication(
+        f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
+        f":run_training_dashboard(workchain_node_id={args.process_id}, "
+        f"refresh_interval={args.update_interval}, port={args.port})",
+    )
+    app.run()
 
 
 def parse_input_toml(toml_dict: dict, type: str):
