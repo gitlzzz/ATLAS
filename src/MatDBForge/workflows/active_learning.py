@@ -674,7 +674,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Get 1 frame every n picoseconds of MD simulation
             traj, steps_E_F_arr, forces = mdb_al_ut.select_md_frames_to_keep(
                 frame_interval=self.inputs.al_keep_struct_every_n_ps,
-                total_n_frames=self.inputs.md_num_steps.value,
+                total_n_frames=len(traj),
                 md_tstep_duration_ps=self.inputs.md_timestep_duration_ps.value,
                 traj=traj,
                 steps_E_F_arr=steps_E_F_arr,
@@ -714,7 +714,7 @@ class ActiveLearningWorkChain(WorkChain):
         ----------
         workchain_results : object
             An object containing the results of a workchain. It is expected to have
-            a method `get_object_content` which can retrieve the content of 'lammps.out'.
+            a method `get_object_content` which can retrieve the content of 'lammps.out'
 
         Returns
         -------
@@ -742,7 +742,9 @@ class ActiveLearningWorkChain(WorkChain):
         ...]
 
         """
+        # Loading lammps output
         output = workchain_results.get_object_content("lammps.out")
+        # Generating list with the logged steps data
         steps = [line for line in output.splitlines() if line.startswith("thermo ")]
 
         energy_array = []
@@ -751,9 +753,27 @@ class ActiveLearningWorkChain(WorkChain):
 
         for step in steps:
             split = step.split()
-            step_array.append(int(split[1]))
-            energy_array.append(float(split[4]))
-            force_array.append(float(split[7]))
+
+            # Getting current step results.
+            # If an IndexError is raised, probably one of the results is missing,
+            # most likely because the program was stopped mid-step (above wall-time)
+            # and thus the current step must not be gathered. This allows for the AL
+            # loop to keep running even if there are MD calculations that don't run
+            # to completion.
+            try:
+                curr_step = int(split[1])
+                curr_energy = float(split[4])
+                curr_force = float(split[7])
+            except IndexError as e:
+                parent_calc = workchain_results.creator.pk
+                self.report(
+                    f"Error while gathering MD calculation results {parent_calc} - {e}."
+                )
+                break
+
+            step_array.append(curr_step)
+            energy_array.append(curr_energy)
+            force_array.append(curr_force)
 
         step_E_F_arr = np.stack((step_array, energy_array, force_array), axis=1)
         return step_E_F_arr
@@ -990,6 +1010,13 @@ class ActiveLearningWorkChain(WorkChain):
             else:
                 commitee_dict[model_name] = model
 
+        if not commitee_dict:
+            self.report(
+                "Committee dict is empty: no committee models trained."
+                "Using main model only. Check model training step for errors."
+            )
+            commitee_dict[self.ctx.best_model_name] = self.ctx.best_model_file
+
         # Checking committee predictions for every trajectory
         for row in self.ctx.md_seed_results_df.iterrows():
             curr_traj = row[1]["trajectory"]
@@ -1066,6 +1093,13 @@ class ActiveLearningWorkChain(WorkChain):
         # self.ctx.md_seed_results_df.to_pickle("/tmp/md_seed_results_df")
 
         for curr_calc in self.ctx.committee_results:
+            # Skipping calculation if training hasn't finished correctly.
+            if curr_calc.exit_status != 0:
+                self.report(
+                    f"Skipping calculation [{curr_calc.pk}] - exit status: {curr_calc.exit_status}"
+                )
+                continue
+
             # Gather extras to identify the current calc
             curr_unique_id = curr_calc.extras["unique_id"]
             curr_md_temperature = curr_calc.extras["md_temperature"]
@@ -1259,7 +1293,7 @@ class ActiveLearningWorkChain(WorkChain):
             # TODO - Select std or variance
             model_energies_dict = row["energy"]
 
-            energies_stat = mdb_al_ut.get_model_energies_var(model_energies_dict)
+            energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
             # energies_stat = mdb_al_ut.get_model_energies_stat(model_energies_dict)
 
             # Any True value in this array is over the energy error threshold

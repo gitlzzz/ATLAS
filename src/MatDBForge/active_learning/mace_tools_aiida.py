@@ -125,18 +125,9 @@ class TrainMACEModelCalculation(CalcJob):
         # Parsing mace settings dict
         # TODO: Add a way of checking if validation_file was given.
         params_list = []
-        for key, val in self.inputs.mace_settings_dict.items():
-            if key == "train_file":
-                val = Path(val).resolve().name
 
-            if isinstance(val, str):
-                curr_key = f"--{key}={val}"
-            elif isinstance(val, bool):
-                if val:
-                    curr_key = f"--{key}"
-            else:
-                curr_key = f"--{key}={val}"
-            params_list.append(curr_key)
+        # Adding cli parameters to list
+        prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
 
         # Adding random seed
         params_list.append(f"--seed={np.random.randint(1, 100000000)}")
@@ -346,18 +337,8 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         params_list.append("--configs=current_configuration.xyz")
         params_list.append("--output=results.out")
 
-        for key, val in self.inputs.mace_settings_dict.items():
-            if key == "train_file":
-                val = Path(val).resolve().name
-
-            if isinstance(val, str):
-                curr_key = f"--{key}={val}"
-            elif isinstance(val, bool):
-                if val:
-                    curr_key = f"--{key}"
-            else:
-                curr_key = f"--{key}={val}"
-            params_list.append(curr_key)
+        # Adding cli parameters to list
+        prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
 
         params_list.append("--info_prefix=mdb_mace_eval_")
 
@@ -522,7 +503,7 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         Outputs
         -------
         energy_result_dict : aiida.orm.Dict
-            Dictionary of values for the energy prediction. 
+            Dictionary of values for the energy prediction.
             The dict has the following format:
             `{"model_1": [E1, E2...], "model_2": [E1, E2...], ..."}`
         forces_result_dict : aiida.orm.Dict
@@ -588,19 +569,8 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         # params_list.append("--output=results.out")
         params_list.append("--configs=configurations_to_evaluate.xyz")
 
-        for key, val in self.inputs.mace_settings_dict.items():
-            if key == "train_file":
-                val = Path(val).resolve().name
-
-            if isinstance(val, str):
-                curr_key = f"--{key}={val}"
-            elif isinstance(val, bool):
-                if val:
-                    curr_key = f"--{key}"
-            else:
-                curr_key = f"--{key}={val}"
-            params_list.append(curr_key)
-
+        # Adding cli parameters to list
+        prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
         params_list.append("--info_prefix=mdb_mace_eval_")
 
         # Remove duplicate entries
@@ -645,6 +615,25 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         ]
 
         return calcinfo
+
+
+def prepare_cli_args_mace(params_list: list, settings_dict: dict):
+    for key, val in settings_dict.items():
+        if key == "train_file":
+            val = Path(val).resolve().name
+
+        if key == "dtype":
+            key = "default_dtype"
+
+        if isinstance(val, str):
+            curr_key = f"--{key}={val}"
+        elif isinstance(val, bool):
+            if val:
+                curr_key = f"--{key}"
+        else:
+            curr_key = f"--{key}={val}"
+
+        params_list.append(curr_key)
 
 
 class CheckMACECommiteeResultsCalculationParser(Parser):
