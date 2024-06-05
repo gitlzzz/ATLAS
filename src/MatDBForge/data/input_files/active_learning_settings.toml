@@ -96,7 +96,7 @@ committee_num_models = 4
 # Settings for MACE evaluator
 [committee_eval.mace]
 device = "cuda"       # cpu, cuda
-dtype = "float32"     # float32, float64
+default_dtype = "float32"     # float32, float64
 batch_size = 64
 compute_stress = true # whether or not to compute stress (true/false)
 

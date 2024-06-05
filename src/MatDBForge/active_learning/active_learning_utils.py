@@ -47,6 +47,13 @@ def get_model_forces_variance(forces_dict):
     return forces_var
 
 
+def get_model_energies_variance(energies_dict):
+    energies_model_list = model_res_dict_to_arr(energies_dict)
+    energies_var = energies_model_list.var(axis=0)
+
+    return energies_var
+
+
 def get_model_forces_std(forces_dict):
     forces_model_list = model_res_dict_to_arr(forces_dict)
     forces_std = forces_model_list.std(axis=0)
@@ -59,13 +66,6 @@ def get_model_energies_std(energies_dict):
     energies_std = energies_model_list.std(axis=0)
 
     return energies_std
-
-
-def get_model_energies_var(energies_dict):
-    energies_model_list: np.ndarray = model_res_dict_to_arr(energies_dict)
-    energies_var = energies_model_list.var(axis=0)
-
-    return energies_var
 
 
 def load_database(path: str):
@@ -258,20 +258,7 @@ def get_dft_calc_builder_mace_list(
 
     # Write xyz file into a string captured in the stdout,
     # write it to a temporary file.
-    f = io.StringIO()
-    with redirect_stdout(f):
-        ase_write(
-            filename="-",
-            format="extxyz",
-            images=updated_struct_list,
-        )
-    xyz_string = f.getvalue()
-
-    # Generating tmp file
-    mace_xyz_file = SinglefileData(
-        file=io.BytesIO(str.encode(xyz_string)),
-        filename="mace_structures.xyz",
-    )
+    mace_xyz_file = gen_xyz_file_from_traj(updated_struct_list)
 
     # Prepare GetMACEDescriptorsCalculation
     # Generate builder
@@ -300,6 +287,25 @@ def get_dft_calc_builder_mace_list(
     mace_builder.metadata.label = struct_name
 
     return mace_builder
+
+
+def gen_xyz_file_from_traj(struct_list):
+    f = io.StringIO()
+    with redirect_stdout(f):
+        ase_write(
+            filename="-",
+            format="extxyz",
+            images=struct_list,
+        )
+    xyz_string = f.getvalue()
+
+    # Generating tmp file
+    mace_xyz_file = SinglefileData(
+        file=io.BytesIO(str.encode(xyz_string)),
+        filename="mace_structures.xyz",
+    )
+
+    return mace_xyz_file
 
 
 def generate_model_name():
