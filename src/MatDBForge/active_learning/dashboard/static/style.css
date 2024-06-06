@@ -12,10 +12,53 @@
     font-weight: normal;
 }
 
+:root,
+:root.light {
+    --bg-color: #c9d9f3;
+    --panel-bg-color: #F2F3F4;
+    --text-color: #282828;
+    --title-color: #F2F3F4;
+    --progbar-background: lightgrey;
+    --progbar-gradient: linear-gradient(270deg, #186396, #a4bbca, #186396);
+    --header-gradient: linear-gradient(-90deg, #4b6cb7 0%, #182848 100%);
+    --header-border: #282828;
+    --subprocess-border: #282828;
+    --date-part: blue;
+    --label-part: gray;
+    --id-part: #e1743d;
+    --button-color: #282828;
+    --button-bg-color: #F2F3F4;
+    --button-hover-color: #c9d9f3;
+    --button-hover-bg-color: #282828;
+
+}
+
+:root.dark {
+    --bg-color: #1d2021;
+    --panel-bg-color: #282828;
+    --text-color: #ebdbb2;
+    --title-color: #ebdbb2;
+    --progbar-background: #605956;
+    --progbar-gradient: linear-gradient(90deg, #98971a, #689d6a, #b8bb26);
+    --button-highlight: #dde4f0;
+    --header-gradient: linear-gradient(90deg, #6c97a4 0%, #458588 100%);
+    --header-border: #ebdbb2;
+    --subprocess-border: #ebdbb2;
+    --date-part: #458588;
+    --label-part: #689d6a;
+    --id-part: #e1743d;
+    --button-color: #ebdbb2;
+    --button-bg-color: #3c3836;
+    --button-hover-color: #ebdbb2;
+    --button-hover-bg-color: #504b48;
+}
+
+
 /* General body styling */
 body {
     font-family: "Manrope", "Overpass Nerd Font", sans-serif;
-    background: #c9d9f3;
+    background: var(--bg-color);
+    color: var(--text-color);
     /* background: linear-gradient(27deg, rgb(226, 248, 248) 0%, rgb(248, 235, 205) 100%);  */
     background-size: 200% 200%;
     -webkit-animation: BackgroundGradient 18s ease infinite;
@@ -115,8 +158,8 @@ body {
     margin-top: -1vh;
     margin-left: -1vh;
     margin-right: -1vh;
-    background: linear-gradient(-90deg, #4b6cb7 0%, #182848 100%);
-    border: 0px solid #282828;
+    background: var(--header-gradient);
+    border: 0px solid var(--header-border);
     border-bottom-width: 3px;
     display: flex;
     flex-direction: row;
@@ -130,7 +173,7 @@ body {
     font-weight: 1500;
     font-variant: ExtraBold;
     font-style: ExtraBold;
-    color: #ffffff;
+    color: var(--title-color);
     flex-grow: 3;
     padding-left: 1%;
 }
@@ -162,6 +205,7 @@ body {
     margin-top: 10px !important;
     margin-bottom: 10px;
 }
+
 .last-updated {
     /* flex-grow: 1; */
     text-align: right;
@@ -214,12 +258,11 @@ body {
 
 .top-box-right-headers {
     flex-flow: column;
-    /* padding: 0.1vh 0.5%; */
 }
 
 .left-box {
     flex-grow: 4;
-    background-color: #F2F3F4;
+    background-color: var(--panel-bg-color);
     padding: 0.1vh 0.5%;
     font-size: 12;
 }
@@ -227,7 +270,7 @@ body {
 .right-box {
     flex-grow: 1;
     padding: 0.1vh 0.5%;
-    background-color: #F2F3F4;
+    background-color: var(--panel-bg-color);
     font-size: 12;
 }
 
@@ -245,7 +288,7 @@ body {
     margin-left: 2%;
     margin-right: 2%;
     width: auto;
-    background-color: lightgrey;
+    background-color: var(--progbar-background);
     border-radius: 2%;
 }
 
@@ -301,7 +344,7 @@ body {
 }
 
 .workchain-progbar::-moz-progress-bar {
-    background: linear-gradient(270deg, #186396, #a4bbca, #186396);
+    background: var(--progbar-gradient);
     background-size: 400% 400%;
     -webkit-animation: ProgBar 4s ease infinite;
     -moz-animation: ProgBar 4s ease infinite;
@@ -325,8 +368,9 @@ body {
     flex-grow: 4;
     /* margin: 0 auto; */
     margin-left: 2%;
+    margin-right: 2%;
     width: auto;
-    background-color: lightgrey;
+    background-color: var(--progbar-background);
     border-radius: 2%;
 }
 
@@ -357,7 +401,7 @@ body {
 
 .left-column {
     width: 20%;
-    background-color: #F2F3F4;
+    background-color: var(--panel-bg-color);
     box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
     overflow-y: auto;
 }
@@ -366,7 +410,7 @@ body {
     width: 80%;
 
     overflow-y: auto;
-    background-color: #F2F3F4;
+    background-color: var(--panel-bg-color);
     box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
     padding-left: 0.5%;
     margin-left: 15px;
@@ -390,11 +434,11 @@ body {
 }
 
 .date-part {
-    color: blue;
+    color: var(--date-part);
 }
 
 .label-part {
-    color: grey;
+    color: var(--label-part);
 }
 
 /* Scrollbars customization */
@@ -417,13 +461,13 @@ body {
 .subprocess-list {
     display: flex;
     flex-direction: column;
-    background-color: #dde4f0;
+    background-color: var(--panel-bg-color);
 }
 
 .subprocess-list [id^="button-"] {
-    background-color: #F2F3F4;
-    color: #282828;
-    border: 1px solid #282828;
+    background-color: var(--panel-bg-color);
+    color: var(--button-color);
+    border: 1px solid var(--header-border);
     height: 50px;
     margin: 1%;
     padding: 3%;
@@ -433,106 +477,17 @@ body {
     font-family: "Manrope", "Overpass Nerd Font", sans-serif;
 }
 
-.subprocess-list [id^="button-"]:hover {
-    background-color: #c9d9f3;
-    color: #282828;
+.theme-switch {
+    font-family: "Overpass Nerd Font", sans-serif;
+    margin: 0.5%;
+    color: var(--text-color);
+    background-color: var(--button-bg-color);
+    border-radius: 8%;
+    text-align: center;
+    padding: 0.1% 1% 0.1% 1%;
 }
 
-
-/* Dark theme styles */
-@media (prefers-color-scheme: dark) {
-    body {
-        background: #1d2021;
-        color: #ebdbb2;
-    }
-
-    /* Styling for top boxes */
-    .top-box-headers {
-        background-color: #282828;
-    }
-
-    .workchain-progbar {
-        background-color: #282828;
-        border: 1.5px solid #ebdbb2;
-    }
-
-    .subprocess-list {
-        background-color: #282828;
-    }
-
-    .subprocess-list [id^="button-"] {
-        background-color: #3c3836;
-        color: #ebdbb2;
-        border: 1px solid #ebdbb2;
-        ;
-    }
-
-    .subprocess-list [id^="button-"]:hover {
-        background-color: #504b48;
-        color: #ebdbb2;
-    }
-
-
-    .header {
-        /* Darker header gradient */
-        /* background: linear-gradient(90deg, #83a598 0%, #458588 100%); */
-        background: #458588;
-        border: 0px solid #ebdbb2;
-        border-bottom-width: 3px;
-    }
-
-    .title {
-        color: #ebdbb2;
-    }
-
-    .top-text {
-        color: #ebdbb2;
-    }
-
-    /* Column container styles */
-    .column-container {
-        background-color: #282828;
-    }
-
-    .column {
-        background-color: #282828;
-    }
-
-    .left-column {
-        background-color: #282828;
-    }
-
-    .right-column {
-        background-color: #282828;
-    }
-
-    .left-box,
-    .right-box {
-        background-color: #282828;
-    }
-
-    .date-part {
-        color: #458588;
-    }
-
-    .label-part {
-        color: #689d6a;
-    }
-
-    .id-part {
-        color: #e1743d;
-    }
-
-    /* .report-text{
-
-    } */
-
-    .workchain-progbar::-moz-progress-bar {
-        background: linear-gradient(90deg, #98971a, #689d6a, #b8bb26);
-        background-size: 400% 400%;
-        -webkit-animation: ProgBar 4s ease infinite;
-        -moz-animation: ProgBar 4s ease infinite;
-        animation: ProgBar 4s ease infinite;
-    }
-
+.subprocess-list [id^="button-"]:hover {
+    background-color: var(--button-hover-color);
+    color: var(--button-hover-bg-color);
 }

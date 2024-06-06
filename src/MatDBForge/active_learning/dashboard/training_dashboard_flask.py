@@ -46,11 +46,14 @@ def get_iteration_info(node):
     class_name = "workchain-progbar"
     iter_text = "1 / ?"
 
+    print('node.is_finished: ', node.is_finished)
     if node.is_finished:
         # Filling up and restyling the progress bar.
         curr_iter = max_iters
         class_name = "workchain-progbar-done"
-    if node.is_excepted or node.is_failed:
+        iter_text = f"{curr_iter} / {max_iters}"
+        print('iter_text: ', iter_text)
+    elif node.is_excepted or node.is_failed:
         curr_iter = max_iters
         class_name = "workchain-progbar-error"
         iter_text = f"ERROR"
@@ -61,7 +64,7 @@ def get_iteration_info(node):
             if child.process_label == "ActiveLearningWorkChain"
         ]
         if len(children) > 0:
-            curr_iter = str(children[-1].inputs.al_loop_iteration.value + 1)
+            curr_iter = children[-1].inputs.al_loop_iteration.value
         else:
             curr_iter = 0
 
@@ -173,7 +176,7 @@ def get_report(node):
     return styled_report
 
 
-def run_training_dashboard(workchain_node_id, refresh_interval=60, port=5000):
+def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
     app = Flask(__name__)
     load_profile()
 
@@ -189,6 +192,7 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=5000):
             curr_iter,
             subprocess_list,
         ) = gather_information(workchain_node_id)
+        print('\n\n\n@@@progbar_class_name: ', progbar_class_name)
         return render_template(
             "training_dashboard.html",
             refresh_interval=refresh_interval,

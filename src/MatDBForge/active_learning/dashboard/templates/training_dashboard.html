@@ -12,6 +12,8 @@
 <body>
     <div class="header">
         <h1 class="title">Active Learning Loop</h1>
+        <button id="theme-switch-light" class="theme-switch" onclick="setTheme('light')"></button>
+        <button id="theme-switch-dark" class="theme-switch" onclick="setTheme('dark')"></button>
         <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
     </div>
     <div class="top-box">
@@ -66,6 +68,12 @@
             // copyText.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(copyText);
         }
+
+        const setTheme = (theme) => { document.documentElement.className = theme; localStorage.setItem('theme', theme); }
+        const getTheme = () => { const theme = localStorage.getItem('theme'); theme && setTheme(theme);}
+        getTheme();
+
+
     </script>
 </body>
 

@@ -175,16 +175,13 @@ def run_active_learning():
         node = run(builder)
     else:
         node = submit(builder)
-        print("Active learning workchain node: ", node)
-        print(
-            f"Running dashboard in the background as daemon. Access: http://127.0.0.1:{args.port}"
-        )
+        print("Active learning workchain node: ", node.pk)
+        print(f"Running dashboard. Access: http://127.0.0.1:{args.port}")
 
         app = StandaloneApplication(
             f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
-            f":run_training_dashboard(workchain_node_id={args.process_id}, "
-            f"refresh_interval={args.update_interval}, port={args.port})",
-            options={"daemon": True},
+            f":run_training_dashboard(workchain_node_id={node.pk}, "
+            f"refresh_interval={args.update_interval}, port={args.port})"
         )
         app.run()
 
@@ -284,7 +281,8 @@ def monitor_al_loop():
     args = parser.parse_args()
 
     print(
-        f"Running dashboard to monitor process: {args.process_id}. Access: http://127.0.0.1:{args.port}."
+        f"Running dashboard to monitor process: {args.process_id}."
+        f"Access: http://127.0.0.1:{args.port}."
     )
     print("Pres Ctrl+C to stop the dashboard.")
     app = StandaloneApplication(
