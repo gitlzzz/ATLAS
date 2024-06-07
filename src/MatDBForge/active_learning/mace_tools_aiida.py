@@ -87,6 +87,7 @@ class TrainMACEModelCalculation(CalcJob):
                 "in the extxyz format."
             ),
             required=False,
+            non_db=True,
             default=None,
         )
 
@@ -206,6 +207,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
             "model_file",
             valid_type=SinglefileData,
             help="Path of the trained MACE model.",
+            non_db=True
         )
         spec.input(
             "mace_train_file_path",
@@ -283,7 +285,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
 
         return calcinfo
 
-
+# entry-point: mace-eval
 class EvaluateMACEConfigsCalculation(CalcJob):
     """CalcJob to evaluate E and F of structures using a MACE model."""
 
@@ -382,7 +384,6 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         ]
 
         return calcinfo
-
 
 class EvaluateMACEConfigsCalculationParser(Parser):
     def parse(self, **kwargs):
@@ -525,6 +526,7 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
             "commitee_models",
             dynamic=True,
             valid_type=SinglefileData,
+            non_db=True,
         )
 
         spec.input(
@@ -537,6 +539,7 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         spec.input(
             "configurations_to_evaluate",
             valid_type=SinglefileData,
+            # non_db=True,
             help="Path to the configurations to evaluate in extxyz format.",
         )
         # spec.output(

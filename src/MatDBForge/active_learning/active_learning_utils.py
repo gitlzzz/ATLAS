@@ -334,11 +334,7 @@ def generate_model_name():
 
 def get_final_db_path(result_dir_path, final_db_name, node):
     result_dir_path = Path(result_dir_path)
-    if not isinstance(node, str):
-        caller_uuid = process_call_root(node)
-    else:
-        caller_uuid = node
-
+    caller_uuid = process_call_root(node) if not isinstance(node, str) else node
     curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
 
     if not curr_run_dir.exists():
@@ -346,6 +342,18 @@ def get_final_db_path(result_dir_path, final_db_name, node):
 
     final_db_path = curr_run_dir / f"{final_db_name}.xyz"
     return final_db_path, curr_run_dir
+
+
+def get_results_dir_path(result_dir_path, node):
+    result_dir_path = Path(result_dir_path)
+
+    caller_uuid = process_call_root(node) if not isinstance(node, str) else node
+    curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
+
+    if not curr_run_dir.exists():
+        curr_run_dir.mkdir()
+
+    return curr_run_dir
 
 
 def process_call_root(process):
