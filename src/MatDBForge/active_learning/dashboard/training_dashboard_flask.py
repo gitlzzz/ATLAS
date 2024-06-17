@@ -7,7 +7,7 @@ from flask import Flask, render_template
 
 
 def gather_information(workchain_node_id):
-    node = orm.load_node(workchain_node_id)
+    node: orm.WorkChainNode = orm.load_node(workchain_node_id)
     children = node.called_descendants
 
     model_stats = get_model_stats(children)
@@ -30,9 +30,12 @@ def get_model_stats(children):
     has_model = False
     for child in children:
         if child.process_label == "create_mace_lammps_model":
-            has_model = True
-            rmse_e = child.inputs.rmse_e.value
-            rmse_f = child.inputs.rmse_f.value
+            try:
+                rmse_e = child.inputs.rmse_e.value
+                rmse_f = child.inputs.rmse_f.value
+                has_model = True
+            except Exception:
+                pass
 
     if has_model:
         model_stats = f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/at"
@@ -51,7 +54,6 @@ def get_iteration_info(node):
         curr_iter = max_iters
         class_name = "workchain-progbar-done"
         iter_text = f"{curr_iter} / {max_iters}"
-        print("iter_text: ", iter_text)
     elif node.is_excepted or node.is_failed:
         curr_iter = max_iters
         class_name = "workchain-progbar-error"

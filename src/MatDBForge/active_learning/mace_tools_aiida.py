@@ -11,6 +11,7 @@ from aiida.orm import (
     ArrayData,
     Dict,
     Float,
+    Int,
     List,
     SinglefileData,
     Str,
@@ -207,7 +208,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
             "model_file",
             valid_type=SinglefileData,
             help="Path of the trained MACE model.",
-            non_db=True
+            non_db=True,
         )
         spec.input(
             "mace_train_file_path",
@@ -285,6 +286,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
 
         return calcinfo
 
+
 # entry-point: mace-eval
 class EvaluateMACEConfigsCalculation(CalcJob):
     """CalcJob to evaluate E and F of structures using a MACE model."""
@@ -309,9 +311,10 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             help="Path to the configurations to evaluate in extxyz format.",
         )
         spec.output(
-            "configuration_result_list",
-            valid_type=List,
-            help="List of dicts representation of the predicted configuration using MACE.",
+            "configuration_result_file",
+            valid_type=SinglefileData,
+            # help="List of dicts representation of the predicted configuration using MACE.",
+            help="File containing all configurations evaluated using MACE in the extxyz format.",
         )
         spec.output(
             "energy_result_list",
@@ -385,6 +388,7 @@ class EvaluateMACEConfigsCalculation(CalcJob):
 
         return calcinfo
 
+
 class EvaluateMACEConfigsCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
@@ -399,6 +403,7 @@ class EvaluateMACEConfigsCalculationParser(Parser):
         for child_file in retrieved_temporary_folder.iterdir():
             # create singlefile data for the descriptors
             if child_file.name == "results.out":
+                results_path = child_file.absolute()
                 result_structures = ase_read(child_file, format="extxyz", index=":")
                 for curr_structure in result_structures:
                     result_dict = mdb_al_ut.serialize_ase(curr_structure)
@@ -419,7 +424,8 @@ class EvaluateMACEConfigsCalculationParser(Parser):
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
-        self.out("configuration_result_list", List(result_dict_list))
+        # self.out("configuration_result_list", SinglefileData("result_dict_list"))
+        self.out("configuration_result_file", SinglefileData(results_path))
         self.out("energy_result_list", List(energy_float_list))
         self.out("forces_result_list", List(forces_dict_list))
 
@@ -479,6 +485,7 @@ class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
         return calcinfo
 
 
+# entry-point: mace-committee-eval
 class CheckMACECommitteeResultsCalculation(CalcJob):
     """CalcJob to check the E and F of structures using a committee of MACE models."""
 
@@ -511,6 +518,8 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
             Dictionary of arrays of values for the force prediction.
             The dict has the following format:
             `{"model_1": <ndarray shape n_at, 3, n_frames>, "model_2": ..."}`
+        num_threads : aiida.orm.Int
+            Number of OpenMP threads to use for the evaluation.
 
         Exit Codes
         ----------
@@ -533,6 +542,12 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
             "mace_settings_dict",
             valid_type=Dict,
             help="Dictionary containing MACE settings.",
+            serializer=to_aiida_type,
+        )
+        spec.input(
+            "num_threads",
+            valid_type=Int,
+            help="Number of OpenMP threads to use for the evaluation.",
             serializer=to_aiida_type,
         )
 
@@ -575,6 +590,9 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         # Adding cli parameters to list
         prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
         params_list.append("--info_prefix=mdb_mace_eval_")
+
+        # Adding n_threads to the list
+        params_list.append(f"--num_threads={self.inputs.num_threads.value}")
 
         # Remove duplicate entries
         params_list = list(set(params_list))

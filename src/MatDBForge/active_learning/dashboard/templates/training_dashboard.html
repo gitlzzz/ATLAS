@@ -17,8 +17,6 @@
             <input type="checkbox" onclick="changeTheme()">
             <span class="slider round"></span>
         </label>
-        <!-- <button id="theme-switch-light" class="theme-switch" onclick="setTheme('light')"></button> -->
-        <!-- <button id="theme-switch-dark" class="theme-switch" onclick="setTheme('dark')"></button> -->
         <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
     </div>
     <div class="top-box">
@@ -38,7 +36,7 @@
         </div>
         <div class="top-box right-box">
             <div class="top-box-left-headers">
-                <h3 class="title-upper">Current iteration performance</h3>
+                <h3 class="title-upper">Performance - Iteration {{ curr_iter }}</h3>
                 <p id="model-score-text" class="top-text">{{ model_stats }}</p>
             </div>
         </div>
