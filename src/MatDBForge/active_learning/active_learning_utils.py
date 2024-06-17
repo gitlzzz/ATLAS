@@ -126,17 +126,19 @@ def select_dft_structures(struct_arr, frame_interval):
 
 def select_md_frames_to_keep(
     frame_interval: int,
-    total_n_frames: int,
+    # total_n_frames: int,
     md_tstep_duration_ps: float,
     traj,
     steps_E_F_arr: np.array,
     forces: np.array,
 ):
     # Get total MD time in picoseconds
-    total_duration_ps = total_n_frames * md_tstep_duration_ps
+    total_duration_ps = len(traj) * md_tstep_duration_ps
 
-    # Get total number of frames in that time
-    total_num_frames = m.ceil(total_duration_ps * frame_interval)
+    # Get total number of frames in that time.
+    # Frame interval represents every how many ps of MD simulation
+    # save a frame.
+    total_num_frames = m.ceil(total_duration_ps * 1 / frame_interval)
 
     # Choose the number of frames evenly and create a mask for the arrays
     mask = np.linspace(0, len(traj) - 1, total_num_frames, dtype=int)
@@ -334,11 +336,7 @@ def generate_model_name():
 
 def get_final_db_path(result_dir_path, final_db_name, node):
     result_dir_path = Path(result_dir_path)
-    if not isinstance(node, str):
-        caller_uuid = process_call_root(node)
-    else:
-        caller_uuid = node
-
+    caller_uuid = process_call_root(node) if not isinstance(node, str) else node
     curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
 
     if not curr_run_dir.exists():
@@ -346,6 +344,20 @@ def get_final_db_path(result_dir_path, final_db_name, node):
 
     final_db_path = curr_run_dir / f"{final_db_name}.xyz"
     return final_db_path, curr_run_dir
+
+
+def get_results_dir_path(result_dir_path, node, check_temp_dir=True):
+    result_dir_path = Path(result_dir_path)
+
+    caller_uuid = process_call_root(node) if not isinstance(node, str) else node
+    curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
+
+    if not curr_run_dir.exists():
+        curr_run_dir.mkdir()
+    if check_temp_dir and not (curr_run_dir / "run_tmp_data").exists():
+        (curr_run_dir / "run_tmp_data").mkdir()
+
+    return curr_run_dir
 
 
 def process_call_root(process):
@@ -438,11 +450,12 @@ def update_mace_train_settings_dict(
     return Dict(settings_dict)
 
 
+# rmse_e and rmse_f are used by the dashboard
 @calcfunction
 def create_mace_lammps_model(model_file, rmse_e, rmse_f):
     with model_file.as_path() as model_path:
         # Loading model
-        model = torch.load(model_path)
+        model = torch.load(model_path, map_location=torch.device("cpu"))
         model = model.double().to("cpu")
         lammps_model = LAMMPS_MACE(model)
         lammps_model_compiled = jit.compile(lammps_model)
@@ -587,28 +600,32 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
 
 
 @calcfunction
-def gather_dft_calcs_mace(dft_calc_list: list) -> List:
+def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str) -> Str:
     """Collect and preprocess MACE DFT calculation results for active learning input."""
     result_list = []
 
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
         calc_node = load_node(finished_dft_calc)
+        print("\ncalc_node: ", calc_node)
 
         try:
-            # Gathering the calculation data as a list of ASE Atoms dicts.
-            # This object won't collect automatically all of the extra information
-            # such as forces or energies, and must be collected using methods
-            # from ase.calc.
-            struct_serial_dict_list = calc_node.outputs.configuration_result_list
+            # Gathering the calculation data from a extxyz stored as a SinglefileData.
+            struct_file: SinglefileData = calc_node.outputs.configuration_result_file
+            with struct_file.as_path() as struct_file_path:
+                result_structures = ase_read(
+                    struct_file_path, format="extxyz", index=":"
+                )
 
+        # If the calculation fails for any reason, skip it.
         except Exception:
-            # If the calculation fails for any reason, skip it.
             continue
 
-        for struct_serial_dict in struct_serial_dict_list:
+        curr_struct_res = []
+        for structure in result_structures:
             # Gathering extra DFT calculation information from calculation
             # and its extras
+            # print('structure.info: ', structure.info)
             calc_info_dict = {
                 "struct_name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
                 "aiida_uuid": calc_node.extras["mdb_calc_uuid"],
@@ -616,23 +633,74 @@ def gather_dft_calcs_mace(dft_calc_list: list) -> List:
             }
 
             for key, val in calc_info_dict.items():
-                struct_serial_dict["info"][key] = val
+                structure.info[key] = val
 
             # Renaming energy key
-            struct_serial_dict["info"]["energy"] = struct_serial_dict["info"].pop(
-                "mdb_mace_eval_energy"
-            )
+            structure.info["energy"] = structure.info.pop("mdb_mace_eval_energy")
 
             # Renaming forces dict
-            struct_serial_dict["forces"] = struct_serial_dict.pop(
-                "mdb_mace_eval_forces"
-            )
+            structure.arrays["forces"] = structure.arrays.pop("mdb_mace_eval_forces")
 
-            # struct = aiida_serialized_ase_dict_to_atoms(struct_serial_dict)
-            result_list.append(struct_serial_dict)
+            # result_list.append(structure)
+            curr_struct_res.append(structure)
 
-    return_list = List([val for val in result_list])
-    return return_list
+        energy_list = [structure.info["energy"] for structure in curr_struct_res]
+        forces_list = [
+            np.max(np.max(np.abs(structure.arrays["forces"]), axis=0))
+            for structure in curr_struct_res
+        ]
+
+        # Checking for outliers using the IQR Method
+        # This involves calculating the first (Q1) and third quartiles (Q3)
+        # and the interquartile range (IQR = Q3 - Q1).
+        # Outliers are typically defined as values that are less
+        # than Q1 - 1.5IQR or greater than Q3 + 1.5IQR.
+        filtered_e_data: np.ndarray = iqr_outlier_check(energy_list)
+        filtered_f_data: np.ndarray = iqr_outlier_check(forces_list)
+
+        # Create boolean masks for non-NaN positions
+        e_mask = ~np.isnan(filtered_e_data)
+        f_mask = ~np.isnan(filtered_f_data)
+
+        # Combine the masks for E and F
+        filtered_data = e_mask & f_mask
+
+        # Some calculations that reported high E and F thoughout all
+        # steps, might not be caught by the filters
+        # Therefore, if the max after filtering is still a very
+        # high energy value, we ignore this calculation.
+        abs_max = np.nanmax(np.abs(filtered_e_data))
+        if abs_max <= 5e4:
+            for idx, struct in enumerate(filtered_data):
+                if struct:
+                    result_list.append(curr_struct_res[idx])
+
+    # Write the results to a temporary file in the calculation directory
+    results_dir = (
+        Path(results_dir.value) if isinstance(results_dir, Str) else results_dir
+    )
+    results_file_path = results_dir / "run_tmp_data" / "gathered_dft_calcs.xyz"
+    ase_write(filename=results_file_path, images=result_list)
+
+    # Return the path to the temporary file
+    return Str(str(results_file_path))
+
+
+def iqr_outlier_check(res_list) -> np.ndarray:
+    q1 = np.percentile(res_list, 30)
+    q2 = np.percentile(res_list, 70)
+    iqr = q2 - q1
+
+    # Define outlier thresholds
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q2 + 1.5 * iqr
+
+    # Identify and remove outliers
+    filtered_data = np.array(
+        [x if lower_bound <= x <= upper_bound else np.nan for x in res_list]
+    )
+
+    return filtered_data
 
 
 def vasprun_add_info_dict(vasprun_dict, calc_info_dict):
@@ -713,7 +781,7 @@ def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) ->
 
 
 @calcfunction
-def check_md_seed_agreement(return_list: list) -> Bool:
+def check_md_seed_agreement(return_list_path: str) -> Bool:
     """
     Check if all predictions agree for current seed.
 
@@ -730,7 +798,7 @@ def check_md_seed_agreement(return_list: list) -> Bool:
         on the current AL iteration. False if there is no agreement on
         on all structures.
     """
-    if len(return_list) > 0:
+    if len(return_list_path.value) > 0:
         return Bool(False)
     else:
         return Bool(True)

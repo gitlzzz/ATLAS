@@ -7,7 +7,7 @@ from flask import Flask, render_template
 
 
 def gather_information(workchain_node_id):
-    node = orm.load_node(workchain_node_id)
+    node: orm.WorkChainNode = orm.load_node(workchain_node_id)
     children = node.called_descendants
 
     model_stats = get_model_stats(children)
@@ -30,9 +30,12 @@ def get_model_stats(children):
     has_model = False
     for child in children:
         if child.process_label == "create_mace_lammps_model":
-            has_model = True
-            rmse_e = child.inputs.rmse_e.value
-            rmse_f = child.inputs.rmse_f.value
+            try:
+                rmse_e = child.inputs.rmse_e.value
+                rmse_f = child.inputs.rmse_f.value
+                has_model = True
+            except Exception:
+                pass
 
     if has_model:
         model_stats = f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/at"
@@ -46,17 +49,15 @@ def get_iteration_info(node):
     class_name = "workchain-progbar"
     iter_text = "1 / ?"
 
-    print('node.is_finished: ', node.is_finished)
     if node.is_finished:
         # Filling up and restyling the progress bar.
         curr_iter = max_iters
         class_name = "workchain-progbar-done"
         iter_text = f"{curr_iter} / {max_iters}"
-        print('iter_text: ', iter_text)
     elif node.is_excepted or node.is_failed:
         curr_iter = max_iters
         class_name = "workchain-progbar-error"
-        iter_text = f"ERROR"
+        iter_text = "ERROR"
     else:
         children = [
             child
@@ -108,7 +109,6 @@ def get_report(node):
 
     styled_report = []
     for line_idx, line in enumerate(report_lines):
-
         # Catch error strings until the next aiida report
         if "|on_except]:" in line:
             report_part = []
@@ -192,7 +192,6 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             curr_iter,
             subprocess_list,
         ) = gather_information(workchain_node_id)
-        print('\n\n\n@@@progbar_class_name: ', progbar_class_name)
         return render_template(
             "training_dashboard.html",
             refresh_interval=refresh_interval,

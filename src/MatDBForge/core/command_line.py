@@ -274,7 +274,7 @@ def monitor_al_loop():
         "--port",
         help=("Port to use for the webapp"),
         type=int,
-        default=5000,
+        default=8000,
         metavar="port",
     )
     # Getting CLI arguments

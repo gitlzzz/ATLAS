@@ -1,6 +1,7 @@
 """Definition of an aiida workchain for MACE active learning loops using MD."""
 
 import io
+import os
 import pickle
 import re
 import shutil
@@ -84,7 +85,9 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input(
             "al_keep_struct_every_n_ps", valid_type=Float, serializer=to_aiida_type
         )
-        spec.input("current_md_seed_structs", valid_type=List, serializer=to_aiida_type)
+        spec.input(
+            "current_md_seed_structs_path", valid_type=Str, serializer=to_aiida_type
+        )
         spec.input("seed_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input("training_db_path", valid_type=Str, serializer=to_aiida_type)
         spec.input(
@@ -146,7 +149,7 @@ class ActiveLearningWorkChain(WorkChain):
             # do not change seed until the error is decreased
             # cls.choose_next_seed,
         )
-        spec.output("dft_calcs", valid_type=List, required=False)
+        spec.output("dft_calcs_path", valid_type=Str, required=False)
         spec.output("m0_model_file", valid_type=SinglefileData)
         spec.output("stop_md_seed_no_disagreement", valid_type=Bool)
 
@@ -317,7 +320,7 @@ class ActiveLearningWorkChain(WorkChain):
                 # Convert model to LAMMPS compatible format
                 # and return it to workchain context
                 self.ctx.lammps_potential_file = mdb_al_ut.create_mace_lammps_model(
-                    model_file, self.ctx.m0_rmse_e, self.ctx.m0_rmse_f
+                    model_file, rmse_e=self.ctx.m0_rmse_e, rmse_f=self.ctx.m0_rmse_f
                 )
 
                 self.report(
@@ -580,7 +583,10 @@ class ActiveLearningWorkChain(WorkChain):
 
             builder.settings = Dict(builder_settings)
 
-            for idx, curr_structure in enumerate(self.inputs.current_md_seed_structs):
+            with open(self.inputs.current_md_seed_structs_path.value, "rb") as f:
+                current_md_seed_structs = pickle.load(f)
+
+            for idx, curr_structure in enumerate(current_md_seed_structs):
                 # Structures are stored as a dict in order to be json-serializable
                 for key in ["pbc", "cell", "numbers", "positions", "forces"]:
                     curr_structure[key] = np.array(curr_structure[key])
@@ -674,7 +680,6 @@ class ActiveLearningWorkChain(WorkChain):
             # Get 1 frame every n picoseconds of MD simulation
             traj, steps_E_F_arr, forces = mdb_al_ut.select_md_frames_to_keep(
                 frame_interval=self.inputs.al_keep_struct_every_n_ps,
-                total_n_frames=len(traj),
                 md_tstep_duration_ps=self.inputs.md_timestep_duration_ps.value,
                 traj=traj,
                 steps_E_F_arr=steps_E_F_arr,
@@ -697,7 +702,17 @@ class ActiveLearningWorkChain(WorkChain):
             )
 
         # Creating a DataFrame with all the results
-        self.ctx.md_seed_results_df = pd.DataFrame(new_rows)
+        md_seed_results_df = pd.DataFrame(new_rows)
+
+        self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
+            result_dir_path=self.inputs.results_dir.value, node=self.node
+        )
+        # Saving the DataFrame into the result directory as a file.
+        self.ctx.md_seed_results_df_path = (
+            f"{self.ctx.results_dir}/run_tmp_data/md_seed_results_df_step-"
+            f"{self.inputs.al_loop_iteration.value}.pkl"
+        )
+        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
 
     def gather_energies_from_workchain(self, workchain_results):
         """
@@ -720,7 +735,7 @@ class ActiveLearningWorkChain(WorkChain):
         -------
         numpy.ndarray
             A 2D numpy array where each row corresponds to a step in the workchain.
-            The columns represent step number, energy, and force,respectively.
+            The columns represent step number, energy, and force, respectively.
 
         Notes
         -----
@@ -756,10 +771,10 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Getting current step results.
             # If an IndexError is raised, probably one of the results is missing,
-            # most likely because the program was stopped mid-step (above wall-time)
-            # and thus the current step must not be gathered. This allows for the AL
-            # loop to keep running even if there are MD calculations that don't run
-            # to completion.
+            # most likely because the program was stopped mid-step (maximum run time
+            # exceeded), and thus the current step must not be gathered.
+            # This allows for the AL # loop to keep running even if there are MD
+            # calculations that don't run to completion.
             try:
                 curr_step = int(split[1])
                 curr_energy = float(split[4])
@@ -897,7 +912,12 @@ class ActiveLearningWorkChain(WorkChain):
     def check_commitee_results(self):
         self.report("Evaluating trajectories with models...")
 
-        for row in self.ctx.md_seed_results_df.iterrows():
+        # Reading md seed results DataFrame
+        md_seed_results_df: pd.DataFrame = pd.read_pickle(
+            self.ctx.md_seed_results_df_path
+        )
+
+        for row in md_seed_results_df.iterrows():
             # self.report(f"Checking struct {row[0]} results with all models...")
             curr_traj = row[1]["trajectory"]
 
@@ -984,15 +1004,17 @@ class ActiveLearningWorkChain(WorkChain):
 
                     updated_ene_dict = row[1]["energy"]
                     updated_ene_dict.update({model_name: energies})
-                    self.ctx.md_seed_results_df.at[row[0], "energy"] = updated_ene_dict
+                    md_seed_results_df.at[row[0], "energy"] = updated_ene_dict
                     # TODO: Check if this is the proper way of gathering the forces
                     # forces_list = np.array(forces_list)
                     # forces_norm = np.linalg.norm(forces_list, axis=2)
                     # total_force_norm_per_frame = forces_norm.sum(axis=1)
 
-                    self.ctx.md_seed_results_df.at[row[0], "forces"][model_name] = (
+                    md_seed_results_df.at[row[0], "forces"][model_name] = (
                         forces_list  # total_force_norm_per_frame
                     )
+
+        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
 
     def check_committee_results_calcjob(self):
         self.report("Evaluating trajectories with committee models...")
@@ -1012,13 +1034,20 @@ class ActiveLearningWorkChain(WorkChain):
 
         if not commitee_dict:
             self.report(
-                "Committee dict is empty: no committee models trained."
+                "Committee dict is empty: no committee models trained. "
                 "Using main model only. Check model training step for errors."
             )
-            commitee_dict[self.ctx.best_model_name] = self.ctx.best_model_file
+            # Only alphanumeric and underscores are allowed as links
+            best_model_name_clean = self.ctx.best_model_name.replace("-", "_")
+            commitee_dict[best_model_name_clean] = self.ctx.best_model_file
+
+        # Reading md seed results DataFrame
+        md_seed_results_df: pd.DataFrame = pd.read_pickle(
+            self.ctx.md_seed_results_df_path
+        )
 
         # Checking committee predictions for every trajectory
-        for row in self.ctx.md_seed_results_df.iterrows():
+        for row in md_seed_results_df.iterrows():
             curr_traj = row[1]["trajectory"]
 
             # Run training and save new model file
@@ -1052,6 +1081,9 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Input configurations to evaluate
             mace_builder.configurations_to_evaluate = md_xyz_file
+
+            # Input number of threads to use
+            mace_builder.num_threads = int(self.inputs.committee_eval["openmp_threads"])
 
             # Gather mace evaluation settings
             mace_builder.mace_settings_dict = Dict(self.inputs.committee_eval["mace"])
@@ -1090,7 +1122,12 @@ class ActiveLearningWorkChain(WorkChain):
         self.report("Gathering committee evaluation...")
 
         # # REMOVE: Testing only
-        # self.ctx.md_seed_results_df.to_pickle("/tmp/md_seed_results_df")
+        # md_seed_results_df.to_pickle("/tmp/md_seed_results_df")
+
+        # Reading md seed results DataFrame
+        md_seed_results_df: pd.DataFrame = pd.read_pickle(
+            self.ctx.md_seed_results_df_path
+        )
 
         for curr_calc in self.ctx.committee_results:
             # Skipping calculation if training hasn't finished correctly.
@@ -1106,11 +1143,9 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Find row matching the calculation using curr_unique_id and
             # current_temperature
-            row_index = self.ctx.md_seed_results_df[
-                self.ctx.md_seed_results_df.unique_id == curr_unique_id
-            ][self.ctx.md_seed_results_df.md_temperature == curr_md_temperature].index[
-                0
-            ]
+            row_index = md_seed_results_df[
+                md_seed_results_df.unique_id == curr_unique_id
+            ][md_seed_results_df.md_temperature == curr_md_temperature].index[0]
 
             # Collect energies from dict using model name
             energies_dict = curr_calc.outputs.energy_result_dict.get_dict()
@@ -1120,9 +1155,9 @@ class ActiveLearningWorkChain(WorkChain):
                 energies = np.array(energies_list)
 
                 # Updating current energy dict with the new results from every model
-                self.ctx.md_seed_results_df.loc[[row_index], "energy"][row_index][
-                    model_name
-                ] = energies
+                md_seed_results_df.loc[[row_index], "energy"][row_index][model_name] = (
+                    energies
+                )
 
             # Collect forces from dict using model name
             forces_collection = curr_calc.outputs.forces_result_dict.get_dict()
@@ -1130,16 +1165,24 @@ class ActiveLearningWorkChain(WorkChain):
                 forces_list = [forces for forces in forces_model_list]
 
                 # Updating current forces dict with the new results from every model
-                self.ctx.md_seed_results_df.loc[[row_index], "forces"][row_index][
-                    model_name
-                ] = np.array(forces_list)
+                md_seed_results_df.loc[[row_index], "forces"][row_index][model_name] = (
+                    np.array(forces_list)
+                )
+
+        # Updating md seed results DataFrame
+        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
 
     def get_descriptors_from_md_results(self):
         # Getting descriptors for generated structures
         self.report("Getting descriptors for MD generated structures...")
 
+        # Reading md seed results DataFrame
+        md_seed_results_df: pd.DataFrame = pd.read_pickle(
+            self.ctx.md_seed_results_df_path
+        )
+
         # Store all frames from the trajectory into a list
-        for _, row in self.ctx.md_seed_results_df.iterrows():
+        for _, row in md_seed_results_df.iterrows():
             # all_frames_list = []
             curr_traj = row["trajectory"]
             traj_frames = []
@@ -1224,6 +1267,11 @@ class ActiveLearningWorkChain(WorkChain):
         delete_indices = []
         dft_structures = []
 
+        # Reading md seed results DataFrame
+        md_seed_results_df: pd.DataFrame = pd.read_pickle(
+            self.ctx.md_seed_results_df_path
+        )
+
         # Gathering MD descriptor results and adding them to dataframe
         if self.inputs.check_extrapolation:
             for curr_calc in self.ctx.md_descriptor_results:
@@ -1247,28 +1295,27 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # Find row matching the calculation using curr_unique_id and
                 # current_temperature
-                row_index = self.ctx.md_seed_results_df[
-                    self.ctx.md_seed_results_df.unique_id == curr_unique_id
-                ][
-                    self.ctx.md_seed_results_df.md_temperature == curr_md_temperature
-                ].index[0]
+                row_index = md_seed_results_df[
+                    md_seed_results_df.unique_id == curr_unique_id
+                ][md_seed_results_df.md_temperature == curr_md_temperature].index[0]
 
                 # Assign matching descriptors to the extrapolation column
                 desc_f_curr_row: list = md_descr_dict[curr_unique_id]
 
                 # Overwrite row in dataframe
-                self.ctx.md_seed_results_df.loc[[row_index], "extrapolation"] = (
-                    pd.Series(
-                        [desc_f_curr_row],
-                        index=self.ctx.md_seed_results_df.index[[row_index]],
-                    )
+                md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
+                    [desc_f_curr_row],
+                    index=md_seed_results_df.index[[row_index]],
                 )
+
+        # Updating md seed results DataFrame
+        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
 
         # Every row contains the results of MD for a single structure, which are:
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
         submitted_dft_cnt = 0
-        for db_row_idx, row in self.ctx.md_seed_results_df.iterrows():
+        for db_row_idx, row in md_seed_results_df.iterrows():
             # Make len(traj) sized array filled with False.
             extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
             if self.inputs.check_extrapolation:
@@ -1429,6 +1476,7 @@ class ActiveLearningWorkChain(WorkChain):
         MACE models, and this check also outputted to the workchain using the
         namespace `stop_md_seed_no_disagreement`.
         """
+        # TODO: Update this
         if self.inputs.dft_method == "vasp":
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
@@ -1444,20 +1492,28 @@ class ActiveLearningWorkChain(WorkChain):
         elif self.inputs.dft_method == "mace":
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(f"Gathered {dft_calcs} MACE DFT calculations.")
+                self.report(f"Gathered {dft_calcs} MACE evaluations.")
 
-                return_list = mdb_al_ut.gather_dft_calcs_mace(
-                    [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+                return_list_path = mdb_al_ut.gather_dft_calcs_mace(
+                    dft_calc_list=[
+                        node.uuid for node in self.ctx.dft_struct_seed_calcs
+                    ],
+                    results_dir=str(self.ctx.results_dir),
                 )
             except AttributeError:
-                return_list = List([])
+                return_list_path = ""
 
-        self.out("dft_calcs", return_list)  # list[dict]
+        # File containing structures
+        if return_list_path:
+            self.out("dft_calcs_path", return_list_path)
+
+        # SinglefileData for the MACE model with the best performance
+        self.out("m0_model_file", self.ctx.best_model_file)
+
         self.out(
             "stop_md_seed_no_disagreement",
-            mdb_al_ut.check_md_seed_agreement(return_list),
+            mdb_al_ut.check_md_seed_agreement(return_list_path),
         )
-        self.out("m0_model_file", self.ctx.best_model_file)
 
 
 class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
@@ -1472,7 +1528,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             ActiveLearningWorkChain,
             namespace="active_learning",
             exclude=[
-                "current_md_seed_structs",
+                "current_md_seed_structs_path",
                 "current_md_seed_structs_idx",
                 "al_loop_iteration",
                 "train_seed_group",
@@ -1483,14 +1539,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "database_training",
             ],
         )
-
-        # spec.expose_outputs(
-        #     ActiveLearningWorkChain,
-        #     # exclude=[
-        #     #     "final_training_db",
-        #     #     "final_model_file",
-        #     # ],
-        # )
 
         spec.outline(
             # Load the initial database (D_ini), that will be used as the
@@ -1593,15 +1641,15 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         generation database.
         """
         # Updating current training seed
-        seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
-        training_db = mdb_al_ut.load_database(self.ctx.training_db_path)
-        # self.ctx.seed_gen_db = self.outputs["upd_seed_gen_db"]
-        # self.ctx.inputs.seed_gen_db = self.outputs["upd_seed_gen_db"]
-
-        last_wc = self.ctx.last_workchain_completed
-
         try:
-            cnt_dft_calcs = len(last_wc.outputs["dft_calcs"])
+            seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
+            training_db = mdb_al_ut.load_database(self.ctx.training_db_path)
+            last_wc = self.ctx.last_workchain_completed
+            dft_calcs = ase_read(
+                last_wc.outputs["dft_calcs_path"].value, format="extxyz", index=":"
+            )
+
+            cnt_dft_calcs = len(dft_calcs)
 
         except KeyError:
             cnt_dft_calcs = 0
@@ -1610,7 +1658,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
 
             # Adding calculations to training database and seed_generation database
-            for dft_calc in last_wc.outputs["dft_calcs"]:
+            for dft_calc in dft_calcs:
                 # Converting serialized structures to Atoms object.
                 if isinstance(dft_calc, dict):
                     dft_calc = mdb_al_ut.aiida_serialized_ase_dict_to_atoms(dft_calc)
@@ -1633,6 +1681,16 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
 
             self.report("Database files updated.")
+
+            # Removing teporary files from the AL loop step.
+            tmp_folder_path: Path = self.ctx.results_dir / "run_tmp_data"
+
+            # Can't use Path.walk() here as it's not available in Python 3.9
+            # this will be added if the library is updated to Python 3.12
+            for _, _, files in os.walk(top=tmp_folder_path):
+                for file in files:
+                    if "md_seed_structures" not in file:
+                        (tmp_folder_path / file).unlink(missing_ok=True)
 
         self.report(
             f"Iteration {self.ctx.iteration}: "
@@ -1777,7 +1835,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         Returns
         -------
-            None. The function updates self.ctx.current_md_seed_structs with the
+            None. The function updates current_md_seed_structs with the
             selected structures.
         """
         self.report(
@@ -1818,11 +1876,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # The set of random structures selected from the seed generation
         # database to be used in training.
-        self.ctx.current_md_seed_structs = []
+        current_md_seed_structs = []
 
         # Populating training seed with the selected random structures
         for idx in selected_structs:
-            self.ctx.current_md_seed_structs.append(seed_gen_db[idx])
+            current_md_seed_structs.append(seed_gen_db[idx])
 
         self.report(
             f"Created MD seed with {seed_size}"
@@ -1830,11 +1888,27 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         # Adding current train seed to the context
         current_MD_seed_serialized = []
-        for curr_s in self.ctx.current_md_seed_structs:
+        for curr_s in current_md_seed_structs:
             curr_s = mdb_al_ut.serialize_ase(curr_s)
             current_MD_seed_serialized.append(curr_s)
 
-        self.ctx.inputs.current_md_seed_structs = current_MD_seed_serialized
+        current_md_seed_structs = current_MD_seed_serialized
+
+        # Saving the current md seed into the result directory as a file.
+        self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
+            result_dir_path=self.inputs.active_learning.results_dir.value,
+            node=self.node,
+        )
+        self.ctx.current_md_seed_structs_path = (
+            f"{self.ctx.results_dir}/run_tmp_data/md_seed_structures-"
+            f"{self.ctx.iteration}.pkl"
+        )
+
+        with open(self.ctx.current_md_seed_structs_path, "wb") as seed_file:
+            pickle.dump(current_md_seed_structs, seed_file)
+        self.ctx.inputs.current_md_seed_structs_path = (
+            self.ctx.current_md_seed_structs_path
+        )
 
     def results_final(self):
         """

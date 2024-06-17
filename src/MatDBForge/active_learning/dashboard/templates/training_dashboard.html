@@ -12,8 +12,11 @@
 <body>
     <div class="header">
         <h1 class="title">Active Learning Loop</h1>
-        <button id="theme-switch-light" class="theme-switch" onclick="setTheme('light')"></button>
-        <button id="theme-switch-dark" class="theme-switch" onclick="setTheme('dark')"></button>
+        <!-- Rounded switch with the string "T" on the button-->
+        <label class="switch">
+            <input type="checkbox" onclick="changeTheme()">
+            <span class="slider round"></span>
+        </label>
         <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
     </div>
     <div class="top-box">
@@ -33,7 +36,7 @@
         </div>
         <div class="top-box right-box">
             <div class="top-box-left-headers">
-                <h3 class="title-upper">Current iteration performance</h3>
+                <h3 class="title-upper">Performance - Iteration {{ curr_iter }}</h3>
                 <p id="model-score-text" class="top-text">{{ model_stats }}</p>
             </div>
         </div>
@@ -70,9 +73,15 @@
         }
 
         const setTheme = (theme) => { document.documentElement.className = theme; localStorage.setItem('theme', theme); }
-        const getTheme = () => { const theme = localStorage.getItem('theme'); theme && setTheme(theme);}
+        const getTheme = () => { const theme = localStorage.getItem('theme'); theme && setTheme(theme); }
         getTheme();
 
+        // function to change the current theme to the opposite one
+        function changeTheme() {
+            var currentTheme = localStorage.getItem('theme')
+            var newTheme = currentTheme === "light" ? "dark" : "light";
+            setTheme(newTheme);
+        }
 
     </script>
 </body>

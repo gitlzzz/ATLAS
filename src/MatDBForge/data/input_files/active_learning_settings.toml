@@ -93,6 +93,9 @@ metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
 # Increases resources necessary for training.
 committee_num_models = 4
 
+# Number of OpenMP threads to be used for MACE CPU evaluation.
+openmp_threads = 8
+
 # Settings for MACE evaluator
 [committee_eval.mace]
 device = "cuda"       # cpu, cuda
