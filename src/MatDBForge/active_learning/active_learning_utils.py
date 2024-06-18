@@ -330,7 +330,8 @@ def generate_model_name():
     adj = r.word(include_parts_of_speech=["adjective"])
     noun = r.word(include_parts_of_speech=["noun"])
     verb = r.word(include_parts_of_speech=["verb"])
-    model_name = f"{adj}_{noun}_{verb}-{randint}"
+    model_name = f"{adj}_{noun}_{verb}-{randint}".replace(" ", "_")
+
     return model_name
 
 
@@ -607,7 +608,6 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str) -> Str:
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
         calc_node = load_node(finished_dft_calc)
-        print("\ncalc_node: ", calc_node)
 
         try:
             # Gathering the calculation data from a extxyz stored as a SinglefileData.

@@ -63,8 +63,15 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.final_db_name = al_conf["final_db_name"]
     builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
-    builder.active_learning.seed_size_frac = float(al_conf["seed_size_frac"])
     builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
+
+    # AL seed settings
+    builder.active_learning.seed_size_frac = float(
+        toml_dict["al_seed"]["seed_size_frac"]
+    )
+    builder.active_learning.seed_select_settings = toml_dict["al_seed"][
+        "seed_select_settings"
+    ]
 
     builder.active_learning.committee_num_models = int(
         toml_dict["committee_eval"]["committee_num_models"]

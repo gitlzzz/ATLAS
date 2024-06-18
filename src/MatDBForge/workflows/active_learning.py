@@ -73,6 +73,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("results_dir", valid_type=Str, serializer=to_aiida_type)
         spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
         spec.input("seed_size_frac", valid_type=Float, serializer=to_aiida_type)
+        spec.input("seed_select_settings", valid_type=Dict, serializer=to_aiida_type)
         spec.input("seed_size", valid_type=Int, serializer=to_aiida_type)
         spec.input("committee_num_models", valid_type=Int, serializer=to_aiida_type)
         spec.input("model_acc_multiplier", valid_type=Float, serializer=to_aiida_type)
@@ -108,7 +109,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("lammps_mace", valid_type=Dict)
         spec.input("dft_method", valid_type=Str, serializer=to_aiida_type)
         spec.input("dft_settings", valid_type=Dict)
-        spec.input("committee_eval", valid_type=Dict)
+        spec.input("committee_eval", valid_type=Dict, serializer=to_aiida_type)
         spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
         spec.input("gather_traj_cnt_lattice", valid_type=Bool, serializer=to_aiida_type)
         spec.input("use_kokkos", valid_type=Bool, serializer=to_aiida_type)
@@ -598,7 +599,7 @@ class ActiveLearningWorkChain(WorkChain):
                 struct_properties = curr_structure.properties
 
                 # Running a MD calculation for every T specified by the user
-                for temp_val in self.inputs.md_temperature_list_K:
+                for temp_val in self.inputs.temperature_list_K:
                     # TODO: Add to TOML. Check how to include parameters needed here as
                     # initial parameters (TOML)
                     curr_input = self.gen_md_input(
@@ -1608,7 +1609,6 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.seed_size = int(
             self.inputs.active_learning.seed_size_frac.value * len(database_training)
         )
-
         self.ctx.training_db_path = final_db_path
         shutil.copy(
             self.inputs.active_learning.init_db_path.value, self.ctx.training_db_path
