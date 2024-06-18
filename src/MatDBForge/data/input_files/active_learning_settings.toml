@@ -24,10 +24,6 @@ final_db_name = "final_data_test"
 # Maximum number of AL loop iterations.
 max_iterations = 3
 
-# Sets total structures in AL seed as a function of the training db size.
-# This influences the amount of MD calculations and E F evaluations.
-seed_size_frac = 0.01
-
 # Multiplier for model accuracy. Loosens model accuracy threshold.
 # Tighter thresholds (lower values) will result in more DFT calculations.
 # Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
@@ -42,6 +38,27 @@ check_extrapolation = true
 
 # Selection of DFT calculator.
 dft_method = "vasp" # Options: "vasp", "mace"
+
+###############################################
+
+# AL seed generation settings
+[al_seed]
+# Sets total structures in AL seed as a function of the training db size.
+# This influences the amount of MD calculations and E F evaluations.
+seed_size_frac = 0.01
+
+[al_seed.seed_select_settings]
+# MD seed selection mode.
+# `random` selects random structures from the seed pool.
+# `small_first` selects random structures smaller than small_first_max_size
+# for the first small_first_max_iter iters.
+seed_select_type = "random" # random (default) / small_first
+
+# Maximum size in number of atoms for the structures selected with small_first mode
+small_first_max_size = 50
+
+# Apply small_first mode for the first n iterations
+small_first_max_iter = 5
 
 ###############################################
 
@@ -98,10 +115,10 @@ openmp_threads = 8
 
 # Settings for MACE evaluator
 [committee_eval.mace]
-device = "cuda"       # cpu, cuda
-default_dtype = "float32"     # float32, float64
+device = "cuda"           # cpu, cuda
+default_dtype = "float32" # float32, float64
 batch_size = 64
-compute_stress = true # whether or not to compute stress (true/false)
+compute_stress = true     # whether or not to compute stress (true/false)
 
 # AiiDA scheduler options for MACE Evaluations
 [committee_eval.metadata.options]
