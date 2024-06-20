@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "wheel", "setuptools-git-versioning"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -37,9 +37,7 @@ dependencies = [
     "torch==2.0.1",
     "wonderwords==2.2.0",
     "pymatgen==2024.2.20",
-    "setuptools_git_versioning",
 ]
-
 
 [project.urls]
 Homepage = "https://github.com/pol-sb/MatDBForge"
@@ -80,5 +78,5 @@ where = ["src"]
 enabled = true
 version_file = "VERSION"
 count_commits_from_version_file = true
-# dev_template = "{tag}.{ccount}"  # <--- note {branch} here
-# dirty_template = "{tag}.{ccount}"
+dev_template = "{tag}.post{ccount}"
+dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
