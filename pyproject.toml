@@ -22,7 +22,7 @@ dependencies = [
     "dash-table==5.0.0",
     "dash-html-components==2.0.0",
     "dscribe==2.1.0",
-    "gunicorn==21.2.0",
+    "gunicorn==22.0.0",
     "matplotlib==3.8.0",
     "pandas==2.1.1",
     "plotly==5.18.0",
