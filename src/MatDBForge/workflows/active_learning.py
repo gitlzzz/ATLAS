@@ -599,7 +599,7 @@ class ActiveLearningWorkChain(WorkChain):
                 struct_properties = curr_structure.properties
 
                 # Running a MD calculation for every T specified by the user
-                for temp_val in self.inputs.temperature_list_K:
+                for temp_val in self.inputs.md_temperature_list_K:
                     # TODO: Add to TOML. Check how to include parameters needed here as
                     # initial parameters (TOML)
                     curr_input = self.gen_md_input(
@@ -632,7 +632,7 @@ class ActiveLearningWorkChain(WorkChain):
                     builder.metadata.label = (
                         f"struct_{index_in_db}_mace_lammps_md_{temp_val}_K"
                     )
-                    builder.metadata.options.parser_name = "lammps.raw"
+                    builder.metadata.options.parser_name = "mace-lammps-raw-parser"
 
                     # Submitting current calculation
                     future = self.submit(builder)
@@ -1477,7 +1477,7 @@ class ActiveLearningWorkChain(WorkChain):
         MACE models, and this check also outputted to the workchain using the
         namespace `stop_md_seed_no_disagreement`.
         """
-        # TODO: Update this
+        # TODO: Adapt for VASP usage
         if self.inputs.dft_method == "vasp":
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
@@ -1495,12 +1495,18 @@ class ActiveLearningWorkChain(WorkChain):
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
                 self.report(f"Gathered {dft_calcs} MACE evaluations.")
 
-                return_list_path = mdb_al_ut.gather_dft_calcs_mace(
-                    dft_calc_list=[
-                        node.uuid for node in self.ctx.dft_struct_seed_calcs
-                    ],
+                calc_list = [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+
+                # Gather all MACE evaluations, storing results into a file,
+                # stored in `result_list_path`.
+                # Results are filtered to remove outliers. Outliers are
+                # stored in a separate file in the same folder.
+                return_list_path: str = mdb_al_ut.gather_dft_calcs_mace(
+                    dft_calc_list=calc_list,
                     results_dir=str(self.ctx.results_dir),
+                    workchain=self.node.uuid,
                 )
+
             except AttributeError:
                 return_list_path = ""
 
@@ -1850,6 +1856,26 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.inputs.metadata.label = f"Step - {self.ctx.iteration+1}"
 
         seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
+
+        # Get seed selection type
+        seed_select_settings = self.ctx.inputs.seed_select_settings
+
+        # In order to use small_first, the current iteration number must be
+        # less than small_first_max_iter.
+        if (
+            seed_select_settings["seed_select_type"] == "small_first"
+            and self.ctx.iteration + 1 <= seed_select_settings["small_first_max_iter"]
+        ):
+            self.report("Using 'small_first' seed selection type.")
+            seed_select_type = "small_first"
+        else:
+            seed_select_type = "random"
+
+        # Filter the structure database and only use the small structures.
+        if seed_select_type == "small_first":
+            max_size = seed_select_settings["small_first_max_size"]
+            seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
+
         # Getting length of the seed generating database
         db_length = len(seed_gen_db)
 
@@ -1886,6 +1912,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f"Created MD seed with {seed_size}"
             f" structures ({self.ctx.inputs.seed_size_frac.value*100}% of init. size)."
         )
+
         # Adding current train seed to the context
         current_MD_seed_serialized = []
         for curr_s in current_md_seed_structs:

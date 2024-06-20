@@ -1,24 +1,17 @@
 #!/usr/bin/env python
 import json
 import shutil
+import time
 from pathlib import Path
 
 import numpy as np
+from aiida import orm
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.folders import Folder
 from aiida.engine import CalcJob
-from aiida.orm import (
-    ArrayData,
-    Dict,
-    Float,
-    Int,
-    List,
-    SinglefileData,
-    Str,
-    to_aiida_type,
-)
 from aiida.parsers.parser import Parser
 from aiida_lammps.calculations.raw import LammpsRawCalculation
+from aiida_lammps.parsers.parse_raw import parse_outputfile
 from ase.io import read as ase_read
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
@@ -36,7 +29,7 @@ class TrainMACEModelCalculationParser(Parser):
         for child_file in retrieved_temporary_folder.iterdir():
             # create singlefile data for the model
             if "swa.model" in child_file.name:
-                model_file = SinglefileData(file=child_file)
+                model_file = orm.SinglefileData(file=child_file)
 
             if "train.txt" in child_file.name:
                 # TODO: gather rmse_e, rmse_f
@@ -55,8 +48,8 @@ class TrainMACEModelCalculationParser(Parser):
 
         # Return CalcJob outputs
         self.out("model_file", model_file)
-        self.out("m_rmse_e", Float(rmse_e))
-        self.out("m_rmse_f", Float(rmse_f))
+        self.out("m_rmse_e", orm.Float(rmse_e))
+        self.out("m_rmse_f", orm.Float(rmse_f))
 
 
 class TrainMACEModelCalculation(CalcJob):
@@ -67,22 +60,22 @@ class TrainMACEModelCalculation(CalcJob):
         super().define(spec)
         spec.input(
             "mace_settings_dict",
-            valid_type=Dict,
+            valid_type=orm.Dict,
             help="Dictionary containing MACE training settings.",
         )
         spec.input(
             "mace_train_file_path",
-            valid_type=Str,
+            valid_type=orm.Str,
             help=(
                 "Path to the file containing the structures to be used for training, "
                 "in the extxyz format."
             ),
             # non_db=True,
-            serializer=to_aiida_type,
+            serializer=orm.to_aiida_type,
         )
         spec.input(
             "test_file",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             help=(
                 "File containing the structures to be used for training, "
                 "in the extxyz format."
@@ -94,24 +87,24 @@ class TrainMACEModelCalculation(CalcJob):
 
         spec.input(
             "model_name",
-            valid_type=Str,
+            valid_type=orm.Str,
             help=("Name given to the model."),
-            serializer=to_aiida_type,
+            serializer=orm.to_aiida_type,
         )
 
         spec.output(
             "model_file",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             help="Path of the trained MACE model.",
         )
         spec.output(
             "m_rmse_e",
-            valid_type=Float,
+            valid_type=orm.Float,
             help="Validation RMSE for the energy, in meV / atom.",
         )
         spec.output(
             "m_rmse_f",
-            valid_type=Float,
+            valid_type=orm.Float,
             help="Validation RMSE for the forces, in meV / Å.",
         )
         spec.exit_code(
@@ -180,13 +173,13 @@ class GetMACEDescriptorsCalculationParser(Parser):
         for child_file in retrieved_temporary_folder.iterdir():
             # create singlefile data for the descriptors
             if "curr_it_db_descriptors.pkl" in child_file.name:
-                descriptor_arr_file = SinglefileData(file=child_file)
+                descriptor_arr_file = orm.SinglefileData(file=child_file)
 
             if "curr_it_db_max.npy" in child_file.name:
-                descr_max_arr = ArrayData(np.load(child_file))
+                descr_max_arr = orm.ArrayData(np.load(child_file))
 
             if "curr_it_db_min.npy" in child_file.name:
-                descr_min_arr = ArrayData(np.load(child_file))
+                descr_min_arr = orm.ArrayData(np.load(child_file))
 
         # Return failed code if output files not found
         if not descriptor_arr_file or not descr_max_arr or not descr_min_arr:
@@ -206,7 +199,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
         super().define(spec)
         spec.input(
             "model_file",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             help="Path of the trained MACE model.",
             non_db=True,
         )
@@ -216,23 +209,23 @@ class GetMACEDescriptorsCalculation(CalcJob):
                 "Path to the file containing the structures to be used for training, "
                 "in the extxyz format."
             ),
-            serializer=to_aiida_type,
+            serializer=orm.to_aiida_type,
         )
 
         spec.output(
             "descriptors_file",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             help="Path of the file containing the MACE descriptors array.",
         )
         spec.output(
             "descriptors_max_array",
-            valid_type=ArrayData,
+            valid_type=orm.ArrayData,
             help="Array containing the maximum values for the MACE descriptors, "
             "shaped according to the model size.",
         )
         spec.output(
             "descriptors_min_array",
-            valid_type=ArrayData,
+            valid_type=orm.ArrayData,
             help="Array containing the minimum values for the MACE descriptors, "
             "shaped according to the model size.",
         )
@@ -244,13 +237,13 @@ class GetMACEDescriptorsCalculation(CalcJob):
         :return: `~aiida.common.datastructures.CalcInfo` instance
         """
         # Copying database to temporary folder
-        if isinstance(self.inputs.mace_train_file_path, Str):
+        if isinstance(self.inputs.mace_train_file_path, orm.Str):
             final_db_path = self.inputs.mace_train_file_path.value
             folder.insert_path(
                 src=Path(final_db_path),
                 dest_name="current_db.xyz",
             )
-        elif isinstance(self.inputs.mace_train_file_path, SinglefileData):
+        elif isinstance(self.inputs.mace_train_file_path, orm.SinglefileData):
             with self.inputs.mace_train_file_path.as_path() as model_path:
                 folder.insert_path(
                     src=model_path,
@@ -296,34 +289,34 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         super().define(spec)
         spec.input(
             "mace_settings_dict",
-            valid_type=Dict,
+            valid_type=orm.Dict,
             help="Dictionary containing MACE settings.",
-            serializer=to_aiida_type,
+            serializer=orm.to_aiida_type,
         )
         spec.input(
             "model_file",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             help="Path to the trained MACE model.",
         )
         spec.input(
             "configuration_to_evaluate",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             help="Path to the configurations to evaluate in extxyz format.",
         )
         spec.output(
             "configuration_result_file",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             # help="List of dicts representation of the predicted configuration using MACE.",
             help="File containing all configurations evaluated using MACE in the extxyz format.",
         )
         spec.output(
             "energy_result_list",
-            valid_type=List,
+            valid_type=orm.List,
             help="List of values for the energy prediction.",
         )
         spec.output(
             "forces_result_list",
-            valid_type=List,
+            valid_type=orm.List,
             help="List of array of values for the force prediction.",
         )
         spec.exit_code(
@@ -357,7 +350,7 @@ class EvaluateMACEConfigsCalculation(CalcJob):
                 dest_name="current_mace_model.model",
             )
 
-        curr_structure_file: SinglefileData = self.inputs.configuration_to_evaluate
+        curr_structure_file: orm.SinglefileData = self.inputs.configuration_to_evaluate
 
         with curr_structure_file.as_path() as path:
             folder.insert_path(
@@ -424,10 +417,10 @@ class EvaluateMACEConfigsCalculationParser(Parser):
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
-        # self.out("configuration_result_list", SinglefileData("result_dict_list"))
-        self.out("configuration_result_file", SinglefileData(results_path))
-        self.out("energy_result_list", List(energy_float_list))
-        self.out("forces_result_list", List(forces_dict_list))
+        # self.out("configuration_result_list", orm.SinglefileData("result_dict_list"))
+        self.out("configuration_result_file", orm.SinglefileData(results_path))
+        self.out("energy_result_list", orm.List(energy_float_list))
+        self.out("forces_result_list", orm.List(forces_dict_list))
 
 
 class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
@@ -451,7 +444,7 @@ class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
 
         for key, node in self.inputs.get("files", {}).items():
             # The filename with which the file is written to the working directory is defined by the ``filenames`` input
-            # namespace, falling back to the filename of the ``SinglefileData`` node if not defined.
+            # namespace, falling back to the filename of the ``orm.SinglefileData`` node if not defined.
             filename = filenames.get(key, node.filename)
 
             with folder.open(filename, "wb") as target, node.open(mode="rb") as source:
@@ -505,7 +498,7 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
             A namespace to hold an arbitrary number of committee MACE potentials.
         mace_settings_dict : aiida.orm.Dict
             Dictionary containing MACE settings.
-        configurations_to_evaluate : aiida.orm.SinglefileData
+        configurations_to_evaluate : aiida.orm.orm.SinglefileData
             Path to the configurations to evaluate in extxyz format.
 
         Outputs
@@ -534,26 +527,26 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         spec.input_namespace(
             "commitee_models",
             dynamic=True,
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             non_db=True,
         )
 
         spec.input(
             "mace_settings_dict",
-            valid_type=Dict,
+            valid_type=orm.Dict,
             help="Dictionary containing MACE settings.",
-            serializer=to_aiida_type,
+            serializer=orm.to_aiida_type,
         )
         spec.input(
             "num_threads",
-            valid_type=Int,
+            valid_type=orm.Int,
             help="Number of OpenMP threads to use for the evaluation.",
-            serializer=to_aiida_type,
+            serializer=orm.to_aiida_type,
         )
 
         spec.input(
             "configurations_to_evaluate",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
             # non_db=True,
             help="Path to the configurations to evaluate in extxyz format.",
         )
@@ -564,12 +557,12 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         # )
         spec.output(
             "energy_result_dict",
-            valid_type=Dict,
+            valid_type=orm.Dict,
             help="Dicvt of values for the energy prediction.",
         )
         spec.output(
             "forces_result_dict",
-            valid_type=Dict,
+            valid_type=orm.Dict,
             help="Dict of array of values for the force prediction.",
         )
         spec.exit_code(420, "ERROR_OUT_OF_VRAM", "CUDA out of GPU memory.")
@@ -606,7 +599,7 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
                     dest_name=f"{model_str}.model",
                 )
 
-        curr_structure_file: SinglefileData = self.inputs.configurations_to_evaluate
+        curr_structure_file: orm.SinglefileData = self.inputs.configurations_to_evaluate
 
         with curr_structure_file.as_path() as path:
             folder.insert_path(
@@ -717,8 +710,59 @@ class CheckMACECommiteeResultsCalculationParser(Parser):
             return self.exit_codes.ERROR_OUTPUT_NOT_FOUND
 
         # Return CalcJob outputs
-        result_model_forces = Dict(result_model_forces)
-        result_model_energies = Dict(result_model_energies)
+        result_model_forces = orm.Dict(result_model_forces)
+        result_model_energies = orm.Dict(result_model_energies)
 
-        self.out("energy_result_dict", Dict(result_model_energies))
-        self.out("forces_result_dict", Dict(result_model_forces))
+        self.out("energy_result_dict", orm.Dict(result_model_energies))
+        self.out("forces_result_dict", orm.Dict(result_model_forces))
+
+
+class LAMMPSMACERawParser(Parser):
+    """Base parser for LAMMPS output."""
+
+    def parse(self, **kwargs):
+        """Parse the contents of the output files stored in the ``retrieved`` output node."""
+        retrieved = self.retrieved
+        retrieved_filenames = retrieved.base.repository.list_object_names()
+        filename_out = LammpsRawCalculation.FILENAME_OUTPUT
+
+        if filename_out not in retrieved_filenames:
+            return self.exit_codes.ERROR_OUTFILE_MISSING
+
+        parsed_data = parse_outputfile(
+            file_contents=retrieved.base.repository.get_object_content(filename_out)
+        )
+        if parsed_data is None:
+            return self.exit_codes.ERROR_PARSING_OUTFILE
+
+        if "max_neighbors_atom" not in parsed_data or "units_style" not in parsed_data:
+            return self.exit_codes.ERROR_PARSING_OUTFILE
+
+        if parsed_data["global"]["errors"]:
+            # Output the data for checking what was parsed
+            self.out("results", orm.Dict({"compute_variables": parsed_data["global"]}))
+            for entry in parsed_data["global"]["errors"]:
+                self.logger.error(f"LAMMPS emitted the error {entry}")
+                return self.exit_codes.ERROR_PARSER_DETECTED_LAMMPS_RUN_ERROR.format(
+                    error=entry
+                )
+
+        global_data = parsed_data["global"]
+        results = {"compute_variables": global_data}
+
+        if "total_wall_time" in global_data:
+            try:
+                parsed_time = time.strptime(global_data["total_wall_time"], "%H:%M:%S")
+            except ValueError:
+                pass
+            else:
+                total_wall_time_seconds = (
+                    parsed_time.tm_hour * 3600
+                    + parsed_time.tm_min * 60
+                    + parsed_time.tm_sec
+                )
+                global_data["total_wall_time_seconds"] = total_wall_time_seconds
+
+        self.out("results", orm.Dict(results))
+
+        return None

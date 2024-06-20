@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import wonderwords as ww
+from aiida.common.log import LOG_LEVEL_REPORT
 from aiida.engine import (
     calcfunction,
 )
@@ -601,9 +602,10 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
 
 
 @calcfunction
-def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str) -> Str:
+def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain) -> Str:
     """Collect and preprocess MACE DFT calculation results for active learning input."""
     result_list = []
+    outlier_list = []
 
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
@@ -674,19 +676,57 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str) -> Str:
             for idx, struct in enumerate(filtered_data):
                 if struct:
                     result_list.append(curr_struct_res[idx])
+                else:
+                    outlier_list.append(curr_struct_res[idx])
+
+    node = load_node(workchain.value)
+    node.logger.log(
+        level=LOG_LEVEL_REPORT,
+        msg=f"[{node.pk}|{node.process_label}|gather_dft_calcs_mace]:"
+        f" Removed {len(outlier_list)} outliers.",
+    )
 
     # Write the results to a temporary file in the calculation directory
-    results_dir = (
-        Path(results_dir.value) if isinstance(results_dir, Str) else results_dir
-    )
+    if isinstance(results_dir, Str):
+        results_dir = Path(results_dir.value)
+    elif isinstance(results_dir, str):
+        results_dir = Path(results_dir)
+
     results_file_path = results_dir / "run_tmp_data" / "gathered_dft_calcs.xyz"
     ase_write(filename=results_file_path, images=result_list)
+
+    # DEBUG
+    print('#@# outlier_list: ', outlier_list)
+    if outlier_list:
+        results_file_path = results_dir / "run_tmp_data" / "outliers.extxyz"
+        print('#@# results_file_path: ', results_file_path)
+        ase_write(filename=results_file_path, images=outlier_list)
 
     # Return the path to the temporary file
     return Str(str(results_file_path))
 
 
-def iqr_outlier_check(res_list) -> np.ndarray:
+def iqr_outlier_check(res_list: list) -> np.ndarray:
+    """
+    Identifies outliers in a list of E/F values using the interquartile range (IQR).
+
+    Parameters
+    ----------
+    res_list : list
+        A list of numerical values to check for outliers.
+
+    Returns
+    -------
+    np.ndarray
+        An array where outliers are replaced with NaN and non-outliers are retained.
+
+    Notes
+    -----
+    The function calculates the 30th and 70th percentiles of the input list
+    to determine the interquartile range (IQR).
+    Values outside the range [Q1 - 1.5 * IQR, Q2 + 1.5 * IQR] are considered
+    outliers and replaced with NaN.
+    """
     q1 = np.percentile(res_list, 30)
     q2 = np.percentile(res_list, 70)
     iqr = q2 - q1
