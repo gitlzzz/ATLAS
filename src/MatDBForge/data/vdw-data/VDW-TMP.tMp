@@ -1,0 +1,6 @@
+van der Waals:                                         
+  LVDW   =   T                                         
+  VDW_VERSION= 2 ; VDW_RADIUS = 40 ; VDW_SCALING = 0.75
+# Parameters:
+  VDW_C6 =   
+  VDW_R0 =   

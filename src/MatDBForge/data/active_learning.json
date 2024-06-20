@@ -1,0 +1,90 @@
+{
+    "general_settings": {
+        "description": {
+            "value": null,
+            "default": "AL Loop test with small database",
+            "_type_": "option",
+            "_description_": "Short description used to describe the AiiDA workchain."
+        },
+        "data_path": {
+            "value": null,
+            "default": null,
+            "_type_": "option",
+            "_description_": "Absolute path containing the AL Loop required files."
+        },
+        "mace_settings_path": {
+            "value": null,
+            "default": null,
+            "_type_": "option",
+            "_description_": "Absolute path containing the MACE calculation settings in json format. (TO BE UPDATED)"
+        },
+        "init_db_path": {
+            "value": null,
+            "default": null,
+            "_type_": "option",
+            "_description_": "Path to the initial database file. This is the starting point for the active learning loop."
+        },
+        "final_db_path": {
+            "value": null,
+            "default": null,
+            "_type_": "option",
+            "_description_": "Destination path for the final database file after the active learning loop completes."
+        },
+        "_type_": "section",
+        "_formatted_name_": "General Settings",
+        "_description_": "General settings for the program."
+
+    },
+    "md_settings": {
+        "md_steps": {
+            "value": null,
+            "default": 33334,
+            "_type_": "option",
+            "_description_": "Number of molecular dynamics steps to perform. This influences the simulation's duration and how many frames will be available to analyze later."
+        },
+        "seed_size_frac": {
+            "value": null,
+            "default": 0.1,
+            "_type_": "option",
+            "_description_": "Fraction of the dataset used as a seed for the active learning process. Should be between 0 and 1."
+        },
+        "md_temperature_K": {
+            "value": null,
+            "default": 300.0,
+            "_type_": "option",
+            "_description_": "Temperature in Kelvin for the molecular dynamics simulation. Affects the particles' kinetic energy."
+        },
+        "md_timestep_duration_ps": {
+            "value": null,
+            "default": 0.001,
+            "_type_": "option",
+            "_description_": "Duration of each timestep in picoseconds for the molecular dynamics simulation, measured in picoseconds. Smaller values increase accuracy but require more computational resources."
+        },
+        "_type_": "section",
+        "_formatted_name_": "MD Settings",
+        "_description_": "Settings for the MD to be performed using LAMMPS."
+    },
+    "al_settings": {
+        "commitee_num_models": {
+            "value": null,
+            "default": 4,
+            "_type_": "option",
+            "_description_": "Number of models in the committee used for uncertainty estimation in active learning. More models can provide better estimates but increase computational load."
+        },
+        "max_iterations": {
+            "value": null,
+            "default": 100,
+            "_type_": "option",
+            "_description_": "Maximum number of iterations for the active learning loop. Limits the length of the active learning process."
+        },
+        "al_keep_frame_interval_perc": {
+            "value": null,
+            "default": 0.005,
+            "_type_": "option",
+            "_description_": "Percentage of frames to keep for further analysis. Lower values reduce data storage and processing requirements."
+        },
+        "_type_": "section",
+        "_formatted_name_": "Active Learning Settings",
+        "_description_": "Specific settings for the Active Learning procedure."
+    }
+}
