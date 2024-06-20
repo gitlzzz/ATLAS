@@ -78,3 +78,7 @@ where = ["src"]
 
 [tool.setuptools-git-versioning]
 enabled = true
+version_file = "VERSION"
+count_commits_from_version_file = true
+# dev_template = "{tag}.{ccount}"  # <--- note {branch} here
+# dirty_template = "{tag}.{ccount}"
