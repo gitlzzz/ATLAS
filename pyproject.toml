@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "MatDBForge"
+dynamic = ["version"]
+description = "An automatic workflow for generating data and training NNPs"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Pol Sanz", email = "psanz@iciq.es" },
+    { name = "Zan Lian", email = "zlian@iciq.es" },
+]
+
+dependencies = [
+    "ase==3.22.1",
+    "dash==2.16.1",
+    "dash-bootstrap-components==1.6.0",
+    "dash-core-components==2.0.0",
+    "dash-daq==0.5.0",
+    "dash-table==5.0.0",
+    "dash-html-components==2.0.0",
+    "dscribe==2.1.0",
+    "gunicorn==21.2.0",
+    "matplotlib==3.8.0",
+    "pandas==2.1.1",
+    "plotly==5.18.0",
+    "rich==13.7.0",
+    "scipy==1.11.2",
+    "seaborn==0.13.2",
+    "mace-torch @ git+https://github.com/ACEsuit/mace.git",
+    "e3nn==0.4.4",
+    "aiida-core==2.5.1",
+    "aiida-lammps==1.0.1",
+    "aiida-vasp==3.1.0",
+    "torch==2.0.1",
+    "wonderwords==2.2.0",
+    "pymatgen==2023.11.12",
+    "setuptools_git_versioning",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/pol-sb/MatDBForge"
+
+[project.entry-points."aiida.calculations"]
+"mace-train" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
+"mace-get-descriptors" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
+"mace-eval" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
+"mace-lammps-gpu-md" = "MatDBForge.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE"
+"mace-committee-eval" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommitteeResultsCalculation"
+
+[project.entry-points."aiida.calculations.monitors"]
+"monitor.davwarning" = "MatDBForge.workflows.monitors:output_monitor"
+
+[project.entry-points."aiida.workflows"]
+"mdb-active-learning" = "MatDBForge.workflows.active_learning:ActiveLearningWorkChain"
+"mdb-active-learning-base" = "MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain"
+
+[project.entry-points."aiida.parsers"]
+"mace-training-parser" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
+"mace-descriptors-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
+"mace-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
+"mace-committee-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
+"mace-lammps-raw-parser" = "MatDBForge.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
+
+[project.entry-points."console_scripts"]
+"mdb_active_learning" = "MatDBForge.core.command_line:run_active_learning"
+"mdb_conf_gen" = "MatDBForge.core.command_line:gen_default_config"
+"mdb_monitor_al_loop" = "MatDBForge.core.command_line:monitor_al_loop"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools-git-versioning]
+enabled = true
