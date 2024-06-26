@@ -29,15 +29,16 @@
             <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
         </div>
     </div>
+
     <div class="container-fluid my-2">
         <div class="row gx-0">
             <ul class="nav nav-pills nav-fill">
-                <a class="nav-link active" href="/status"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                <a class="nav-link" href="/status"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                         fill="currentColor" class="bi bi-body-text" viewBox="0 0 16 16">
                         <path fill-rule="evenodd"
                             d="M0 .5A.5.5 0 0 1 .5 0h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 0 .5m0 2A.5.5 0 0 1 .5 2h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m9 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-9 2A.5.5 0 0 1 .5 4h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m5 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m7 0a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-12 2A.5.5 0 0 1 .5 6h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5m8 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-8 2A.5.5 0 0 1 .5 8h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m7 0a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-7 2a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 0 1h-8a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
                     </svg> Status</a>
-                <a class="nav-link" href="/results"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                <a class="nav-link active" href="/results"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                         fill="currentColor" class="bi bi-clipboard-data" viewBox="0 0 16 16">
                         <path
                             d="M4 11a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0zm6-4a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0zM7 9a1 1 0 0 1 2 0v3a1 1 0 1 1-2 0z" />
@@ -49,60 +50,13 @@
             </ul>
         </div>
 
-        <div class="row">
-            <div class="col-md-8 col-sm-12 gy-2">
-                <div class="g-2 left-box">
-                    <div class="top-box-title">
-                        <h3 class="title-upper">Workchain - {{ workchain_node_id }}</h3>
-                        <h3 class="last-updated">({{ update_time }})</h3>
-                    </div>
-                    <div class="top-box-left-headers">
-                        <div class="workchain-progress-container">
-                            <p class="top-text">Total progress:</p>
-                            <progress class="{{ progbar_class_name }}" id="progress-update" value="{{ curr_iter }}"
-                                max="{{ max_iters }}"></progress>
-                            <p id="iter-text" class="top-text">{{ iter_text }}</p>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-            <div class="col-md-4 col-sm-12 gy-2">
-                <div class="g-2 right-box">
-                    <h3 class="title-upper">Performance - Iteration {{ curr_iter }}</h3>
-                    <p id="model-score-text" class="top-text">{{ model_stats }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-xl-3 col-md-4 col-sm-12 subprocess-list-col gy-2 bottom-row">
-                <div id="subprocess-list" class="subprocess-list g-2">
-                    {% for entry in subprocess_list %}
-                    <button class="text-truncate" id="{{  entry['id'] }}" type="calcjob-button"
-                        value="{{ entry['value'] }}" onclick="copy_pk(this.value)">{{ entry["child_str"]
-                        }}</button>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="col-xl-9 col-md-8 col-sm-12 gy-2 bottom-row">
-                <div id="live-update-text" class="right-column live-text g-2">
-                    {% for entry in report %}
-                    <p>
-                        <span class="date-part">{{ entry["date_part"] }} </span>
-                        <span class="id-part">{{ entry["id_part"] }} </span>
-                        <span class="label-part">{{ entry["label_part"] }} </span>
-                        <span class="report-text">{{ entry["report_part"] }} </span>
-                    </p>
-                    {% endfor %}
-                </div>
-                <!-- </div> -->
-            </div>
-        </div>
     </div>
+
     <script>
         function copy_pk(clicked_id) {
             var copyText = clicked_id;
+            // copyText.select();
+            // copyText.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(copyText);
         }
 
@@ -118,9 +72,9 @@
         }
 
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous">
+        </script>
 </body>
 
 </html>

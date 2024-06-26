@@ -27,9 +27,11 @@
     --label-part: gray;
     --id-part: #e1743d;
     --button-color: #282828;
+    --button-color-soft: #484848;
     --button-bg-color: #F2F3F4;
-    --button-hover-color: #c9d9f3;
-    --button-hover-bg-color: #282828;
+    --button-hover-bg-color: #c9d9f3;
+    --button-hover-color: #282828;
+    --emphasis: #4b6cb7;
 
 }
 
@@ -48,9 +50,11 @@
     --label-part: #689d6a;
     --id-part: #e1743d;
     --button-color: #ebdbb2;
+    --button-color-soft: #b2a585;
     --button-bg-color: #3c3836;
     --button-hover-color: #ebdbb2;
     --button-hover-bg-color: #504b48;
+    --emphasis: #458588;
 }
 
 
@@ -155,15 +159,15 @@ body {
 .header {
     text-align: left;
     height: 7.5vh;
-    margin-top: -1vh;
+    /* margin-top: -1vh; */
     margin-left: -1vh;
     margin-right: -1vh;
     background: var(--header-gradient);
     border: 0px solid var(--header-border);
     border-bottom-width: 3px;
-    display: flex;
-    flex-direction: row;
-    flex-flow: row;
+    /* display: flex; */
+    /* flex-direction: row; */
+    /* flex-flow: row; */
     align-items: center
 }
 
@@ -174,8 +178,11 @@ body {
     font-variant: ExtraBold;
     font-style: ExtraBold;
     color: var(--title-color);
-    flex-grow: 3;
+    /* flex-grow: 3; */
     padding-left: 1%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block ruby;
 }
 
 .logo-right {
@@ -185,14 +192,14 @@ body {
 }
 
 .logo-left {
-    width: 10%;
+    width: 100%;
     text-align: center;
-    padding-right: 2%;
+    padding-left: 2%;
 }
 
 /* Styling for top boxes */
 .top-box-headers {
-    display: flex;
+    /* display: flex; */
     flex-direction: row;
     flex-flow: row;
 }
@@ -217,7 +224,7 @@ body {
 
 /* Styling for top boxes */
 .top-box {
-    display: flex;
+    /* display: flex; */
     flex-direction: row;
     flex-flow: row;
     gap: 2%;
@@ -261,14 +268,14 @@ body {
 }
 
 .left-box {
-    flex-grow: 4;
+    /* flex-grow: 4; */
     background-color: var(--panel-bg-color);
     padding: 0.1vh 0.5%;
     font-size: 12;
 }
 
 .right-box {
-    flex-grow: 1;
+    height: 100%;
     padding: 0.1vh 0.5%;
     background-color: var(--panel-bg-color);
     font-size: 12;
@@ -289,7 +296,6 @@ body {
     margin-right: 2%;
     width: auto;
     background-color: var(--progbar-background);
-    border-radius: 2%;
 }
 
 .workchain-progbar-error {
@@ -391,11 +397,11 @@ body {
 .column-container {
     width: 100%;
     height: 75vh;
-    display: flex;
+    /* display: flex; */
 }
 
 .column {
-    display: inline-block;
+    /* display: inline-block; */
     vertical-align: top;
 }
 
@@ -407,20 +413,21 @@ body {
 }
 
 .right-column {
-    width: 80%;
-
+    /* width: 80%; */
     overflow-y: auto;
     background-color: var(--panel-bg-color);
     box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
-    padding-left: 0.5%;
-    margin-left: 15px;
+    /* padding-left: 0.5%; */
+    /* margin-left: 15px; */
     font-size: 14px;
 }
 
 .live-text {
-    font-family: monospace;
+    font-family: Overpass Nerd Font, monospace;
     padding-top: 0.5%;
     padding-right: 0.5%;
+    padding-left: 0.5%;
+    max-height: 72.5vh;
 }
 
 /* Dynamic text styles */
@@ -457,20 +464,38 @@ body {
 .right-column::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
-
-.subprocess-list {
-    display: flex;
-    flex-direction: column;
-    background-color: var(--panel-bg-color);
+ 
+.bottom-row {
+    /* max-height: 40%; */
 }
 
-.subprocess-list [id^="button-"] {
+.subprocess-list-col {
+    /* display: flex; */
+    /* flex-direction: column; */
+    overflow-y: auto;
+    /* background-color: var(--panel-bg-color); */
+    /* padding-top: 0.5%; */
+    /* padding-right: 0.5%; */
+    max-height: 72.5vh;
+}
+
+.subprocess-list {
+    background-color: var(--panel-bg-color);
+    padding-top: 0.5%;
+    width: 100%;
+    max-width: 100%;
+    padding-right: 0.5%;
+}
+
+.subprocess-list > button {
     background-color: var(--panel-bg-color);
     color: var(--button-color);
     border: 1px solid var(--header-border);
     height: 50px;
     margin: 1%;
     padding: 3%;
+    max-width: 99%;
+    width: 99%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -481,21 +506,61 @@ body {
     font-family: "Overpass Nerd Font", sans-serif;
     margin: 0.5%;
     color: var(--text-color);
-    background-color: var(--button-bg-color);
+    background-color: var(--button-color);
     border-radius: 8%;
     text-align: center;
     padding: 0.1% 1% 0.1% 1%;
 }
 
 .subprocess-list [id^="button-"]:hover {
-    background-color: var(--button-hover-color);
-    color: var(--button-hover-bg-color);
+    color: var(--button-hover-color);
+    background-color: var(--button-hover-bg-color);
+}
+
+.nav .nav-pills .nav-fill{
+    color: var(--text-color);
+    /* background-color: var(--button-bg-color); */
+    border-radius: 5%;
+}
+
+.nav-pills {
+    color: var(--text-color);
+    /* background-color: var(--button-bg-color); */
+    /* border-radius: 2%; */
+    text-align: center;
+    /* padding: 0.1% 1% 0.1% 1%; */
+    margin: 0.25%;
+    font-family: "Manrope", "Overpass Nerd Font", sans-serif;
+    font-size: 16px;
+    /* border: 1px solid var(--header-border); */
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.436);
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--emphasis);
+    color: var(--title-color);
+    border: 1px solid var(--header-border);
+}
+
+.nav-pills .nav-link {
+    background-color: var(--button-bg-color);
+    border: 1px solid var(--header-border);
+    color: var(--button-color);
+}
+
+.nav-link {
+    margin: 0.25%;
+}
+
+.nav-link:hover {
+    color: var(--button-hover-color);
+    background-color: var(--button-hover-bg-color);
 }
 
 
 .switch {
     position: relative;
-    display: inline-block;
+    /* display: inline-block; */
     width: 60px;
     height: 34px;
     margin: 0.5%;
@@ -516,7 +581,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--text-color);
+    background-color: var(--button-bg-color);
     -webkit-transition: .4s;
     transition: .4s;
   }
@@ -528,7 +593,7 @@ body {
     width: 26px;
     left: 4px;
     bottom: 4px;
-    background-color: var(--bg-color);
+    background-color: var(--emphasis);
     -webkit-transition: .4s;
     transition: .4s;
   }

@@ -181,6 +181,7 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
     load_profile()
 
     @app.route("/")
+    @app.route("/status")
     def training_dashboard():
         # workchain_node_id = 1388283
         (
@@ -205,5 +206,9 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             progbar_class_name=progbar_class_name,
             subprocess_list=subprocess_list,
         )
+
+    @app.route("/results")
+    def results_dashboard():
+        return render_template("results_dashboard.html")
 
     return app
