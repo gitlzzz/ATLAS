@@ -735,7 +735,13 @@ class LAMMPSMACERawParser(Parser):
         if parsed_data is None:
             return self.exit_codes.ERROR_PARSING_OUTFILE
 
-        if "max_neighbors_atom" not in parsed_data or "units_style" not in parsed_data:
+        if parsed_data["global"]:
+            if (
+                "max_neighbors_atom" not in parsed_data["global"]
+                or "units_style" not in parsed_data["global"]
+            ):
+                return self.exit_codes.ERROR_PARSING_OUTFILE
+        else:
             return self.exit_codes.ERROR_PARSING_OUTFILE
 
         if parsed_data["global"]["errors"]:

@@ -10,7 +10,7 @@ from mace.calculators import MACECalculator
 
 def generate_descriptors(model_path: str, database):
     calculator = MACECalculator(
-        model_paths=model_path, device="cuda", default_dtype="float32"
+        model_paths=model_path, device="cpu", default_dtype="float32"
     )
     descriptor_dict = {}
     descriptor_list = []

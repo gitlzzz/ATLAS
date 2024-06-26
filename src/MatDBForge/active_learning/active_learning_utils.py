@@ -1,4 +1,5 @@
 import io
+import itertools as it
 import json
 import math as m
 from contextlib import redirect_stdout
@@ -24,6 +25,8 @@ from aiida.orm import (
 )
 from aiida.plugins import CalculationFactory
 from ase import Atoms
+from ase.data import atomic_numbers, covalent_radii
+from ase.geometry.analysis import Analysis
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from e3nn.util import jit
@@ -602,7 +605,7 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
 
 
 @calcfunction
-def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain) -> Str:
+def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None) -> Str:
     """Collect and preprocess MACE DFT calculation results for active learning input."""
     result_list = []
     outlier_list = []
@@ -619,7 +622,7 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain) -> S
                     struct_file_path, format="extxyz", index=":"
                 )
 
-        # If the calculation fails for any reason, skip it.
+        # If parsing the calculation fails for any reason, skip it.
         except Exception:
             continue
 
@@ -627,11 +630,11 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain) -> S
         for structure in result_structures:
             # Gathering extra DFT calculation information from calculation
             # and its extras
-            # print('structure.info: ', structure.info)
             calc_info_dict = {
                 "struct_name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
                 "aiida_uuid": calc_node.extras["mdb_calc_uuid"],
                 "mdb_struct_type": calc_node.extras["mdb_struct_type"],
+                "mdb_md_node": calc_node.uuid,
             }
 
             for key, val in calc_info_dict.items():
@@ -646,45 +649,52 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain) -> S
             # result_list.append(structure)
             curr_struct_res.append(structure)
 
-        energy_list = [structure.info["energy"] for structure in curr_struct_res]
-        forces_list = [
-            np.max(np.max(np.abs(structure.arrays["forces"]), axis=0))
-            for structure in curr_struct_res
-        ]
-
-        # Checking for outliers using the IQR Method
-        # This involves calculating the first (Q1) and third quartiles (Q3)
-        # and the interquartile range (IQR = Q3 - Q1).
-        # Outliers are typically defined as values that are less
-        # than Q1 - 1.5IQR or greater than Q3 + 1.5IQR.
-        filtered_e_data: np.ndarray = iqr_outlier_check(energy_list)
-        filtered_f_data: np.ndarray = iqr_outlier_check(forces_list)
-
-        # Create boolean masks for non-NaN positions
-        e_mask = ~np.isnan(filtered_e_data)
-        f_mask = ~np.isnan(filtered_f_data)
-
-        # Combine the masks for E and F
-        filtered_data = e_mask & f_mask
-
         # Some calculations that reported high E and F thoughout all
-        # steps, might not be caught by the filters
-        # Therefore, if the max after filtering is still a very
-        # high energy value, we ignore this calculation.
-        abs_max = np.nanmax(np.abs(filtered_e_data))
-        if abs_max <= 5e4:
-            for idx, struct in enumerate(filtered_data):
-                if struct:
-                    result_list.append(curr_struct_res[idx])
-                else:
-                    outlier_list.append(curr_struct_res[idx])
+        # steps. Checking for outliers using the bond distance
+        for struct in curr_struct_res:
+            outlier_flag = False
+            min_dists = []
 
-    node = load_node(workchain.value)
-    node.logger.log(
-        level=LOG_LEVEL_REPORT,
-        msg=f"[{node.pk}|{node.process_label}|gather_dft_calcs_mace]:"
-        f" Removed {len(outlier_list)} outliers.",
-    )
+            symbols = set(struct.get_chemical_symbols())
+
+            struct_ana = Analysis(struct)
+            struct_ana.clear_cache()
+
+            # Checking all bond distances for all bond types
+            for at_A, at_B in it.combinations_with_replacement(symbols, 2):
+                # Getting covalent radii from ase.data
+                R_atA = covalent_radii[atomic_numbers[at_A]]
+                R_atB = covalent_radii[atomic_numbers[at_B]]
+
+                # Getting bond distances. This will consider pbc.
+                vals = struct_ana.get_values(
+                    struct_ana.get_bonds(at_A, at_B, unique=True)
+                )
+                min_bond_length = np.min(vals[0])
+                min_dists.append(min_bond_length)
+
+                # Structures with bond distances below this value will be
+                # considered outliers.
+                bond_length_threshold = (R_atA + R_atB) * 0.7
+
+                # Check for any outliers below the minimum bond length threshold
+                # and add the structure to the outlier list, which will not be
+                # part of the final database.
+                if np.any(np.array(min_dists) < bond_length_threshold):
+                    outlier_list.append(struct)
+                    outlier_flag = True
+                    break
+
+            if not outlier_flag:
+                result_list.append(struct)
+
+    if workchain:
+        node = load_node(workchain.value)
+        node.logger.log(
+            level=LOG_LEVEL_REPORT,
+            msg=f"[{node.pk}|{node.process_label}|gather_dft_calcs_mace]:"
+            f" Removed {len(outlier_list)} outliers.",
+        )
 
     # Write the results to a temporary file in the calculation directory
     if isinstance(results_dir, Str):
@@ -695,12 +705,11 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain) -> S
     results_file_path = results_dir / "run_tmp_data" / "gathered_dft_calcs.xyz"
     ase_write(filename=results_file_path, images=result_list)
 
-    # DEBUG
-    print('#@# outlier_list: ', outlier_list)
-    if outlier_list:
-        results_file_path = results_dir / "run_tmp_data" / "outliers.extxyz"
-        print('#@# results_file_path: ', results_file_path)
-        ase_write(filename=results_file_path, images=outlier_list)
+    # DEBUG: Remove after checking outliers
+    # if outlier_list:
+    #     outliers_file_path = results_dir / "outliers.extxyz"
+    #     print("#@# outliers_file_path: ", outliers_file_path)
+    #     ase_write(filename=outliers_file_path, images=outlier_list)
 
     # Return the path to the temporary file
     return Str(str(results_file_path))

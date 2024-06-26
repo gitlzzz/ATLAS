@@ -379,25 +379,40 @@ class ActiveLearningWorkChain(WorkChain):
             filepath_files=descriptor_code_path,
             filepath_executable="./mace_get_descriptors.py",
             # TODO: Add to TOML
-            prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+            prepend_text="""source /gpuscratch/psanz/mace/mace-venv/bin/activate
+source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
+            """,
         )
         mace_builder.code = code
 
         # TODO: Add to TOML
+        # mace_builder.metadata.options = {
+        #     "resources": {
+        #         "parallel_env": "c128m1024ib_mpi_32slots",
+        #         "tot_num_mpiprocs": 4,
+        #     },
+        #     "queue_name": "c128m1024ibgpu4.q",
+        #     "max_memory_kb": 102400000,
+        #     "parser_name": "mace-descriptors-parser",
+        #     "max_wallclock_seconds": 117280000,
+        #     "withmpi": False,
+        #     "custom_scheduler_commands": "#$ -l gpu=1",
+        # }
         mace_builder.metadata.options = {
             "resources": {
-                "parallel_env": "c128m1024ib_mpi_32slots",
-                "tot_num_mpiprocs": 4,
+                "num_cores_per_mpiproc": 12,
+                "tot_num_mpiprocs": 1,
+                "num_machines": 1,
             },
-            "queue_name": "c128m1024ibgpu4.q",
-            "max_memory_kb": 102400000,
+            "max_wallclock_seconds": 57600,
+            "account": "ehpc08",
+            "qos": "gp_ehpc",
             "parser_name": "mace-descriptors-parser",
-            "max_wallclock_seconds": 117280000,
             "withmpi": False,
-            "custom_scheduler_commands": "#$ -l gpu=1",
         }
         mace_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
-        mace_builder.metadata.computer = load_computer("tekla2-new-test")
+        # mace_builder.metadata.computer = load_computer("tekla2-new-test")
+        mace_builder.metadata.computer = load_computer("mn5-new")
 
         mace_builder.metadata.options.output_filename = (
             f"descriptors_{self.ctx.best_model_name}_"
@@ -1098,7 +1113,9 @@ class ActiveLearningWorkChain(WorkChain):
                 filepath_files=descriptor_code_path,
                 filepath_executable="./run_mdb_mace_eval_committee.sh",
                 # TODO: Add to TOML
-                prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+                # prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+                prepend_text="""source /gpuscratch/psanz/mace/mace-venv/bin/activate
+source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             )
             mace_builder.code = portable_code
 
@@ -1222,27 +1239,36 @@ class ActiveLearningWorkChain(WorkChain):
                 filepath_files=descriptor_code_path,
                 filepath_executable="./mace_get_descriptors.py",
                 # TODO: Add to TOML
-                prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+                # prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
+                prepend_text="""source /gpuscratch/psanz/mace/mace-venv/bin/activate
+source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             )
             mace_builder.code = code
 
             # TODO: Add to TOML
+            # mace_builder.metadata.computer = load_computer("tekla2-new-test")
+            mace_builder.metadata.computer = load_computer("mn5-new")
             mace_builder.metadata.options = {
                 "resources": {
-                    "parallel_env": "c128m1024ib_mpi_32slots",
-                    "tot_num_mpiprocs": 4,
+                    # "parallel_env": "c128m1024ib_mpi_32slots",
+                    # "tot_num_mpiprocs": 4,
+                    "num_cores_per_mpiproc": 12,
+                    "tot_num_mpiprocs": 1,
+                    "num_machines": 1,
                 },
-                "queue_name": "c128m1024ibgpu4.q",
-                "max_memory_kb": 102400000,
+                # "queue_name": "c128m1024ibgpu4.q",
+                # "max_memory_kb": 102400000,
+                "max_wallclock_seconds": 57600,
+                "account": "ehpc08",
+                "qos": "gp_ehpc",
                 "parser_name": "mace-descriptors-parser",
-                "max_wallclock_seconds": 117280000,
+                # "max_wallclock_seconds": 117280000,
                 "withmpi": False,
-                "custom_scheduler_commands": "#$ -l gpu=1",
+                # "custom_scheduler_commands": "#$ -l gpu=1",
             }
             mace_builder.metadata.label = (
                 row["unique_id"][:8] + "_md_descriptors_" + f"{row['md_temperature']}_K"
             )
-            mace_builder.metadata.computer = load_computer("tekla2-new-test")
 
             mace_builder.metadata.options.output_filename = (
                 f"descriptors_{self.ctx.best_model_name}_iter"
@@ -1264,6 +1290,9 @@ class ActiveLearningWorkChain(WorkChain):
 
         f_rmse = self.ctx.m0_rmse_f.value
         f_error_threshold = model_acc_multiplier * f_rmse
+
+        maximum_value_e = 1000  # meV
+        maximum_value_f = 1000  # meV
 
         delete_indices = []
         dft_structures = []
@@ -1342,23 +1371,29 @@ class ActiveLearningWorkChain(WorkChain):
             model_energies_dict = row["energy"]
 
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
-            # energies_stat = mdb_al_ut.get_model_energies_stat(model_energies_dict)
+
+            # Checking if the energies are over the error threshold
+            error_e_structures_sm = np.ma.make_mask(energies_stat >= e_error_threshold)
+            error_e_structures_bg = np.ma.make_mask(energies_stat < maximum_value_e)
 
             # Any True value in this array is over the energy error threshold
             # and must be sent to calculate with DFT.
-            error_e_structures = np.ma.make_mask(energies_stat >= e_error_threshold)
+            error_e_structures = np.logical_and(
+                error_e_structures_sm, error_e_structures_bg
+            )
 
             model_forces_dict = row["forces"]
-            # print("model_forces_dict: ", model_forces_dict)
             forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
             forces_std_norm = np.linalg.norm(forces_std, axis=2)
             forces_std_norm_max = np.amax(forces_std_norm, axis=1)
 
+            # Checking if the forces are over the error threshold
+            err_f_struct_sm = np.ma.make_mask(forces_std_norm_max >= f_error_threshold)
+            err_f_struct_bg = np.ma.make_mask(forces_std_norm_max < maximum_value_f)
+
             # Any True value in this array is over the force error threshold
             # and must be sent to calculate with DFT.
-            error_f_structures = np.ma.make_mask(
-                forces_std_norm_max >= f_error_threshold
-            )
+            error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
 
             # Joining both error masks to get a single True/False array marking
             # structures to be computed with True

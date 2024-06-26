@@ -16,6 +16,9 @@ from aiida.plugins import WorkflowFactory
 from gunicorn.app.wsgiapp import WSGIApplication
 
 from MatDBForge.core import MDB_DATA_DIR
+from MatDBForge.active_learning.dashboard.training_dashboard_flask import (
+    run_training_dashboard,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -284,6 +287,14 @@ def monitor_al_loop():
         default=8000,
         metavar="port",
     )
+    parser.add_argument(
+        "--debug",
+        help=("Enable Flask debug"),
+        action="store_const",
+        const=True,
+        default=False,
+    )
+
     # Getting CLI arguments
     args = parser.parse_args()
 
@@ -292,12 +303,20 @@ def monitor_al_loop():
         f"Access: http://127.0.0.1:{args.port}."
     )
     print("Pres Ctrl+C to stop the dashboard.")
-    app = StandaloneApplication(
-        f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
-        f":run_training_dashboard(workchain_node_id={args.process_id}, "
-        f"refresh_interval={args.update_interval}, port={args.port})",
-    )
-    app.run()
+    if args.debug:
+        app = run_training_dashboard(
+            workchain_node_id=args.process_id,
+            refresh_interval={args.update_interval},
+            port={args.port},
+        )
+        app.run(debug=True, port=args.port)
+    else:
+        app = StandaloneApplication(
+            f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
+            f":run_training_dashboard(workchain_node_id={args.process_id}, "
+            f"refresh_interval={args.update_interval}, port={args.port})",
+        )
+        app.run(port=args.port)
 
 
 def parse_input_toml(toml_dict: dict, type: str):
