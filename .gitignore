@@ -3,3 +3,8 @@ src/MatDBForge/tests
 secrets.json
 *.egg-info
 *.ipynb
+.vscode
+build
+src/MatDBForge/benchmarks/
+src/MatDBForge/devel
+src/MatDBForge/display_db
