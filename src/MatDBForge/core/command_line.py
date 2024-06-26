@@ -15,10 +15,10 @@ from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 from gunicorn.app.wsgiapp import WSGIApplication
 
-from MatDBForge.core import MDB_DATA_DIR
 from MatDBForge.active_learning.dashboard.training_dashboard_flask import (
     run_training_dashboard,
 )
+from MatDBForge.core import MDB_DATA_DIR
 
 warnings.filterwarnings("ignore")
 
@@ -294,6 +294,13 @@ def monitor_al_loop():
         const=True,
         default=False,
     )
+    parser.add_argument(
+        "--online",
+        help=("Enable online"),
+        action="store_const",
+        const=True,
+        default=False,
+    )
 
     # Getting CLI arguments
     args = parser.parse_args()
@@ -309,14 +316,20 @@ def monitor_al_loop():
             refresh_interval={args.update_interval},
             port={args.port},
         )
-        app.run(debug=True, port=args.port)
+        if args.online:
+            app.run(debug=True, port=args.port, host="0.0.0.0")
+        else:
+            app.run(debug=True, port=args.port, host="0.0.0.0")
     else:
         app = StandaloneApplication(
             f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
             f":run_training_dashboard(workchain_node_id={args.process_id}, "
             f"refresh_interval={args.update_interval}, port={args.port})",
         )
-        app.run(port=args.port)
+        if args.online:
+            app.run(port=args.port, host="0.0.0.0")
+        else:
+            app.run(port=args.port)
 
 
 def parse_input_toml(toml_dict: dict, type: str):
