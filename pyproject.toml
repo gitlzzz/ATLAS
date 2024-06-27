@@ -64,7 +64,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mace-committee-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
 "mace-lammps-raw-parser" = "MatDBForge.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
 
-[project.entry-points."console_scripts"]
+[project.scripts]
 "mdb_active_learning" = "MatDBForge.core.command_line:run_active_learning"
 "mdb_conf_gen" = "MatDBForge.core.command_line:gen_default_config"
 "mdb_monitor_al_loop" = "MatDBForge.core.command_line:monitor_al_loop"

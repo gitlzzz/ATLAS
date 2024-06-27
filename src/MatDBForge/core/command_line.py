@@ -39,6 +39,38 @@ class StandaloneApplication(WSGIApplication):
             self.cfg.set(key.lower(), value)
 
 
+def run_dashboard_app(process_id, port, update_interval, debug, online):
+    print(
+        f"Running dashboard to monitor process: {process_id}."
+        f"Access: http://127.0.0.1:{port}."
+    )
+    print("Pres Ctrl+C to stop the dashboard.")
+    if debug:
+        app = run_training_dashboard(
+            workchain_node_id=process_id,
+            refresh_interval={update_interval},
+            port={port},
+        )
+        if online:
+            app.run(debug=True, port=port, host="0.0.0.0")
+        else:
+            app.run(debug=True, port=port, host="0.0.0.0")
+    else:
+        app = StandaloneApplication(
+            f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
+            f":run_training_dashboard(workchain_node_id={process_id}, "
+            f"refresh_interval={update_interval}, port={port})",
+        )
+        if online:
+            app.options['bind'] = f"0.0.0.0:{port}"
+            app.load_config()
+            app.run()
+        else:
+            app.options['bind'] = f"127.0.0.1:{port}"
+            app.load_config()
+            app.run()
+
+
 def create_active_learning_builder(toml_dict: dict):
     """
     Create builder object for the ActiveLearningWorkChain.
@@ -157,8 +189,23 @@ def run_active_learning():
         "--port",
         help=("Port to use for the webapp"),
         type=int,
-        default=5000,
+        default=8000,
         metavar="port",
+    )
+
+    gui_parser.add_argument(
+        "--debug",
+        help=("Enable Flask debug"),
+        action="store_const",
+        const=True,
+        default=False,
+    )
+    gui_parser.add_argument(
+        "--online",
+        help=("Enable online"),
+        action="store_const",
+        const=True,
+        default=False,
     )
 
     # Getting CLI arguments
@@ -185,15 +232,14 @@ def run_active_learning():
         node = run(builder)
     else:
         node = submit(builder)
-        print("Active learning workchain node: ", node.pk)
-        print(f"Running dashboard. Access: http://127.0.0.1:{args.port}")
 
-        app = StandaloneApplication(
-            f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
-            f":run_training_dashboard(workchain_node_id={node.pk}, "
-            f"refresh_interval={args.update_interval}, port={args.port})"
+        run_dashboard_app(
+            process_id=node,
+            port=args.port,
+            update_interval=args.update_interval,
+            debug=args.debug,
+            online=args.online,
         )
-        app.run()
 
 
 def gen_default_config():
@@ -305,32 +351,13 @@ def monitor_al_loop():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    print(
-        f"Running dashboard to monitor process: {args.process_id}."
-        f"Access: http://127.0.0.1:{args.port}."
+    run_dashboard_app(
+        process_id=args.process_id,
+        port=args.port,
+        update_interval=args.update_interval,
+        debug=args.debug,
+        online=args.online,
     )
-    print("Pres Ctrl+C to stop the dashboard.")
-    if args.debug:
-        app = run_training_dashboard(
-            workchain_node_id=args.process_id,
-            refresh_interval={args.update_interval},
-            port={args.port},
-        )
-        if args.online:
-            app.run(debug=True, port=args.port, host="0.0.0.0")
-        else:
-            app.run(debug=True, port=args.port, host="0.0.0.0")
-    else:
-        app = StandaloneApplication(
-            f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
-            f":run_training_dashboard(workchain_node_id={args.process_id}, "
-            f"refresh_interval={args.update_interval}, port={args.port})",
-        )
-        if args.online:
-            app.run(port=args.port, host="0.0.0.0")
-        else:
-            app.run(port=args.port)
-
 
 def parse_input_toml(toml_dict: dict, type: str):
     """
