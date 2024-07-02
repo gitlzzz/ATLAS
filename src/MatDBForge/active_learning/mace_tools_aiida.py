@@ -543,18 +543,11 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
             help="Number of OpenMP threads to use for the evaluation.",
             serializer=orm.to_aiida_type,
         )
-
         spec.input(
             "configurations_to_evaluate",
             valid_type=orm.SinglefileData,
-            # non_db=True,
             help="Path to the configurations to evaluate in extxyz format.",
         )
-        # spec.output(
-        #     "configuration_result_list",
-        #     valid_type=List,
-        #     help="List of dicts representation of the predicted configuration using MACE.",
-        # )
         spec.output(
             "energy_result_dict",
             valid_type=orm.Dict,
@@ -576,8 +569,6 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         """
         # Parsing mace settings dict
         params_list = []
-        # params_list.append("--model=current_mace_model.model")
-        # params_list.append("--output=results.out")
         params_list.append("--configs=configurations_to_evaluate.xyz")
 
         # Adding cli parameters to list

@@ -24,7 +24,7 @@ from aiida.orm import (
     load_node,
 )
 from aiida.plugins import CalculationFactory
-from ase import Atoms
+from ase import Atoms, geometry
 from ase.data import atomic_numbers, covalent_radii
 from ase.geometry.analysis import Analysis
 from ase.io import read as ase_read
@@ -33,6 +33,7 @@ from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.workflows import aiida_utils as mdb_aut
+from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 
 
@@ -126,6 +127,51 @@ def select_dft_structures(struct_arr, frame_interval):
     selected_high_error_idxs = np.array(selected_dft_structs_idxs)[selected_high_error]
 
     return selected_high_error_idxs
+
+
+def get_max_layer_distance(struct):
+    print('#@# struct: ', struct)
+    tags, levels = geometry.get_layers(
+        atoms=struct,
+        miller=(0, 0, 1),
+        tolerance=0.5,
+    )
+    print('#@# levels: ', levels)
+    layer_distances = []
+    for layer_index, layer_height in enumerate(levels[1:]):
+        layer_height_diff = layer_height - levels[layer_index]
+        layer_distances.append(layer_height_diff)
+
+    max_layer_distance = np.max(layer_distances)
+    return max_layer_distance
+
+
+def apply_layer_distance_filter(struct, max_layer_distance_ang):
+    """
+    Evaluates whether the layer distace is above max_layer_distance_ang.
+
+    Parameters
+    ----------
+    struct : ase.Atoms
+        Structure to check.
+    max_layer_distance_ang : float
+        Maximum distance between layers
+
+    Returns
+    -------
+    bool
+        Returns `True` if the layer distace is above max_layer_distance_ang, `False` if otherwise.
+    """
+    is_structure_wrong = False
+
+    if isinstance(struct, pmg_struct):
+        struct = AseAtomsAdaptor().get_atoms(structure=struct)
+
+    max_dist = get_max_layer_distance(struct)
+    if max_dist > max_layer_distance_ang:
+        is_structure_wrong = True
+
+    return is_structure_wrong
 
 
 def select_md_frames_to_keep(
@@ -243,8 +289,8 @@ def get_dft_calc_builder_mace(
 
 def get_dft_calc_builder_mace_list(
     struct_list: list,
-    row: int,
-    db_row_idx,
+    row,
+    db_row_idx: int,
     group,
     dft_settings: dict,
 ):
@@ -425,10 +471,14 @@ def load_mace_settings_json(
 
 @calcfunction
 def update_mace_train_settings_dict(
-    settings_dict: dict, train_data_path: str, curr_model: str, curr_iter: int
+    settings_dict: dict,
+    train_data_path: str,
+    curr_model: str,
+    curr_iter: int,
+    db_size: int,
 ):
     if isinstance(settings_dict, Dict):
-        settings_dict: Dict = settings_dict.get_dict()
+        settings_dict: dict = settings_dict.get_dict()
 
     # Update training file path in mace train settings
     # to include the new database.
@@ -441,6 +491,11 @@ def update_mace_train_settings_dict(
 
     # Updating name to include model and iteration number
     curr_name = settings_dict["name"]
+
+    # For very small datasets (testing), the batch size must be lower than the
+    # database size
+    if db_size < settings_dict["batch_size"]:
+        settings_dict["batch_size"] = db_size // 2
 
     if isinstance(curr_model, Str):
         curr_model = curr_model.value
@@ -634,7 +689,7 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
                 "struct_name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
                 "aiida_uuid": calc_node.extras["mdb_calc_uuid"],
                 "mdb_struct_type": calc_node.extras["mdb_struct_type"],
-                "mdb_md_node": calc_node.uuid,
+                # "mdb_md_node": calc_node.uuid,
             }
 
             for key, val in calc_info_dict.items():
@@ -656,20 +711,30 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
             min_dists = []
 
             symbols = set(struct.get_chemical_symbols())
+            print("symbols: ", symbols)
 
             struct_ana = Analysis(struct)
             struct_ana.clear_cache()
 
             # Checking all bond distances for all bond types
             for at_A, at_B in it.combinations_with_replacement(symbols, 2):
+                print("at_A: ", at_A, "at_B", at_B)
                 # Getting covalent radii from ase.data
                 R_atA = covalent_radii[atomic_numbers[at_A]]
                 R_atB = covalent_radii[atomic_numbers[at_B]]
 
-                # Getting bond distances. This will consider pbc.
-                vals = struct_ana.get_values(
-                    struct_ana.get_bonds(at_A, at_B, unique=True)
-                )
+                try:
+                    # Getting bond distances. This will consider pbc.
+                    vals = struct_ana.get_values(
+                        struct_ana.get_bonds(at_A, at_B, unique=True)
+                    )
+                except IndexError:
+                    # If there is only one atom of a type (X), there are no
+                    # distances for atoms of this type (X-X), and therefore
+                    # the bond distance calculation must be skipped for the
+                    # current atom pair (X-X).
+                    continue
+
                 min_bond_length = np.min(vals[0])
                 min_dists.append(min_bond_length)
 
@@ -706,10 +771,10 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
     ase_write(filename=results_file_path, images=result_list)
 
     # DEBUG: Remove after checking outliers
-    # if outlier_list:
-    #     outliers_file_path = results_dir / "outliers.extxyz"
-    #     print("#@# outliers_file_path: ", outliers_file_path)
-    #     ase_write(filename=outliers_file_path, images=outlier_list)
+    if outlier_list:
+        outliers_file_path = results_dir / "outliers.extxyz"
+        print("#@# outliers_file_path: ", outliers_file_path)
+        ase_write(filename=outliers_file_path, images=outlier_list)
 
     # Return the path to the temporary file
     return Str(str(results_file_path))

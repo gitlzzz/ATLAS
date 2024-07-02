@@ -3,7 +3,6 @@
 import io
 import os
 import pickle
-import re
 import shutil
 import time
 from contextlib import redirect_stdout
@@ -12,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pymatgen.io.ase as pmg_ase
-import torch
+from aiida import orm
 from aiida.engine import (
     BaseRestartWorkChain,
     WorkChain,
@@ -20,30 +19,10 @@ from aiida.engine import (
     if_,
     while_,
 )
-from aiida.orm import (
-    Bool,
-    CalcJobNode,
-    Dict,
-    Float,
-    FolderData,
-    Group,
-    Int,
-    List,
-    PortableCode,
-    SinglefileData,
-    Str,
-    load_code,
-    load_computer,
-    load_group,
-    load_node,
-    to_aiida_type,
-)
 from aiida.plugins import CalculationFactory
 from ase import Atoms
 from ase.io import read as ase_read
 from ase.io import write as ase_write
-from mace import data as mace_data
-from mace import tools as mace_tools
 from pymatgen.core import Structure
 from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
@@ -66,53 +45,84 @@ class ActiveLearningWorkChain(WorkChain):
         """Specify inputs and outputs."""
         super().define(spec)
 
-        spec.input("init_db_path", valid_type=Str, serializer=to_aiida_type)
-        spec.input("final_db_name", valid_type=Str, serializer=to_aiida_type)
-        spec.input("run_name", valid_type=Str, serializer=to_aiida_type)
-        spec.input("data_path", valid_type=Str, serializer=to_aiida_type)
-        spec.input("results_dir", valid_type=Str, serializer=to_aiida_type)
-        spec.input("al_loop_iteration", valid_type=Int, serializer=to_aiida_type)
-        spec.input("seed_size_frac", valid_type=Float, serializer=to_aiida_type)
-        spec.input("seed_select_settings", valid_type=Dict, serializer=to_aiida_type)
-        spec.input("seed_size", valid_type=Int, serializer=to_aiida_type)
-        spec.input("committee_num_models", valid_type=Int, serializer=to_aiida_type)
-        spec.input("model_acc_multiplier", valid_type=Float, serializer=to_aiida_type)
-        spec.input("md_temperature_list_K", valid_type=List, serializer=to_aiida_type)
-        spec.input("md_num_steps", valid_type=Int, serializer=to_aiida_type)
-        spec.input("md_max_temp_multiplier", valid_type=Float, serializer=to_aiida_type)
+        spec.input("init_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("final_db_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("run_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("data_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("results_dir", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "md_timestep_duration_ps", valid_type=Float, serializer=to_aiida_type
+            "al_loop_iteration", valid_type=orm.Int, serializer=orm.to_aiida_type
+        )
+        spec.input("seed_size_frac", valid_type=orm.Float, serializer=orm.to_aiida_type)
+        spec.input(
+            "seed_max_num_structs", valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "al_keep_struct_every_n_ps", valid_type=Float, serializer=to_aiida_type
+            "seed_select_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
         )
         spec.input(
-            "current_md_seed_structs_path", valid_type=Str, serializer=to_aiida_type
+            "committee_num_models", valid_type=orm.Int, serializer=orm.to_aiida_type
         )
-        spec.input("seed_db_path", valid_type=Str, serializer=to_aiida_type)
-        spec.input("training_db_path", valid_type=Str, serializer=to_aiida_type)
+        spec.input(
+            "model_acc_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
+        )
+        spec.input(
+            "md_temperature_list_K", valid_type=orm.List, serializer=orm.to_aiida_type
+        )
+        spec.input("md_num_steps", valid_type=orm.Int, serializer=orm.to_aiida_type)
+        spec.input(
+            "md_max_temp_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
+        )
+        spec.input(
+            "md_filters",
+            valid_type=(orm.Dict, None),
+            serializer=orm.to_aiida_type,
+            required=False,
+        )
+        spec.input(
+            "md_timestep_duration_ps",
+            valid_type=orm.Float,
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "al_keep_struct_every_n_ps",
+            valid_type=orm.Float,
+            serializer=orm.to_aiida_type,
+        )
+
+        spec.input(
+            "current_md_seed_structs_path",
+            valid_type=orm.Str,
+            serializer=orm.to_aiida_type,
+        )
+        spec.input("seed_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("training_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             "current_md_seed_structs_idx",
-            valid_type=List,
-            serializer=to_aiida_type,
+            valid_type=orm.List,
+            serializer=orm.to_aiida_type,
         )
         spec.input(
             "train_seed_group",
-            valid_type=Str,
-            serializer=to_aiida_type,
+            valid_type=orm.Str,
+            serializer=orm.to_aiida_type,
         )
         spec.input(
             "mace_train",
-            valid_type=Dict,
-            serializer=to_aiida_type,
+            valid_type=orm.Dict,
+            serializer=orm.to_aiida_type,
         )
-        spec.input("lammps_mace", valid_type=Dict)
-        spec.input("dft_method", valid_type=Str, serializer=to_aiida_type)
-        spec.input("dft_settings", valid_type=Dict)
-        spec.input("committee_eval", valid_type=Dict, serializer=to_aiida_type)
-        spec.input("check_extrapolation", valid_type=Bool, serializer=to_aiida_type)
-        spec.input("gather_traj_cnt_lattice", valid_type=Bool, serializer=to_aiida_type)
-        spec.input("use_kokkos", valid_type=Bool, serializer=to_aiida_type)
+        spec.input("lammps_mace", valid_type=orm.Dict)
+        spec.input("dft_method", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("dft_settings", valid_type=orm.Dict)
+        spec.input("committee_eval", valid_type=orm.Dict, serializer=orm.to_aiida_type)
+        spec.input(
+            "check_extrapolation", valid_type=orm.Bool, serializer=orm.to_aiida_type
+        )
+        spec.input(
+            "gather_traj_cnt_lattice", valid_type=orm.Bool, serializer=orm.to_aiida_type
+        )
+        spec.input("use_kokkos", valid_type=orm.Bool, serializer=orm.to_aiida_type)
 
         spec.outline(
             # Training the main mace model (M0) and the committee models
@@ -150,9 +160,9 @@ class ActiveLearningWorkChain(WorkChain):
             # do not change seed until the error is decreased
             # cls.choose_next_seed,
         )
-        spec.output("dft_calcs_path", valid_type=Str, required=False)
-        spec.output("m0_model_file", valid_type=SinglefileData)
-        spec.output("stop_md_seed_no_disagreement", valid_type=Bool)
+        spec.output("dft_calcs_path", valid_type=orm.Str, required=False)
+        spec.output("m0_model_file", valid_type=orm.SinglefileData)
+        spec.output("stop_md_seed_no_disagreement", valid_type=orm.Bool)
 
         spec.exit_code(
             420, "ERROR_SCHEDULER_MACE", "error when submitting a MACE calculation."
@@ -182,7 +192,7 @@ class ActiveLearningWorkChain(WorkChain):
         updated_path, _ = mdb_al_ut.get_final_db_path(
             result_dir_path=self.inputs.results_dir.value,
             final_db_name=self.inputs.final_db_name.value,
-            node=mdb_al_ut.process_call_root(load_node(self.uuid)),
+            node=mdb_al_ut.process_call_root(orm.load_node(self.uuid)),
         )
 
         database_training = mdb_al_ut.load_database(self.inputs.training_db_path.value)
@@ -206,11 +216,12 @@ class ActiveLearningWorkChain(WorkChain):
             model_name = mdb_al_ut.generate_model_name()
 
             # Load training settings from inputs and update path and model names.
-            mace_train_settings: Dict = mdb_al_ut.update_mace_train_settings_dict(
+            mace_train_settings: orm.Dict = mdb_al_ut.update_mace_train_settings_dict(
                 settings_dict=self.inputs.mace_train.get("train_settings"),
                 train_data_path=str(updated_path),
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
+                db_size=len(database_training),
             )
 
             # Run training and save new model file
@@ -218,7 +229,7 @@ class ActiveLearningWorkChain(WorkChain):
             mace_builder = mace_train.get_builder()
 
             mace_builder.model_name = model_name
-            mace_builder.mace_settings_dict = Dict(mace_train_settings)
+            mace_builder.mace_settings_dict = orm.Dict(mace_train_settings)
 
             mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
                 result_dir_path=self.inputs.results_dir.value,
@@ -227,11 +238,11 @@ class ActiveLearningWorkChain(WorkChain):
             )
             mace_builder.mace_train_file_path = str(mace_train_file_path)
 
-            mace_builder.code = load_code(self.inputs.mace_train.dict.code)
+            mace_builder.code = orm.load_code(self.inputs.mace_train.get_dict()["code"])
             mace_builder.metadata.options.withmpi = True
-            mace_builder.metadata.options = self.inputs.mace_train.dict.metadata.get(
-                "options"
-            )
+            mace_builder.metadata.options = self.inputs.mace_train.get_dict()[
+                "metadata"
+            ].get("options")
             mace_builder.metadata.options.output_filename = (
                 f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
             )
@@ -266,7 +277,7 @@ class ActiveLearningWorkChain(WorkChain):
         # Iterate over all models and get weighted sum of E and F
         for calc in mace_training_results:
             # Loading calculation node
-            curr_calc: CalcJobNode = load_node(calc.uuid)
+            curr_calc: orm.CalcJobNode = orm.load_node(calc.uuid)
 
             # Skipping model if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
@@ -293,7 +304,7 @@ class ActiveLearningWorkChain(WorkChain):
         commitee_models_tupl_name_uuid = []
         for calc in mace_training_results:
             # Loading calculation node
-            curr_calc: CalcJobNode = load_node(calc.uuid)
+            curr_calc: orm.CalcJobNode = orm.load_node(calc.uuid)
 
             # Skipping model if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
@@ -349,7 +360,7 @@ class ActiveLearningWorkChain(WorkChain):
 
         # for _, calc in enumerate(self.ctx.mace_training_results):
         #     # Loading calculation node
-        #     curr_calc = load_node(calc.uuid)
+        #     curr_calc = orm.load_node(calc.uuid)
 
         #     # Getting model name
         #     model_name = curr_calc.inputs.model_name.value
@@ -374,7 +385,7 @@ class ActiveLearningWorkChain(WorkChain):
         )
         mace_builder.mace_train_file_path = str(mace_train_file_path)
         descriptor_code_path = Path(f"{MDB_ROOT_DIR}/active_learning/mace_code")
-        code = PortableCode(
+        code = orm.PortableCode(
             label="mace_get_descriptors",
             filepath_files=descriptor_code_path,
             filepath_executable="./mace_get_descriptors.py",
@@ -411,8 +422,8 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
             "withmpi": False,
         }
         mace_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
-        # mace_builder.metadata.computer = load_computer("tekla2-new-test")
-        mace_builder.metadata.computer = load_computer("mn5-new")
+        # mace_builder.metadata.computer = orm.load_computer("tekla2-new-test")
+        mace_builder.metadata.computer = orm.load_computer("mn5-new")
 
         mace_builder.metadata.options.output_filename = (
             f"descriptors_{self.ctx.best_model_name}_"
@@ -426,7 +437,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
         mace_descriptor_results = self.ctx.mace_descriptor_results
         for calc in mace_descriptor_results:
             # Loading calculation node
-            curr_calc = load_node(calc.uuid)
+            curr_calc = orm.load_node(calc.uuid)
 
             # Storing results in context
             self.ctx.descriptors_min_array = (
@@ -559,25 +570,25 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
         -----
         - This function assumes the availability of a trained MACE-LAMMPS potential file within
         the workflow's context.
-        - Submitted calculation jobs are added to an AiiDA group for organization and
+        - Submitted calculation jobs are added to an AiiDA orm.Group for organization and
         are tagged with additional information to link them back to their respective
         positions in the database.
         """
         self.report("Running MD (using M0) for all structures in the current seed...")
 
-        # Creating a list in the context to store the nodes
+        # Creating a orm.List in the context to store the nodes
         self.ctx.current_train_seed = []
 
         # this string with the label used in the code setup.
-        # code = load_code("mace-lammps@localhost-mpirun.mpich")
-        # code = load_code("mace-lammps-gpu@tekla2-updated-2024")
+        # code = orm.load_code("mace-lammps@localhost-mpirun.mpich")
+        # code = orm.load_code("mace-lammps-gpu@tekla2-updated-2024")
         code_str = self.inputs.lammps_mace.get("code")
         if self.inputs.use_kokkos:
             builder = CalculationFactory("mace-lammps-gpu-md").get_builder()
         else:
             builder = CalculationFactory("lammps.raw").get_builder()
 
-        builder.code = load_code(code_str)
+        builder.code = orm.load_code(code_str)
 
         # Getting the lammps potential file in a temporary folder
         with self.ctx.lammps_potential_file.as_path() as lmp_pot_path:
@@ -597,13 +608,13 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                 ],
             }
 
-            builder.settings = Dict(builder_settings)
+            builder.settings = orm.Dict(builder_settings)
 
             with open(self.inputs.current_md_seed_structs_path.value, "rb") as f:
                 current_md_seed_structs = pickle.load(f)
 
             for idx, curr_structure in enumerate(current_md_seed_structs):
-                # Structures are stored as a dict in order to be json-serializable
+                # Structures are stored as a orm.Dict in order to be json-serializable
                 for key in ["pbc", "cell", "numbers", "positions", "forces"]:
                     curr_structure[key] = np.array(curr_structure[key])
 
@@ -623,14 +634,14 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                         current_temp=temp_val,
                     )
 
-                    script = SinglefileData(io.StringIO(curr_input))
+                    script = orm.SinglefileData(io.StringIO(curr_input))
                     builder.script = script
 
                     lammps_struct_str = LammpsData.from_structure(
                         curr_structure, atom_style="atomic"
                     ).get_str()
 
-                    data = SinglefileData(io.StringIO(lammps_struct_str))
+                    data = orm.SinglefileData(io.StringIO(lammps_struct_str))
                     builder.files = {
                         "data": data,
                         "mace_potential": self.ctx.lammps_potential_file,
@@ -652,9 +663,9 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                     # Submitting current calculation
                     future = self.submit(builder)
 
-                    # Add calculation to the workchain's aiida group.
+                    # Add calculation to the workchain's aiida orm.Group.
                     self.ctx.current_train_seed.append(future)
-                    curr_group = load_group(uuid=self.inputs.train_seed_group.value)
+                    curr_group = orm.load_group(uuid=self.inputs.train_seed_group.value)
                     curr_group.add_nodes(future)
 
                     # Writing extra information that helps associating the calculation
@@ -702,6 +713,28 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                 forces=forces,
             )
 
+            if self.inputs.md_filters and "layer_distance" in self.inputs.md_filters:
+                max_dist = self.inputs.md_filters["layer_distance"][
+                    "max_layer_distance_ang"
+                ]
+                structure_wrong_list = []
+                for frame in traj:
+                    is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
+                        struct=frame, max_layer_distance_ang=max_dist
+                    )
+                    structure_wrong_list.append(is_structure_wrong)
+
+            # Remove wrong frames from the trajectory
+            if any(structure_wrong_list):
+                self.report(
+                    f"Removing {len(np.nonzero(structure_wrong_list))} wrong structures"
+                )
+                traj = [
+                    traj[i]
+                    for i, is_wrong in enumerate(structure_wrong_list)
+                    if not is_wrong
+                ]
+
             new_rows.append(
                 {
                     "trajectory": traj,
@@ -712,6 +745,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                     "mdb_struct_type": workchain.base.extras.all["mdb_struct_type"],
                     "material_name": workchain.base.extras.all["struct_name"],
                     "unique_id": workchain.base.extras.all["aiida_uuid"],
+                    "mdb_md_node": str(workchain.uuid),
                     "md_temperature": workchain.base.extras.all["md_temperature"],
                     "extrapolation": np.nan,
                 }
@@ -719,6 +753,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
 
         # Creating a DataFrame with all the results
         md_seed_results_df = pd.DataFrame(new_rows)
+        print("md_seed_results_df: ", md_seed_results_df)
 
         self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
             result_dir_path=self.inputs.results_dir.value, node=self.node
@@ -728,7 +763,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
             f"{self.ctx.results_dir}/run_tmp_data/md_seed_results_df_step-"
             f"{self.inputs.al_loop_iteration.value}.pkl"
         )
-        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
+        md_seed_results_df.to_pickle(path=str(self.ctx.md_seed_results_df_path))
 
     def gather_energies_from_workchain(self, workchain_results):
         """
@@ -809,20 +844,22 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
         step_E_F_arr = np.stack((step_array, energy_array, force_array), axis=1)
         return step_E_F_arr
 
-    def gather_traj_from_workchain(self, workchain_results: FolderData) -> Trajectory:
+    def gather_traj_from_workchain(
+        self, workchain_results: orm.FolderData
+    ) -> Trajectory:
         """
         Extracts trajectory data from a `LammpsRawCalculation` as pymatgen Trajectory.
 
         This function parses `structure.lammpstrj` from the given workchain
-        results to extract atomic coordinates and lattice information.
+        results using ase.
         It then constructs a sequence of pymatgen Structure objects
         representing each frame of the trajectory which are combined
         into a pymatgen Trajectory object.
 
         Parameters
         ----------
-        workchain_results : FolderData
-            A FolderData containing the results of a workchain, expected to have
+        workchain_results : orm.FolderData
+            A orm.FolderData containing the results of a workchain, expected to have
             a method `get_object_content` to retrieve the contents of `structure.lammpstrj`.
 
         Returns
@@ -837,200 +874,33 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
         -----
         The user can change the `gather_traj_cnt_lattice` input to True/False to
         select if the lattice changes during the simulation.
-        The function extracts the num of atoms and frames from the traj file.
-        The step duration is `self.inputs.md_timestep_duration_ps.value`
         """
-        # Get trajectory file from aiida repo node
-        traj_data = workchain_results.get_object_content("structure.lammpstrj")
-
-        # Separate the file the file into lines
-        lines = traj_data.splitlines()
-
-        # Typical LAMMPS structure header size
-        offset = 9
-
-        # Get the number of atoms
-        num_atoms_list = re.findall(
-            r"ITEM: NUMBER OF ATOMS\s\d*",
-            string=traj_data,
-        )
-        num_atoms = int(num_atoms_list[0].split("\n")[1])
-
-        # Get the total number of frames
-        num_frames_list = re.findall(r"ITEM: TIMESTEP\s\d*", string=traj_data)
-        num_frames = int(num_frames_list[-1].split("\n")[1])
-
-        # assembling a pymatgen structure
-        struct_list = []
-        forces_list = []
-        line_posc = 0
-        for curr_struct in range(0, num_frames + 1):
-            line_posc_ini = line_posc
-            line_posc += num_atoms + offset
-            curr_struct_list = lines[line_posc_ini:line_posc]
-            curr_struct_info = np.array([line.split() for line in curr_struct_list[9:]])
-
-            curr_struct_coords = curr_struct_info[:, :5]
-
-            # This will skip the current structure if the number of atoms is
-            # different than expected.
-            # This situation may arise when the potential is not good
-            # enough and results in very high forces applied to the structure,
-            # sending some atoms outside of the cell.
-            if curr_struct_coords.shape[0] != num_atoms:
-                continue
-
-            curr_struct_forces = curr_struct_info[:, 5:].astype(np.float32)
-
-            # Lammps box bounds snapshot format
-            # xlo_bound xhi_bound xy
-            # ylo_bound yhi_bound xz
-            # zlo_bound zhi_bound yz
-            lattice = np.zeros([3, 3])
-            lattice_vals = np.array(
-                [[vec.split()[1]] for vec in lines[5:8]], dtype=float
-            )
-            cnt = 0
-            for posc, row in enumerate(lattice):
-                row[cnt] = lattice_vals[posc]
-                cnt += 1
-
-            species = curr_struct_coords[:, 1]
-            coord_array = curr_struct_coords[:, 2:5].astype(np.float32)
-
-            curr_struct = Structure(
-                lattice=lattice,
-                species=species,
-                coords=coord_array,
-                coords_are_cartesian=True,
-            )
-            struct_list.append(curr_struct)
-            forces_list.append(curr_struct_forces)
-
         # This flag selects if a constant lattice volume is assumed
         # for all frames.
-        cnt_lat_setting = self.inputs.get(
-            "gather_traj_cnt_lattice",
-            True,
-        )
-        if isinstance(cnt_lat_setting, Bool):
-            cnt_lat_setting = cnt_lat_setting.value
+        cnt_lat_setting = True
+
+        # Get trajectory file from aiida repo node and
+        # parse it file using ase
+        with workchain_results.as_path() as results_path:
+            ase_traj = ase_read(
+                filename=Path(results_path) / "structure.lammpstrj",
+                format="lammps-dump-text",
+                index=":",
+            )
+
+        # Gather the forces
+        forces_list = [atm.get_forces() for atm in ase_traj]
+
+        # Convert ase atoms to pymatgen structures
+        struct_list = [AseAtomsAdaptor().get_structure(atm) for atm in ase_traj]
 
         traj = Trajectory.from_structures(
             struct_list,
             constant_lattice=cnt_lat_setting,
-            time_step=self.inputs.md_timestep_duration_ps.value,
+            time_step=0.003,
         )
 
         return traj, np.array(forces_list)
-
-    # TODO: Implement a CalcJob for this?
-    def check_commitee_results(self):
-        self.report("Evaluating trajectories with models...")
-
-        # Reading md seed results DataFrame
-        md_seed_results_df: pd.DataFrame = pd.read_pickle(
-            self.ctx.md_seed_results_df_path
-        )
-
-        for row in md_seed_results_df.iterrows():
-            # self.report(f"Checking struct {row[0]} results with all models...")
-            curr_traj = row[1]["trajectory"]
-
-            # Working with all models
-            for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
-                with load_node(model).as_path() as model_path:
-                    # Getting device type from inputs. If not set, CPU will be used as a
-                    # fallback.
-                    device_type = self.inputs.committee_eval.get_dict().get(
-                        "device", "cpu"
-                    )
-                    device = mace_tools.torch_tools.init_device(device_type)
-
-                    # Setting dtype. float32 will be set as default.
-                    dtype = self.inputs.committee_eval.get_dict().get(
-                        "dtype", "float32"
-                    )
-                    mace_tools.torch_tools.set_default_dtype(dtype)
-
-                    # Load MACE model
-                    model = torch.load(f=model_path, map_location=device_type)
-                    model = model.to(device_type)
-
-                    for param in model.parameters():
-                        param.requires_grad = False
-
-                    # Load data and prepare input
-                    atoms_list = [
-                        AseAtomsAdaptor().get_atoms(pym_struct)
-                        for pym_struct in curr_traj
-                    ]
-
-                    configs = [
-                        mace_data.config_from_atoms(atoms) for atoms in atoms_list
-                    ]
-
-                    z_table = mace_tools.utils.AtomicNumberTable(
-                        [int(z) for z in model.atomic_numbers]
-                    )
-
-                    batch_size = self.inputs.committee_eval.get_dict().get(
-                        "batch_size", 64
-                    )
-                    data_loader = mace_tools.torch_geometric.dataloader.DataLoader(
-                        dataset=[
-                            mace_data.AtomicData.from_config(
-                                config, z_table=z_table, cutoff=float(model.r_max)
-                            )
-                            for config in configs
-                        ],
-                        batch_size=batch_size,
-                        shuffle=False,
-                        drop_last=False,
-                    )
-
-                    # Collect data
-                    energies_list = []
-                    forces_collection = []
-
-                    compute_stress = self.inputs.committee_eval.get_dict().get(
-                        "compute_stress", True
-                    )
-                    for batch in data_loader:
-                        batch = batch.to(device)
-                        output = model(batch.to_dict(), compute_stress=compute_stress)
-                        energies_list.append(
-                            mace_tools.torch_tools.to_numpy(output["energy"])
-                        )
-
-                        forces = np.split(
-                            mace_tools.torch_tools.to_numpy(output["forces"]),
-                            indices_or_sections=batch.ptr[1:],
-                            axis=0,
-                        )
-                        forces_collection.append(forces[:-1])  # drop last as its empty
-
-                    energies = np.concatenate(energies_list, axis=0)
-                    forces_list = [
-                        forces
-                        for forces_list in forces_collection
-                        for forces in forces_list
-                    ]
-                    assert len(atoms_list) == len(energies) == len(forces_list)
-
-                    updated_ene_dict = row[1]["energy"]
-                    updated_ene_dict.update({model_name: energies})
-                    md_seed_results_df.at[row[0], "energy"] = updated_ene_dict
-                    # TODO: Check if this is the proper way of gathering the forces
-                    # forces_list = np.array(forces_list)
-                    # forces_norm = np.linalg.norm(forces_list, axis=2)
-                    # total_force_norm_per_frame = forces_norm.sum(axis=1)
-
-                    md_seed_results_df.at[row[0], "forces"][model_name] = (
-                        forces_list  # total_force_norm_per_frame
-                    )
-
-        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
 
     def check_committee_results_calcjob(self):
         self.report("Evaluating trajectories with committee models...")
@@ -1042,9 +912,9 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
             # Only alphanumeric and underscores are allowed as links
             model_name = model_name.replace("-", "_")
 
-            model = load_node(model)
-            if not isinstance(model, SinglefileData):
-                commitee_dict[model_name] = SinglefileData(model)
+            model = orm.load_node(model)
+            if not isinstance(model, orm.SinglefileData):
+                commitee_dict[model_name] = orm.SinglefileData(model)
             else:
                 commitee_dict[model_name] = model
 
@@ -1090,7 +960,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
             xyz_string = f.getvalue()
 
             # Generating tmp file
-            md_xyz_file = SinglefileData(
+            md_xyz_file = orm.SinglefileData(
                 file=io.BytesIO(str.encode(xyz_string)),
                 filename="md_db.xyz",
             )
@@ -1102,13 +972,15 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
             mace_builder.num_threads = int(self.inputs.committee_eval["openmp_threads"])
 
             # Gather mace evaluation settings
-            mace_builder.mace_settings_dict = Dict(self.inputs.committee_eval["mace"])
+            mace_builder.mace_settings_dict = orm.Dict(
+                self.inputs.committee_eval["mace"]
+            )
 
             # Get portable code
             descriptor_code_path = Path(
                 f"{MDB_ROOT_DIR}/active_learning/mace_code/committee"
             )
-            portable_code = PortableCode(
+            portable_code = orm.PortableCode(
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
                 filepath_executable="./run_mdb_mace_eval_committee.sh",
@@ -1123,7 +995,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             mace_eval_aiida_settings_dict = self.inputs.committee_eval["metadata"][
                 "options"
             ]
-            mace_builder.metadata.computer = load_computer(
+            mace_builder.metadata.computer = orm.load_computer(
                 mace_eval_aiida_settings_dict["computer"]
             )
             mace_eval_aiida_settings_dict.pop("computer", None)
@@ -1223,7 +1095,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             xyz_string = f.getvalue()
 
             # Generating tmp file
-            md_xyz_file = SinglefileData(
+            md_xyz_file = orm.SinglefileData(
                 file=io.BytesIO(str.encode(xyz_string)),
                 filename="md_db.xyz",
             )
@@ -1234,7 +1106,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             mace_builder.model_file = self.ctx.best_model_file
             mace_builder.mace_train_file_path = md_xyz_file
             descriptor_code_path = Path(f"{MDB_ROOT_DIR}/active_learning/mace_code")
-            code = PortableCode(
+            code = orm.PortableCode(
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
                 filepath_executable="./mace_get_descriptors.py",
@@ -1246,8 +1118,8 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             mace_builder.code = code
 
             # TODO: Add to TOML
-            # mace_builder.metadata.computer = load_computer("tekla2-new-test")
-            mace_builder.metadata.computer = load_computer("mn5-new")
+            # mace_builder.metadata.computer = orm.load_computer("tekla2-new-test")
+            mace_builder.metadata.computer = orm.load_computer("mn5-new")
             mace_builder.metadata.options = {
                 "resources": {
                     # "parallel_env": "c128m1024ib_mpi_32slots",
@@ -1306,7 +1178,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
         if self.inputs.check_extrapolation:
             for curr_calc in self.ctx.md_descriptor_results:
                 # Loading calculation node
-                # curr_calc = load_node(calc.uuid)
+                # curr_calc = orm.load_node(calc.uuid)
 
                 # Ignore failed calculations
                 if not curr_calc.is_finished_ok:
@@ -1407,7 +1279,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
             flag_no_error_structs = np.all(error_all_structures == 0)
 
             # The index of the structure to delete will
-            # be added to a list, which will be used as a mask to select
+            # be added to a lList, which will be used as a mask to select
             # which structures to remove outside of the loop.
             if flag_no_error_structs:
                 delete_indices.append(row["unique_id"])
@@ -1453,7 +1325,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
                         self.to_context(dft_struct_seed_calcs=append_(future))
 
                         if self.inputs.train_seed_group.value:
-                            group = load_group(self.inputs.train_seed_group.value)
+                            group = orm.load_group(self.inputs.train_seed_group.value)
                             group.add_nodes(future)
 
                     elif self.inputs.dft_method == "mace":
@@ -1479,7 +1351,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
                     self.to_context(dft_struct_seed_calcs=append_(future))
 
                     if self.inputs.train_seed_group.value:
-                        group = load_group(self.inputs.train_seed_group.value)
+                        group = orm.load_group(self.inputs.train_seed_group.value)
                         group.add_nodes(future)
 
         self.report(
@@ -1523,7 +1395,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
                 )
 
             except AttributeError:
-                return_list = List([])
+                return_list = orm.List([])
 
         elif self.inputs.dft_method == "mace":
             try:
@@ -1549,7 +1421,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
         if return_list_path:
             self.out("dft_calcs_path", return_list_path)
 
-        # SinglefileData for the MACE model with the best performance
+        # orm.SinglefileData for the MACE model with the best performance
         self.out("m0_model_file", self.ctx.best_model_file)
 
         self.out(
@@ -1611,9 +1483,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         spec.output(
             "final_training_db",
-            valid_type=SinglefileData,
+            valid_type=orm.SinglefileData,
         )
-        spec.output("final_model_file", valid_type=SinglefileData)
+        spec.output("final_model_file", valid_type=orm.SinglefileData)
 
     def get_database(self):
         """Loading initial database."""
@@ -1761,12 +1633,12 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Sending empty seed_gen_db flag to context
         seed_gen_db = mdb_al_ut.load_database(self.ctx.inputs.seed_db_path)
         if len(seed_gen_db) == 0:
-            self.ctx.seed_gen_db_all_structs_removed = Bool(True)
+            self.ctx.seed_gen_db_all_structs_removed = orm.Bool(True)
         else:
-            self.ctx.seed_gen_db_all_structs_removed = Bool(False)
+            self.ctx.seed_gen_db_all_structs_removed = orm.Bool(False)
 
     def setup(self):
-        """Call BaseRestartWorkChain setup and create inputs dict in self.ctx.inputs.
+        """Call BaseRestartWorkChain setup and create input dict in self.ctx.inputs.
 
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.
@@ -1778,9 +1650,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             ActiveLearningWorkChain, "active_learning"
         )
 
-        # Creating aiida group to store all calculations
+        # Creating aiida orm.Group to store all calculations
         ctime = time.strftime("%Y%m%dT%H%M%S")
-        seed_group = Group(
+        seed_group = orm.Group(
             label=f"{self.inputs.active_learning.run_name}_train_md_seed_{ctime}"
         )
         seed_group.store()
@@ -1790,13 +1662,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Providing current iteration to children workchain.
         self.ctx.inputs.al_loop_iteration = self.ctx.iteration
 
-        # Providing constant md seed length
-        self.ctx.inputs.seed_size = int(self.ctx.seed_size)
-
         # Setting conditionals to always run the first iteration of the
         # active learning loop.
-        self.ctx.stop_md_seed_no_disagreement = Bool(False)
-        self.ctx.seed_gen_db_all_structs_removed = Bool(False)
+        self.ctx.stop_md_seed_no_disagreement = orm.Bool(False)
+        self.ctx.seed_gen_db_all_structs_removed = orm.Bool(False)
 
         # Adding database paths to inputs
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
@@ -1819,7 +1688,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         Returns
         -------
-        bool
+        orm.Bool
             A boolean value indicating whether the AL loop should continue. Returns
             `True` if conditions are met for another iteration; otherwise,
             returns `False`.
@@ -1914,8 +1783,13 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Getting length of the seed generating database
         db_length = len(seed_gen_db)
 
-        # Defining the current seed size as a function of the intial seed size
-        seed_size = self.ctx.inputs.seed_size
+        # Defining the current seed size as a function of the amount of structures
+        # in the seed generation database
+        seed_size = int(self.ctx.inputs.seed_size_frac.value * db_length)
+
+        # Limit the maximum number of structures to the seed size limit set on the input
+        if seed_size > self.ctx.inputs.seed_max_num_structs.value:
+            seed_size = int(self.ctx.inputs.seed_max_num_structs.value)
 
         # This should avoid tring to select more structures than available
         if seed_size > db_length:
@@ -1986,14 +1860,14 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """
         self.report("Returning final results...")
 
-        # Storing final database as a SingleFileData object
+        # Storing final database as a orm.SinglefileData object
         train_db = mdb_al_ut.prepare_output_final_training_db(
             training_db_path=self.ctx.inputs.training_db_path
         )
 
         self.out("final_training_db", train_db)
 
-        # Returning final model as SingleFileData object
+        # Returning final model as orm.SinglefileData object
         final_model_singlefile = self.ctx.last_workchain_completed.outputs[
             "m0_model_file"
         ]

@@ -209,6 +209,31 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
 
     @app.route("/results")
     def results_dashboard():
-        return render_template("results_dashboard.html")
+        # return render_template("results_dashboard.html")
+
+        # REMOVE
+        (
+            model_stats,
+            report,
+            iter_text,
+            progbar_class_name,
+            max_iters,
+            curr_iter,
+            subprocess_list,
+        ) = gather_information(workchain_node_id)
+        return render_template(
+            "results_dashboard.html",
+            refresh_interval=refresh_interval,
+            update_time=time.strftime("%H:%M:%S"),
+            workchain_node_id=workchain_node_id,
+            model_stats=model_stats,
+            report=report,
+            iter_text=iter_text,
+            max_iters=max_iters,
+            curr_iter=curr_iter,
+            progbar_class_name=progbar_class_name,
+            subprocess_list=subprocess_list,
+        )
+
 
     return app

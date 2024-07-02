@@ -62,11 +62,11 @@ def run_dashboard_app(process_id, port, update_interval, debug, online):
             f"refresh_interval={update_interval}, port={port})",
         )
         if online:
-            app.options['bind'] = f"0.0.0.0:{port}"
+            app.options["bind"] = f"0.0.0.0:{port}"
             app.load_config()
             app.run()
         else:
-            app.options['bind'] = f"127.0.0.1:{port}"
+            app.options["bind"] = f"127.0.0.1:{port}"
             app.load_config()
             app.run()
 
@@ -90,7 +90,7 @@ def create_active_learning_builder(toml_dict: dict):
     al_calculation = WorkflowFactory("mdb-active-learning-base")
     builder = al_calculation.get_builder()
 
-    # General AL settings
+    ## General AL settings
     al_conf = toml_dict["active_learning"]
     builder.active_learning.run_name = al_conf["run_name"]
     builder.active_learning.data_path = al_conf["data_path"]
@@ -100,10 +100,14 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
     builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
 
-    # AL seed settings
+    ## AL seed settings
     builder.active_learning.seed_size_frac = float(
         toml_dict["al_seed"]["seed_size_frac"]
     )
+    builder.active_learning.seed_max_num_structs = int(
+        toml_dict["al_seed"]["seed_max_num_structs"]
+    )
+
     builder.active_learning.seed_select_settings = toml_dict["al_seed"][
         "seed_select_settings"
     ]
@@ -118,7 +122,7 @@ def create_active_learning_builder(toml_dict: dict):
         al_conf["al_keep_struct_every_n_ps"]
     )
 
-    # MD settings
+    ## MD settings
     md_params = toml_dict["md"]["parameters"]
     builder.active_learning.md_temperature_list_K = md_params["temperature_list_K"]
     builder.active_learning.md_max_temp_multiplier = md_params["max_temp_multiplier"]
@@ -131,16 +135,20 @@ def create_active_learning_builder(toml_dict: dict):
     ]
     builder.active_learning.use_kokkos = md_params["use_kokkos"]
 
-    # MACE training settings
-    builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])
 
     # LAMMPS-MACE MD Settings
     builder.active_learning.lammps_mace = Dict(value=toml_dict["md"]["queue"])
 
-    # Committee Evaluation Settings
+    # MD filters
+    builder.active_learning.md_filters = Dict(value=toml_dict["md"]["filters"])
+
+    ## MACE training settings
+    builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])
+
+    ## Committee Evaluation Settings
     builder.active_learning.committee_eval = Dict(value=toml_dict["committee_eval"])
 
-    # DFT method selection and settings
+    ## DFT method selection and settings
     builder.active_learning.dft_method = al_conf["dft_method"]
     if al_conf["dft_method"] == "vasp":
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["vasp"])
@@ -217,7 +225,7 @@ def run_active_learning():
             toml_dict = tomli.load(f)
     except FileNotFoundError as e:
         error_message = (
-            f"The specified config file {args.config_file} does not exist."
+            f"The config file '{args.config_file}' does not exist. "
             "Please make sure that is the correct name or input a different path."
         )
         raise FileNotFoundError(error_message) from e
@@ -358,6 +366,7 @@ def monitor_al_loop():
         debug=args.debug,
         online=args.online,
     )
+
 
 def parse_input_toml(toml_dict: dict, type: str):
     """
