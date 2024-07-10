@@ -24,7 +24,8 @@ dependencies = [
     "dscribe==2.1.0",
     "gunicorn==22.0.0",
     "matplotlib==3.8.0",
-    "pandas==2.1.1",
+    "mpi_api",
+    "pandas",
     "plotly==5.18.0",
     "rich==13.7.0",
     "scipy==1.11.2",
@@ -36,7 +37,7 @@ dependencies = [
     "aiida-vasp==3.1.0",
     "torch==2.0.1",
     "wonderwords==2.2.0",
-    "pymatgen==2024.2.20",
+    "pymatgen",
     "phonopy",
 ]
 
