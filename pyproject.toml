@@ -24,7 +24,7 @@ dependencies = [
     "dscribe==2.1.0",
     "gunicorn==22.0.0",
     "matplotlib==3.8.0",
-    "mpi_api",
+    "mp_api",
     "pandas",
     "plotly==5.18.0",
     "rich==13.7.0",
