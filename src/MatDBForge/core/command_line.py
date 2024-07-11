@@ -94,6 +94,7 @@ def create_active_learning_builder(toml_dict: dict):
     al_conf = toml_dict["active_learning"]
     builder.active_learning.run_name = al_conf["run_name"]
     builder.active_learning.data_path = al_conf["data_path"]
+    builder.active_learning.load_init_models = al_conf.get("load_init_models")
     builder.active_learning.init_db_path = al_conf["init_db_path"]
     builder.active_learning.results_dir = al_conf["results_dir"]
     builder.active_learning.final_db_name = al_conf["final_db_name"]
@@ -135,12 +136,11 @@ def create_active_learning_builder(toml_dict: dict):
     ]
     builder.active_learning.use_kokkos = md_params["use_kokkos"]
 
-
     # LAMMPS-MACE MD Settings
     builder.active_learning.lammps_mace = Dict(value=toml_dict["md"]["queue"])
 
     # MD filters
-    builder.active_learning.md_filters = Dict(value=toml_dict["md"]["filters"])
+    builder.active_learning.md_filters = Dict(value=toml_dict["md"].get("filters"))
 
     ## MACE training settings
     builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])
@@ -154,6 +154,9 @@ def create_active_learning_builder(toml_dict: dict):
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["vasp"])
     elif al_conf["dft_method"] == "mace":
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["mace"])
+
+    ## Descriptor settings
+    builder.active_learning.descriptor_settings = Dict(value=toml_dict["descriptors"])
 
     return builder
 

@@ -14,7 +14,7 @@ authors = [
 ]
 
 dependencies = [
-    "ase==3.22.1",
+    "ase",
     "dash==2.16.1",
     "dash-bootstrap-components==1.6.0",
     "dash-core-components==2.0.0",

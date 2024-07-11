@@ -39,6 +39,9 @@ check_extrapolation = true
 # Selection of DFT calculator.
 dft_method = "vasp" # Options: "vasp", "mace"
 
+# Load initial models from several aiida uuids/pk.
+load_init_models = []
+
 ###############################################
 
 # AL seed generation settings
@@ -91,6 +94,8 @@ gather_traj_cnt_lattice = true
 # Whether to use kokkos to run the MD
 use_kokkos = true
 
+[md.filters]
+check_atoms_no_neighbor = true
 
 [md.filters.layer_distance]
 max_layer_distance_ang = 3.5
@@ -113,7 +118,6 @@ metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
 
 ###############################################
 # Committee Evaluation Settings (MACE)
-
 [committee_eval]
 
 # Total number of MACE models. 
@@ -123,6 +127,8 @@ committee_num_models = 4
 # Number of OpenMP threads to be used for MACE CPU evaluation.
 openmp_threads = 8
 
+# prepend text for the PortableCode
+prepend_text = """"""
 
 # Settings for MACE evaluator
 [committee_eval.mace]
@@ -144,6 +150,23 @@ custom_scheduler_commands = '''#$ -l gpu=1
 #$ -l hostname="tekla2189"'''
 computer = "tekla2-new-test"
 
+###############################################
+
+[descriptors]
+
+# Aiida metadata settings for MACE descriptor calculation
+[metadata]
+
+computer = ''
+account = ''
+qos = ''
+parser_name = ''
+prepend_text = ''
+options.max_wallclock_seconds = ''
+options.resources.num_cores_per_mpiproc = ''
+options.resources.tot_num_mpiprocs = ''
+options.resources.num_machines = ''
+options.withmpi = ''
 
 ###############################################
 
