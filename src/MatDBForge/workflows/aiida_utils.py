@@ -28,7 +28,11 @@ from MatDBForge.core.clusters import center_structure
 VDW_DATA_PATH = pl.Path(MDB_DATA_DIR / "vdw-data")
 
 # Loading default aiida user profile
-load_profile()
+try:
+    load_profile()
+except Exception as e:
+    mdb_ut.custom_print(f"Error loading aiida profile: '{e}'", "error")
+
 
 PARSER_DICT = {
     "parser_settings": {
@@ -1075,7 +1079,7 @@ def get_vdw_params(structure, incar):
 
     try:
         for element in elements:
-            with open(VDW_DATA_PATH + "/" + element) as f:
+            with open(VDW_DATA_PATH / element) as f:
                 param_file = f.readlines()
             c6_ele_list.append(float(param_file[-2].strip()))
             r0_ele_list.append(float(param_file[-1].strip()))
