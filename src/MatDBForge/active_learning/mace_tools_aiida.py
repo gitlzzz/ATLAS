@@ -160,6 +160,7 @@ class TrainMACEModelCalculation(CalcJob):
         return calcinfo
 
 
+# mace-get-descriptors
 class GetMACEDescriptorsCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
@@ -200,7 +201,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
         spec.input(
             "model_file",
             valid_type=orm.SinglefileData,
-            help="Path of the trained MACE model.",
+            help="Trained MACE model.",
             non_db=True,
         )
         spec.input(
@@ -273,8 +274,8 @@ class GetMACEDescriptorsCalculation(CalcJob):
         # They can later be processed during the parse function
         # by accessing the temporary folder.
         calcinfo.retrieve_temporary_list = [
-            "*.npy",
-            "*.pkl",
+            "./*.npy",
+            "./*.pkl",
         ]
 
         return calcinfo

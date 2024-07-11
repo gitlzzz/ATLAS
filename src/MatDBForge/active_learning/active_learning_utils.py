@@ -19,7 +19,6 @@ from aiida.orm import (
     List,
     SinglefileData,
     Str,
-    StructureData,
     load_code,
     load_node,
 )
@@ -29,6 +28,7 @@ from ase.data import atomic_numbers, covalent_radii
 from ase.geometry.analysis import Analysis
 from ase.io import read as ase_read
 from ase.io import write as ase_write
+from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
 from MatDBForge.active_learning import conversion as mdb_conv
@@ -39,9 +39,11 @@ from pymatgen.io.ase import AseAtomsAdaptor
 
 def model_res_dict_to_arr(res_dict):
     res_model_list = []
+
     for _, res in res_dict.items():
         res_model_list.append(res)
-    res_model_list = np.array(res_model_list)
+    res_model_list = np.array(res_model_list, dtype=float)
+
     return res_model_list
 
 
@@ -61,14 +63,20 @@ def get_model_energies_variance(energies_dict):
 
 def get_model_forces_std(forces_dict):
     forces_model_list = model_res_dict_to_arr(forces_dict)
-    forces_std = forces_model_list.std(axis=0)
+
+    # Calculate the sample standard deviation of the energies
+    # for each structure
+    forces_std = np.nanstd(forces_model_list, axis=0, ddof=1)
 
     return forces_std
 
 
 def get_model_energies_std(energies_dict):
     energies_model_list: np.ndarray = model_res_dict_to_arr(energies_dict)
-    energies_std = energies_model_list.std(axis=0)
+
+    # Calculate the sample standard deviation of the energies
+    # for each structure
+    energies_std = np.nanstd(energies_model_list, axis=0, ddof=1)
 
     return energies_std
 
@@ -82,7 +90,6 @@ def load_database(path: str):
     return database
 
 
-# @calcfunction
 def convert_database_to_ase_atoms(
     database: list, deserialize: bool = False
 ) -> list[Atoms]:
@@ -130,19 +137,17 @@ def select_dft_structures(struct_arr, frame_interval):
 
 
 def get_max_layer_distance(struct):
-    print('#@# struct: ', struct)
-    tags, levels = geometry.get_layers(
-        atoms=struct,
-        miller=(0, 0, 1),
-        tolerance=0.5,
-    )
-    print('#@# levels: ', levels)
+    # Get the layers and their distance with respect to the origin
+    tags, levels = geometry.get_layers(atoms=struct, miller=(0, 0, 1), tolerance=0.1)
+
+    # Compute the maximum layer height
     layer_distances = []
     for layer_index, layer_height in enumerate(levels[1:]):
         layer_height_diff = layer_height - levels[layer_index]
         layer_distances.append(layer_height_diff)
 
     max_layer_distance = np.max(layer_distances)
+
     return max_layer_distance
 
 
@@ -168,10 +173,47 @@ def apply_layer_distance_filter(struct, max_layer_distance_ang):
         struct = AseAtomsAdaptor().get_atoms(structure=struct)
 
     max_dist = get_max_layer_distance(struct)
+
+    # Filtering using the max_layer_distance_ang
     if max_dist > max_layer_distance_ang:
         is_structure_wrong = True
 
     return is_structure_wrong
+
+
+def apply_filter_no_neighbors(struct):
+    """
+    Use neighbor list to check if there are any atoms with no neighbors.
+
+    Parameters
+    ----------
+    struct : ase.Atoms
+        Structure to check.
+
+    Returns
+    -------
+    bool
+        Returns `True` if there are atoms with no neighbors, `False` if otherwise.
+    """
+    if isinstance(struct, pmg_struct):
+        struct = AseAtomsAdaptor().get_atoms(structure=struct)
+
+    cutoffs: list = natural_cutoffs(struct)
+    nl = NeighborList(
+        cutoffs,
+        skin=0.01,
+        sorted=False,
+        self_interaction=False,
+        bothways=True,
+        primitive=NewPrimitiveNeighborList,
+    )
+
+    nl.update(struct)
+    conn_matr: np.array = nl.get_connectivity_matrix(sparse=False)
+
+    # Check if there is any row in conn_matr that has only zeros
+    has_disconnected_atoms: bool = np.any(np.all(conn_matr == 0, axis=1))
+    return has_disconnected_atoms
 
 
 def select_md_frames_to_keep(
@@ -244,49 +286,6 @@ def get_dft_calc_builder_vasp(
     return builder
 
 
-def get_dft_calc_builder_mace(
-    struct,
-    row,
-    calc_idx: int,
-    group,
-    dft_settings: dict,
-):
-    struct_type = row["mdb_struct_type"]
-
-    # Gathering row information
-    (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
-        mdb_aut.gather_calc_data_from_row(row, curr_structure=struct)
-    )
-
-    # Prepare GetMACEDescriptorsCalculation
-    # Generate builder
-    mace_descr_calc = CalculationFactory("mace-eval")
-    mace_builder = mace_descr_calc.get_builder()
-
-    mace_builder.mace_settings_dict = dft_settings["settings"]
-
-    # Load model
-    model = SinglefileData(dft_settings["mace_potential_path"])
-    mace_builder.model_file = model
-
-    # Load structure as StructureData
-    mace_builder.configuration_to_evaluate = StructureData(pymatgen=curr_structure)
-
-    # Get code and remove from settings dict
-    mace_builder.code = load_code(dft_settings["options"]["code_string"])
-    dft_settings["options"].pop("code_string")
-
-    # Load scheduler and resources options
-    mace_builder.metadata.options = dft_settings["options"]
-
-    # Generating label for the CalcJob
-    struct_formula = curr_structure.formula.replace(" ", "")
-    struct_name = f"{curr_material_name}-{struct_formula}-{calc_idx}_{struct_type}"
-    mace_builder.metadata.label = struct_name
-
-    return mace_builder
-
-
 def get_dft_calc_builder_mace_list(
     struct_list: list,
     row,
@@ -333,9 +332,12 @@ def get_dft_calc_builder_mace_list(
     # Load scheduler and resources options
     mace_builder.metadata.options = dft_settings["options"]
 
+    # REMOVE
     # Generating label for the CalcJob
-    struct_formula = curr_structure.formula.replace(" ", "")
-    struct_name = f"{curr_material_name}-{struct_formula}-{db_row_idx}_{struct_type}"
+    # struct_formula = curr_structure.formula.replace(" ", "")
+    # struct_name = f"{curr_material_name}-{struct_formula}-{db_row_idx}_{struct_type}"
+
+    struct_name = curr_material_name
     mace_builder.metadata.label = struct_name
 
     return mace_builder
@@ -686,7 +688,8 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
             # Gathering extra DFT calculation information from calculation
             # and its extras
             calc_info_dict = {
-                "struct_name": calc_node.label + "_aiida-uuid_" + calc_node.uuid,
+                "struct_name": calc_node.label,
+                "dft_calc_uuid": calc_node.uuid,
                 "aiida_uuid": calc_node.extras["mdb_calc_uuid"],
                 "mdb_struct_type": calc_node.extras["mdb_struct_type"],
                 # "mdb_md_node": calc_node.uuid,
@@ -711,14 +714,12 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
             min_dists = []
 
             symbols = set(struct.get_chemical_symbols())
-            print("symbols: ", symbols)
 
             struct_ana = Analysis(struct)
             struct_ana.clear_cache()
 
             # Checking all bond distances for all bond types
             for at_A, at_B in it.combinations_with_replacement(symbols, 2):
-                print("at_A: ", at_A, "at_B", at_B)
                 # Getting covalent radii from ase.data
                 R_atA = covalent_radii[atomic_numbers[at_A]]
                 R_atB = covalent_radii[atomic_numbers[at_B]]
@@ -773,7 +774,6 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
     # DEBUG: Remove after checking outliers
     if outlier_list:
         outliers_file_path = results_dir / "outliers.extxyz"
-        print("#@# outliers_file_path: ", outliers_file_path)
         ase_write(filename=outliers_file_path, images=outlier_list)
 
     # Return the path to the temporary file

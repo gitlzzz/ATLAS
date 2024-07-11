@@ -28,6 +28,7 @@ from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
 
+import MatDBForge.core.exceptions as mdb_excp
 from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
@@ -49,6 +50,12 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("final_db_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input("run_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input("data_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input(
+            "load_init_models",
+            valid_type=(orm.List, type(None)),
+            serializer=orm.to_aiida_type,
+            default=None,
+        )
         spec.input("results_dir", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             "al_loop_iteration", valid_type=orm.Int, serializer=orm.to_aiida_type
@@ -67,6 +74,9 @@ class ActiveLearningWorkChain(WorkChain):
             "model_acc_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
         )
         spec.input(
+            "descriptor_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
+        )
+        spec.input(
             "md_temperature_list_K", valid_type=orm.List, serializer=orm.to_aiida_type
         )
         spec.input("md_num_steps", valid_type=orm.Int, serializer=orm.to_aiida_type)
@@ -75,9 +85,10 @@ class ActiveLearningWorkChain(WorkChain):
         )
         spec.input(
             "md_filters",
-            valid_type=(orm.Dict, None),
+            valid_type=(orm.Dict, type(None)),
             serializer=orm.to_aiida_type,
             required=False,
+            default=None,
         )
         spec.input(
             "md_timestep_duration_ps",
@@ -212,6 +223,13 @@ class ActiveLearningWorkChain(WorkChain):
             "current iteration data."
         )
 
+        # Stop the calculation if initial models must be loaded
+        if self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0:
+            self.report(
+                f"Loading models from nodes: '{self.inputs.load_init_models.get_list()}'."
+            )
+            return
+
         for _ in range(self.inputs.committee_num_models.value):
             model_name = mdb_al_ut.generate_model_name()
 
@@ -269,7 +287,12 @@ class ActiveLearningWorkChain(WorkChain):
             LAMMPS potential file, and the committee models' information but does not
             return any value directly.
         """
-        mace_training_results = self.ctx.mace_training_results
+        if not self.inputs.load_init_models:
+            mace_training_results = self.ctx.mace_training_results
+        else:
+            mace_training_results = [
+                orm.load_node(node) for node in self.inputs.load_init_models
+            ]
 
         model_name_list = []
         weighted_E_F_sum_list = []
@@ -358,21 +381,6 @@ class ActiveLearningWorkChain(WorkChain):
     def generate_descriptors(self):
         self.report(f"Generating descriptors using '{self.ctx.best_model_name}'...")
 
-        # for _, calc in enumerate(self.ctx.mace_training_results):
-        #     # Loading calculation node
-        #     curr_calc = orm.load_node(calc.uuid)
-
-        #     # Getting model name
-        #     model_name = curr_calc.inputs.model_name.value
-
-        #     # Using the best model
-        #     if model_name == self.ctx.best_model_name:
-        #         best_calc = curr_calc
-        #         break
-
-        # # Getting model file
-        # self.ctx.best_model_file = best_calc.outputs.model_file
-
         # Prepare GetMACEDescriptorsCalculation
         mace_descr_calc = CalculationFactory("mace-get-descriptors")
         mace_builder = mace_descr_calc.get_builder()
@@ -385,45 +393,24 @@ class ActiveLearningWorkChain(WorkChain):
         )
         mace_builder.mace_train_file_path = str(mace_train_file_path)
         descriptor_code_path = Path(f"{MDB_ROOT_DIR}/active_learning/mace_code")
+
+        # Generate aiida code using the script in the mace_code folder.
         code = orm.PortableCode(
             label="mace_get_descriptors",
             filepath_files=descriptor_code_path,
             filepath_executable="./mace_get_descriptors.py",
-            # TODO: Add to TOML
-            prepend_text="""source /gpuscratch/psanz/mace/mace-venv/bin/activate
-source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
-            """,
+            prepend_text=self.inputs.descriptor_settings["metadata"]["prepend_text"],
         )
         mace_builder.code = code
+        mace_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
+            "options"
+        ]
+        mace_builder.metadata.options.parser_name = "mace-descriptors-parser"
 
-        # TODO: Add to TOML
-        # mace_builder.metadata.options = {
-        #     "resources": {
-        #         "parallel_env": "c128m1024ib_mpi_32slots",
-        #         "tot_num_mpiprocs": 4,
-        #     },
-        #     "queue_name": "c128m1024ibgpu4.q",
-        #     "max_memory_kb": 102400000,
-        #     "parser_name": "mace-descriptors-parser",
-        #     "max_wallclock_seconds": 117280000,
-        #     "withmpi": False,
-        #     "custom_scheduler_commands": "#$ -l gpu=1",
-        # }
-        mace_builder.metadata.options = {
-            "resources": {
-                "num_cores_per_mpiproc": 12,
-                "tot_num_mpiprocs": 1,
-                "num_machines": 1,
-            },
-            "max_wallclock_seconds": 57600,
-            "account": "ehpc08",
-            "qos": "gp_ehpc",
-            "parser_name": "mace-descriptors-parser",
-            "withmpi": False,
-        }
         mace_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
-        # mace_builder.metadata.computer = orm.load_computer("tekla2-new-test")
-        mace_builder.metadata.computer = orm.load_computer("mn5-new")
+        mace_builder.metadata.computer = orm.load_computer(
+            self.inputs.descriptor_settings["metadata"]["computer"]
+        )
 
         mace_builder.metadata.options.output_filename = (
             f"descriptors_{self.ctx.best_model_name}_"
@@ -713,32 +700,66 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                 forces=forces,
             )
 
+            energies = steps_E_F_arr[:, 1]
+
+            # Use several filters to identify incorrect frames from MD trajectories.
+            filters_structure_wrong_list = []
+
+            # Using distance between layers to filter structures
             if self.inputs.md_filters and "layer_distance" in self.inputs.md_filters:
+                structure_wrong_list = []
                 max_dist = self.inputs.md_filters["layer_distance"][
                     "max_layer_distance_ang"
                 ]
-                structure_wrong_list = []
                 for frame in traj:
                     is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
                         struct=frame, max_layer_distance_ang=max_dist
                     )
                     structure_wrong_list.append(is_structure_wrong)
 
-            # Remove wrong frames from the trajectory
-            if any(structure_wrong_list):
+                filters_structure_wrong_list.append(structure_wrong_list)
+
+            # Checking if there are atoms with no neighbors (isolated atoms)
+            if (
+                self.inputs.md_filters
+                and "check_atoms_no_neighbor" in self.inputs.md_filters
+            ):
+                structure_wrong_list = []
+                for frame in traj:
+                    is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(
+                        struct=frame
+                    )
+                    structure_wrong_list.append(is_structure_wrong)
+
+                filters_structure_wrong_list.append(structure_wrong_list)
+
+            # Combine all filters to get the final list of wrong structures
+            filters_structure_wrong_list = np.array(filters_structure_wrong_list)
+            filters_structure_wrong_list = np.logical_or.reduce(
+                filters_structure_wrong_list
+            )
+
+            # Replacing energies and forces for the incorrect frames.
+            if np.any(filters_structure_wrong_list):
                 self.report(
-                    f"Removing {len(np.nonzero(structure_wrong_list))} wrong structures"
+                    f"Removing {len(np.nonzero(filters_structure_wrong_list)[0])} "
+                    "incorrect MD frames."
                 )
-                traj = [
-                    traj[i]
-                    for i, is_wrong in enumerate(structure_wrong_list)
-                    if not is_wrong
+
+                energies = [
+                    energies[i] if not is_wrong else None
+                    for i, is_wrong in enumerate(filters_structure_wrong_list)
+                ]
+
+                forces = [
+                    forces[i] if not is_wrong else np.full([len(traj[i]), 3], np.nan)
+                    for i, is_wrong in enumerate(filters_structure_wrong_list)
                 ]
 
             new_rows.append(
                 {
                     "trajectory": traj,
-                    "energy": {self.ctx.best_model_name: steps_E_F_arr[:, 1]},
+                    "energy": {self.ctx.best_model_name: energies},
                     "forces": {self.ctx.best_model_name: forces},
                     "al_step": self.inputs.al_loop_iteration.value,
                     "index_in_db": workchain.base.extras.all["index_in_db"],
@@ -753,7 +774,6 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
 
         # Creating a DataFrame with all the results
         md_seed_results_df = pd.DataFrame(new_rows)
-        print("md_seed_results_df: ", md_seed_results_df)
 
         self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
             result_dir_path=self.inputs.results_dir.value, node=self.node
@@ -945,6 +965,8 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
             mace_builder.commitee_models = commitee_dict
 
             curr_traj_frames_atoms = []
+
+            # Converting all framesto ase.Atoms()
             for frame in curr_traj:
                 curr_traj_frames_atoms.append(AseAtomsAdaptor.get_atoms(frame))
 
@@ -984,10 +1006,7 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
                 filepath_executable="./run_mdb_mace_eval_committee.sh",
-                # TODO: Add to TOML
-                # prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
-                prepend_text="""source /gpuscratch/psanz/mace/mace-venv/bin/activate
-source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
+                prepend_text=self.inputs.committee_eval["prepend_text"],
             )
             mace_builder.code = portable_code
 
@@ -1110,34 +1129,20 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
                 filepath_executable="./mace_get_descriptors.py",
-                # TODO: Add to TOML
-                # prepend_text="source /gpuscratch/psanz/mace/mace-venv/bin/activate",
-                prepend_text="""source /gpuscratch/psanz/mace/mace-venv/bin/activate
-source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
+                prepend_text=self.inputs.descriptor_settings["metadata"][
+                    "prepend_text"
+                ],
             )
             mace_builder.code = code
 
-            # TODO: Add to TOML
-            # mace_builder.metadata.computer = orm.load_computer("tekla2-new-test")
-            mace_builder.metadata.computer = orm.load_computer("mn5-new")
-            mace_builder.metadata.options = {
-                "resources": {
-                    # "parallel_env": "c128m1024ib_mpi_32slots",
-                    # "tot_num_mpiprocs": 4,
-                    "num_cores_per_mpiproc": 12,
-                    "tot_num_mpiprocs": 1,
-                    "num_machines": 1,
-                },
-                # "queue_name": "c128m1024ibgpu4.q",
-                # "max_memory_kb": 102400000,
-                "max_wallclock_seconds": 57600,
-                "account": "ehpc08",
-                "qos": "gp_ehpc",
-                "parser_name": "mace-descriptors-parser",
-                # "max_wallclock_seconds": 117280000,
-                "withmpi": False,
-                # "custom_scheduler_commands": "#$ -l gpu=1",
-            }
+            mace_builder.metadata.computer = orm.load_computer(
+                self.inputs.descriptor_settings["metadata"]["computer"]
+            )
+            mace_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
+                "options"
+            ]
+            mace_builder.metadata.options.parser_name = "mace-descriptors-parser"
+
             mace_builder.metadata.label = (
                 row["unique_id"][:8] + "_md_descriptors_" + f"{row['md_temperature']}_K"
             )
@@ -1177,9 +1182,6 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
         # Gathering MD descriptor results and adding them to dataframe
         if self.inputs.check_extrapolation:
             for curr_calc in self.ctx.md_descriptor_results:
-                # Loading calculation node
-                # curr_calc = orm.load_node(calc.uuid)
-
                 # Ignore failed calculations
                 if not curr_calc.is_finished_ok:
                     continue
@@ -1193,7 +1195,6 @@ source /apps/ACC/ANACONDA/2023.07/envs/mace_env/bin/activate""",
                     md_descr_file_path, "rb"
                 ) as descr_file:
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
-                    # md_descr_array: np.ndarray = np.load(file=md_descr_file_path)
 
                 # Find row matching the calculation using curr_unique_id and
                 # current_temperature
@@ -1653,7 +1654,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Creating aiida orm.Group to store all calculations
         ctime = time.strftime("%Y%m%dT%H%M%S")
         seed_group = orm.Group(
-            label=f"{self.inputs.active_learning.run_name}_train_md_seed_{ctime}"
+            label=f"{self.inputs.active_learning.run_name.value}_train_md_seed_{ctime}"
         )
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
@@ -1779,6 +1780,13 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_select_type == "small_first":
             max_size = seed_select_settings["small_first_max_size"]
             seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
+            if len(seed_gen_db) == 0:
+                raise mdb_excp.FilterError(
+                    f"There are no structures with less than "
+                    f"{max_size} atoms in the given database. "
+                    "Please, remove the 'small_first' seed selection mode. "
+                    "and try again."
+                )
 
         # Getting length of the seed generating database
         db_length = len(seed_gen_db)
