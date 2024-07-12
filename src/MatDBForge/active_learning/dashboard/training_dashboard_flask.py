@@ -38,7 +38,7 @@ def get_model_stats(children):
                 pass
 
     if has_model:
-        model_stats = f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/at"
+        model_stats = f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/A"
     else:
         model_stats = "No model available yet."
     return model_stats
