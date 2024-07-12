@@ -602,8 +602,16 @@ class ActiveLearningWorkChain(WorkChain):
 
             for idx, curr_structure in enumerate(current_md_seed_structs):
                 # Structures are stored as a orm.Dict in order to be json-serializable
-                for key in ["pbc", "cell", "numbers", "positions", "forces"]:
-                    curr_structure[key] = np.array(curr_structure[key])
+                for key in [
+                    "pbc",
+                    "cell",
+                    "numbers",
+                    "positions",
+                    "forces",
+                    "MACE_forces",
+                ]:
+                    if curr_structure.get(key):
+                        curr_structure[key] = np.array(curr_structure[key])
 
                 curr_structure = Atoms.fromdict(curr_structure)
 
