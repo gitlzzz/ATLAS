@@ -438,18 +438,16 @@ def get_miller_index_str(miller_source):
 
 
 def generate_surfaces_pymatgen(
-    db_obj,
+    db_obj: "mdb_indb.InitialDatabase",
     phase: mdb_pd.Phase,
     num_diff_layer_size: int,
+    min_miller_index=2,
     max_miller_index: int = 2,
     min_slab_size: float = 6,
-    # max_slab_size: float = 12,
     min_vacuum_size: float = 10,
     get_supercells=False,
-    get_replacements=False,
-    num_replacement_structs: int = 3,
-    num_replacement_repeats: int = 5,
     fixed_layers: int = 0,
+    min_num_atoms: int = 12,
     overwrite_max_num_atoms: int = None,
     limit_per_phase: int = None,
     limit_supercell: int = None,
@@ -460,6 +458,9 @@ def generate_surfaces_pymatgen(
         phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
 
     base_structs = db_obj.get_base_structs_current_phase(phase)
+
+    if not overwrite_max_num_atoms:
+        overwrite_max_num_atoms = db_obj.max_num_atoms
 
     # Checking if there are any base structures for the current
     # phase.
@@ -474,9 +475,11 @@ def generate_surfaces_pymatgen(
 
     for idx, row in base_structs.iterrows():
         total_slabs = []
-        miller_indices = list(it.product(list(range(max_miller_index + 1)), repeat=3))[
-            1:
-        ]
+        miller_indices = list(
+            it.combinations_with_replacement(
+                range(min_miller_index, max_miller_index + 1), 3
+            )
+        )[1:]
 
         for miller in miller_indices:
             slabgen = SlabGenerator(
@@ -526,22 +529,24 @@ def generate_surfaces_pymatgen(
             for idx, (slab, mill) in enumerate(total_slabs):
                 super_list, idx_list, supercells = db_obj._find_supercell_indices(
                     structure=slab,
-                    max_atoms=db_obj.max_num_atoms,
+                    min_atoms=min_num_atoms,
+                    max_atoms=overwrite_max_num_atoms,
                     get_different_supercells=True,
-                    initial_supercell_size=3,
-                    verbose=False,
+                    initial_supercell_size=5,
+                    verbose=True,
                 )
 
                 # Storing the supercells.
                 for supercell, idx, sup_vec in zip(super_list, idx_list, supercells):
-                    if len(supercell.sites) <= db_obj.max_num_atoms:
+                    sup_len = len(supercell.sites)
+                    if sup_len <= overwrite_max_num_atoms and sup_len >= min_num_atoms:
                         # Dragging the slab to the bottom
                         supercell_bottom = slab_to_bottom(slab=supercell)
 
                         # Preparing the structure name
                         surf_name = (
                             f"{row.material_id}_{phase.name}_pure_surface-"
-                            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{idx+1}"
+                            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{sup_vec}"
                         )
 
                         # Creating a new surface from the supercell
@@ -577,13 +582,11 @@ def generate_surfaces_pymatgen(
                     supercell_list, size=limit_supercell, replace=False
                 )
 
-            # for curr_strct in supercell_list:
-            # Saving the bulk to the db.
-            # db_obj.df = curr_strct.save_to_db(db_obj.df)
-
             generated_structures.extend(supercell_list)
 
         mdb_ut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+
+        # Saving the structures in the db.
         if save_in_db:
             mdb_ut.custom_print("Saving replaced structures in dataframe.", "debug")
             for slab in generated_structures:
@@ -694,57 +697,3 @@ def apply_replacement_surface(
         mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}", "debug")
 
     return replacement_list
-
-
-def _apply_perturbation_surface(center, row, per_idx, filters: list, phase):
-    # Applying displacement
-    new_struct_perturb = mdb_ut.gauss_perturb(center=center, structure=row.structure)
-
-    # Creating perturbed cluster object
-    mat_str = f"{row.material_name}_perturb_gauss_{per_idx+1}"
-    clust_obj = mdb_struct.Surface(
-        material_name=mat_str,
-        structure=new_struct_perturb,
-        replacement_ind=row.replacement_ind,
-        phase=row.phase,
-        perturb=True,
-    )
-    return clust_obj
-
-
-def apply_gauss_perturb_db(
-    repeat: int, db_obj, filters: list, phase, center: float = 0.04
-):
-    perturbed_surfaces = []
-
-    if not isinstance(db_obj, mdb_indb.InitialDatabase):
-        raise TypeError(
-            f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
-            f"database object, not a {type(db_obj)}."
-        )
-
-    # Filtering structures to perturb
-    filtered_df, _, _ = mdb_ut.apply_filters_db(db_obj, filters, phase)
-
-    # Iterating over all filtered database rows to get the unperturbed surfaces
-    mdb_ut.custom_print(
-        f"Number of structures to perturb: {filtered_df.shape[0]}", "debug"
-    )
-    for _, row in filtered_df.iterrows():
-        if not row.surface or row.perturb:
-            continue
-        for per_idx in range(repeat):
-            clust_obj = _apply_perturbation_surface(
-                center, row, per_idx, filters=filters, phase=phase
-            )
-            perturbed_surfaces.append(clust_obj)
-
-    mdb_ut.custom_print(f"Total surfaces perturbed: {len(perturbed_surfaces)}", "debug")
-
-    # Saving in database
-    mdb_ut.custom_print("Saving perturbed surfaces in dataframe", "debug")
-    for surface in perturbed_surfaces:
-        db_obj._save_row(structure=surface)
-    mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
-
-    return perturbed_surfaces

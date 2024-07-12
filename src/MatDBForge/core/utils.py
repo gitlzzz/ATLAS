@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 
 import numpy as np
+import pandas as pd
 from ase import Atoms, visualize
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
@@ -48,7 +49,7 @@ def init_logger(source, log_path=None):
 
     custom_print(f"Logging in '{filename}'", print_type="info")
 
-    return logger
+    return logger, filename
 
 
 def custom_print(string: str, print_type: str = "default", end="\n"):
@@ -70,37 +71,26 @@ def custom_print(string: str, print_type: str = "default", end="\n"):
 
     if print_type in ["info", "default"]:
         prefix = "\u001b[38;5;33m [ i ]"
-        # print(f"{prefix}{normal}\t{string}", end=end)
         logging.getLogger("mdb").info(
             f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
         )
-    elif print_type in ["warn", "warning"]:
+    elif print_type in ["warn", "warning", "warn-soft", "warning-soft"]:
         prefix = "\u001b[38;5;220m [ ! ]"
-        # print(f"{prefix}\t{string}{normal}", end=end)
-        logging.getLogger("mdb").warning(
-            f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
-        )
-    elif print_type in ["warn-soft", "warning-soft"]:
-        prefix = "\u001b[38;5;220m [ ! ]"
-        # print(f"{prefix}{normal}\t{string}", end=end)
         logging.getLogger("mdb").warning(
             f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
         )
     elif print_type in ["extra", "debug"]:
         prefix = "\u001b[38;5;8m [···]"
-        # print(f"{prefix}\t{string}{normal}", end=end)
         logging.getLogger("mdb").debug(
             f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
         )
     elif print_type in ["done", "ok"]:
         prefix = "\u001b[38;5;46m [ ✔ ]"
-        # print(f"{prefix}{normal}\t{string}", end=end)
         logging.getLogger("mdb").info(
             f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
         )
     if print_type in ["error", "problem"]:
         prefix = "\u001b[38;5;1m [ X ]"
-        # print(f"{prefix}{normal}\t{string}", end=end)
         logging.getLogger("mdb").error(
             f"{prefix}{normal}\t{string}", extra={"shortmsg": string}
         )
@@ -131,12 +121,12 @@ def gather_secrets():
     initial_db_path = pathlib.Path(__file__).parent
 
     if pathlib.Path("secrets.json").exists():
-        with open("secrets.json", "r") as f:
+        with open("secrets.json") as f:
             secrets = js.load(f)
 
     elif pathlib.Path(initial_db_path, "secrets.json").exists():
         path = pathlib.Path(initial_db_path, "secrets.json")
-        with open(path, "r") as f:
+        with open(path) as f:
             secrets = js.load(f)
 
     else:
@@ -459,19 +449,18 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
 
     custom_print(f"Applying filters: {filters}.", "debug")
 
+    # Applying filters. Filter lists are applied with an OR logic.
     if filters:
+        appl_filter_db_list = []
         for filt in filters:
-            # if isinstance(filt, tuple):
-            #     filtered_df = filtered_df.loc[
-            #         (filtered_df[filt[0]]) & (filtered_df[filt[1]])
-            #     ]
+            appl_filt = filtered_df.loc[filtered_df[filt]]
+            appl_filter_db_list.append(appl_filt)
+            custom_print(
+                f"Applied filter: '{filt}' - {len(appl_filt)} structs filtered.",
+                "debug",
+            )
 
-            #     remaining_df = remaining_df.loc[
-            #         ~((remaining_df[filt[0]]) & (remaining_df[filt[1]]))
-            #     ]
-
-            # else:
-            filtered_df = filtered_df.loc[filtered_df[filt]]
+        filtered_df = pd.concat(appl_filter_db_list, axis=0)
 
     # Getting which phases to check from the user.
     phase_list = []
@@ -490,6 +479,8 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
             if isinstance(phase, str):
                 phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
             phase_list = [phase]
+
+        custom_print(f"phase_list: {phase_list}.", "debug")
 
     # If no phase is given, getting the unique phases in the dataframe
     else:
@@ -515,3 +506,83 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
     )
 
     return filtered_df, remaining_df, phase_list
+
+
+def _apply_perturbation_mdb_struct(center, row, per_idx):
+    # Applying displacement
+    new_struct_perturb = gauss_perturb(center=center, structure=row.structure)
+
+    # Creating perturbed cluster object
+    mat_str = f"{row.material_name}_perturb_gauss_{per_idx+1}"
+    if row.bulk:
+        perturb_struct = mdb_struct.Bulk(
+            material_name=mat_str,
+            structure=new_struct_perturb,
+            replacement_ind=row.replacement_ind,
+            phase=row.phase,
+            perturb=True,
+        )
+    elif row.surface:
+        perturb_struct = mdb_struct.Surface(
+            material_name=mat_str,
+            structure=new_struct_perturb,
+            replacement_ind=row.replacement_ind,
+            phase=row.phase,
+            perturb=True,
+        )
+    perturb_struct = mdb_struct.Cluster(
+        material_name=mat_str,
+        structure=new_struct_perturb,
+        replacement_ind=row.replacement_ind,
+        phase=row.phase,
+        perturb=True,
+    )
+    return perturb_struct
+
+
+def apply_gauss_perturb_db(
+    repeat: int,
+    db_obj,
+    filters: list,
+    phase,
+    center: float = 0.04,
+    limit_num_structures: int = None,
+):
+    perturbed_structs = []
+
+    if not isinstance(db_obj, mdb_indb.InitialDatabase):
+        raise TypeError(
+            f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
+            f"database object, not a {type(db_obj)}."
+        )
+
+    # Filtering structures to perturb
+    filtered_df, _, _ = apply_filters_db(db_obj, filters, phase)
+
+    # Iterating over all filtered database rows to get the unperturbed surfaces
+    custom_print(
+        f"Perturbation will be applied to: {filtered_df.shape[0]} structures.", "debug"
+    )
+    for _, row in filtered_df.iterrows():
+        if row.perturb:
+            continue
+        for per_idx in range(repeat):
+            clust_obj = _apply_perturbation_mdb_struct(center, row, per_idx)
+
+            perturbed_structs.append(clust_obj)
+
+    custom_print(f"Total structs perturbed: {len(perturbed_structs)}", "debug")
+
+    if limit_num_structures:
+        custom_print(
+            f"Limiting number of structures to  {limit_num_structures}", "debug"
+        )
+        perturbed_structs = np.random.choice(perturbed_structs, limit_num_structures,replace=False)
+
+    # Saving in database
+    custom_print("Saving perturbed surfstructsaces in dataframe", "debug")
+    for surface in perturbed_structs:
+        db_obj._save_row(structure=surface)
+    custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
+
+    return perturbed_structs

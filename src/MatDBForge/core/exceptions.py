@@ -7,6 +7,14 @@ class EmptyDataBase(Exception):
         return "A database could not be read from the given path."
 
 
+class FilterError(Exception):
+    pass
+
+class PhaseDiagramEmpty(Exception):
+    def __str__(self):
+        return "The phase diagram is empty."
+
+
 class PhaseNotFound(Exception):
     def __init__(self, phase_diagram, given_phase):
         self.phases = phase_diagram.phase_names

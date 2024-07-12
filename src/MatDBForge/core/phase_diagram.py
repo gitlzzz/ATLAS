@@ -32,6 +32,8 @@ class BinaryPhaseDiagram:
         for phase in self.phases:
             self.phase_names.append(phase.name)
 
+        self.alloy_set = self.get_alloy_set()
+
     def add_phase(self, phase):
         """Add a phase to the phase diagram.
 
@@ -112,10 +114,20 @@ class BinaryPhaseDiagram:
     def get_phase_for_structure(self, structure):
         print(structure.formula)
 
+    def get_alloy_set(self):
+        element_list = []
+
+        if len(self.phases) == 0:
+            raise mdb_exc.PhaseDiagramEmpty()
+        for phase in self.phases:
+            element_list.append(Element(phase.base_elem))
+            element_list.append(Element(phase.cluster_elem))
+        element_set = set(element_list)
+        return element_set
+
 
 # TODO: Imlpement this
-class TernaryPhaseDiagram:
-    ...
+class TernaryPhaseDiagram: ...
 
 
 class Phase:

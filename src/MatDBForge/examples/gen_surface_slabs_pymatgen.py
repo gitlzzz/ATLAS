@@ -50,7 +50,8 @@ for phase in selected_phases:
         db_obj=structures,
         phase=phase,
         overwrite_max_num_atoms=128,
-        max_miller_index=2,
+        min_miller_index=1,
+        max_miller_index=3,
         min_slab_size=4,  # Angs
         # max_slab_size=14,  # Angs
         num_diff_layer_size=3,  # 3
@@ -63,6 +64,7 @@ for phase in selected_phases:
         limit_per_phase=250,
         limit_supercell=500,
     )
+    print('slabs: ', slabs)
 
     mdb_surf.apply_replacement_surface(
         db_obj=structures,

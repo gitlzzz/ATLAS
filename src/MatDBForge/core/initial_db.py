@@ -51,7 +51,9 @@ class InitialDatabase:
     Object that creates an initial database where structures will be
     stored. Materials are downloaded using the materials project API.
     For it to work, a 'secrets.json' file should be located in the
-    same directory.
+    same directory. The database is stored as a pandas dataframe.
+    Contains methods related to gathering, preparing, visualizing
+    and modifying the initial database.
 
     Attributes
     ----------
@@ -63,16 +65,30 @@ class InitialDatabase:
         Orientative name for the database. Will be used for saving it into a file.
     max_num_atoms: int
         Maximum number of atoms present in any structure generated.
+    max_num_atoms : int
+        Maximum number of atoms present in any structure generated, by default 64.
+    secrets : dict
+        Object containing secrets related to the materials project database.
+    use_offset : bool, optional
+        Use an offset for the phase ratios to allow them to overlap, by default True.
 
+    Returns
+    -------
+    InitialDatabase
+        Object containing the database and methods.
+
+    Raises
+    ------
+    KeyError
+        This error is raised when a wrong phase is given.
 
     Notes
     -----
-        The json file should have the following structure:
+        The json file containing the secrets should have the following structure:
 
         {
             "API_KEY": "XXXXXX"
         }
-
 
     """
 
@@ -85,7 +101,13 @@ class InitialDatabase:
     Eh2eV = 27.211386245988
     eV2Eh = 1 / Eh2eV
 
-    def __init__(self, database_name: str, max_num_atoms: int = 64) -> None:
+    def __init__(
+        self,
+        database_name: str,
+        phase_diagram: mdb_pd.BinaryPhaseDiagram,
+        max_num_atoms: int = 64,
+        use_offset=True,
+    ) -> None:
         self.db_version = mdb.__version__
 
         # Name of the database
@@ -94,8 +116,17 @@ class InitialDatabase:
         # Setting the maximum number of atoms of any generated structure.
         self.max_num_atoms = max_num_atoms
 
+        self.phase_diagram = phase_diagram
+
         # Checking if a database is already found in the cwd
         check_flag = self._check_database()
+
+        # Using the offset
+        if use_offset:
+            ut.custom_print(
+                "Using an offset for computing the phases concentrations.", "info"
+            )
+            self.use_offset = use_offset
 
         # Create the database if it does not exists
         # Load it if otherwise.
@@ -262,6 +293,7 @@ class InitialDatabase:
         self,
         structure,
         get_different_supercells,
+        min_atoms,
         max_atoms,
         initial_supercell_size=5,
         verbose=True,
@@ -282,9 +314,10 @@ class InitialDatabase:
 
         # Number of atoms of the supercell
         struct_size = len(new_structure.species)
-        while struct_size > max_atoms and supercell_vec != [1, 1, 1]:
+        while (
+            struct_size > max_atoms or struct_size < min_atoms
+        ) and supercell_vec != [1, 1, 1]:
             new_structure = structure.copy(sanitize=True)
-            idx -= 1
 
             if isinstance(structure, Slab):
                 supercell_vec = [idx, idx, 1]
@@ -293,6 +326,7 @@ class InitialDatabase:
 
             new_structure.make_supercell(supercell_vec, to_unit_cell=False)
             struct_size = len(new_structure.species)
+            idx -= 1
 
         structure_list = []
         idx_list = []
@@ -303,32 +337,52 @@ class InitialDatabase:
 
         if verbose:
             ut.custom_print(
-                f"Supercell generated - total atoms: {len(new_structure.species)}",
+                f"Supercell generated {supercell_vec} - total atoms: {len(new_structure.species)}",
                 "debug",
             )
 
         if get_different_supercells:
-            for idx_smaller in range(idx - 1, 0, -1):
+            # Generating all possible combinations of supercells up to a given size
+            # possible_supercells = it.product(
+            #     range(2, initial_supercell_size + 1), repeat=3
+            # )
+            possible_supercells = it.combinations_with_replacement(
+                range(2, initial_supercell_size + 1), r=3
+            )
+
+            for idx_smaller in possible_supercells:
                 new_structure = structure.copy(sanitize=True)
 
+                # Slabs must not be repeated on z axis
                 if isinstance(structure, Slab):
-                    supercell_vec = [idx_smaller, idx_smaller, 1]
+                    supercell_vec = [idx_smaller[0], idx_smaller[1], 1]
+
+                    # Removing slabs if already on the list
+                    if supercell_vec in supercell_vec_list:
+                        continue
+
+                # Bulks and clusters can be repeated on all axis
                 else:
-                    supercell_vec = [idx_smaller, idx_smaller, idx_smaller]
+                    supercell_vec = idx_smaller
 
-                new_structure.make_supercell(supercell_vec, to_unit_cell=False)
-                structure_list.append(new_structure)
-                idx_list.append(idx_smaller)
-                supercell_vec_list.append(supercell_vec)
+                # Creating and adding the supercell if it is within
+                # the desired size range
+                if supercell_vec != [1, 1, 1]:
+                    new_structure.make_supercell(supercell_vec, to_unit_cell=False)
+                    struct_size = len(new_structure.species)
+                    if struct_size < max_atoms and struct_size > min_atoms:
+                        structure_list.append(new_structure)
+                        idx_list.append(idx_smaller)
+                        supercell_vec_list.append(supercell_vec)
 
-                if verbose:
-                    ut.custom_print(
-                        (
-                            "Supercell generated - total atoms:"
-                            f"{len(new_structure.species)}"
-                        ),
-                        "debug",
-                    )
+                        if verbose:
+                            ut.custom_print(
+                                (
+                                    f"Supercell generated (diff.) {supercell_vec} "
+                                    f"- total atoms: {struct_size}"
+                                ),
+                                "debug",
+                            )
 
         return structure_list, idx_list, supercell_vec_list
 
@@ -336,7 +390,7 @@ class InitialDatabase:
         structure_list = self.df.loc[self.df.phase == curr_phase].structure.values
 
         # species_list = set([a.symbol for a in curr_struct.species])
-        species_list = [el.Z for el in CuZnInitialDatabase.ALLOY_SET]
+        species_list = [el.Z for el in self.phase_diagram.alloy_set]
 
         r_cut = 6
         n_max = 8
@@ -446,7 +500,7 @@ class InitialDatabase:
         )
 
         # Getting the species from the current phase diagram
-        species = CuZnInitialDatabase.ALLOY_SET
+        species = self.phase_diagram.alloy_set
         species_str_list = [spec.symbol for spec in species]
 
         # Setting SOAP related parameters
@@ -570,7 +624,7 @@ class InitialDatabase:
         with MPRester(ut.gather_secrets()["API_KEY"]) as mpr:
             query_result = mpr.summary.search(material_ids=missing_mat)
             for material in query_result:
-                for phase in CuZnInitialDatabase.DB_PHASE_DIAGRAM.phases:
+                for phase in self.phase_diagram.phases:
                     if phase.prototype == material.material_id:
                         curr_phase = phase.name
                     else:
@@ -602,7 +656,7 @@ class InitialDatabase:
         if target_structures:
             selection_criteria = target_structures
         else:
-            selection_criteria = CuZnInitialDatabase.DB_PHASE_DIAGRAM.keys()
+            selection_criteria = self.phase_diagram.keys()
 
         selection_criteria = [crit.name for crit in selection_criteria]
 
@@ -625,13 +679,11 @@ class InitialDatabase:
             curr_run = vasp.Vasprun(xml_path, parse_potcar_file=False)
 
             # Gathering phase information
-            for phase in CuZnInitialDatabase.DB_PHASE_DIAGRAM.phase_names:
+            for phase in self.phase_diagram.phase_names:
                 for folder in xml_path.parts:
                     if slugify(folder) == slugify(phase):
                         curr_phase = phase
-                        curr_phase = CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(
-                            phase
-                        )
+                        curr_phase = self.phase_diagram.get_phase(phase)
                         curr_mat_id = curr_phase.prototype
                         curr_name = f"base_relax_{curr_phase.name}_MP"
 
@@ -776,11 +828,46 @@ class InitialDatabase:
         frac_min: float = 0.01,
         repeat=5,
     ):
+        """
+        Apply small displacements to the lattice parameters of relaxed structures.
+
+        This method perturbs the lattice parameters of relaxed structures by applying
+        small random displacements to their lattice matrix elements.
+        The perturbations are repeated a specified number of times, creating multiple
+        perturbed structures for each initial structure. This helps in generating structures
+        with slightly higher energies and forces, useful for generating training data for
+        neural network potentials (NNP) intended for molecular dynamics (MD) simulations.
+
+        Parameters
+        ----------
+        frac_max : float, optional
+            Maximum fraction of the lattice parameter perturbation, by default 0.05.
+        frac_min : float, optional
+            Minimum fraction of the lattice parameter perturbation, by default 0.01.
+        repeat : int, optional
+            Number of times to apply the perturbation to each structure, by default 5.
+
+        Raises
+        ------
+        NotImplementedError
+            If the perturbation strategy is applied to an unsupported structure type.
+
+        Notes
+        -----
+        The perturbed structures are then converted to the appropriate type (Bulk or Surface)
+        and saved to the database.
+
+        Example
+        -------
+        >>> initial_db = InitialDatabase()
+        >>> initial_db.perturb_min_displacement(frac_max=0.05, frac_min=0.01, repeat=5)
+
+        """
         # Getting all relaxed structures
         target_entries = self.df.loc[self.df.base]
 
         # Applying displacement to all perturbed structures
-        for idx, entry in target_entries.iterrows():
+        for _, entry in target_entries.iterrows():
             # Getting some parameters from the current perturb structure.
             str_matid = entry.material_id
             str_phase = entry.phase
@@ -788,8 +875,13 @@ class InitialDatabase:
 
             # Applying the perturbation 'repeat' times.
             for perturb_repeat_idx in range(repeat):
+
                 # Applying displacement,
-                new_struct_perturb = self._apply_min_perturbation(structure=curr_str)
+                new_struct_perturb = self._apply_min_perturbation(
+                    structure=curr_str,
+                    frac_max=frac_max,
+                    frac_min=frac_min,
+                )
 
                 mat_str = (
                     f"{str_matid}_{str_phase.name}_perturb_min_{perturb_repeat_idx+1}"
@@ -830,8 +922,8 @@ class InitialDatabase:
     def _apply_min_perturbation(
         self, structure: Structure, frac_max: float = 0.05, frac_min: float = 0.01
     ):
-        perturb_structure = structure.copy()
         # Making a copy of the current structure lattice which can be modified
+        perturb_structure = structure.copy()
         matrix = np.copy(perturb_structure.lattice.matrix)
 
         # Select non-zero indices
@@ -855,170 +947,14 @@ class InitialDatabase:
 
         return perturb_structure
 
-
-class CuZnInitialDatabase(InitialDatabase):
-    """
-    Object representing a initial database for a CuZn alloy intented
-    to prepare a NNP. The database is stored as a pandas dataframe.
-    Contains methods related to gathering, preparing and modifying
-    the initial database.
-
-    Returns
-    -------
-    CuZnInitialDatabase
-        Object containing the database and methods.
-
-    Parameters
-    ----------
-    database_name : str
-        Name for the database. Will be used for internal reference and as a filename for
-        saving the dataframe.
-    use_offset : bool, optional
-        Use an offset for the phase ratios to allow them to overlap, by default True.
-    max_num_atoms : int
-        Maximum number of atoms present in any structure generated, by default 64.
-    secrets : dict
-        Object containing secrets related to the materials project database.
-
-    Raises
-    ------
-    KeyError
-        This error is raised when a wrong phase is given.
-    """
-
-    # CuZn alloy phase diagram data
-    all_cu = mdb_pd.Phase(
-        name="pure",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0,
-        base_elem_comp_max=0,
-        prototype="mp-30",
-        offset=0,
-    )
-    alpha_phase = mdb_pd.Phase(
-        name="alpha",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0,
-        base_elem_comp_max=0.3895,
-        prototype="mp-30",
-        offset=0.03,
-    )
-    m1 = mdb_pd.Phase(
-        name="m1",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.3895,
-        base_elem_comp_max=0.45,
-        prototype="mp-30",
-        offset=0.03,
-    )
-    beta_prime = mdb_pd.Phase(
-        name="beta-prime",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.455,
-        base_elem_comp_max=0.507,
-        prototype="mp-987",
-        offset=0.05,
-    )
-    m2 = mdb_pd.Phase(
-        name="m2",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.51,
-        base_elem_comp_max=0.577,
-        prototype="mp-987",
-        offset=0.05,
-    )
-    gamma = mdb_pd.Phase(
-        name="gamma",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.577,
-        base_elem_comp_max=0.706,
-        prototype="mp-1368",
-        offset=0.03,
-    )
-    m3 = mdb_pd.Phase(
-        name="m3",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.706,
-        base_elem_comp_max=0.785,
-        prototype="mp-1216020",
-        offset=0.05,
-    )
-    delta = mdb_pd.Phase(
-        name="delta",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.7302,
-        base_elem_comp_max=0.765,
-        prototype="mp-1215518",
-        offset=0.05,
-    )
-    epsilon = mdb_pd.Phase(
-        name="epsilon",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.785,
-        base_elem_comp_max=0.883,
-        prototype="mp-972042",
-        offset=0.05,
-    )
-    m4 = mdb_pd.Phase(
-        name="m4",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.883,
-        base_elem_comp_max=0.9725,
-        prototype="mp-79",
-        offset=0.01,
-    )
-    eta = mdb_pd.Phase(
-        name="eta",
-        base_elem="Zn",
-        cluster_elem="Cu",
-        base_elem_comp_min=0.9725,
-        base_elem_comp_max=1,
-        prototype="mp-79",
-        offset=0.01,
-    )
-
-    DB_PHASE_DIAGRAM = mdb_pd.BinaryPhaseDiagram(
-        "CuZn",
-        all_cu,
-        alpha_phase,
-        m1,
-        beta_prime,
-        m2,
-        gamma,
-        m3,
-        delta,
-        epsilon,
-        m4,
-        eta,
-    )
-
-    # Which atoms are involved in the alloy.
-    ALLOY_SET = {Element("Cu"), Element("Zn")}
-
-    def __init__(self, database_name, use_offset=True, **kwargs):
-        # Initializing the class' parent
-        super().__init__(database_name, **kwargs)
-
-        # Using the offset
-        if use_offset:
-            ut.custom_print(
-                "Using an offset for computing the phases concentrations.", "info"
-            )
-            self.use_offset = use_offset
+    def display_db_ase(self):
+        """Display the the structures in the database using ase.visualize.view."""
+        structures = self.df.structure
+        ut._display_indb_dataframe(structures)
 
     def _get_phase_from_id(self, idx: str) -> str:
         """
-        Searches for the corresponding phase in the self.DB_PHASE_DIAGRAM
+        Searches for the corresponding phase in the self.phase_diagram
         dict to a given a material projects id.
 
         Parameters
@@ -1029,13 +965,11 @@ class CuZnInitialDatabase(InitialDatabase):
         Returns
         -------
         str
-            A phase of the CuZn phase diagram
+            A phase of the phase diagram
         """
         # Creating a list of the phase diagram phase names
         phase_list = [
-            phase.name
-            for phase in self.DB_PHASE_DIAGRAM.phases
-            if phase.prototype == idx
+            phase.name for phase in self.phase_diagram.phases if phase.prototype == idx
         ]
 
         # Returning the key if found
@@ -1049,7 +983,7 @@ class CuZnInitialDatabase(InitialDatabase):
     ) -> Structure:
         """
         Convert a provided prototype structure to a structure compatible
-        with the CuZn alloy preparation by replacing all atoms with Cu.
+        with the alloy preparation by replacing all atoms with the base_elem.
 
         Parameters
         ----------
@@ -1059,11 +993,11 @@ class CuZnInitialDatabase(InitialDatabase):
         Returns
         -------
         Structure
-            Structure which may have all its atoms replaced by Cu if it contains
-            anything other than Cu or Zn atoms.
+            Structure which may have all its atoms replaced by base_elem if it contains
+            anything other than the alloy_set atoms.
         """
-        # Checking if there are any other atoms than Cu or Zn in the structure
-        if len(set(structure.symbol_set) - self.ALLOY_SET) > 0:
+        # Checking if there are any other atoms than ones in alloy_set in the structure
+        if len(set(structure.symbol_set) - self.phase_diagram.alloy_set) > 0:
             # Creating a new structure using the base one as a template
             new_structure = structure.copy(sanitize=True)
 
@@ -1071,15 +1005,15 @@ class CuZnInitialDatabase(InitialDatabase):
             for ind in range(len(structure.species)):
                 new_structure.replace(
                     ind,
-                    # Species(self.DB_PHASE_DIAGRAM.get_phase(phase).base_elem),
-                    Element(self.DB_PHASE_DIAGRAM.get_phase(phase).base_elem),
+                    # Species(self.phase_diagram.get_phase(phase).base_elem),
+                    Element(self.phase_diagram.get_phase(phase).base_elem),
                 )
 
-            # Returning new structure with atoms replaced with Cu
+            # Returning new structure with atoms replaced with base_elem
             return new_structure
 
         else:
-            # If everything is already either Cu or Zn, leave the structure as is.
+            # If everything is already either atoms from alloy_set, leave the structure as is.
             return structure
 
     def _gather_prototype_structure(
@@ -1087,7 +1021,9 @@ class CuZnInitialDatabase(InitialDatabase):
         prototype: str,
         phase: str,
         get_different_supercells: bool,
+        num_min_atoms: int,
         read: bool,
+        supercell_max_idx: int,
     ):
         """
         Gather the structure for a prototype from the materials project database,
@@ -1100,9 +1036,11 @@ class CuZnInitialDatabase(InitialDatabase):
         phase : str
             Name of the phase to be generated.
         get_different_supercells: bool
-            Wether to get one or more supercells from the base structure.
+            Whether to get one or more supercells from the base structure.
+        num_min_atoms: int
+            Minimum number of atoms in a generated supercell in order to be considered.
         read: bool
-            Wether to read the structure from the database or to use the MP API.
+            Whether to read the structure from the database or to use the MP API.
 
 
         Returns
@@ -1116,15 +1054,15 @@ class CuZnInitialDatabase(InitialDatabase):
         ------
         KeyError
             Raised if the given phase is not found. All of the available phases
-            are given on the self.DB_PHASE_DIAGRAM dictionary.
+            are given on the self.phase_diagram dictionary.
             More phases could be added there if necessary.
         """
         # Checking for correct phase input
         phase_name = slugify(phase.name)
-        if not self.DB_PHASE_DIAGRAM.get_phase(phase_name):
+        if not self.phase_diagram.get_phase(phase_name):
             raise KeyError(
                 "Wrong phase given. "
-                f"Please introduce one of: {[k for k in self.DB_PHASE_DIAGRAM.phases]}"
+                f"Please introduce one of: {[k for k in self.phase_diagram.phases]}"
             )
 
         # Reading structure from database
@@ -1137,7 +1075,7 @@ class CuZnInitialDatabase(InitialDatabase):
             except IndexError:
                 raise mdb_exc.BaseStructureNotFound()
 
-        # Querying CuZn alpha prototype structure
+        # Querying alloy prototype structure
         else:
             ut.custom_print("Querying the MP API...", "debug")
             with MPRester(ut.gather_secrets()["API_KEY"]) as mpr:
@@ -1155,11 +1093,14 @@ class CuZnInitialDatabase(InitialDatabase):
         structure = sga.get_conventional_standard_structure()
 
         # Create supercells for the replaced structure
-        # This supercell will result in a Cu64 cell
         # This can return either 1 or more supercells of the
         # same structure, depending on the 'get_different_supercells' flag.
         structure_list, idx_list, supercells = self._find_supercell_indices(
-            structure, get_different_supercells, max_atoms=self.max_num_atoms
+            structure,
+            get_different_supercells,
+            max_atoms=self.max_num_atoms,
+            min_atoms=num_min_atoms,
+            initial_supercell_size=supercell_max_idx,
         )
 
         struct_obj_list = []
@@ -1197,8 +1138,8 @@ class CuZnInitialDatabase(InitialDatabase):
         structure_obj: mdb_struct.Structure,
     ):
         phase = structure_obj.phase
-        curr_phase_atom = self.DB_PHASE_DIAGRAM.get_phase(phase).base_elem
-        base_atom_set = list(self.ALLOY_SET - {curr_phase_atom})
+        # curr_phase_atom = self.phase_diagram.get_phase(phase).base_elem
+        # base_atom_set = list(self.phase_diagram.alloy_set - {curr_phase_atom})
 
         new_structure = structure.copy(sanitize=True)
 
@@ -1209,7 +1150,7 @@ class CuZnInitialDatabase(InitialDatabase):
 
         while ind < structure.num_sites:
             # new_structure.replace(ind - 1, Species(base_atom_set[0]))
-            new_structure.replace(ind - 1, Element(base_atom_set[0]))
+            new_structure.replace(ind - 1, Element(phase.base_elem))
             ind = ind + sum_list[sum_ind]
 
             if sum_ind == 3:
@@ -1285,16 +1226,13 @@ class CuZnInitialDatabase(InitialDatabase):
     ):
         curr_comp = structure.composition
         base_elem = phase.base_elem
-        (other_elem,) = CuZnInitialDatabase.ALLOY_SET - {base_elem}
-
         tot_base_at_struct = curr_comp[base_elem]
-
         structure_len = len(structure.species)
         offset_min = phase.base_elem_comp_min - phase.offset
         offset_max = phase.base_elem_comp_max + phase.offset
 
         n_at_replacement_upd = []
-        for str_ind, curr_perc in enumerate(subst_base_elem_perc):
+        for _, curr_perc in enumerate(subst_base_elem_perc):
             inPhase = phase.perc_in_phase(curr_perc)
 
             single_at_perc = 1 / structure_len
@@ -1349,13 +1287,19 @@ class CuZnInitialDatabase(InitialDatabase):
         # will have been replaced beforehand with the base atom,
         # although this results in more randomness.
         base_elem = phase.base_elem
-        (other_elem,) = CuZnInitialDatabase.ALLOY_SET - {base_elem}
+        if len(self.phase_diagram.alloy_set) > 1:
+            (other_elem,) = self.phase_diagram.alloy_set - {base_elem}
+        else:
+            other_elem = list(self.phase_diagram.alloy_set)[0]
 
         # If the structure only has one type of Element, and that is not the base
         # element, this changes with what to replace.
         if not curr_comp.as_dict().get(base_elem.symbol):
             base_elem = structure.composition.elements[0]
-            (other_elem,) = CuZnInitialDatabase.ALLOY_SET - {base_elem}
+            if len(self.phase_diagram.alloy_set) > 1:
+                (other_elem,) = self.phase_diagram.alloy_set - {base_elem}
+            else:
+                other_elem = list(self.phase_diagram.alloy_set)[0]
             other_atom_change = n_atoms
 
         else:
@@ -1400,10 +1344,12 @@ class CuZnInitialDatabase(InitialDatabase):
         num_struct: int,
         num_repeats: int,
         get_different_supercells: bool,
+        min_num_atoms: int,
+        supercell_max_idx: int,
         read: bool = True,
     ):
         """
-        This method allows to create several variations of a certain phase
+        Allows to create several variations of a certain phase
         structure by randomly replacing atoms in the base structure.
 
         Parameters
@@ -1430,7 +1376,7 @@ class CuZnInitialDatabase(InitialDatabase):
         ------
         KeyError
             Raised if the given phase is not found. All of the available phases
-            are given on the self.DB_PHASE_DIAGRAM dictionary.
+            are given on the self.phase_diagram dictionary.
             More phases could be added there if necessary.
         """
         # Instantiating RNG
@@ -1446,6 +1392,8 @@ class CuZnInitialDatabase(InitialDatabase):
             prototype=prototype,
             phase=phase,
             read=read,
+            num_min_atoms=min_num_atoms,
+            supercell_max_idx=supercell_max_idx,
         )
 
         for structure_obj, supr_idx in zip(structure_list, idx_list):
@@ -1516,7 +1464,7 @@ class CuZnInitialDatabase(InitialDatabase):
         base_structs = self.df.loc[self.df.base]
 
         if isinstance(phase, str):
-            phase = self.DB_PHASE_DIAGRAM.get_phase(phase=phase)
+            phase = self.phase_diagram.get_phase(phase=phase)
 
         # Getting the structures corresponding to the current phase
         phase_mask = base_structs.phase == phase
@@ -1597,7 +1545,7 @@ class CuZnInitialDatabase(InitialDatabase):
         """
         # Getting the current phase from the phase name.
         if isinstance(phase, str):
-            phase = CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+            phase = self.phase_diagram.get_phase(phase)
 
         base_structs = self.get_base_structs_current_phase(phase)
 
@@ -1853,7 +1801,7 @@ class CuZnInitialDatabase(InitialDatabase):
         num_repeats: int,
     ):
         if isinstance(phase, str):
-            phase = CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+            phase = self.phase_diagram.get_phase(phase)
 
         # Instantiating RNG
         rng = np.random.default_rng()
@@ -2138,6 +2086,46 @@ class CuZnInitialDatabase(InitialDatabase):
                 self._add_entry_to_n2p2_input(buffer=curr_f, data_dict=data_dict)
         ut.custom_print(f"All calculations saved in '{path}'.", "done")
 
+    def remove_structs_out_of_atom_count_range(
+        self, min_num_atoms: int, max_num_atoms: int, remove_base=False
+    ):
+        remove_count = 0
+        for row, struct in self.df.iterrows():
+            # Do not remove structures marked as base.
+            if struct.base and not remove_base:
+                continue
+
+            # Removing structures that are outside of the size range
+            if (
+                len(struct.structure.species) < min_num_atoms
+                or len(struct.structure.species) > max_num_atoms
+            ):
+                self.df.drop(row, inplace=True)
+                remove_count += 1
+        return remove_count
+
+    def remove_structs_out_of_cell_size_range(
+        self, min_cell_size: float, remove_base=False
+    ):
+        remove_count = 0
+        for row, struct in self.df.iterrows():
+            structure_obj = struct.structure
+
+            # Do not remove structures marked as base.
+            if struct.base and not remove_base:
+                continue
+
+            if isinstance(structure_obj, Structure):
+                structure_obj = AseAtomsAdaptor().get_atoms(
+                    structure_obj, msonable=False
+                )
+
+            if any(structure_obj.cell.cellpar()[:3] < min_cell_size):
+                self.df.drop(row, inplace=True)
+                remove_count += 1
+
+        return remove_count
+
     def limit_structure_number_phases(
         self,
         structure_limit: int,
@@ -2148,8 +2136,8 @@ class CuZnInitialDatabase(InitialDatabase):
         if phases_to_use:
             num_phases = len(phases_to_use)
         else:
-            phases_to_use = self.DB_PHASE_DIAGRAM.phases
-            num_phases = len(self.DB_PHASE_DIAGRAM.phases)
+            phases_to_use = self.phase_diagram.phases
+            num_phases = len(self.phase_diagram.phases)
 
         # Maximum number of structures per phase
         max_struct_phase = structure_limit // num_phases
@@ -2158,9 +2146,9 @@ class CuZnInitialDatabase(InitialDatabase):
         # If the phase is not found, omitting.
         for curr_phase in phases_to_use:
             try:
-                curr_phase = self.DB_PHASE_DIAGRAM.get_phase(curr_phase)
+                curr_phase = self.phase_diagram.get_phase(curr_phase)
             except mdb_exc.PhaseNotFound:
-                pass
+                continue
 
             structure_list = self.df.loc[self.df.phase == curr_phase]
 
@@ -2220,7 +2208,7 @@ class CuZnInitialDatabase(InitialDatabase):
         num_repeat: int = 2,
     ):
         # Getting default phase
-        phase = CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase("alpha")
+        phase = self.phase_diagram.get_phase("alpha")
 
         # Generate a list of mdb_struct.Cluster
         cluster_list = []
@@ -2252,55 +2240,3 @@ class CuZnInitialDatabase(InitialDatabase):
         # but not storing them into the database.
         ut.custom_print(f"Generated {len(cluster_list)} base clusters.", "debug")
         return cluster_list
-
-    def display_db_ase(self):
-        structures = self.df.structure
-        ut._display_indb_dataframe(structures)
-
-
-# def _add_cols_old_db_version(database_old):
-#     print("database_old: ", database_old)
-#     quit()
-
-
-# def get_database(path) -> InitialDatabase:
-#     """
-#     Load a database from a file on the cwd or a specific path.
-
-#     Returns
-#     -------
-#     InitialDatabase
-#         MatDBForge InitialDatabase containing structure data.
-#     """
-#     ut.custom_print("hola", "debug")
-#     if isinstance(path, InitialDatabase):
-#         ut.custom_print("Database already loaded!", "warning")
-#         return path
-
-#     elif isinstance(path, str):
-#         db_path = pathlib.Path(path)
-#         if db_path.exists():
-#             if db_path.suffixes[0] == ".pkl":
-#                 database = pd.read_pickle(db_path)
-#                 ut.custom_print(
-#                     "Old database version detected. Adding columns...", "debug"
-#                 )
-#                 database = _add_cols_old_db_version(database)
-#             elif db_path.suffixes[0] == ".xz":
-#                 with lzma.open(db_path, "rb") as f:
-#                     database = pickle.load(f)
-#             ut.custom_print(f"Loaded '{db_path}'", "info")
-#             return database
-#         else:
-#             err_msg = (
-#                 "MatDBForge InitialDatabase object not found "
-#                 "in the specified location."
-#             )
-#             raise FileNotFoundError(err_msg)
-
-
-if __name__ == "__main__":
-    raise RuntimeError(
-        "Do not run this file! "
-        "This file is intended to be used as a module and not a script."
-    )
