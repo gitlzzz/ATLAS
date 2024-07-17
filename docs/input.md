@@ -98,13 +98,11 @@ It will contain a folder named `run_{uuid}`.
 - `max_iterations`: (int) Maximum number of AL loop iterations.
 - `model_acc_multiplier`: (float)
 Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
-- `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. 
+- `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure.
 Influences the total number of energy evaluations and possibly DFT calculations.
 - `check_extrapolation`: (bool) Whether to check for extrapolation using the MACE descriptors
 - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace"
 - `load_init_models`: (list[int], optional) # Load initial models from several aiida uuids/pk.
-
-
 
 ### Key - Active learning seed - `[al_seed]`
 
@@ -144,15 +142,16 @@ Settings for MD simulations using LAMMPS
 
 Contains settings related to the filtering of structures obtained from MD calculations. Filtering allows the removal of some types of incorrect structures that might pollute the training database
 
-
-- `check_atoms_no_neighbor`: (bool) Check for structures that have atoms with no neighbors. Specific setting for the neighbor check MD filter.  ⚠ **WARNING: only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules.** ⚠
+- `check_atoms_no_neighbor`: (bool) Check for structures that have atoms with no neighbors. Specific setting for the neighbor check MD filter.  
+⚠ **WARNING: only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules.** ⚠
 - `layer_distance.max_layer_distance_ang`: (float) Specific setting for the layer distance MD filter.Maximum accepted distance between layers (in Angstrom).
 
 #### Key - MD Queue - `[md.queue]`
+
 Contains settings related to the MD calculation setup and usage of AiiDA. As of now, the only MD code available is LAMMPS-MACE.
 The queue key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options). Below are listed the bare minimum options for running calculations using an SGE scheduler:
 
- - `code` (str) AiiDA code name for MD software to be used
+- `code` (str) AiiDA code name for MD software to be used
  AiiDA scheduler options for MD
 - `metadata.options.resources.parallel_env`: (str) name for the parallel environment
 - `metadata.options.resources.tot_num_mpiprocs`: (int) Total number of mpi processors
@@ -160,7 +159,8 @@ The queue key can take any option from its [matching AiiDA input](https://aiida.
 - `metadata.options.max_memory_kb`: (int) Max memory allowed in kB.
 - `metadata.options.max_wallclock_seconds`: (int) Maximum requested wall time.
 - `metadata.options.withmpi`: (bool) Use MPI.
-- `metadata.options.custom_scheduler_commands`: (str) Use this to include extra options, such as GPU allocation on SGE or extra commands. Use triple quoted strings to allow for several options. E.g.: 
+- `metadata.options.custom_scheduler_commands`: (str) Use this to include extra options, such as GPU allocation on SGE or extra commands. Use triple quoted strings to allow for several options. E.g.:
+
 ```python
 '''
 #$ -l gpu=1
@@ -168,8 +168,8 @@ The queue key can take any option from its [matching AiiDA input](https://aiida.
 '''
 ```
 
-  
 ### Key - Committee Evaluation Settings - `[committee_eval]`
+
 Contains settings related to the NNP model evaluation (MACE as of now).
 
 - `committee_num_models`: (int) Total number of MACE models.  Increases resources necessary for training.
@@ -196,7 +196,7 @@ Contains settings related to the scheduler and AiiDA for the MACE Evaluations. T
 - `max_wallclock_seconds`: 117280000
 - `max_memory_kb`: 102400000
 - `withmpi`: false
-- `custom_scheduler_commands`: 
+- `custom_scheduler_commands`:
 - `computer` = "tekla2-new-test"
 
 ```
@@ -207,6 +207,7 @@ $ -l hostname="tekla2189"'''
 ### Key - Descriptor Settings - `[descriptors]`
 
 ### Key - Descriptor Scheduler Optinons - `[descriptors.metadata]`
+
 AiiDA metadata settings for MACE descriptor calculation
 
 - `computer` = ''
@@ -220,8 +221,8 @@ AiiDA metadata settings for MACE descriptor calculation
 - `options.resources.num_machines` = ''
 - `options.withmpi` = ''
 
-
 ### Key - MACE Scheduler - `[mace_train]`
+
 MACE training code and scheduler settings (aiida)
 
 - `result_force_weight` (float): Weight of the force when considering model performance used in:  weighted_sum = RMSE_E + (force_weight * RMSE_F). The lowest weighted_sum will be considered as the most performant model.
@@ -234,6 +235,7 @@ MACE training code and scheduler settings (aiida)
 - `metadata.options.max_memory_kb` = 102400000
 - `metadata.options.withmpi` = true
 - `metadata.options.custom_scheduler_commands`: (str)
+
 ```
 '''#$ -l gpu=1
 $ -l hostname="tekla2188"
@@ -244,7 +246,7 @@ $ -l hostname="tekla2188"
 
 MACE Training Settings. Check the [MACE documentation on training](https://mace-docs.readthedocs.io/en/latest/guide/training.html) for more information.
 
-- `name` (str) 
+- `name` (str)
 - `energy_key` (str) "energy"
 - `valid_fraction` (float) 0.1
 - `config_type_weights`: { Default = 1.0 }
@@ -269,11 +271,11 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 - `default_dtype`: (str) Either float32/float64
 - `wandb`: (bool)
 
-
 ## Key - DFT Settings - `[dft]`
 
 ### Key - MACE as DFT calculator - `[dft.mace]`
-MACE Settings as DFT calculator. Ignored if dft_method = "vasp" 
+
+MACE Settings as DFT calculator. Ignored if dft_method = "vasp"
 Options intended for MACE will be passed as arguments during MACE execution. The scheduler options will be used in the builder.metadata.options from AiiDA.
 
 - `mace_potential_path`: (str) Path to MACE potential file
@@ -287,23 +289,25 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 - `options.max_wallclock_seconds`: 117280000
 - `options.max_memory_kb`: 102400000
 - `options.custom_scheduler_commands`: (str)
+
 ```
 '''#$ -l gpu=1
 $ -l hostname="tekla2189"
 '''
 ```
-- `options.withmpi`: false
 
+- `options.withmpi`: false
 
 ### Key - VASP as DFT calculator - `[dft.vasp]`
 
-Settings for VASP as DFT calculator. Ignored if dft_method = "mace" 
+Settings for VASP as DFT calculator. Ignored if dft_method = "mace"
 
 - `potential_family` = "vasp-5.3-PBE"
 - `potential_family` = "vasp-5.4-PBE-2023"
 - `structure_types` = ['bulk', 'surface', 'cluster']
 
 [dft.vasp.queue]
+
 - `queue.type` = "sge"
 - `queue.node_cpus` = 12
 - `queue.code_string` = "vasp-std-5.4.4-new@tekla2"
@@ -311,10 +315,10 @@ Settings for VASP as DFT calculator. Ignored if dft_method = "mace"
 - `queue.multiple` = 1
 - `queue.custom_scheduler_commands` = '#$ -l hostname="tekla2044"'
 
-
 ### Key - VASP k-spacing - `[dft.vasp.kspacing]`
 
 Description of the phase diagram. **WIP**
+
 - `alpha` = 0.135088484104361
 - `m1` = 0.100530964914873
 - `beta`-prime = 0.102415920507027
@@ -352,7 +356,6 @@ General incar settings to be used as a template for all calculations. Different 
 - `lelf`: false
 - `ivdw`: 11      # van der Waals
 
-
 #### Key - VASP INCAR for relaxations - `[dft.vasp.relax.incar]`
 
 - `ibrion` = 2
@@ -360,10 +363,12 @@ General incar settings to be used as a template for all calculations. Different 
 - `isif` = 3
 
 #### Key - VASP INCAR for surfaces - `[dft.vasp.surface.incar]`
+
 - `ldipol` = true
 - `idipol` = 3
 
 #### Key - VASP INCAR for clusters - `[dft.vasp.cluster.incar]`
+
 - `ldipol` = true
 - `dipol` = [0.5, 0.5, 0.5]
 - `idipol` = 4
