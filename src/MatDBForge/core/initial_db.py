@@ -302,7 +302,10 @@ class InitialDatabase:
         idx = initial_supercell_size
 
         # Copying structure
-        new_structure = structure.copy(sanitize=True)
+        try:
+            new_structure = structure.copy(sanitize=True)
+        except TypeError:
+            new_structure = structure.copy()
 
         # Setting different supercell geometry for slabs and bulks.
         if isinstance(structure, Slab):
@@ -317,7 +320,10 @@ class InitialDatabase:
         while (
             struct_size > max_atoms or struct_size < min_atoms
         ) and supercell_vec != [1, 1, 1]:
-            new_structure = structure.copy(sanitize=True)
+            try:
+                new_structure = structure.copy(sanitize=True)
+            except TypeError:
+                new_structure = structure.copy()
 
             if isinstance(structure, Slab):
                 supercell_vec = [idx, idx, 1]
@@ -351,7 +357,10 @@ class InitialDatabase:
             )
 
             for idx_smaller in possible_supercells:
-                new_structure = structure.copy(sanitize=True)
+                try:
+                    new_structure = structure.copy(sanitize=True)
+                except TypeError:
+                    new_structure = structure.copy()
 
                 # Slabs must not be repeated on z axis
                 if isinstance(structure, Slab):
@@ -630,13 +639,18 @@ class InitialDatabase:
                     else:
                         curr_phase = np.nan
 
+                try:
+                    material_symmetry = material.get_space_group_info()
+                except Exception:
+                    material_symmetry = material.symmetry.symbol
+
                 curr_struct = mdb_struct.Bulk(
                     material_id=str(material.material_id),
                     structure=material.structure,
                     temperature=np.nan,
                     perturb=False,
                     formula=material.composition_reduced,
-                    symmetry=material.get_space_group_info(),
+                    symmetry=material_symmetry,
                     base=True,
                     phase=curr_phase,
                     magnetic_properties=material.total_magnetization,
@@ -760,8 +774,7 @@ class InitialDatabase:
         )
 
         # Applying displacement to all perturbed structures
-        for idx, entry in target_entries.iterrows():
-            # print('entry: ', entry)
+        for _, entry in target_entries.iterrows():
             # Getting information from the current entry
             str_matid = entry.material_id
             str_phase = entry.phase
@@ -870,12 +883,12 @@ class InitialDatabase:
         for _, entry in target_entries.iterrows():
             # Getting some parameters from the current perturb structure.
             str_matid = entry.material_id
-            str_phase = entry.phase
+            if isinstance(entry.phase, str):
+                str_phase = self.phase_diagram.get_phase(entry.phase)
             curr_str = entry.structure
 
             # Applying the perturbation 'repeat' times.
             for perturb_repeat_idx in range(repeat):
-
                 # Applying displacement,
                 new_struct_perturb = self._apply_min_perturbation(
                     structure=curr_str,
@@ -1058,7 +1071,11 @@ class InitialDatabase:
             More phases could be added there if necessary.
         """
         # Checking for correct phase input
-        phase_name = slugify(phase.name)
+        if isinstance(phase, mdb_pd.Phase):
+            phase_name = slugify(phase.name)
+        elif isinstance(phase, str):
+            phase_name = slugify(phase)
+        
         if not self.phase_diagram.get_phase(phase_name):
             raise KeyError(
                 "Wrong phase given. "
@@ -1109,12 +1126,16 @@ class InitialDatabase:
             # Getting the supercell vector as a string for naming
             idxs_str = "".join(map(str, idxs))
 
+            try:
+                bulk_temp = query_result.temperature.values[0]
+            except Exception:
+                bulk_temp = np.nan
             # Creating a new bulk from the supercell
             curr_bulk = mdb_struct.Bulk(
                 material_name=f"{material_id_prefix}_{phase.name}_super-{idxs_str}",
                 material_id=material_id_prefix,
                 structure=structure,
-                temperature=query_result.temperature.values[0],
+                temperature=bulk_temp,
                 perturb=False,
                 surface=False,
                 base=False,
@@ -1440,12 +1461,17 @@ class InitialDatabase:
                         structure_obj.supercell
                     )
 
+                    try:
+                        bulk_temp = query_result.temperature.values[0]
+                    except Exception:
+                        bulk_temp = np.nan
+
                     # Creating a new Bulk object for the structure with replacement
                     new_struct_symm = mdb_struct.Bulk(
                         material_name=f"{prototype}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
                         material_id=prototype,
                         structure=new_structure,
-                        temperature=query_result.temperature.values[0],
+                        temperature=bulk_temp,
                         perturb=False,
                         surface=False,
                         replacement=True,

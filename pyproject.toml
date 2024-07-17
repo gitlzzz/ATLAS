@@ -38,7 +38,8 @@ dependencies = [
     "torch==2.0.1",
     "wonderwords==2.2.0",
     "pymatgen",
-    "phonopy",
+    "python-slugify[unidecode]",
+    "tomli",
 ]
 
 [project.urls]
@@ -69,8 +70,11 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb_active_learning" = "MatDBForge.core.command_line:run_active_learning"
 "mdb_conf_gen" = "MatDBForge.core.command_line:gen_default_config"
 "mdb_monitor_al_loop" = "MatDBForge.core.command_line:monitor_al_loop"
+"mdb_gen_init_db" = "MatDBForge.core.command_line:run_gen_initial_database"
+"mdb_init_setup" = "MatDBForge.core.command_line:run_initial_config"
 
 [tool.setuptools]
+include-package-data = true
 package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]

@@ -10,6 +10,7 @@ class EmptyDataBase(Exception):
 class FilterError(Exception):
     pass
 
+
 class PhaseDiagramEmpty(Exception):
     def __str__(self):
         return "The phase diagram is empty."
@@ -30,3 +31,7 @@ class PhaseNotFound(Exception):
 class AtomNotFoundForCluster(Exception):
     def __str__(self):
         return "The given atom type has no geometry description for clusters."
+
+
+class MissingMandatoryParameterError(Exception):
+    """Raised when a mandatory parameter is missing in the toml dictionary."""

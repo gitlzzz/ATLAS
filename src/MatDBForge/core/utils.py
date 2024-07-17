@@ -6,6 +6,8 @@ import tempfile
 
 import numpy as np
 import pandas as pd
+import os
+import pathlib as pl
 from ase import Atoms, visualize
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
@@ -20,6 +22,38 @@ import MatDBForge.core.structure as mdb_struct
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
+
+
+def get_config_path() -> pl.Path:
+    # Try to get XDG_CONFIG_HOME, if it doesn't exist, return None
+    config_path = os.environ.get("XDG_CONFIG_HOME", None)
+
+    # Check if $HOME/.config exists and if it does, return the path
+    if not config_path:
+        config_folder = pl.Path().home() / ".config"
+        if config_folder.exists():
+            config_path = config_folder
+
+    return pl.Path(config_path)
+
+
+def init_config_dir(config_dir):
+    # Create a 'mdb' directory inside the config directory
+    config_dir = config_dir / "mdb"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a 'secrets.json' file inside the 'mdb' directory
+    try:
+        with open(config_dir / "secrets.json", "x") as f:
+            f.write(
+                "{\n"
+                '"API_KEY": ""\n'
+                "}"
+            )
+        return config_dir
+    except FileExistsError:
+        return None
+        
 
 
 def init_logger(source, log_path=None):
@@ -118,21 +152,21 @@ def gather_secrets():
     dict
         object containing the api key
     """
-    initial_db_path = pathlib.Path(__file__).parent
+    config_path = get_config_path() / "mdb"
 
     if pathlib.Path("secrets.json").exists():
         with open("secrets.json") as f:
             secrets = js.load(f)
 
-    elif pathlib.Path(initial_db_path, "secrets.json").exists():
-        path = pathlib.Path(initial_db_path, "secrets.json")
+    elif pathlib.Path(config_path, "secrets.json").exists():
+        path = pathlib.Path(config_path, "secrets.json")
         with open(path) as f:
             secrets = js.load(f)
 
     else:
         raise FileNotFoundError(
             "'secrets.json' not found!\nPlease, add a 'secrets.json' file in the"
-            f" following directory: '{initial_db_path}'. "
+            f" following directory: '{config_path}'. "
         )
         secrets = None
 
@@ -191,7 +225,7 @@ def check_incorrect_ratios(df, curr_phase_diag):
 
 def _display_indb_dataframe(structures, data=None):
     """
-    Display all of the given structures using the ase gui
+    Display all of the given structures using the ase gui.
 
     Parameters
     ----------
@@ -577,7 +611,9 @@ def apply_gauss_perturb_db(
         custom_print(
             f"Limiting number of structures to  {limit_num_structures}", "debug"
         )
-        perturbed_structs = np.random.choice(perturbed_structs, limit_num_structures,replace=False)
+        perturbed_structs = np.random.choice(
+            perturbed_structs, limit_num_structures, replace=False
+        )
 
     # Saving in database
     custom_print("Saving perturbed surfstructsaces in dataframe", "debug")

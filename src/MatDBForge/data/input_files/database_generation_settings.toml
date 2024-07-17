@@ -1,0 +1,157 @@
+# General system description
+[system]
+database_name = "input name here"
+
+# (int) minimum number of atoms in the structure
+min_num_atoms = 
+
+# (int) maximum number of atoms in the structure
+max_num_atoms = 
+
+# (float) minimum cell size in Angstrom
+min_cell_size = 
+
+# Path to a folder containing DFT optimized structures (optional)
+relax_struct_path = ""
+
+# Path for the final database (mandatory)
+final_database_path = ""
+
+
+############################################
+# Description of the phase diagram
+[phase_diagram]
+material_name = "test_material"
+
+# Key containing information for a phase
+# The final key can have any format and will be
+# used only for internal name
+[phase_diagram.phase.phase_any_name_is_valid]
+
+# (str) Name to be used as reference for the phase
+# e.g. 'alpha', 'beta', 'gamma', 'liquid', 'amorphous'
+name = "test_name"
+
+# (str) Symbol of the most abundant element in the phase
+base_elem = ""
+
+# (str) Symbol of the element to be used as template for
+# defining the cluster positions
+cluster_elem = ""
+
+# (float) Min composition (fractional) of the base element in the phase
+base_elem_comp_min =
+
+# (float) Max composition (fractional) of the base element in the phase
+base_elem_comp_max = 
+
+# (str) Materials project ID of a prototypical structure
+# e.g., 'mp-30' for Cu alpha.
+prototype = ""
+
+# (float) Fraction of composition allowed to go over and under 
+# the limits of the phase
+offset = 
+
+# Use this as a template to add more phases
+# [phase_diagram.phase.XXXXX]
+# name = "..."
+# ...
+
+
+############################################
+# Settings related to structure generation
+[generation]
+
+# Type of structures to generate
+# Options: 'bulk', 'surface', 'cluster'
+generate_type = ['bulk', 'surface', 'cluster']
+
+
+# Settings for the generation of bulk structures
+[generation.bulk]
+
+# Number of structures to generate
+num_struct = ""
+
+# Number of repeats for each structure
+num_repeat = ""
+
+# Minimum Miller index for the bulk supercells
+supercell_max_idx = ""
+
+
+# Settings related to surface generation
+[generation.surface]
+
+# (int) Lowest miller index used to generate structures
+min_miller_index =
+
+# (int) Highest index for the supercell generation
+# Supercells will be created in the x and y directions
+supercell_max_idx =
+
+# (float) Minimum slab size in Angstrom
+min_slab_size_ang =
+
+# TODO
+num_diff_layer_size =
+
+# (float) Minimum vacuum size in Angstrom
+min_vacuum_size_ang =
+
+# (bool) Whether to generate supercells
+get_supercells = true
+
+# (int) Number of fixed layers in the slab
+fixed_layers = 
+
+# (int) Max number of surfaces to generate
+max_number_supercells =
+
+# (bool) Whether to save the structures in the current db
+save_in_db = true
+
+
+# Settings related to cluster generation
+# [generation.cluster]
+# ...
+
+
+############################################
+
+# Settings related to the lattice deformation of structures
+# The lattice deformation chooses a random deformation value
+# between min and max.
+[displacement]
+
+# (float) Value as a percentage of the lattice side length
+# that will be used as the maximum displacement
+lattice_frac_displ_max=0.05
+
+# (float) Value as a percentage of the lattice side length
+# that will be used as the minimum displacement
+lattice_frac_displ_min=0.01
+
+# (int) Number of repeats for each structure. 
+# Each repeat will get different random displacements
+num_repeats =
+
+
+############################################
+
+# Settings related to the perturbation of structures
+[perturbation]
+
+# Only apply the perturbation to the following types of structures
+# valid types: 'bulk', 'surface', 'cluster'
+filter_struct_types=['bulk', 'surface']
+
+# (int) Maximum number of perturbations to generate
+limit_max_num_perturbs=1700
+
+# (int) Number of repeats for each structure. 
+# Each repeat will get different random perturbations.
+num_repeats=7
+
+

@@ -3,7 +3,7 @@ import warnings
 from multiprocessing import Pool
 from typing import Union
 
-import catkit.gen.surface as cts
+# import catkit.gen.surface as cts
 import numpy as np
 from pymatgen.core.structure import Lattice, Structure
 from pymatgen.core.surface import Slab, SlabGenerator

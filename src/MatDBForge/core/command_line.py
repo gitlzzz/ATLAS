@@ -19,6 +19,11 @@ from MatDBForge.active_learning.dashboard.training_dashboard_flask import (
     run_training_dashboard,
 )
 from MatDBForge.core import MDB_DATA_DIR
+from MatDBForge.core import exceptions as mdb_exc
+from MatDBForge.core import initial_db as indb
+from MatDBForge.core import phase_diagram as mdb_pd
+from MatDBForge.core import surfaces as mdb_surf
+from MatDBForge.core import utils as mdb_ut
 
 warnings.filterwarnings("ignore")
 
@@ -233,8 +238,11 @@ def run_active_learning():
         )
         raise FileNotFoundError(error_message) from e
 
-    # Loading default aiida profile
-    load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
+    try:
+        # Loading default aiida profile
+        load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
+    except Exception as e:
+        mdb_ut.custom_print(f"Error loading aiida profile: '{e}'", "error")
 
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)
@@ -255,7 +263,7 @@ def run_active_learning():
 
 def gen_default_config():
     parser = argparse.ArgumentParser(
-        prog="gen_default_config",
+        prog="mdb_conf_gen",
         description="Generate MDB default configuration files in the TOML format.",
         formatter_class=RawTextHelpFormatter,
     )
@@ -297,11 +305,13 @@ def gen_default_config():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    default_config_name = "active_learning_settings.toml"
-
     # Choosing config file to write.
     if args.config_type == "active_learning":
-        config_file_path = pl.Path(MDB_DATA_DIR) / "input_files" / default_config_name
+        default_config_name = "active_learning_settings.toml"
+    elif args.config_type == "initial_db":
+        default_config_name = "database_generation_settings.toml"
+
+    config_file_path = pl.Path(MDB_DATA_DIR) / "input_files" / default_config_name
 
     # Copying file to path.
     final_path: pl.Path = args.path / default_config_name
@@ -390,14 +400,259 @@ def parse_input_toml(toml_dict: dict, type: str):
     if type == "active_learning":
         mandatory_keys_list = ["active_learning", "md", "committee_eval", "dft"]
 
-        for key in mandatory_keys_list:
-            if key not in list(toml_dict.keys()):
-                raise MissingMandatoryParameterError(
-                    f"Input toml file missing mandatory key: {key}."
-                )
     elif type == "generate_database":
-        raise NotImplementedError("Database generation toml not implemented yet.")
+        mandatory_keys_list = ["system", "generation"]
+
+    for key in mandatory_keys_list:
+        if key not in list(toml_dict.keys()):
+            raise mdb_exc.MissingMandatoryParameterError(
+                f"Input toml file missing mandatory key: {key}."
+            )
 
 
-class MissingMandatoryParameterError(Exception):
-    """Raised when a mandatory parameter is missing in the toml dictionary."""
+def run_initial_config():
+    mdb_ut.init_logger(source=pl.Path(__file__).stem, log_path="/tmp")
+
+    # Get config directory
+    config_path = mdb_ut.get_config_path()
+
+    # Create a mdb folder
+    config_dir = mdb_ut.init_config_dir(config_path)
+
+    if config_dir:
+        mdb_ut.custom_print(
+            f"Enter your materials project API key in '{config_dir/'secrets.json'}'"
+            f" to finish the setup process.",
+            print_type="info",
+        )
+    else:
+        mdb_ut.custom_print(
+            "Initial configuration already done: 'secrets.json' already exists.", "info"
+        )
+
+
+def gen_initial_database(config_dict: dict):
+    """
+    Generate a initial database from TOML config.
+
+    A MDB database can be generated from settings
+    specified in a TOML file.
+
+
+    Parameters
+    ----------
+    toml_path : str
+        Path for the TOML configuration file
+    """
+    # Check if all required sections are present
+    parse_input_toml(toml_dict=config_dict, type="generate_database")
+
+    # Extract parameters from toml
+    sys_dict = config_dict["system"]
+    db_path = sys_dict["final_database_path"]
+    phase_diagram_dict = config_dict["phase_diagram"]
+    gen_dict = config_dict["generation"]
+    selected_phases = list(phase_diagram_dict["phase"].keys())
+
+    # Start logger
+    log_path = pl.Path(db_path) / "logs"
+
+    if not log_path.exists():
+        log_path.mkdir(parents=True)
+
+    mdb_ut.init_logger(source=pl.Path(__file__).stem, log_path=f"{db_path}/logs")
+
+    # Create phase diagram
+    phases_list = []
+    for _, phase_d in phase_diagram_dict["phase"].items():
+        curr_phase = mdb_pd.Phase(
+            name=phase_d["name"],
+            base_elem=phase_d["base_elem"],
+            cluster_elem=phase_d["cluster_elem"],
+            base_elem_comp_min=phase_d["base_elem_comp_min"],
+            base_elem_comp_max=phase_d["base_elem_comp_max"],
+            prototype=phase_d["prototype"],
+            offset=phase_d["offset"],
+        )
+        phases_list.append(curr_phase)
+
+    # Assemble phase diagram
+    phase_diagram = mdb_pd.BinaryPhaseDiagram(
+        phase_diagram_dict["material_name"],
+        *phases_list,
+    )
+
+    # Initialize the database
+    structures = indb.InitialDatabase(
+        database_name=sys_dict["database_name"],
+        max_num_atoms=sys_dict["max_num_atoms"],
+        phase_diagram=phase_diagram,
+    )
+
+    mdb_ut.custom_print(structures, "done")
+
+    read_from_db = True
+
+    if sys_dict.get("relax_struct_path"):
+        # Initial structures obtained with DFT relaxation are loaded from a given path
+        structures.read_base_structures(
+            path=sys_dict["relax_struct_path"],
+            target_structures=selected_phases,
+        )
+    else:
+        # Obtain structures from Materials Project
+        prototypes = [phase.prototype for phase in phase_diagram.phases]
+        structures.gather_base_structures(target_structures=prototypes)
+        read_from_db = False
+
+    mdb_ut.custom_print("Generating structures from initial structures...", "debug")
+
+    for phase in selected_phases:
+        # Line break for aesthetic purposes
+        print()
+
+        # Creating surfaces from the base structures, generating
+        # different supercells and applying replacements.
+        mdb_ut.custom_print(f"Current phase: {phase}.", "info")
+
+        # Getting phase object
+        phase = phase_diagram.get_phase(phase)
+        print('command_line phase: ', type(phase))
+
+        if "bulk" in gen_dict:
+            mdb_ut.custom_print("Generating bulk structures...", "info")
+
+            # Generating bulk structures.
+            structures.generate_bulk_structures(
+                prototype=phase.prototype,
+                phase=phase,
+                num_struct=gen_dict["bulk"]["num_struct"],
+                num_repeats=gen_dict["bulk"]["num_repeat"],
+                get_different_supercells=True,
+                min_num_atoms=sys_dict["min_num_atoms"],
+                supercell_max_idx=gen_dict["bulk"]["supercell_max_idx"],
+                read=read_from_db,
+            )
+
+            mdb_ut.custom_print(structures, "info")
+
+        if "surface" in gen_dict:
+            # Generating surface structures.
+            mdb_ut.custom_print("Generating slab structures...", "info")
+
+            slabs = mdb_surf.generate_surfaces_pymatgen(
+                db_obj=structures,
+                phase=phase,
+                min_num_atoms=sys_dict["min_num_atoms"],
+                overwrite_max_num_atoms=sys_dict["max_num_atoms"],
+                min_miller_index=gen_dict["surface"]["min_miller_index"],
+                max_miller_index=gen_dict["surface"]["supercell_max_idx"],
+                min_slab_size=gen_dict["surface"]["min_slab_size_ang"],
+                num_diff_layer_size=gen_dict["surface"]["num_diff_layer_size"],
+                min_vacuum_size=gen_dict["surface"]["min_vacuum_size_ang"],
+                get_supercells=gen_dict["surface"]["get_supercells"],
+                fixed_layers=gen_dict["surface"]["fixed_layers"],
+                limit_supercell=gen_dict["surface"]["max_number_supercells"],
+                save_in_db=gen_dict["surface"]["save_in_db"],
+            )
+
+            mdb_ut.custom_print(
+                f"{len(slabs)} slabs generated.",
+                "done",
+            )
+
+        if "cluster" in gen_dict:
+            raise NotImplementedError("Cluster type not implemented yet")
+
+        # Filter small and large structures
+        remove_count = structures.remove_structs_out_of_atom_count_range(
+            min_num_atoms=sys_dict["min_num_atoms"],
+            max_num_atoms=sys_dict["max_num_atoms"],
+        )
+        mdb_ut.custom_print(
+            f"Removed {remove_count} structures out of atom count range.", "info"
+        )
+        mdb_ut.custom_print(structures, "info")
+
+        # Lattice displacement
+        if "displacement" in config_dict:
+            displ_dict = config_dict["displacement"]
+
+            mdb_ut.custom_print("Applying displacements to lattices.", "info")
+
+            structures.perturb_min_displacement(
+                frac_max=displ_dict["lattice_frac_displ_max"],
+                frac_min=displ_dict["lattice_frac_displ_min"],
+                repeat=displ_dict["num_repeats"],
+            )
+            mdb_ut.custom_print(structures, "info")
+
+            remove_count = structures.remove_structs_out_of_cell_size_range(
+                min_cell_size=sys_dict["min_cell_size"]
+            )
+            mdb_ut.custom_print(
+                f"Removed {remove_count} structures out of cell size range.", "info"
+            )
+
+        if "perturbation" in config_dict:
+            perturb_dict = config_dict["perturbation"]
+            mdb_ut.custom_print(
+                "Applying a random perturbation to the structures...",
+                "info",
+            )
+
+            mdb_ut.apply_gauss_perturb_db(
+                db_obj=structures,
+                repeat=perturb_dict["num_repeats"],
+                filters=perturb_dict["filter_struct_types"],
+                phase=phase,
+                limit_num_structures=perturb_dict["limit_max_num_perturbs"],
+            )
+
+            mdb_ut.custom_print(structures, "info")
+
+    print()
+
+    mdb_ut.custom_print(structures, "done")
+    print()
+
+    structures.save_database(
+        path=sys_dict["final_database_path"],
+        suffix=sys_dict["database_name"],
+    )
+
+
+def run_gen_initial_database():
+    parser = argparse.ArgumentParser(
+        prog="mdb_gen_init_db",
+        description="Generate a MDB initial database.",
+        formatter_class=RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "-c",
+        "--config_file",
+        help=(
+            "path pointing to a TOML settings file.\n"
+            "By default `database_generation_settings.toml` will be searched in the CWD."
+        ),
+        type=pl.Path,
+        default="./database_generation_settings.toml",
+        metavar="PATH",
+    )
+
+    # Getting CLI arguments
+    args = parser.parse_args()
+
+    # Loading TOML config file
+    try:
+        with open(args.config_file, "rb") as f:
+            toml_dict = tomli.load(f)
+    except FileNotFoundError as e:
+        error_message = (
+            f"The config file '{args.config_file}' does not exist. "
+            "Please make sure that is the correct name or input a different path."
+        )
+        raise FileNotFoundError(error_message) from e
+
+    # Calling the function to generate the initial database
+    gen_initial_database(config_dict=toml_dict)
