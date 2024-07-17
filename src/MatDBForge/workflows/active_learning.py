@@ -49,7 +49,6 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("init_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input("final_db_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input("run_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("data_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             "load_init_models",
             valid_type=(orm.List, type(None)),

@@ -1,4 +1,5 @@
 ## Input specification
+
 The input format of MDB is [TOML](https://toml.io/en/). The syntax from TOML is unchanged. The available parameters are different depending on the selected tool.
 
 Users are advised to use the `mdb_conf_gen` utility to generate a template file which can be customized.
@@ -8,6 +9,7 @@ Users are advised to use the `mdb_conf_gen` utility to generate a template file 
 All keys are mandatory unless stated otherwise.
 
 ### Key - System - `[system]`
+
 This key describes the general system settings and paths.
 
 - `database_name`: (str) Name of the database.
@@ -18,11 +20,13 @@ This key describes the general system settings and paths.
 - `final_database_path`: (str) Path for the final database.
 
 ### Key - Phase Diagram - `[phase_diagram]`
+
 This key describes the settings related to the phase diagram of the material.
 
 - `material_name`: (str) Name of the material.
 
 ### Key - Phase XXXXX - `[phase_diagram.phase.XXXXX]`
+
 This key describes the settings for a specific phase within the phase diagram. Several phases can be added in order to describe the entire phase diagram by adding new keys with different phase names (replace XXXXX)
 
 - `name`: (str) Name to be used as reference for the phase (e.g., 'alpha', 'beta', 'gamma', 'liquid', 'amorphous').
@@ -34,11 +38,13 @@ This key describes the settings for a specific phase within the phase diagram. S
 - `offset`: (float) Fraction of composition allowed to go over and under the limits of the phase.
 
 ### Key - Generation - `[generation]`
+
 This key describes the settings related to the generation of structures.
 
 - `generate_type`: (list) Types of structures to generate. Options: 'bulk', 'surface', 'cluster'.
 
 ### Key - Bulk Generation - `[generation.bulk]`
+
 This key describes the settings for the generation of bulk structures.
 
 - `num_struct`: (int) Number of structures to generate.
@@ -46,6 +52,7 @@ This key describes the settings for the generation of bulk structures.
 - `supercell_max_idx`: (int) Minimum Miller index for the bulk supercells.
 
 ### Key - Surface Generation - `[generation.surface]`
+
 This key describes the settings related to the generation of surface structures.
 
 - `min_miller_index`: (int) Lowest Miller index used to generate structures.
@@ -59,6 +66,7 @@ This key describes the settings related to the generation of surface structures.
 - `save_in_db`: (bool) Whether to save the structures in the current database (default is true).
 
 ### Key - Displacement - `[displacement]`
+
 This key describes the settings related to the lattice deformation of structures.
 
 - `lattice_frac_displ_max`: (float) Maximum displacement value as a percentage of the lattice side length.
@@ -66,24 +74,23 @@ This key describes the settings related to the lattice deformation of structures
 - `num_repeats`: (int) Number of repeats for each structure, with each repeat getting different random displacements.
 
 ### Key - Perturbation - `[perturbation]`
+
 This key describes the settings related to the perturbation of structures.
 
 - `filter_struct_types`: (list) Types of structures to which the perturbation will be applied. Valid types: 'bulk', 'surface', 'cluster'.
 - `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
 - `num_repeats`: (int) Number of repeats for each structure, with each repeat getting different random perturbations.
 
-
 ## Active Learning Loop
+
 All keys are mandatory unless stated otherwise.
 
 ### Key - Active learning - `[al_learning]`
 
 This key describes the main active learning settings:
 
-
 - `aiida_profile`: (str) Name of the aiida profile to be used.
 - `run_name`: (str) Internal name for the run
-- `data_path`: (str) Path to the folder where the initial database is contained.
 - `init_db_path`: (str) Path to the folder where the initial database is contained.
 - `results_dir`: (str) Path for final results. Will be created if not existent.
 It will contain a folder named `run_{uuid}`.
