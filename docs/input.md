@@ -116,13 +116,8 @@ Parameters to configure the AL seed generation
 Parameters to tune the structure selection while creating the AL seeds.
 
 - `seed_select_type`: MD seed selection mode. `random` selects random structures from the seed pool `small_first` selects random structures smaller than small_first_max_size for the first small_first_max_iter iters. random (default) / small_first
-
 - `small_first_max_size`: (int) Maximum size in number of atoms for the structures selected with small_first mode
-
-
 - `small_first_max_iter`: (int) Apply small_first mode for the first n iterations
-
-
 
 ### Key - MD Settings - `[md]`
 
@@ -130,11 +125,10 @@ Settings for MD simulations using LAMMPS
 
 #### Key - MD Parameters - `[md.parameters]`
 
-
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: [300, 350, 400]
-- `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
+- `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
 - `num_steps` (int) Total number of MD steps to be run in each MD simulation
-- `timestep_duration_ps`: (float) Duration of each timestep (in ps).
+- `timestep_duration_ps`: (float) Duration of each timestep. In LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu
 
