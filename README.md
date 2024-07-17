@@ -17,7 +17,7 @@ MatDBForge is a Python library that enables the generation of chemical structure
 
 ## Installation
 
-To install MatDBForge, you can use pip in a python virtual environment or conda environment. Any python versions above `python3.9` should work. Most development has been made has with `python3.11` in mind, which can be installed through the OS's package manager or conda.
+To install MatDBForge, you can use pip in a python virtual environment or conda environment. Any python versions above `python3.9` should work. Most development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
 First, create a virtual environment and activate it:
 
@@ -31,7 +31,7 @@ Next, clone the repository:
 
 ```bash
 # Clone the reposittory
-git clone git@github.com:pol-sb/MatDBForge.git
+git clone https://github.com/pol-sb/MatDBForge.git
 ```
 
 Next, install the library using pip in the desired python environment:
@@ -48,18 +48,18 @@ Finally, initialize configuration files by running the initial configuration com
 mdb_init_setup
 ```
 
-The active learning (AL) loop uses the [aiida](https://github.com/aiidateam/aiida-core) library for managing the workflow. In order to run the AL loop in compute clusters, codes and computers must be conifigured in aiida.
+The active learning (AL) loop uses the [AiiDA](https://github.com/aiidateam/aiida-core) library for managing the workflow. In order to run the AL loop in compute clusters, codes and computers must be conifigured in AiiDA.
 
 DFT calculations with VASP use the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin, which needs additional configuration. Please, follow the [instructions on their website](https://aiida-vasp.readthedocs.io/en/latest/getting_started/general.html).
 
 
 ## Usage
 
-The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (NNPs). 
+The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (NNPs) by means of Active Learning (AL) Loops.
 
 During the library installation, several entry points will be added so that the user can easily run the different utilities:
 - `mdb_conf_gen`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
-- `mdb_gen_init_db`: Gnerate a database containing databases for training NNPs.
+- `mdb_gen_init_db`: Generate a database containing structures for NNP training.
 - `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
 - `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open http://127.0.0.1:8000 (or port specified in the launch arguments) in a browser to visualize the dashboard.
 
