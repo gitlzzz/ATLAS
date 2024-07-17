@@ -14,7 +14,6 @@ MatDBForge is a Python library that enables the generation of chemical structure
 - [Usage](#usage)
 - [Example](#example-training-a-mace-nnp-from-scratch)
 - [Package Structure](#package-structure)
-- [License](#license)
 
 ## Installation
 
@@ -166,6 +165,3 @@ The following examples demonstrate the usage of MatDBForge:
 - [create_init_db_new.py](src/MatDBForge/examples/create_init_db_new.py): This example script showcases how to create and initialize a new database with initial data.
 
 Please refer to the examples in the examples directory for more details on how to utilize the library for your specific needs.
-
-## License
-👷 WIP 🕒
