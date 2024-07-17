@@ -12,37 +12,40 @@ MatDBForge is a Python library that enables the generation of a chemical compoun
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
-- [Structure and Examples](#structure-and-examples)
+- [Example](#example-training-a-mace-nnp-from-scratch)
+- [Package Structure](#package-structure)
 - [License](#license)
 
 ## Installation
 
-To install MatDBForge, you can use pip in a python virtual environment or conda environment.
+To install MatDBForge, you can use pip in a python virtual environment or conda environment. Python versions above 3.9 should work. Most development has been made has with python3.11 in mind. You can install python3.11 through your OS package manager or conda.
 
 First, create a virtual environment and activate it:
 
-👷 WIP 🕒
-
-```
-python3.10 -m venv mdb
+```bash
+# Create and activate the environment
+python3.11 -m venv mdb
 source mdb/bin/activate
 ```
 
 Next, clone the repository:
 
-```
+```bash
+# Clone the reposittory
 git clone git@github.com:pol-sb/MatDBForge.git
 ```
 
 Next, install the library using pip in the desired python environment:
 
 ```shell
+# Install the library using pip
 python3 -m pip install MatDBForge
 ```
 
 Finally, initialize configuration files by running the initial configuration command. Then, enter your [Materials Project API key](https://next-gen.materialsproject.org/api) in the path displayed in the output to finish the setup process:
 
 ```shell
+# Run the last setup step
 mdb_init_setup
 ```
 
@@ -90,20 +93,22 @@ The utilities for generation and running the AL loop use inputs in the TOML form
 A description of all the possible parameters is available in the documentation for the input files: [Input](./docs/input.md). 
 
 
-### Usage example: Training a MACE NNP from scratch
+## Example: Training a MACE NNP from scratch
 
 This example will showcase the training of a MACE potential in a pure Cu database.
 
 #### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a configuration file. Use the `mdb_conf_gen` to generate a template file with instructions that can be customized easily.
+In order to generate the database, parameters for generation need to be listed in a configuration file. Use the `mdb_conf_gen` to generate a template file with instructions that can be customized easily. Available options are listed and described here: [./docs/input.md](./docs/input.md#database-generation)
 
 ```bash
+# Generate a configuration file for the database generation.
 mdb_conf_gen -t initial_db
 ```
 With the settings modified as needed, a database can be generated using the `mdb_gen_init_db` with the path to the configuration file:
 
 ```bash
+# Generate the initial database
 mdb_gen_init_db -c ./path/to/config_file.toml
 ```
 
@@ -114,16 +119,20 @@ This database will be generated as an extxyz file. This file must be labelled in
 
 The structures can be labelled automatically with VASP, or as a quick testing using a pretrained MACE model.
 
+- For **MACE labelling**, the following command can be used. For more information, check the [MACE documentation](https://mace-docs.readthedocs.io/en/latest/guide/evaluation.html): 
 
-👷 WIP 🕒 
+```bash
+mace_eval_configs  --configs ./unlabelled_db.xyz  --model /model/path cu_model_zan.model --output ./labelled_db.xyz --device cpu --batch_size 5
+```
 
-In order to use VASP for structure labelling, check the scripts in the [examples](./src/MatDBForge/examples/) directory.
+
+- **(👷 WIP 🕒)** In order to use **VASP for structure labelling**, check the scripts in the [examples](./src/MatDBForge/examples/) directory.
 
 
 
 
 #### 3. Run active learning loop
-Generate a settings file, customize it using [the options here](./docs/input.md) and run the active learning loop:
+Generate a settings file, customize it using [the options here](./docs/input.md#active-learning-loop) and run the active learning loop:
 
 ```bash
 # Generate a template file
@@ -132,14 +141,16 @@ mdb_conf_gen -t active_learning
 # Run the active learning loop, piping its outputs to a file.
 # Without the '-c', the program will search for the 'active_learning_settings.toml' 
 # in the current directory
-mdb_active_learning 2>&1 | tee ./run_mdb_al.log
+mdb_active_learning gui --n_sec 60 2>&1 | tee ./run_mdb_al.log
 ```
 
-This will generate a database in the extxyz format and a model file for the  potential.
+The progress of the AL Loop can be monitored by checking its output, or opening the dashboard running at http://127.0.0.1:8000.
+
+After the loop is done, a database in the extxyz format and a model file for the potential will be returned.
 
 
 
-## Structure and Examples
+## Package structure
 
 The main functionalities are organized into the following modules:
 

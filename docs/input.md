@@ -5,9 +5,76 @@ Users are advised to use the `mdb_conf_gen` utility to generate a template file 
 
 ## Database Generation
 
-👷 WIP 🕒
+All keys are mandatory unless stated otherwise.
+
+### Key - System - `[system]`
+This key describes the general system settings and paths.
+
+- `database_name`: (str) Name of the database.
+- `min_num_atoms`: (int) Minimum number of atoms in the structure.
+- `max_num_atoms`: (int) Maximum number of atoms in the structure.
+- `min_cell_size`: (float) Minimum cell size in Angstrom.
+- `relax_struct_path`: (str) Path to a folder containing DFT optimized structures (optional).
+- `final_database_path`: (str) Path for the final database.
+
+### Key - Phase Diagram - `[phase_diagram]`
+This key describes the settings related to the phase diagram of the material.
+
+- `material_name`: (str) Name of the material.
+
+### Key - Phase XXXXX - `[phase_diagram.phase.XXXXX]`
+This key describes the settings for a specific phase within the phase diagram. Several phases can be added in order to describe the entire phase diagram by adding new keys with different phase names (replace XXXXX)
+
+- `name`: (str) Name to be used as reference for the phase (e.g., 'alpha', 'beta', 'gamma', 'liquid', 'amorphous').
+- `base_elem`: (str) Symbol of the most abundant element in the phase.
+- `cluster_elem`: (str) Symbol of the element to be used as a template for defining the cluster positions.
+- `base_elem_comp_min`: (float) Minimum composition (fractional) of the base element in the phase.
+- `base_elem_comp_max`: (float) Maximum composition (fractional) of the base element in the phase.
+- `prototype`: (str) Materials project ID of a prototypical structure (e.g., 'mp-30' for Cu alpha).
+- `offset`: (float) Fraction of composition allowed to go over and under the limits of the phase.
+
+### Key - Generation - `[generation]`
+This key describes the settings related to the generation of structures.
+
+- `generate_type`: (list) Types of structures to generate. Options: 'bulk', 'surface', 'cluster'.
+
+### Key - Bulk Generation - `[generation.bulk]`
+This key describes the settings for the generation of bulk structures.
+
+- `num_struct`: (int) Number of structures to generate.
+- `num_repeat`: (int) Number of repeats for each structure.
+- `supercell_max_idx`: (int) Minimum Miller index for the bulk supercells.
+
+### Key - Surface Generation - `[generation.surface]`
+This key describes the settings related to the generation of surface structures.
+
+- `min_miller_index`: (int) Lowest Miller index used to generate structures.
+- `supercell_max_idx`: (int) Highest index for the supercell generation (supercells will be created in the x and y directions).
+- `min_slab_size_ang`: (float) Minimum slab size in Angstrom.
+- `num_diff_layer_size`: (int) Number of different layer sizes.
+- `min_vacuum_size_ang`: (float) Minimum vacuum size in Angstrom.
+- `get_supercells`: (bool) Whether to generate supercells (default is true).
+- `fixed_layers`: (int) Number of fixed layers in the slab.
+- `max_number_supercells`: (int) Max number of surfaces to generate.
+- `save_in_db`: (bool) Whether to save the structures in the current database (default is true).
+
+### Key - Displacement - `[displacement]`
+This key describes the settings related to the lattice deformation of structures.
+
+- `lattice_frac_displ_max`: (float) Maximum displacement value as a percentage of the lattice side length.
+- `lattice_frac_displ_min`: (float) Minimum displacement value as a percentage of the lattice side length.
+- `num_repeats`: (int) Number of repeats for each structure, with each repeat getting different random displacements.
+
+### Key - Perturbation - `[perturbation]`
+This key describes the settings related to the perturbation of structures.
+
+- `filter_struct_types`: (list) Types of structures to which the perturbation will be applied. Valid types: 'bulk', 'surface', 'cluster'.
+- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
+- `num_repeats`: (int) Number of repeats for each structure, with each repeat getting different random perturbations.
+
 
 ## Active Learning Loop
+All keys are mandatory unless stated otherwise.
 
 ### Key - Active learning - `[al_learning]`
 
