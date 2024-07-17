@@ -123,7 +123,7 @@ In order to use VASP for structure labelling, check the scripts in the [examples
 
 
 #### 3. Run active learning loop
-Generate a settings file, customize it and run the active learning loop:
+Generate a settings file, customize it using [the options here](./docs/input.md) and run the active learning loop:
 
 ```bash
 # Generate a template file
