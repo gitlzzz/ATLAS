@@ -10,6 +10,7 @@
 MatDBForge is a Python library that enables the generation of chemical structures database for training NNPs (Neural Network Potential) for heterogeneous catalysis. It provides functionalities to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling.
 
 ## Table of Contents
+
 - [Installation](#installation)
 - [Usage](#usage)
 - [Example](#example-training-a-mace-nnp-from-scratch)
@@ -52,19 +53,18 @@ The active learning (AL) loop uses the [AiiDA](https://github.com/aiidateam/aiid
 
 DFT calculations with VASP use the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin, which needs additional configuration. Please, follow the [instructions on their website](https://aiida-vasp.readthedocs.io/en/latest/getting_started/general.html).
 
-
 ## Usage
 
 The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (NNPs) by means of Active Learning (AL) Loops.
 
 During the library installation, several entry points will be added so that the user can easily run the different utilities:
+
 - `mdb_conf_gen`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
 - `mdb_gen_init_db`: Generate a database containing structures for NNP training.
 - `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
-- `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open http://127.0.0.1:8000 (or port specified in the launch arguments) in a browser to visualize the dashboard.
+- `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
 
 All of the entry points provide usage documentation when launched with the `-h`/`--help` argument, e.g.:
-
 
 ```bash
 $> mdb_conf_gen --help
@@ -87,16 +87,15 @@ $> mdb_conf_gen --help
                         Whether to overwrite the destination file, if existent.
 ```
 
-The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `mdb_conf_gen` to generate a template file which can be customized. 
+The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `mdb_conf_gen` to generate a template file which can be customized.
 
-A description of all the possible parameters is available in the documentation for the input files: [Input](./docs/input.md). 
-
+A description of all the possible parameters is available in the documentation for the input files: [Input](./docs/input.md).
 
 ## Example: Training a MACE NNP from scratch
 
 This example will showcase the training of a MACE potential in a pure Cu database.
 
-#### 1. Initial database generation
+### 1. Initial database generation
 
 In order to generate the database, parameters for generation need to be listed in a configuration file. Use the `mdb_conf_gen` to generate a template file with instructions that can be customized easily. Available options are listed and described here: [./docs/input.md](./docs/input.md#database-generation)
 
@@ -104,6 +103,7 @@ In order to generate the database, parameters for generation need to be listed i
 # Generate a configuration file for the database generation.
 mdb_conf_gen -t initial_db
 ```
+
 With the settings modified as needed, a database can be generated using the `mdb_gen_init_db` with the path to the configuration file:
 
 ```bash
@@ -113,24 +113,20 @@ mdb_gen_init_db -c ./path/to/config_file.toml
 
 This database will be generated as an extxyz file. This file must be labelled in order to be suitable for the AL Loop.
 
-
-#### 2. Database labelling
+### 2. Database labelling
 
 The structures can be labelled automatically with VASP, or as a quick testing using a pretrained MACE model.
 
-- For **MACE labelling**, the following command can be used. For more information, check the [MACE documentation](https://mace-docs.readthedocs.io/en/latest/guide/evaluation.html): 
+- For **MACE labelling**, the following command can be used. For more information, check the [MACE documentation](https://mace-docs.readthedocs.io/en/latest/guide/evaluation.html):
 
 ```bash
 mace_eval_configs  --configs ./unlabelled_db.xyz  --model /model/path cu_model_zan.model --output ./labelled_db.xyz --device cpu --batch_size 5
 ```
 
-
 - **(👷 WIP 🕒)** In order to use **VASP for structure labelling**, check the scripts in the [examples](./src/MatDBForge/examples/) directory.
 
+### 3. Run active learning loop
 
-
-
-#### 3. Run active learning loop
 Generate a settings file, customize it using [the options here](./docs/input.md#active-learning-loop) and run the active learning loop:
 
 ```bash
@@ -143,11 +139,9 @@ mdb_conf_gen -t active_learning
 mdb_active_learning gui --n_sec 60 2>&1 | tee ./run_mdb_al.log
 ```
 
-The progress of the AL Loop can be monitored by checking its output, or opening the dashboard running at http://127.0.0.1:8000.
+The progress of the AL Loop can be monitored by checking its output, or opening the dashboard running at <http://127.0.0.1:8000>.
 
 After the loop is done, a database in the extxyz format and a model file for the potential will be returned.
-
-
 
 ## Package structure
 
@@ -157,7 +151,6 @@ The main functionalities are organized into the following modules:
 - `core`: Includes core functionalities and utilities used by the library, such as the generation and management of the database.
 - `active_learning`: Contains classes and functions leveraged during the active learning loops.
 - `examples`: Provides example scripts that demonstrate the usage of the library.
-
 
 The following examples demonstrate the usage of MatDBForge:
 
