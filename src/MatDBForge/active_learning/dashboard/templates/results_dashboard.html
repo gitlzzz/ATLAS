@@ -91,7 +91,7 @@
         // console.log("{{ subprocess_list }}")
         var subprocess_list = [
             {% for entry in subprocess_list %}
-                {"title": "{{ entry['child_str'] }}"},
+                {"title": "{{ entry['child_process_label'] }}"},
             {% endfor %}
         ]
 

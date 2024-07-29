@@ -1,108 +1,17 @@
+import pathlib as pl
 import re
 import time
 
+import pandas as pd
 from aiida import load_profile, orm
 from aiida.cmdline.utils.common import get_workchain_report
 from flask import Flask, render_template
 
 
-def gather_information(workchain_node_id):
-    node: orm.WorkChainNode = orm.load_node(workchain_node_id)
-    children = node.called_descendants
-
-    model_stats = get_model_stats(children)
-    report = get_report(node)
-    iter_text, progbar_class_name, max_iters, curr_iter = get_iteration_info(node)
-    subprocess_list = display_subprocesses(children)
-
-    return (
-        model_stats,
-        report,
-        iter_text,
-        progbar_class_name,
-        max_iters,
-        curr_iter,
-        subprocess_list,
-    )
-
-
-def get_model_stats(children):
-    has_model = False
-    for child in children:
-        if child.process_label == "create_mace_lammps_model":
-            try:
-                rmse_e = child.inputs.rmse_e.value
-                rmse_f = child.inputs.rmse_f.value
-                has_model = True
-            except Exception:
-                pass
-
-    if has_model:
-        model_stats = f"RMSE E: {rmse_e:.2f} meV/at - RMSE F: {rmse_f:.2f} meV/A"
-    else:
-        model_stats = "No model available yet."
-    return model_stats
-
-
-def get_iteration_info(node):
-    max_iters = str(node.inputs.active_learning.max_iterations.value)
-    class_name = "workchain-progbar"
-    iter_text = "1 / ?"
-
-    if node.is_finished:
-        # Filling up and restyling the progress bar.
-        curr_iter = max_iters
-        class_name = "workchain-progbar-done"
-        iter_text = f"{curr_iter} / {max_iters}"
-    elif node.is_excepted or node.is_failed:
-        curr_iter = max_iters
-        class_name = "workchain-progbar-error"
-        iter_text = "ERROR"
-    else:
-        children = [
-            child
-            for child in node.called_descendants
-            if child.process_label == "ActiveLearningWorkChain"
-        ]
-        if len(children) > 0:
-            curr_iter = children[-1].inputs.al_loop_iteration.value
-        else:
-            curr_iter = 0
-
-        iter_text = f"{curr_iter} / {max_iters}"
-    return iter_text, class_name, max_iters, curr_iter
-
-
-def display_subprocesses(children):
-    subprocesses = []
-
-    if len(children) > 0:
-        for child in children:
-            if isinstance(child, orm.CalcJobNode):
-                if child.exit_status == 0:
-                    exit_status = "󰱒"
-                elif not child.exit_status:
-                    exit_status = ""
-                else:
-                    exit_status = child.exit_status
-
-                child_str = f"{exit_status} - ({child.pk}) {child.process_label}"
-                button = {
-                    "child_str": child_str,
-                    "id": f"button-{child.pk}",
-                    "type": "calcjob-button",
-                    "value": str(child.pk),
-                    "n_clicks": 0,
-                }
-                subprocesses.append(button)
-
-    else:
-        subprocesses.append("No children spawned yet.")
-
-    return subprocesses
-
-
 def get_report(node):
+    if isinstance(node, str):
+        node = orm.load_node(node)
+
     report = get_workchain_report(node, levelname="REPORT")
     report_lines = report.split("\n")
     pattern = r"\[\d+\|[A-Za-z]+\|[A-Za-z_]+\]"
@@ -176,6 +85,275 @@ def get_report(node):
     return styled_report
 
 
+def get_complete_steps_uuid(node):
+    node: orm.WorkChainNode = orm.load_node(node)
+    children = node.called
+    completed_iterations_it = []
+    exit_statuses = []
+    completed_iterations_uuid = []
+    for child in children:
+        if child.is_finished_ok:
+            completed_iterations_uuid.append(child.uuid)
+            completed_iterations_it.append(child.inputs.al_loop_iteration.value)
+            exit_statuses.append(child.exit_status)
+
+    if not completed_iterations_it:
+        completed_iterations_it = [0]
+    return (
+        children,
+        completed_iterations_uuid,
+        max(completed_iterations_it),
+        exit_statuses,
+    )
+
+
+def get_missing_cache_steps_uuid(node, cache: pd.DataFrame):
+    missing_uuid_list = []
+    children = orm.load_node(node).called
+    children = [
+        child for child in children if child.process_label == "ActiveLearningWorkChain"
+    ]
+
+    for child in children:
+        if child.uuid not in cache["uuid"].values:
+            missing_uuid_list.append(child.uuid)
+        if child.uuid in cache["uuid"].values:
+            target_row = cache[cache["uuid"] == child.uuid]
+            if target_row["progbar_class_name"].values[0] == "workchain-progbar":
+                missing_uuid_list.append(child.uuid)
+
+    return missing_uuid_list
+
+
+def get_step_child_info(node):
+    children_info = []
+    children = node.called
+    if len(children) > 0:
+        for child in children:
+            if isinstance(child, orm.CalcJobNode):
+                if child.exit_status == 0:
+                    exit_status = "󰱒"
+                elif not child.exit_status:
+                    exit_status = ""
+                else:
+                    exit_status = child.exit_status
+
+                child_dict = {
+                    "exit_status_str": str(exit_status),
+                    "exit_status": child.exit_status,
+                    "child_pk": child.pk,
+                    "child_process_label": child.process_label,
+                }
+                children_info.append(
+                    {
+                        "children": child_dict,
+                        "curr_it": node.inputs.al_loop_iteration.value + 1,
+                    }
+                )
+
+    return children_info
+
+
+def get_model_stats(node):
+    has_model = False
+    for child in node.called:
+        if child.process_label == "create_mace_lammps_model":
+            try:
+                rmse_e = child.inputs.rmse_e.value
+                rmse_f = child.inputs.rmse_f.value
+                has_model = True
+            except Exception:
+                pass
+
+    if has_model:
+        model_stats = {"energy": rmse_e, "forces": rmse_f}
+    else:
+        model_stats = {"energy": None, "forces": None}
+    return model_stats
+
+
+def get_progbar_class_name(node):
+    if node.is_finished:
+        # Filling up and restyling the progress bar.
+        class_name = "workchain-progbar-done"
+    elif node.is_excepted or node.is_failed:
+        class_name = "workchain-progbar-error"
+    else:
+        class_name = "workchain-progbar"
+
+    # print("node.is_failed: ", node.is_failed)
+    # print("node.is_excepted: ", node.is_excepted)
+    # print("class_name: ", class_name)
+    return class_name
+
+
+def update_cache(cache: pd.DataFrame, missing_uuid_list) -> pd.DataFrame:
+    for uuid in missing_uuid_list:
+        # Get information from uuid
+        curr_calc = orm.load_node(uuid)
+
+        # Add information to cache
+        child_info_list = get_step_child_info(curr_calc)
+        train_info_dict = get_model_stats(curr_calc)
+
+        progbar_class = get_progbar_class_name(curr_calc)
+        # print("progbar_class: ", progbar_class)
+        cache_df_row = pd.Series(
+            data={
+                "step": curr_calc.inputs.al_loop_iteration.value + 1,
+                "pk": curr_calc.pk,
+                "uuid": uuid,
+                "children": child_info_list,
+                "training": train_info_dict,
+                "progbar_class_name": progbar_class,
+                "exit_status": curr_calc.exit_status,
+            },
+        )
+        cache_df_row = cache_df_row.to_frame().T
+        cache_df_row.attrs = cache.attrs
+
+        print("cache: ", cache)
+        if len(cache) > 0:
+            # print("cache.columns: ", cache.columns)
+            # print("cache_df_row.columns: ", cache_df_row.columns)
+            cache_df_row.columns = cache.columns
+
+            # If entry not in cache, add it
+            if uuid not in cache["uuid"].values:
+                # Add dict to dataframe
+                # print("Add dict to cache")
+                cache = pd.concat(
+                    [cache, cache_df_row],
+                    ignore_index=True,
+                    keys=cache.columns,
+                )
+
+            # UUID already in cache. Updating entry.
+            else:
+                target_row = cache[cache["uuid"] == uuid]
+                print("cache_df_row.columns: ", cache_df_row.columns)
+                for col in cache_df_row.columns:
+                    target_row[col] = cache_df_row[col].values
+                    print("cache_df_row[col]: ", cache_df_row[col])
+                cache[cache["uuid"] == uuid] = target_row
+
+        # First entry in cache
+        else:
+            # Add dict to dataframe
+            cache = pd.concat(
+                [cache, cache_df_row],
+                ignore_index=True,
+                keys=cache.columns,
+            )
+
+    # Gathering AL steps
+    al_loop_steps = [
+        c
+        for c in orm.load_node(cache.attrs["base_workchain"]).called
+        if c.process_label == "ActiveLearningWorkChain"
+    ]
+    # Update extra information
+    cache.attrs["curr_iter"] = al_loop_steps[-1].inputs.al_loop_iteration.value + 1
+
+    return cache
+
+
+def create_cache(workchain_node_id):
+    cache = pd.DataFrame(
+        columns=[
+            "step",
+            "pk",
+            "uuid",
+            "children",
+            "training",
+            "progbar_class_name",
+            "exit_status",
+        ]
+    )
+
+    # Adding extra information
+    cache.attrs["base_workchain"] = workchain_node_id
+
+    base_workchain = orm.load_node(workchain_node_id)
+    cache.attrs["max_iters"] = (
+        base_workchain.inputs.active_learning.max_iterations.value
+    )
+    cache.attrs["curr_iter"] = base_workchain.called[-1].inputs.al_loop_iteration.value
+
+    return cache
+
+
+def gather_information(workchain_node_id, app):
+    cache_path = "/tmp"
+    cache_filename = f"mdb_cache_{workchain_node_id}.pkl"
+    cache_full_path = pl.Path(cache_path) / cache_filename
+
+    if cache_full_path.exists():
+        # Load cache file
+        cache = pd.read_pickle(cache_full_path)
+        app.logger.info(f"Read cache file: '{cache_full_path}'")
+    else:
+        # Create cache  as a dataframe
+        cache = create_cache(workchain_node_id)
+        app.logger.info(f"Created new cache file: '{cache_full_path}'")
+
+    # Get AL steps not found in cache file
+    missing_uuid_list = get_missing_cache_steps_uuid(
+        workchain_node_id,
+        cache=cache,
+    )
+    app.logger.info(f"Missing processes in cache: {missing_uuid_list}")
+
+    if len(missing_uuid_list) > 0:
+        # Save information into cache df
+        cache = update_cache(cache, missing_uuid_list)
+
+        # Save df as pickle file
+        cache.to_pickle(cache_full_path)
+        app.logger.info(f"Updated cache file: '{cache_full_path}'")
+    else:
+        app.logger.info("Cache file up-to-date.")
+
+    # process_cache_data(cache)
+    iter_text = f"{cache.attrs['curr_iter']} / {cache.attrs['max_iters']}"
+    curr_iter = cache.attrs["curr_iter"]
+
+    # Get model stats
+    energy_avail = False
+    if len(cache) > 0:
+        if cache.iloc[-1]["training"]["energy"]:
+            model_stats_dict = cache.iloc[-1]["training"]
+            energy_avail = True
+        elif len(cache) >= 2 and cache.iloc[-2]["training"]["energy"]:
+            model_stats_dict = cache.iloc[-2]["training"]
+            energy_avail = True
+
+    if energy_avail:
+        model_stats = (
+            f"RMSE E: {model_stats_dict['energy']:.2f} meV/at - "
+            f"RMSE F: {model_stats_dict['forces']:.2f} meV/A (iter. {cache.iloc[-1]['step']})"
+        )
+    else:
+        model_stats = "No model available yet."
+
+    # Get report from AiiDA
+    t_ini = time.time_ns()
+    report = get_report(workchain_node_id)
+    app.logger.info(f"Report gather time: {(time.time_ns() - t_ini) * 1e-9:.1f} s")
+
+    # Changing progress bar style
+    if orm.load_node(workchain_node_id).is_excepted:
+        progbar_class_name = "workchain-progbar-error"
+    elif orm.load_node(workchain_node_id).is_finished:
+        progbar_class_name = "workchain-progbar-done"
+        iter_text = f"DONE ({cache.attrs['curr_iter']})"
+        curr_iter = cache.attrs["max_iters"]
+    else:
+        progbar_class_name = "workchain-progbar"
+
+    return model_stats, report, iter_text, cache, curr_iter, progbar_class_name
+
+
 def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
     app = Flask(__name__)
     load_profile()
@@ -183,16 +361,10 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
     @app.route("/")
     @app.route("/status")
     def training_dashboard():
-        # workchain_node_id = 1388283
-        (
-            model_stats,
-            report,
-            iter_text,
-            progbar_class_name,
-            max_iters,
-            curr_iter,
-            subprocess_list,
-        ) = gather_information(workchain_node_id)
+        model_stats, report, iter_text, cache, curr_iter, progbar_class_name = (
+            gather_information(workchain_node_id, app)
+        )
+
         return render_template(
             "training_dashboard.html",
             refresh_interval=refresh_interval,
@@ -201,39 +373,34 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             model_stats=model_stats,
             report=report,
             iter_text=iter_text,
-            max_iters=max_iters,
+            max_iters=cache.attrs["max_iters"],
             curr_iter=curr_iter,
             progbar_class_name=progbar_class_name,
-            subprocess_list=subprocess_list,
+            subprocess_list=cache.children,
+            cache=cache,
         )
 
     @app.route("/results")
     def results_dashboard():
         # return render_template("results_dashboard.html")
 
-        # REMOVE
-        (
-            model_stats,
-            report,
-            iter_text,
-            progbar_class_name,
-            max_iters,
-            curr_iter,
-            subprocess_list,
-        ) = gather_information(workchain_node_id)
+        model_stats, report, iter_text, cache, curr_iter, progbar_class_name = (
+            gather_information(workchain_node_id, app)
+        )
+
         return render_template(
             "results_dashboard.html",
             refresh_interval=refresh_interval,
             update_time=time.strftime("%H:%M:%S"),
             workchain_node_id=workchain_node_id,
             model_stats=model_stats,
-            report=report,
+            report='',
             iter_text=iter_text,
-            max_iters=max_iters,
+            max_iters=cache.attrs["max_iters"],
             curr_iter=curr_iter,
             progbar_class_name=progbar_class_name,
-            subprocess_list=subprocess_list,
+            subprocess_list=cache.children,
+            cache=cache,
         )
-
 
     return app
