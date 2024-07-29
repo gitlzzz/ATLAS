@@ -79,9 +79,26 @@
             <div class="col-xl-3 col-md-4 col-sm-12 subprocess-list-col gy-2 bottom-row">
                 <div id="subprocess-list" class="subprocess-list g-2">
                     {% for entry in subprocess_list %}
-                    <button class="text-truncate" id="{{  entry['id'] }}" type="calcjob-button"
-                        value="{{ entry['value'] }}" onclick="copy_pk(this.value)">{{ entry["child_str"]
-                        }}</button>
+                    <button class="text-truncate" data-bs-toggle="collapse" href='#collapse{{ entry[0]["curr_it"] }}'
+                        role="button" aria-expanded="false" aria-controls='collapse{{ entry[0]["curr_it"] }}'
+                        type="calcjob-button">AL Loop
+                        Iteration -
+                        {{ entry[0]["curr_it"] }} ({{ cache.iloc[0]["pk"] }})
+                    </button>
+
+                    <script> console.log("entry: {{ entry }}") </script>
+                    <div class="collapse multi-collapse subprocess-list" id='collapse{{ entry[0]["curr_it"] }}'>
+                        {% for sub_pr in entry %}
+                        <div class="subprocess-list subprocess-row">
+                            <button id="{{  sub_pr['children']['child_pk'] }}" type="calcjob-button"
+                                value="{{ sub_pr['children']['child_pk'] }}" onclick="copy_pk(this.value)">
+                                {{ [sub_pr['children']["exit_status_str"]][0] }} &nbsp&nbsp&nbsp&nbsp|&nbsp {{ sub_pr['children']["child_process_label"]
+                                }} ({{ (sub_pr['children']["child_pk"]) }})</button>
+                        </div>
+                        {% endfor %}
+                        <!-- <script> console.log("sub_pr: {{ sub_pr }}") </script> -->
+                    </div>
+
                     {% endfor %}
                 </div>
             </div>

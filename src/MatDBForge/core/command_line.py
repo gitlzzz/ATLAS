@@ -27,7 +27,6 @@ from MatDBForge.core import utils as mdb_ut
 
 warnings.filterwarnings("ignore")
 
-
 class StandaloneApplication(WSGIApplication):
     def __init__(self, app_uri, options=None):
         self.options = options or {}
@@ -46,8 +45,8 @@ class StandaloneApplication(WSGIApplication):
 
 def run_dashboard_app(process_id, port, update_interval, debug, online):
     print(
-        f"Running dashboard to monitor process: {process_id}."
-        f"Access: http://127.0.0.1:{port}."
+        f"\n\nRunning dashboard to monitor process: {process_id}.\n"
+        f"Access: http://127.0.0.1:{port}.\n\n"
     )
     print("Pres Ctrl+C to stop the dashboard.")
     if debug:

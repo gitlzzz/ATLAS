@@ -696,6 +696,7 @@ class ActiveLearningWorkChain(WorkChain):
             workchain_results = workchain.outputs.retrieved
             steps_E_F_arr = self.gather_energies_from_workchain(workchain_results)
             traj, forces = self.gather_traj_from_workchain(workchain_results)
+            traj: Trajectory
 
             # Instead of keeping all frames, select some of them
             # Get 1 frame every n picoseconds of MD simulation
@@ -1287,7 +1288,7 @@ class ActiveLearningWorkChain(WorkChain):
             flag_no_error_structs = np.all(error_all_structures == 0)
 
             # The index of the structure to delete will
-            # be added to a lList, which will be used as a mask to select
+            # be added to a list, which will be used as a mask to select
             # which structures to remove outside of the loop.
             if flag_no_error_structs:
                 delete_indices.append(row["unique_id"])
