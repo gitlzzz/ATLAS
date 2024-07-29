@@ -35,7 +35,7 @@ dependencies = [
     "aiida-core==2.5.1",
     "aiida-lammps==1.0.1",
     "aiida-vasp==3.1.0",
-    "torch==2.0.1",
+    "torch==2.2.0",
     "wonderwords==2.2.0",
     "pymatgen",
     "python-slugify[unidecode]",
