@@ -303,7 +303,7 @@ def get_dft_calc_builder_mace_list(
         (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
             mdb_aut.gather_calc_data_from_row(row, curr_structure=curr_struct)
         )
-
+        curr_struct.info["mdb_md_node"] = row["mdb_md_node"]
         struct_ase = AseAtomsAdaptor().get_atoms(curr_struct)
         updated_struct_list.append(struct_ase)
 
@@ -496,7 +496,7 @@ def update_mace_train_settings_dict(
 
     # For very small datasets (testing), the batch size must be lower than the
     # database size
-    if db_size < settings_dict["batch_size"]:
+    if db_size < settings_dict.get("batch_size", 0):
         settings_dict["batch_size"] = db_size // 2
 
     if isinstance(curr_model, Str):
@@ -512,9 +512,21 @@ def update_mace_train_settings_dict(
     return Dict(settings_dict)
 
 
-# rmse_e and rmse_f are used by the dashboard
 @calcfunction
-def create_mace_lammps_model(model_file, rmse_e, rmse_f):
+def create_mace_lammps_model(model_file: SinglefileData):
+    """
+    Create a LAMMPS potential from a MACE model.
+
+    Parameters
+    ----------
+    model_file : SinglefileData
+        A MACE model file to convert to a LAMMPS potential.
+
+    Returns
+    -------
+    SinglefileData
+        A LAMMPS potential file generated from the MACE model.
+    """
     with model_file.as_path() as model_path:
         # Loading model
         model = torch.load(model_path, map_location=torch.device("cpu"))

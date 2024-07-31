@@ -354,7 +354,7 @@ class ActiveLearningWorkChain(WorkChain):
                 # Convert model to LAMMPS compatible format
                 # and return it to workchain context
                 self.ctx.lammps_potential_file = mdb_al_ut.create_mace_lammps_model(
-                    model_file, rmse_e=self.ctx.m0_rmse_e, rmse_f=self.ctx.m0_rmse_f
+                    model_file
                 )
 
                 self.report(
@@ -378,7 +378,9 @@ class ActiveLearningWorkChain(WorkChain):
         return self.inputs.check_extrapolation
 
     def generate_descriptors(self):
-        self.report(f"Generating descriptors using '{self.ctx.best_model_name}'...")
+        self.report(
+            f"Generating descriptors using model '{self.ctx.best_model_name}'..."
+        )
 
         # Prepare GetMACEDescriptorsCalculation
         mace_descr_calc = CalculationFactory("mace-get-descriptors")
@@ -391,14 +393,20 @@ class ActiveLearningWorkChain(WorkChain):
             node=self.node,
         )
         mace_builder.mace_train_file_path = str(mace_train_file_path)
-        descriptor_code_path = Path(f"{MDB_ROOT_DIR}/active_learning/mace_code")
+        descriptor_code_path = Path(
+            f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+        )
+
+        prepend_text = (
+            self.inputs.descriptor_settings["metadata"]["prepend_text"] + "PATH=$PATH:."
+        )
 
         # Generate aiida code using the script in the mace_code folder.
         code = orm.PortableCode(
             label="mace_get_descriptors",
             filepath_files=descriptor_code_path,
-            filepath_executable="./mace_get_descriptors.py",
-            prepend_text=self.inputs.descriptor_settings["metadata"]["prepend_text"],
+            filepath_executable="./mdb_mace_get_descriptors.py",
+            prepend_text=prepend_text,
         )
         mace_builder.code = code
         mace_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
@@ -1010,11 +1018,15 @@ class ActiveLearningWorkChain(WorkChain):
             descriptor_code_path = Path(
                 f"{MDB_ROOT_DIR}/active_learning/mace_code/committee"
             )
+            prepend_text = (
+                self.inputs.descriptor_settings["metadata"]["prepend_text"]
+                + "PATH=$PATH:."
+            )
             portable_code = orm.PortableCode(
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
-                filepath_executable="./run_mdb_mace_eval_committee.sh",
-                prepend_text=self.inputs.committee_eval["prepend_text"],
+                filepath_executable="./mdb_mace_eval_committee_configs.py",
+                prepend_text=prepend_text,
             )
             mace_builder.code = portable_code
 
@@ -1036,7 +1048,7 @@ class ActiveLearningWorkChain(WorkChain):
             self.to_context(committee_results=append_(future))
 
     def gather_committee_results(self):
-        self.report("Gathering committee evaluation...")
+        self.report("Gathering committee E and F evaluation...")
 
         # # REMOVE: Testing only
         # md_seed_results_df.to_pickle("/tmp/md_seed_results_df")
@@ -1132,14 +1144,18 @@ class ActiveLearningWorkChain(WorkChain):
             mace_builder = mace_descr_calc.get_builder()
             mace_builder.model_file = self.ctx.best_model_file
             mace_builder.mace_train_file_path = md_xyz_file
-            descriptor_code_path = Path(f"{MDB_ROOT_DIR}/active_learning/mace_code")
+            descriptor_code_path = Path(
+                f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+            )
+            prepend_text = (
+                self.inputs.descriptor_settings["metadata"]["prepend_text"]
+                + "PATH=$PATH:."
+            )
             code = orm.PortableCode(
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
-                filepath_executable="./mace_get_descriptors.py",
-                prepend_text=self.inputs.descriptor_settings["metadata"][
-                    "prepend_text"
-                ],
+                filepath_executable="./mdb_mace_get_descriptors.py",
+                prepend_text=prepend_text,
             )
             mace_builder.code = code
 
@@ -1357,6 +1373,8 @@ class ActiveLearningWorkChain(WorkChain):
                     future.base.extras.set("mdb_calc_uuid", row["unique_id"])
                     future.base.extras.set("mdb_struct_type", row["mdb_struct_type"])
                     future.base.extras.set("struct_name", row["material_name"])
+                    future.base.extras.set("mdb_md_node", row["mdb_md_node"])
+
                     self.to_context(dft_struct_seed_calcs=append_(future))
 
                     if self.inputs.train_seed_group.value:

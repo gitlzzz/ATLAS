@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Script to be used as an aiida PortableCode for running MACE evaluation configurations.
 
