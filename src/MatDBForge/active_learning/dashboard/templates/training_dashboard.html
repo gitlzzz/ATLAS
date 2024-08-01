@@ -53,13 +53,13 @@
             <div class="col-md-8 col-sm-12 gy-2">
                 <div class="g-2 left-box">
                     <div class="top-box-title">
-                        <h3 class="title-upper">Workchain - {{ workchain_node_id }}</h3>
+                        <h3 class="title-upper">Workchain - {{ workchain_node_id }} - Current Iteration: {{ curr_iter }}</h3>
                         <h3 class="last-updated">({{ update_time }})</h3>
                     </div>
                     <div class="top-box-left-headers">
                         <div class="workchain-progress-container">
                             <p class="top-text">Total progress:</p>
-                            <progress class="{{ progbar_class_name }}" id="progress-update" value="{{ curr_iter }}"
+                            <progress class="{{ progbar_class_name }}" id="progress-update" value="{{ progbar_iter }}"
                                 max="{{ max_iters }}"></progress>
                             <p id="iter-text" class="top-text">{{ iter_text }}</p>
                         </div>
@@ -69,7 +69,7 @@
             </div>
             <div class="col-md-4 col-sm-12 gy-2">
                 <div class="g-2 right-box">
-                    <h3 class="title-upper">Performance - Iteration {{ curr_iter }}</h3>
+                    <h3 class="title-upper">Training Performance</h3>
                     <p id="model-score-text" class="top-text">{{ model_stats }}</p>
                 </div>
             </div>

@@ -157,10 +157,10 @@ def get_step_child_info(node):
 def get_model_stats(node):
     has_model = False
     for child in node.called:
-        if child.process_label == "create_mace_lammps_model":
+        if child.process_label == "TrainMACEModelCalculation":
             try:
-                rmse_e = child.inputs.rmse_e.value
-                rmse_f = child.inputs.rmse_f.value
+                rmse_e = child.outputs.m_rmse_e.value
+                rmse_f = child.outputs.m_rmse_f.value
                 has_model = True
             except Exception:
                 pass
@@ -181,9 +181,6 @@ def get_progbar_class_name(node):
     else:
         class_name = "workchain-progbar"
 
-    # print("node.is_failed: ", node.is_failed)
-    # print("node.is_excepted: ", node.is_excepted)
-    # print("class_name: ", class_name)
     return class_name
 
 
@@ -197,7 +194,6 @@ def update_cache(cache: pd.DataFrame, missing_uuid_list) -> pd.DataFrame:
         train_info_dict = get_model_stats(curr_calc)
 
         progbar_class = get_progbar_class_name(curr_calc)
-        # print("progbar_class: ", progbar_class)
         cache_df_row = pd.Series(
             data={
                 "step": curr_calc.inputs.al_loop_iteration.value + 1,
@@ -212,16 +208,12 @@ def update_cache(cache: pd.DataFrame, missing_uuid_list) -> pd.DataFrame:
         cache_df_row = cache_df_row.to_frame().T
         cache_df_row.attrs = cache.attrs
 
-        print("cache: ", cache)
         if len(cache) > 0:
-            # print("cache.columns: ", cache.columns)
-            # print("cache_df_row.columns: ", cache_df_row.columns)
             cache_df_row.columns = cache.columns
 
             # If entry not in cache, add it
             if uuid not in cache["uuid"].values:
                 # Add dict to dataframe
-                # print("Add dict to cache")
                 cache = pd.concat(
                     [cache, cache_df_row],
                     ignore_index=True,
@@ -231,10 +223,8 @@ def update_cache(cache: pd.DataFrame, missing_uuid_list) -> pd.DataFrame:
             # UUID already in cache. Updating entry.
             else:
                 target_row = cache[cache["uuid"] == uuid]
-                print("cache_df_row.columns: ", cache_df_row.columns)
                 for col in cache_df_row.columns:
                     target_row[col] = cache_df_row[col].values
-                    print("cache_df_row[col]: ", cache_df_row[col])
                 cache[cache["uuid"] == uuid] = target_row
 
         # First entry in cache
@@ -314,24 +304,38 @@ def gather_information(workchain_node_id, app):
     else:
         app.logger.info("Cache file up-to-date.")
 
-    # process_cache_data(cache)
-    iter_text = f"{cache.attrs['curr_iter']} / {cache.attrs['max_iters']}"
+    # Get status for the current iteration from cache
+    curr_step_status = cache.iloc[-1]["exit_status"]
     curr_iter = cache.attrs["curr_iter"]
+
+    # If current step is finished, get current iteration
+    if curr_step_status:
+        progbar_iter = cache.attrs["curr_iter"]
+    # If current step is not finished, get previous iteration
+    else:
+        progbar_iter = cache.attrs["curr_iter"] - 1
+
+    iter_text = f"{progbar_iter} / {cache.attrs['max_iters']}"
 
     # Get model stats
     energy_avail = False
     if len(cache) > 0:
-        if cache.iloc[-1]["training"]["energy"]:
-            model_stats_dict = cache.iloc[-1]["training"]
+        # Getting model stats from current iteration
+        if cache.iloc[curr_iter - 1]["training"]["energy"]:
+            model_stats_dict = cache.iloc[curr_iter - 1]["training"]
+            extra_text = f"from curr. step: {curr_iter}"
             energy_avail = True
-        elif len(cache) >= 2 and cache.iloc[-2]["training"]["energy"]:
-            model_stats_dict = cache.iloc[-2]["training"]
+
+        # If training not yet completed, get model stats from previous iteration
+        elif len(cache) >= 2 and cache.iloc[curr_iter - 2]["training"]["energy"]:
+            model_stats_dict = cache.iloc[curr_iter - 2]["training"]
+            extra_text = f"from prev. step: {curr_iter-1}"
             energy_avail = True
 
     if energy_avail:
         model_stats = (
             f"RMSE E: {model_stats_dict['energy']:.2f} meV/at - "
-            f"RMSE F: {model_stats_dict['forces']:.2f} meV/A (iter. {cache.iloc[-1]['step']})"
+            f"RMSE F: {model_stats_dict['forces']:.2f} meV/A ({extra_text})."
         )
     else:
         model_stats = "No model available yet."
@@ -344,14 +348,26 @@ def gather_information(workchain_node_id, app):
     # Changing progress bar style
     if orm.load_node(workchain_node_id).is_excepted:
         progbar_class_name = "workchain-progbar-error"
+        iter_text = f"ERROR ({cache.attrs['curr_iter']})"
+        curr_iter = cache.attrs["max_iters"]
+
     elif orm.load_node(workchain_node_id).is_finished:
         progbar_class_name = "workchain-progbar-done"
         iter_text = f"DONE ({cache.attrs['curr_iter']})"
         curr_iter = cache.attrs["max_iters"]
+
     else:
         progbar_class_name = "workchain-progbar"
 
-    return model_stats, report, iter_text, cache, curr_iter, progbar_class_name
+    return (
+        model_stats,
+        report,
+        iter_text,
+        progbar_iter,
+        cache,
+        curr_iter,
+        progbar_class_name,
+    )
 
 
 def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
@@ -361,9 +377,17 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
     @app.route("/")
     @app.route("/status")
     def training_dashboard():
-        model_stats, report, iter_text, cache, curr_iter, progbar_class_name = (
-            gather_information(workchain_node_id, app)
-        )
+        (
+            model_stats,
+            report,
+            iter_text,
+            progbar_iter,
+            cache,
+            curr_iter,
+            progbar_class_name,
+        ) = gather_information(workchain_node_id, app)
+        print("cache: ", cache["exit_status"])
+        print("cache: ", cache.columns)
 
         return render_template(
             "training_dashboard.html",
@@ -375,6 +399,7 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             iter_text=iter_text,
             max_iters=cache.attrs["max_iters"],
             curr_iter=curr_iter,
+            progbar_iter=progbar_iter,
             progbar_class_name=progbar_class_name,
             subprocess_list=cache.children,
             cache=cache,
@@ -394,7 +419,7 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             update_time=time.strftime("%H:%M:%S"),
             workchain_node_id=workchain_node_id,
             model_stats=model_stats,
-            report='',
+            report="",
             iter_text=iter_text,
             max_iters=cache.attrs["max_iters"],
             curr_iter=curr_iter,
