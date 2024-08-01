@@ -26,8 +26,8 @@ select = [
 fixable = ["ALL"]
 unfixable = []
 
-
-ignore = ["D417", "D401", "D205"]
+#                                 REMOVE  REMOVE  REMOVE
+ignore = ["D417", "D401", "D205", "D102", "D103", "D105"]
 
 [lint.pydocstyle]
 convention = "numpy"

@@ -17,9 +17,6 @@ import ase.io as aseio
 import numpy as np
 import pandas as pd
 import pymatgen.io.vasp as vasp
-import rich.align as rialg
-import rich.console as ricns
-import rich.live as riliv
 import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
@@ -343,7 +340,8 @@ class InitialDatabase:
 
         if verbose:
             ut.custom_print(
-                f"Supercell generated {supercell_vec} - total atoms: {len(new_structure.species)}",
+                f"Supercell generated {supercell_vec}"
+                f" - total atoms: {len(new_structure.species)}",
                 "debug",
             )
 
@@ -470,7 +468,7 @@ class InitialDatabase:
         Returns
         -------
         list[ase.Atoms]
-            A list of ASE Atoms objects representing the structures stored in the dataframe.
+            A list of ASE Atoms objects representing the structures in the dataframe.
         """
         structure_list = []
 
@@ -847,9 +845,10 @@ class InitialDatabase:
         This method perturbs the lattice parameters of relaxed structures by applying
         small random displacements to their lattice matrix elements.
         The perturbations are repeated a specified number of times, creating multiple
-        perturbed structures for each initial structure. This helps in generating structures
-        with slightly higher energies and forces, useful for generating training data for
-        neural network potentials (NNP) intended for molecular dynamics (MD) simulations.
+        perturbed structures for each initial structure. This helps in generating
+        structures with slightly higher energies and forces, useful for generating
+        training data for neural network potentials (NNP) intended for
+        molecular dynamics (MD) simulations.
 
         Parameters
         ----------
@@ -867,8 +866,8 @@ class InitialDatabase:
 
         Notes
         -----
-        The perturbed structures are then converted to the appropriate type (Bulk or Surface)
-        and saved to the database.
+        The perturbed structures are then converted to the appropriate type
+        (Bulk or Surface) and saved to the database.
 
         Example
         -------
@@ -1026,7 +1025,8 @@ class InitialDatabase:
             return new_structure
 
         else:
-            # If everything is already either atoms from alloy_set, leave the structure as is.
+            # If everything is already either atoms from alloy_set,
+            # leave the structure as is.
             return structure
 
     def _gather_prototype_structure(
@@ -1075,7 +1075,7 @@ class InitialDatabase:
             phase_name = slugify(phase.name)
         elif isinstance(phase, str):
             phase_name = slugify(phase)
-        
+
         if not self.phase_diagram.get_phase(phase_name):
             raise KeyError(
                 "Wrong phase given. "
@@ -1090,7 +1090,7 @@ class InitialDatabase:
                 material_id_prefix = query_result.material_id.values[0]
                 structure = query_result.structure.values[0]
             except IndexError:
-                raise mdb_exc.BaseStructureNotFound()
+                raise mdb_exc.BaseStructureNotFound() from None
 
         # Querying alloy prototype structure
         else:
@@ -1504,295 +1504,9 @@ class InitialDatabase:
 
         return base_structs
 
-    def generate_surfaces_pure(
-        self,
-        phase: mdb_pd.Phase,
-        num_diff_layer_size: int,
-        max_miller_index: int = 2,
-        min_slab_size: float = 3,
-        max_slab_size: float = 6,
-        min_vacuum_size: float = 10,
-        get_supercells=False,
-        get_replacements=False,
-        num_replacement_structs: int = 3,
-        num_replacement_repeats: int = 5,
-        fixed_layers: int = 0,
-        overwrite_max_num_atoms: int = None,
-        limit_per_phase: int = None,
-    ):
-        """
-        Generating a series of surfaces from the base structures using a phase
-        as a template. This method must be executed in an InitialDatabase object
-        that contains structures labelled as 'base' and a Phase from a PhaseDiagram
-        object must be given.
-        The structure generation from the CatKit library is leveraged.
-
-        Parameters
-        ----------
-        phase : Phase
-            Phase of the current system's phase diagram that will contain
-            atomic ratio information.
-        num_diff_layer_size : int
-            How many different sized layers will be generated, using the maximum
-            and minimum slab size.
-        max_miller_index : int, optional
-            Maximum index on the miller indices. The function will generate
-            all miller indices starting from zero up to this maximum
-            value, by default 2.
-        min_slab_size : float, optional
-            Minimum size of the slab in Angstrom, by default 3
-        max_slab_size : float, optional
-            Maximum size of the slab in Angstrom, by default 6
-        min_vacuum_size : float, optional
-            Minimum size of the vacuum in Angstrom, by default 10
-        get_supercells : bool, optional
-            Whether to generate supercells for each Slab, by default False
-        get_replacements : bool, optional
-            Whether to generate new Slabs with random replacements.
-            This will be done to all generated Slabs, by default False
-        num_replacement_structs : int, optional
-            How many different random replacement percentages to generate
-            for every structure, by default 3.
-        num_replacement_repeats : int, optional
-            How many times to repeat the random replacement of a single
-            percentage in a structure, by default 5.
-        fixed_layers : int, optional
-            How many layers to fix at the bottom, by default 0
-        overwrite_max_num_atoms : int, optional
-            A parameter that overrides the max number of atoms of the
-            InitialDatabase object, so larger surfaces can be created
-            when generating supercells, by default None.
-
-        Raises
-        ------
-        mdbex.BaseStructureNotFound
-            This exception will raise if no base structures can be found for a
-            certain phase.
-        """
-        # Getting the current phase from the phase name.
-        if isinstance(phase, str):
-            phase = self.phase_diagram.get_phase(phase)
-
-        base_structs = self.get_base_structs_current_phase(phase)
-
-        # Checking if there are any base structures for the current
-        # phase.
-        if len(base_structs) == 0:
-            err_msg = (
-                f"No base structure could be found for phase {phase.name}."
-                "\nThe database must contain base structures before "
-                "running this function."
-            )
-
-            raise mdb_exc.BaseStructureNotFound(err_msg)
-
-        # Preparing equispaced points between initial random value and the
-        # maximum thickness value.
-        slab_sizes = np.linspace(min_slab_size, max_slab_size, num_diff_layer_size)
-
-        for idx, row in base_structs.iterrows():
-            # Getting the current base structure
-            curr_bulk = row.structure
-
-            # Getting the number of atoms in the conventional cell
-            # of the bulk
-            curr_surf_nat = len(curr_bulk.species)
-
-            # Getting a range of maximum number of atoms using the bulk
-            # atom number and the max atom number specified.
-            if overwrite_max_num_atoms:
-                max_atom_num_list = np.linspace(
-                    curr_surf_nat,
-                    overwrite_max_num_atoms,
-                    int(overwrite_max_num_atoms / curr_surf_nat),
-                )
-            else:
-                max_atom_num_list = np.linspace(
-                    curr_surf_nat,
-                    self.max_num_atoms,
-                    int(self.max_num_atoms / curr_surf_nat),
-                )
-            # print("self.max_num_atoms: ", self.max_num_atoms)
-            # print("curr_surf_nat: ", curr_surf_nat)
-            # print(
-            #     "int(self.max_num_atoms/curr_surf_nat): ",
-            #     int(self.max_num_atoms / curr_surf_nat),
-            # )
-
-            # Getting an ASE Atoms object
-            curr_bulk_ase = AseAtomsAdaptor().get_atoms(curr_bulk)
-
-            # Preparing the progress bar
-            text_column = riprg.TextColumn(
-                "        {task.description}", table_column=riprg.Column(ratio=3)
-            )
-            rialg.Align(text_column.render, align="right")
-            bar_column = riprg.BarColumn(table_column=riprg.Column())
-            time_col = riprg.TimeElapsedColumn(table_column=riprg.Column())
-            spin_col = riprg.SpinnerColumn(table_column=riprg.Column())
-            remaining_col = riprg.MofNCompleteColumn(table_column=riprg.Column())
-            t_remaining_col = riprg.TimeRemainingColumn(table_column=riprg.Column())
-            empty_col = riprg.TextColumn("", table_column=riprg.Column())
-
-            overall_progress = riprg.Progress(
-                riprg.TextColumn(
-                    " [···]  {task.description}",
-                    table_column=riprg.Column(ratio=3),
-                ),
-                bar_column,
-                time_col,
-                t_remaining_col,
-                remaining_col,
-                # expand=True,
-            )
-            total_slabs_gen = list(it.product(slab_sizes, max_atom_num_list[:]))
-            total_slabs = len(total_slabs_gen)
-            main_task_descr = f"Generating {phase.name} slabs:"
-            overall_task = overall_progress.add_task(
-                main_task_descr, total=int(total_slabs)
-            )
-
-            job_progress = riprg.Progress(
-                text_column,
-                bar_column,
-                time_col,
-                spin_col,
-                empty_col,
-                # expand=True,
-            )
-
-            group = ricns.Group(overall_progress, job_progress)
-            live = riliv.Live(group, refresh_per_second=4)
-
-            total_slabs_generated = []
-            total_slabs_generated_count = 0
-            # Rich live progress bars wrapping the surface generation
-            # process. A task is created for each layer+n_at number,
-            # drawing a progress bar while it gets computed.
-            with live:
-                while not overall_progress.finished:
-                    for n_layers, n_at in total_slabs_gen:
-                        # sub_task = job_progress.add_task(
-                        #     description=f"{int(n_layers)} layers, {int(n_at)} atoms:",
-                        #     total=None,
-                        # )
-
-                        gen_slabs = mdb_surf._gen_curr_surface(
-                            db_obj=self,
-                            phase=phase,
-                            curr_bulk_ase=curr_bulk_ase,
-                            n_layers=n_layers,
-                            n_at=n_at,
-                            max_miller_index=max_miller_index,
-                            fixed_layers=fixed_layers,
-                            get_supercells=get_supercells,
-                            limit_per_phase=limit_per_phase,
-                        )
-
-                        total_slabs_generated_count += len(gen_slabs)
-                        total_slabs_generated.extend(gen_slabs)
-                        # job_progress.update(sub_task, total=1)
-                        # job_progress.advance(sub_task, advance=1)
-
-                        overall_progress.advance(overall_task, advance=1)
-
-            # Counter for the total number of structures
-            total_slabs_generated_final_cnt = len(total_slabs_generated)
-
-            # Applying replacements
-            if get_replacements:
-                ut.custom_print("Applying replacements...", "debug")
-                rng = np.random.default_rng()
-
-                replacement_list = []
-
-                for idx, gen_slab in enumerate(total_slabs_generated):
-                    # Getting current phase and structure length.
-                    slab_phase = gen_slab.phase
-
-                    # Getting the base element percentage of the current structure
-                    current_perc = slab_phase.get_base_elem_perc(gen_slab.structure)
-
-                    # Generating a list of random percentages inside the current phase
-                    # range.
-                    gen_percentages = mdb_surf.gen_perc_surfaces(
-                        phase=slab_phase,
-                        num_struct=num_replacement_structs,
-                        current_perc=current_perc,
-                        relative=True,
-                        # db_obj=self,
-                    )
-
-                    # Going over the generated percentages
-                    for str_ind, n_atoms in enumerate(gen_percentages):
-                        # Repeating the replacement for each percentage, so that
-                        # num_replacement_repeats structures are generated with
-                        # the same ratio but different distribution.
-                        for repl in range(num_replacement_repeats):
-                            # Applying the replacement
-                            new_structure = self._apply_replacement(
-                                structure=gen_slab,
-                                phase=phase,
-                                n_atoms=n_atoms,
-                                rng=rng,
-                            )
-
-                            # Generating name
-                            if gen_slab.supercell:
-                                supercell_vec_str = mdb_surf.get_miller_index_str(
-                                    gen_slab.supercell
-                                )
-                                supercell_vec_str_name = f"super-{supercell_vec_str}_"
-                            else:
-                                supercell_vec_str = gen_slab.surface_miller
-                                supercell_vec_str_name = supercell_vec_str
-
-                            mat_name = (
-                                f"{phase.prototype}_{phase.name}_surface"
-                                f"-{supercell_vec_str_name}-{str_ind+1}"
-                                f"_replacement-{repl + 1}"
-                            )
-
-                            # Creating a new Surface object for the
-                            # structure with replacement
-                            new_struct_symm = mdb_struct.Surface(
-                                material_name=mat_name,
-                                material_id=phase.prototype,
-                                surface_miller=supercell_vec_str,
-                                structure=new_structure,
-                                temperature=gen_slab.temperature,
-                                perturb=False,
-                                replacement=True,
-                                replacement_ind=(str_ind + 1, repl + 1),
-                                base=False,
-                                calc_performed=False,
-                                supercell=gen_slab.supercell,
-                                phase=phase,
-                            )
-
-                            replacement_list.append(new_struct_symm)
-
-            # Limiting the number of structures per phase
-            if limit_per_phase and len(replacement_list) >= limit_per_phase:
-                rng = np.random.default_rng()
-                slabs_selection = rng.choice(
-                    len(replacement_list), size=limit_per_phase, replace=False
-                )
-                replacement_list = np.take(replacement_list, slabs_selection, axis=0)
-
-            for struct in replacement_list:
-                # Saving new structure into the database.
-                total_slabs_generated_final_cnt += 1
-                self.df = struct.save_to_db(self.df)
-
-            ut.custom_print(
-                f"Generated {total_slabs_generated_final_cnt} surfaces.", "done"
-            )
-
     def _get_main_elem_perc(self, phase: mdb_pd.Phase, structure):
         """
-        This function provides the percentage of the main element
-        for a given structure
+        Get the percentage of the main element for a given structure.
 
         Parameters
         ----------
@@ -1893,10 +1607,7 @@ class InitialDatabase:
 
                     # Matching the miller index from the name as it is not stored.
                     match = re.search(r"\((.*?)\)", row.material_id)
-                    if match:
-                        curr_miller = match.group(1)
-                    else:
-                        curr_miller = "???"
+                    curr_miller = match.group(1) if match else "???"
 
                     # Preparing the structure name
                     mat_id_name = f"{prototype}_{phase.name}"
@@ -2071,10 +1782,7 @@ class InitialDatabase:
         load_profile()
 
         # Handling path
-        if path and isinstance(path, str):
-            path = pathlib.Path(path)
-        else:
-            path = pathlib.Path()
+        path = pathlib.Path(path) if path and isinstance(path, str) else pathlib.Path()
 
         # Adding input.data filename to path
         path = path / "input.data"
@@ -2093,7 +1801,7 @@ class InitialDatabase:
         result_nodes = qb.all(flat=True)
 
         if len(result_nodes) == 0:
-            for group in aiida_group_list:
+            for _group in aiida_group_list:
                 qb.append(VaspCalculation, with_group="group", filters=filter_dict)
             result_nodes = qb.all(flat=True)
 
@@ -2259,7 +1967,7 @@ class InitialDatabase:
         # If True, store the structures along with their information
         # into the MatDBForge InitialDatabase object
         if save_in_db:
-            for idx, cluster in enumerate(cluster_list):
+            for _idx, cluster in enumerate(cluster_list):
                 self._save_row(structure=cluster)
 
         # Return the cluster list in case the user just wants the clusters

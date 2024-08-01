@@ -136,7 +136,7 @@ Settings for MD simulations using LAMMPS
 
 Contains settings related to the filtering of structures obtained from MD calculations. Filtering allows the removal of some types of incorrect structures that might pollute the training database
 
-- `check_atoms_no_neighbor`: (bool) Check for structures that have atoms with no neighbors. Specific setting for the neighbor check MD filter.  
+- `check_atoms_no_neighbor`: (bool) Check for structures that have atoms with no neighbors. Specific setting for the neighbor check MD filter.
 ⚠ **WARNING: only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules.** ⚠
 - `layer_distance.max_layer_distance_ang`: (float) Specific setting for the layer distance MD filter.Maximum accepted distance between layers (in Angstrom).
 

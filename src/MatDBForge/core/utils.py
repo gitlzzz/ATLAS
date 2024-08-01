@@ -1,13 +1,14 @@
-# General utilities
+"""Module containing general utilities for MatDBForge."""
+
 import json as js
 import logging
+import os
 import pathlib
+import pathlib as pl
 import tempfile
 
 import numpy as np
 import pandas as pd
-import os
-import pathlib as pl
 from ase import Atoms, visualize
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
@@ -45,15 +46,10 @@ def init_config_dir(config_dir):
     # Create a 'secrets.json' file inside the 'mdb' directory
     try:
         with open(config_dir / "secrets.json", "x") as f:
-            f.write(
-                "{\n"
-                '"API_KEY": ""\n'
-                "}"
-            )
+            f.write("{\n" '"API_KEY": ""\n' "}")
         return config_dir
     except FileExistsError:
         return None
-        
 
 
 def init_logger(source, log_path=None):
@@ -174,7 +170,7 @@ def gather_secrets():
 
 
 def check_incorrect_ratios(df, curr_phase_diag):
-    for id, row in df.iterrows():
+    for _id, row in df.iterrows():
         if not row.base and not row.material_name.endswith("_symm"):
             strct = row.structure.get_sorted_structure()
             name = row.material_name
@@ -286,7 +282,7 @@ def similarity_check_list(
 
     if save_in_db:
         custom_print("Saving to db...", "debug")
-        for idx, cluster in enumerate(replaced_structures):
+        for _idx, cluster in enumerate(replaced_structures):
             db_obj._save_row(structure=cluster)
 
     return replaced_structures
@@ -351,7 +347,7 @@ def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
     i_max, j_max = simi_matrix.shape
 
     # for struct_idx, row in enumerate(simi_matrix):
-    for struct_idx, struct in enumerate(structure_list):
+    for struct_idx, _struct in enumerate(structure_list):
         check_col = simi_matrix[struct_idx, struct_idx + 1 : j_max]
 
         # Get position in current row

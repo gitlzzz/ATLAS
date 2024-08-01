@@ -1,13 +1,11 @@
+"""Module containing functions to generate surfaces from structures."""
+
 import itertools as it
-import warnings
-from multiprocessing import Pool
 from typing import Union
 
-# import catkit.gen.surface as cts
 import numpy as np
 from pymatgen.core.structure import Lattice, Structure
 from pymatgen.core.surface import Slab, SlabGenerator
-from pymatgen.io.ase import AseAtomsAdaptor
 
 import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.initial_db as mdb_indb
@@ -66,209 +64,6 @@ def gen_perc_surfaces(
         return adjusted_perc
     else:
         return subst_base_elem_perc
-
-
-def make_clean_surf(
-    db_obj,
-    bulk: Union[Structure, Slab],
-    max_num_at: float,
-    n_layers: int,
-    miller_list: list,
-    fixed: int,
-):
-    img_miller = []
-    images = []
-
-    for miller in miller_list:
-        # Object that allows to generate the slab.
-        # The attach_grap parameter is disabled to increase speed.
-        gen = cts.SlabGenerator(
-            bulk,
-            miller_index=(miller),
-            layers=n_layers,
-            attach_graph=False,
-            layer_type="angs",
-            fixed=fixed,
-            standardize_bulk="True",
-            vacuum=7.5,
-        )
-
-        # Getting unique terminations for the current surface
-        termination = gen.get_unique_terminations()
-
-        for ind, t in enumerate(termination):
-            img_miller.append(miller)
-            imgsize = gen.get_slab(iterm=ind).get_global_number_of_atoms()
-            slab_rep = int(max_num_at / imgsize)
-
-            try:
-                slab = gen.get_slab(iterm=ind, size=slab_rep)
-            except Exception:
-                break
-
-            images.append(slab)
-
-    return images, img_miller
-
-
-def make_clean_surf_mp(
-    db_obj,
-    bulk: Union[Structure, Slab],
-    max_num_at: float,
-    n_layers: int,
-    miller_list: list,
-    fixed: int,
-):
-    img_miller = []
-    images = []
-
-    # gen = make_generator_slab
-    # Original parameters:
-    # fixed = 3
-
-    with Pool() as p:
-        slabs_worker = p.starmap(
-            db_obj._gen_slab_pool,
-            zip(
-                miller_list,
-                it.repeat(bulk),
-                it.repeat(max_num_at),
-                it.repeat(n_layers),
-                it.repeat(fixed),
-            ),
-        )
-        for slb, mill in slabs_worker:
-            if isinstance(slb, list):
-                for i in slb:
-                    images.append(i)
-            if isinstance(mill, list):
-                for m in mill:
-                    img_miller.append(m)
-
-    return images, img_miller
-
-
-def _gen_curr_surface(
-    db_obj,
-    phase,
-    curr_bulk_ase,
-    n_layers,
-    n_at,
-    max_miller_index,
-    fixed_layers,
-    get_supercells,
-    limit_per_phase,
-):
-    # Filtering specific catkit warnings
-    warnings.filterwarnings("ignore", category=UserWarning)
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
-    n_layers = int(n_layers)
-    n_at = int(n_at)
-
-    slabs = []
-    miller = cts.get_unique_indices(
-        bulk=curr_bulk_ase,
-        max_index=max_miller_index,
-    )
-
-    slabs, miller_idx_slabs = make_clean_surf(
-        db_obj=db_obj,
-        bulk=curr_bulk_ase,
-        n_layers=n_layers,
-        max_num_at=n_at,
-        miller_list=miller,
-        fixed=fixed_layers,
-    )
-
-    # Will contain tuples as such: (Structure, miller_index_string)
-    slabs_bottom = []
-    for ind, (slab, mill) in enumerate(zip(slabs, miller_idx_slabs)):
-        curr_surf_pymg = AseAtomsAdaptor().get_structure(slab)
-        slab = slab_to_bottom(slab=curr_surf_pymg)
-        mill_str = get_miller_index_str(mill)
-
-        # INFO: The _adjust_vacuum function does not work correctly.
-        # As of now, the vacuum size is being defined during slab creation,
-        # I suspect it is related to the way pymatgen handles lattices.
-        #
-        # if not db_obj._check_correct_vacuum_size(slab, min_vacuum_size):
-        #     slab = db_obj._adjust_vacuum(slab, min_vacuum_size)
-
-        slabs_bottom.append((slab, mill_str))
-
-    prototype = phase.prototype
-    generated_structures = []
-
-    # Getting only the slabs and their miller index whose total size
-    # is smaller than the maximum given for the InitialDatabase.
-    slabs_size = [
-        (slab, mill)
-        for slab, mill in slabs_bottom
-        if len(slab.sites) < db_obj.max_num_atoms
-    ]
-
-    # Storing the remaining slabs.
-    for idx, (slab, mill) in enumerate(slabs_size):
-        # Getting the current slab's miller index
-        mill_str = get_miller_index_str(mill)
-
-        # Preparing the structure name
-        surf_name = (
-            f"{prototype}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
-            f"_{n_layers}-layers_{n_at}-max-at"
-        )
-
-        # Creating a new surface from the supercell
-        curr_strct = mdb_struct.Surface(
-            material_name=surf_name,
-            material_id=prototype,
-            surface_miller=mill_str,
-            structure=slab,
-            temperature=np.nan,
-            perturb=False,
-            base=False,
-            calc_performed=False,
-            phase=phase,
-        )
-        # Saving the surface to the db.
-        db_obj.df = curr_strct.save_to_db(db_obj.df)
-        generated_structures.append(curr_strct)
-
-    return generated_structures
-    # return surf_name
-
-
-def gen_slab_pool(db_obj, miller, bulk, max_num_at, n_layers, fixed):
-    img_miller = []
-    images = []
-
-    gen = cts.SlabGenerator(
-        bulk,
-        miller_index=(miller),
-        layers=n_layers,
-        layer_type="angs",
-        fixed=fixed,
-        standardize_bulk="True",
-        vacuum=7.5,
-    )
-
-    # Getting unique terminations for the current
-    # surface
-    termination = gen.get_unique_terminations()
-
-    for ind, t in enumerate(termination):
-        img_miller.append(miller)
-        imgsize = gen.get_slab(iterm=ind).get_global_number_of_atoms()
-        slab_rep = int(max_num_at / imgsize)
-
-        try:
-            slab = gen.get_slab(iterm=ind, size=slab_rep)
-        except Exception:
-            break
-
-        images.append(slab)
-
-    return images, img_miller
 
 
 def adjust_vacuum(db_obj, slab: Slab, vacuum_size: float) -> Slab:
@@ -391,10 +186,7 @@ def check_correct_vacuum_size(
     vac_layer_thickness = vec_c - z_axis_max
 
     # Checking if layer is greater or equal than vacuum_size
-    if abs(vac_layer_thickness - vacuum_size) <= tolerance:
-        return True
-    else:
-        return False
+    return abs(vac_layer_thickness - vacuum_size) <= tolerance
 
 
 def get_miller_index_str(miller_source):
@@ -437,7 +229,7 @@ def get_miller_index_str(miller_source):
     return curr_miller
 
 
-def generate_surfaces_pymatgen(
+def gene_surfaces_diff_miller(
     db_obj: "mdb_indb.InitialDatabase",
     phase: mdb_pd.Phase,
     # num_diff_layer_size: int,
@@ -526,7 +318,7 @@ def generate_surfaces_pymatgen(
         # Getting supercells
         supercell_list = []
         if get_supercells:
-            for idx, (slab, mill) in enumerate(total_slabs):
+            for _, (slab, mill) in enumerate(total_slabs):
                 super_list, idx_list, supercells = db_obj._find_supercell_indices(
                     structure=slab,
                     min_atoms=min_num_atoms,
@@ -537,7 +329,7 @@ def generate_surfaces_pymatgen(
                 )
 
                 # Storing the supercells.
-                for supercell, idx, sup_vec in zip(super_list, idx_list, supercells):
+                for supercell, _, sup_vec in zip(super_list, idx_list, supercells):
                     sup_len = len(supercell.sites)
                     if sup_len <= overwrite_max_num_atoms and sup_len >= min_num_atoms:
                         # Dragging the slab to the bottom
@@ -613,7 +405,7 @@ def apply_replacement_surface(
 
     replacement_list = []
 
-    for idx, gen_slab in enumerate(slabs_to_replace):
+    for _idx, gen_slab in enumerate(slabs_to_replace):
         # Getting current phase and structure length.
         slab_phase = gen_slab.phase
 

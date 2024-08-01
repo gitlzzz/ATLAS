@@ -1,6 +1,7 @@
+"""General utility functions for the active learning workflows."""
+
 import io
 import itertools as it
-import json
 import math as m
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -37,7 +38,8 @@ from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 
 
-def model_res_dict_to_arr(res_dict):
+def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
+    """Convert a result dict to a numpy array."""
     res_model_list = []
 
     for _, res in res_dict.items():
@@ -47,21 +49,24 @@ def model_res_dict_to_arr(res_dict):
     return res_model_list
 
 
-def get_model_forces_variance(forces_dict):
+def get_model_forces_variance(forces_dict: dict) -> np.ndarray:
+    """Get the variance of the forces for each structure in the dict."""
     forces_model_list = model_res_dict_to_arr(forces_dict)
     forces_var = forces_model_list.var(axis=0)
 
     return forces_var
 
 
-def get_model_energies_variance(energies_dict):
+def get_model_energies_variance(energies_dict: dict) -> np.ndarray:
+    """Get the variance of the energies for each structure in the dict."""
     energies_model_list = model_res_dict_to_arr(energies_dict)
     energies_var = energies_model_list.var(axis=0)
 
     return energies_var
 
 
-def get_model_forces_std(forces_dict):
+def get_model_forces_std(forces_dict: dict) -> np.ndarray:
+    """Get the standard deviation of the forces for each structure in the dict."""
     forces_model_list = model_res_dict_to_arr(forces_dict)
 
     # Calculate the sample standard deviation of the energies
@@ -71,7 +76,8 @@ def get_model_forces_std(forces_dict):
     return forces_std
 
 
-def get_model_energies_std(energies_dict):
+def get_model_energies_std(energies_dict: dict) -> np.ndarray:
+    """Get the standard deviation of the energies for each structure in the dict."""
     energies_model_list: np.ndarray = model_res_dict_to_arr(energies_dict)
 
     # Calculate the sample standard deviation of the energies
@@ -81,7 +87,8 @@ def get_model_energies_std(energies_dict):
     return energies_std
 
 
-def load_database(path: str):
+def load_database(path: str) -> list[Atoms]:
+    """Load an extended xyz file (database) from a given path as a list of ASE Atoms."""
     database = ase_read(
         filename=path,
         format="extxyz",
@@ -137,6 +144,7 @@ def select_dft_structures(struct_arr, frame_interval):
 
 
 def get_max_layer_distance(struct):
+    """Get the maximum distance between layers in a structure."""
     # Get the layers and their distance with respect to the origin
     tags, levels = geometry.get_layers(atoms=struct, miller=(0, 0, 1), tolerance=0.1)
 
@@ -165,7 +173,8 @@ def apply_layer_distance_filter(struct, max_layer_distance_ang):
     Returns
     -------
     bool
-        Returns `True` if the layer distace is above max_layer_distance_ang, `False` if otherwise.
+        Returns `True` if the layer distace is above max_layer_distance_ang,
+        `False` if otherwise.
     """
     is_structure_wrong = False
 
@@ -224,6 +233,7 @@ def select_md_frames_to_keep(
     steps_E_F_arr: np.array,
     forces: np.array,
 ):
+    """Select MD frames to keep using the frame interval and total number of frames."""
     # Get total MD time in picoseconds
     total_duration_ps = len(traj) * md_tstep_duration_ps
 
@@ -250,6 +260,7 @@ def get_dft_calc_builder_vasp(
     group,
     dft_settings: dict,
 ):
+    """Generate a aiida-vasp calculation builder for a given structure and row."""
     struct_type = row["mdb_struct_type"]
 
     # Gathering row information
@@ -289,12 +300,11 @@ def get_dft_calc_builder_vasp(
 def get_dft_calc_builder_mace_list(
     struct_list: list,
     row,
-    db_row_idx: int,
-    group,
     dft_settings: dict,
 ):
+    """Get a MACE calculation builder for a given structure list and row."""
     updated_struct_list = []
-    struct_type = row["mdb_struct_type"]
+    row["mdb_struct_type"]
 
     for idx, curr_struct in enumerate(struct_list):
         curr_struct = struct_list[idx]
@@ -332,11 +342,6 @@ def get_dft_calc_builder_mace_list(
     # Load scheduler and resources options
     mace_builder.metadata.options = dft_settings["options"]
 
-    # REMOVE
-    # Generating label for the CalcJob
-    # struct_formula = curr_structure.formula.replace(" ", "")
-    # struct_name = f"{curr_material_name}-{struct_formula}-{db_row_idx}_{struct_type}"
-
     struct_name = curr_material_name
     mace_builder.metadata.label = struct_name
 
@@ -344,6 +349,7 @@ def get_dft_calc_builder_mace_list(
 
 
 def gen_xyz_file_from_traj(struct_list):
+    """Generate a temporary xyz file from a list of structures."""
     f = io.StringIO()
     with redirect_stdout(f):
         ase_write(
@@ -388,6 +394,7 @@ def generate_model_name():
 
 
 def get_final_db_path(result_dir_path, final_db_name, node):
+    """Get the path to the final database file."""
     result_dir_path = Path(result_dir_path)
     caller_uuid = process_call_root(node) if not isinstance(node, str) else node
     curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
@@ -400,6 +407,7 @@ def get_final_db_path(result_dir_path, final_db_name, node):
 
 
 def get_results_dir_path(result_dir_path, node, check_temp_dir=True):
+    """Get the path to the results directory."""
     result_dir_path = Path(result_dir_path)
 
     caller_uuid = process_call_root(node) if not isinstance(node, str) else node
@@ -431,44 +439,10 @@ def process_call_root(process):
 
 @calcfunction
 def prepare_output_dataframe(md_seed_results_df):
+    """Prepare the output dataframe for the active learning workflow."""
     md_seed_results_df.index = md_seed_results_df.index.map(str)
     training_df = Dict(md_seed_results_df.to_dict(orient="index"))
     return training_df
-
-
-@calcfunction
-def load_mace_settings_json(
-    settings_path: str, train_data_path: str, curr_model: str, curr_iter: int
-):
-    if isinstance(settings_path, Str):
-        settings_path = settings_path.value
-
-    with open(settings_path) as f:
-        training_settings_dict = json.load(f)
-
-    # Update training file path in mace train settings
-    # to include the new database.
-    if isinstance(train_data_path, Str):
-        train_data_path: Path = Path(train_data_path.value)
-    elif isinstance(train_data_path, str):
-        train_data_path: Path = Path(train_data_path)
-
-    training_settings_dict["train_file"] = str(train_data_path.name)
-
-    # Updating name to include model and iteration number
-    curr_name = training_settings_dict["name"]
-
-    if isinstance(curr_model, Str):
-        curr_model = curr_model.value
-
-    if isinstance(curr_iter, Int):
-        curr_iter = curr_iter.value
-
-    training_settings_dict["name"] = (
-        str(curr_model) + "_" + curr_name + "_al-iteration_" + str(curr_iter)
-    )
-
-    return Dict(training_settings_dict)
 
 
 @calcfunction
@@ -479,6 +453,7 @@ def update_mace_train_settings_dict(
     curr_iter: int,
     db_size: int,
 ):
+    """Update the MACE training settings dictionary with the new database path."""
     if isinstance(settings_dict, Dict):
         settings_dict: dict = settings_dict.get_dict()
 
@@ -544,6 +519,7 @@ def create_mace_lammps_model(model_file: SinglefileData):
 
 
 def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
+    """Convert a serialized Atoms dictionary to an Atoms object."""
     struct_dict["pbc"] = np.array([bool(boo) for boo in struct_dict["pbc"]])
 
     for key, val in struct_dict.items():
@@ -559,6 +535,7 @@ def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
 
 
 def serialize_ase(curr_s) -> dict:
+    """Serialize an ASE Atoms object to a dictionary."""
     if not isinstance(curr_s, dict):
         curr_s = curr_s.todict()
 
@@ -573,6 +550,7 @@ def serialize_ase(curr_s) -> dict:
 
 @calcfunction
 def prepare_output_final_training_db(training_db_path):
+    """Convert the training database to a SinglefileData object."""
     train_db = SinglefileData(file=training_db_path.value)
     return train_db
 
@@ -607,9 +585,9 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
     -----
     - The ASE Atoms objects are serialized to ensure compatibility with AiiDA's data
     storage and manipulation frameworks.
-    - Extra care is taken to include forces (and optionally, stress) in the Atoms objects,
-    as these are critical for many active learning applications but are not included by
-    default in the extxyz format's `Properties` tag.
+    - Extra care is taken to include forces (and optionally, stress) in the Atoms
+    objects, as these are critical for many active learning applications but
+    are not included by default in the extxyz format's `Properties` tag.
     - Skips any DFT calculations that encountered errors.
     """
     vasprun_list = []
@@ -829,7 +807,8 @@ def iqr_outlier_check(res_list: list) -> np.ndarray:
     return filtered_data
 
 
-def vasprun_add_info_dict(vasprun_dict, calc_info_dict):
+def vasprun_add_info_dict(vasprun_dict: dict, calc_info_dict: dict) -> dict:
+    """Add calculation information to the vasprun dictionary."""
     info_list = [
         "stress",
         "dipole",
@@ -843,7 +822,7 @@ def vasprun_add_info_dict(vasprun_dict, calc_info_dict):
 
     # If forces already in the arrays dictionary, it is not needed in
     # atoms.info
-    if "forces" in vasprun_dict.arrays.keys():
+    if "forces" in vasprun_dict.arrays:
         calc_info_dict.pop("forces")
 
     if not isinstance(vasprun_dict, dict):

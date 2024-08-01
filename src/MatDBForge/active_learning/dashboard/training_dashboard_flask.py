@@ -1,3 +1,5 @@
+"""Dashboard for monitoring and reviewing training Active Learning WorkChains."""
+
 import pathlib as pl
 import re
 import time

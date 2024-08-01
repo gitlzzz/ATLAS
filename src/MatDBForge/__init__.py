@@ -1,3 +1,5 @@
+"""Library for streamlining the structure creation and training for NNPs."""
+
 import pathlib as pl
 
 # Root of package
