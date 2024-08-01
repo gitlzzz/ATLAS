@@ -15,12 +15,6 @@ authors = [
 
 dependencies = [
     "ase",
-    "dash==2.16.1",
-    "dash-bootstrap-components==1.6.0",
-    "dash-core-components==2.0.0",
-    "dash-daq==0.5.0",
-    "dash-table==5.0.0",
-    "dash-html-components==2.0.0",
     "dscribe==2.1.0",
     "gunicorn==22.0.0",
     "matplotlib==3.8.0",
@@ -40,6 +34,7 @@ dependencies = [
     "pymatgen",
     "python-slugify[unidecode]",
     "tomli",
+    "pre-commit",
 ]
 
 [project.urls]
