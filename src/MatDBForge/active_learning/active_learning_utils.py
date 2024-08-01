@@ -303,8 +303,8 @@ def get_dft_calc_builder_mace_list(
         (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
             mdb_aut.gather_calc_data_from_row(row, curr_structure=curr_struct)
         )
-        curr_struct.info["mdb_md_node"] = row["mdb_md_node"]
         struct_ase = AseAtomsAdaptor().get_atoms(curr_struct)
+        struct_ase.info["mdb_md_node"] = row["mdb_md_node"]
         updated_struct_list.append(struct_ase)
 
     # Write xyz file into a string captured in the stdout,

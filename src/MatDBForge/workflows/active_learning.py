@@ -696,14 +696,14 @@ class ActiveLearningWorkChain(WorkChain):
         new_rows = []
 
         # Gathering all results
-        for workchain in self.ctx.md_seed_workchains:
+        for md_calc_wkch in self.ctx.md_seed_workchains:
             # Skipping MD calc if it hasn't finished correctly.
-            if workchain.exit_status != 0:
+            if md_calc_wkch.exit_status != 0:
                 continue
 
-            workchain_results = workchain.outputs.retrieved
-            steps_E_F_arr = self.gather_energies_from_workchain(workchain_results)
-            traj, forces = self.gather_traj_from_workchain(workchain_results)
+            md_wkch_res = md_calc_wkch.outputs.retrieved
+            steps_E_F_arr = self.gather_energies_from_workchain(md_wkch_res)
+            traj, forces = self.gather_traj_from_workchain(md_wkch_res)
             traj: Trajectory
 
             # Instead of keeping all frames, select some of them
@@ -755,22 +755,43 @@ class ActiveLearningWorkChain(WorkChain):
                 filters_structure_wrong_list
             )
 
-            # Replacing energies and forces for the incorrect frames.
+            # Removing incorrect structures from the trajectory by removing frames,
+            # energies, and forces from the row to add to the DataFrame.
+            if np.all(filters_structure_wrong_list):
+                self.report(
+                    "Completely removing trajectory as all frames are incorrect."
+                )
+                continue
             if np.any(filters_structure_wrong_list):
                 self.report(
                     f"Removing {len(np.nonzero(filters_structure_wrong_list)[0])} "
                     "incorrect MD frames."
                 )
 
+                # Getting frames to keep
+                traj_nones = [
+                    1 if not is_wrong else None
+                    for i, is_wrong in enumerate(filters_structure_wrong_list)
+                ]
+                frames_to_keep = np.nonzero(traj_nones)
+
+                # Removing energies
                 energies = [
                     energies[i] if not is_wrong else None
                     for i, is_wrong in enumerate(filters_structure_wrong_list)
                 ]
+                energies = list(np.array(energies)[frames_to_keep])
 
+                # Removing forces
                 forces = [
                     forces[i] if not is_wrong else np.full([len(traj[i]), 3], np.nan)
                     for i, is_wrong in enumerate(filters_structure_wrong_list)
                 ]
+                forces = list(np.array(forces)[frames_to_keep])
+
+                # Removing frames from trajectory
+                new_traj = [traj.get_structure(int(i)) for i in frames_to_keep[0]]
+                traj = Trajectory.from_structures(new_traj)
 
             new_rows.append(
                 {
@@ -778,12 +799,12 @@ class ActiveLearningWorkChain(WorkChain):
                     "energy": {self.ctx.best_model_name: energies},
                     "forces": {self.ctx.best_model_name: forces},
                     "al_step": self.inputs.al_loop_iteration.value,
-                    "index_in_db": workchain.base.extras.all["index_in_db"],
-                    "mdb_struct_type": workchain.base.extras.all["mdb_struct_type"],
-                    "material_name": workchain.base.extras.all["struct_name"],
-                    "unique_id": workchain.base.extras.all["aiida_uuid"],
-                    "mdb_md_node": str(workchain.uuid),
-                    "md_temperature": workchain.base.extras.all["md_temperature"],
+                    "index_in_db": md_calc_wkch.base.extras.all["index_in_db"],
+                    "mdb_struct_type": md_calc_wkch.base.extras.all["mdb_struct_type"],
+                    "material_name": md_calc_wkch.base.extras.all["struct_name"],
+                    "unique_id": md_calc_wkch.base.extras.all["aiida_uuid"],
+                    "mdb_md_node": str(md_calc_wkch.uuid),
+                    "md_temperature": md_calc_wkch.base.extras.all["md_temperature"],
                     "extrapolation": np.nan,
                 }
             )
