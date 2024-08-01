@@ -27,7 +27,10 @@ from MatDBForge.core import utils as mdb_ut
 
 warnings.filterwarnings("ignore")
 
-class StandaloneApplication(WSGIApplication):
+
+class MDBDashboardApp(WSGIApplication):
+    """Gunicorn application for the MDB dashboard."""
+
     def __init__(self, app_uri, options=None):
         self.options = options or {}
         self.app_uri = app_uri
@@ -60,7 +63,7 @@ def run_dashboard_app(process_id, port, update_interval, debug, online):
         else:
             app.run(debug=True, port=port, host="0.0.0.0")
     else:
-        app = StandaloneApplication(
+        app = MDBDashboardApp(
             f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
             f":run_training_dashboard(workchain_node_id={process_id}, "
             f"refresh_interval={update_interval}, port={port})",
@@ -515,7 +518,7 @@ def gen_initial_database(config_dict: dict):
 
         # Getting phase object
         phase = phase_diagram.get_phase(phase)
-        print('command_line phase: ', type(phase))
+        print("command_line phase: ", type(phase))
 
         if "bulk" in gen_dict:
             mdb_ut.custom_print("Generating bulk structures...", "info")
@@ -538,7 +541,7 @@ def gen_initial_database(config_dict: dict):
             # Generating surface structures.
             mdb_ut.custom_print("Generating slab structures...", "info")
 
-            slabs = mdb_surf.generate_surfaces_pymatgen(
+            slabs = mdb_surf.gene_surfaces_diff_miller(
                 db_obj=structures,
                 phase=phase,
                 min_num_atoms=sys_dict["min_num_atoms"],
@@ -631,7 +634,8 @@ def run_gen_initial_database():
         "--config_file",
         help=(
             "path pointing to a TOML settings file.\n"
-            "By default `database_generation_settings.toml` will be searched in the CWD."
+            "By default `database_generation_settings.toml` will be "
+            "searched in the CWD."
         ),
         type=pl.Path,
         default="./database_generation_settings.toml",

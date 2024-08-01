@@ -1,3 +1,5 @@
+"""Main module for the core package of MatDBForge."""
+
 import pathlib as pl
 import warnings
 

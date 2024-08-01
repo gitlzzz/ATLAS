@@ -1,6 +1,9 @@
-import pymatgen.io.vasp as Vasp
+"""DFT benchmark utilities for the MatDBForge package."""
+
 import pathlib as plb
+
 import numpy as np
+import pymatgen.io.vasp as Vasp
 
 
 def gen_kspacing_from_vasp_input(
@@ -29,7 +32,6 @@ def gen_kspacing_from_vasp_input(
     np.array
         3 element array containing the kpoint density on each axis, in 2pi*A^-1 units.
     """
-
     # Read POSCAR and KPOINTS
     if path:
         read_poscar = Vasp.Poscar.from_file(path / "POSCAR")
@@ -65,6 +67,6 @@ def compute_kpt_density(kpoints: Vasp.Kpoints, poscar: Vasp.Poscar):
     c_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[1, :])) / v_mat)
 
     # Computing the kpt density values in an array
-    kpt_dens_arr = np.array((a_rcpr, b_rcpr, c_rcpr)) * ((1 / arr_kpt_run))
+    kpt_dens_arr = np.array((a_rcpr, b_rcpr, c_rcpr)) * (1 / arr_kpt_run)
 
     return kpt_dens_arr

@@ -1,3 +1,5 @@
+"""General classes for representing phase diagrams of materials."""
+
 from pymatgen.core.periodic_table import Element
 
 from MatDBForge.core import exceptions as mdb_exc
@@ -127,7 +129,10 @@ class BinaryPhaseDiagram:
 
 
 # TODO: Imlpement this
-class TernaryPhaseDiagram: ...
+class TernaryPhaseDiagram:
+    """Class representing a ternary phase diagram of materials."""
+
+    ...
 
 
 class Phase:
@@ -240,10 +245,7 @@ class Phase:
         if perc > 1:
             perc /= 100
 
-        if offset:
-            offset = self.offset
-        else:
-            offset = 0
+        offset = self.offset if offset else 0
 
         inPhase = (
             (self.base_elem_comp_min - offset)
@@ -251,10 +253,7 @@ class Phase:
             < (self.base_elem_comp_max + offset)
         )
 
-        if inPhase:
-            return True
-        else:
-            return False
+        return bool(inPhase)
 
     def get_base_elem_perc(self, structure) -> float:
         comp_dict = structure.composition.fractional_composition.as_dict()

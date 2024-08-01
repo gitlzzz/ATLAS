@@ -1,3 +1,5 @@
+"""Generate clusters and structures for the database."""
+
 import itertools as it
 import pathlib as pl
 
@@ -17,8 +19,8 @@ CLUST_LIST = [clst.stem for clst in DATA_PATH.iterdir()]
 # Default initial lattice size.
 LATT = [20, 21, 22]
 
-# Data sourced from Materials Project
 # TODO: Get this using a query.
+# Data sourced from Materials Project
 # Will probably need the structure name and phase?
 ATOM_DATA = {
     "Cu": {
@@ -175,7 +177,7 @@ def center_structure(
     Returns
     -------
     Structure
-        Pymatgen structure containing a structure placed on the center 
+        Pymatgen structure containing a structure placed on the center
         of the cell, with the same attributes as the original.
     """
     # Getting the center of mass
@@ -245,6 +247,7 @@ def bottom_structure(
 def get_center_of_mass(structure: Structure):
     """
     Get the center of mass (COM) of a given structure.
+
     The center of mass is computed by using:
 
         `COM = sum(r_i*m_i)/sum(m_i)`
@@ -354,7 +357,7 @@ def apply_replacement_cluster_db(
     # Selecting only non-replaced structures
     base_clusters = db_obj.df.loc[db_obj.df["replacement"] is False]
 
-    for row_idx, row in base_clusters.iterrows():
+    for _row_idx, row in base_clusters.iterrows():
         cluster = row.structure
         structure_len = len(cluster.species)
 
@@ -409,7 +412,7 @@ def apply_replacement_cluster_db(
 
     if save_in_db and not similarity_check:
         mdb_utils.custom_print("Saving to db...", "debug")
-        for idx, cluster in enumerate(replaced_clusters):
+        for _idx, cluster in enumerate(replaced_clusters):
             db_obj._save_row(structure=cluster)
 
     return replaced_clusters

@@ -27,7 +27,7 @@ def generate_descriptors(model_path: str, database):
 
 
 if __name__ == "__main__":
-    # As this code will be run as a script, 
+    # As this code will be run as a script,
     # we can keep these variables as constant.
     DATABASE_PATH = "current_db.xyz"
     MODEL_PATH = "current_model_mace.model"

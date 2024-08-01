@@ -1,4 +1,5 @@
 """Generate inputs for the MACE potential."""
+
 import pathlib as pl
 
 import MatDBForge.active_learning.conversion as mdb_train_cnv

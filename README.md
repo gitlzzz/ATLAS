@@ -70,9 +70,9 @@ All of the entry points provide usage documentation when launched with the `-h`/
 $> mdb_conf_gen --help
 
 >>> usage: gen_default_config [-h] -t TYPE [-p PATH] [-o]
->>> 
+>>>
 >>> Generate MDB default configuration files in the TOML format.
->>> 
+>>>
 >>> options:
 >>>   -h, --help
                      show this help message and exit
@@ -134,7 +134,7 @@ Generate a settings file, customize it using [the options here](./docs/input.md#
 mdb_conf_gen -t active_learning
 
 # Run the active learning loop, piping its outputs to a file.
-# Without the '-c', the program will search for the 'active_learning_settings.toml' 
+# Without the '-c', the program will search for the 'active_learning_settings.toml'
 # in the current directory
 mdb_active_learning gui --n_sec 60 2>&1 | tee ./run_mdb_al.log
 ```

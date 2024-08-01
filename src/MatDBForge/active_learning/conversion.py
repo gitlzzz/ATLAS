@@ -1,3 +1,5 @@
+"""Utility functions for unit conversion and to convert data to MACE and N2P2."""
+
 import pathlib
 import time
 from enum import Enum
@@ -17,14 +19,16 @@ from pymatgen.core import Structure as pmg_structure
 
 
 class Units(Enum):
+    """Conversion factors for units used in the conversion functions."""
+
     # Boltzmann constant in J/(Da*K)
-    kB = 8.314
+    kB: float = 8.314
 
     # Sourced from CODATA 2018
-    Bohr2Ang = 0.5291772109030
-    Ang2Bohr = 1 / Bohr2Ang
-    Eh2eV = 27.211386245988
-    eV2Eh = 1 / Eh2eV
+    Bohr2Ang: float = 0.5291772109030
+    Ang2Bohr: float = 1 / Bohr2Ang
+    Eh2eV: float = 27.211386245988
+    eV2Eh: float = 1 / Eh2eV
 
 
 def mdb_database_to_mace_train(
@@ -98,11 +102,11 @@ def _add_entry_to_mace_input(
         name = "unknown"
 
     # Adding structure type information to the dataset
-    if "mdb_struct_type" not in vasprun.info.keys():
+    if "mdb_struct_type" not in vasprun.info:
         vasprun.info["mdb_struct_type"] = get_struct_type(vasprun)
-    if "struct_name" not in vasprun.info.keys():
+    if "struct_name" not in vasprun.info:
         vasprun.info["struct_name"] = name
-    if "aiida_uuid" not in vasprun.info.keys():
+    if "aiida_uuid" not in vasprun.info:
         vasprun.info["aiida_uuid"] = node.uuid
 
     # HACK: This aseio writer writes all the properties from
@@ -111,16 +115,16 @@ def _add_entry_to_mace_input(
     # dipole, which leads to an error in training.
     # One solution is to remove dipole and stress if not needed.
     if vasprun.calc:
-        if remove_dipole and "dipole" in vasprun.calc.results.keys():
+        if remove_dipole and "dipole" in vasprun.calc.results:
             vasprun.calc.results.pop("dipole")
-        if remove_stress and "stress" in vasprun.calc.results.keys():
+        if remove_stress and "stress" in vasprun.calc.results:
             vasprun.calc.results.pop("stress")
 
         # HACK: Removing energy (without entropy, as it is not used to calculate
         # the forces) and kinetic energy.
         # if remove_energy and "energy" in vasprun.calc.results.keys():
         #     vasprun.calc.results.pop("energy")
-        if remove_kinetic and "kinetic_energy" in vasprun.calc.results.keys():
+        if remove_kinetic and "kinetic_energy" in vasprun.calc.results:
             vasprun.calc.results.pop("kinetic_energy")
 
     if to_file:
@@ -143,6 +147,7 @@ def _gather_mace_req_calc_data_from_node(node):
 
 
 def gather_calc_data_from_node(node, units="atomic"):
+    """Get data from a vasp calulation node to be used in a training set."""
     if units == "atomic":
         length_unit = Units.Ang2Bohr.value
         energy_unit = Units.eV2Eh.value
@@ -193,7 +198,8 @@ def gather_calc_data_from_node(node, units="atomic"):
     struct_type = get_struct_type(vasprun, dft_calc_node=node)
 
     # MACE by default checks the 'energy' key for the energies in the training files.
-    # Which key is used by MACE training can be set on the launch arguments for training.
+    # Which key is used by MACE training can be set on the launch arguments for
+    # training.
     # TODO: Re-add dipole and potential_energy.
     data_dict = {
         "name": name,
@@ -216,6 +222,7 @@ def gather_calc_data_from_node(node, units="atomic"):
 
 
 def get_struct_type(vasprun, dft_calc_node):
+    """Return the structure type of a calculation from calc settings."""
     try:
         # Using a calc type identifier in aiida dft calculations.
         struct_type = dft_calc_node.caller.extras["mdb_struct_type"]
@@ -245,7 +252,7 @@ def _gather_result_nodes_aiida(path, aiida_group_list, filter_dict):
 
     # Preparing a query in the aiida db for every group
     result_nodes_list = []
-    for idx, group in enumerate(aiida_group_list):
+    for _idx, group in enumerate(aiida_group_list):
         # Querying for WorkChainNode objects
         qb = orm.QueryBuilder()
         qb.append(orm.Group, filters={"label": group}, tag="group")
@@ -275,14 +282,12 @@ def gen_mace_train_aiida(
     remove_dipole=False,
     remove_stress=False,
 ):
+    """Generate a MACE training file from a list of AiiDA groups."""
     # Gathering aiida nodes containing the desired calculation results
     result_nodes = _gather_result_nodes_aiida(path, aiida_group_list, filter_dict)
 
     # Handling path
-    if path and isinstance(path, str):
-        path = pathlib.Path(path)
-    else:
-        path = pathlib.Path()
+    path = pathlib.Path(path) if path and isinstance(path, str) else pathlib.Path()
 
     ctime = time.strftime("%Y%m%dT%H%M%S")
 
@@ -314,7 +319,10 @@ def gen_mace_train_aiida(
 
 def _add_entry_to_n2p2_input(buffer: TextIOWrapper, data_dict: dict):
     # Writing begin keyword and structure name
-    write_name = f'{data_dict.get("struct_type", "unkw")}_{data_dict.get("name", "no name found")}'
+    write_name = (
+        f'{data_dict.get("struct_type", "unkw")}'
+        f'_{data_dict.get("name", "no name found")}'
+    )
     buffer.write("begin\n")
     buffer.write(f"comment {write_name}\n")
 
@@ -348,14 +356,12 @@ def _add_entry_to_n2p2_input(buffer: TextIOWrapper, data_dict: dict):
 
 
 def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = None):
+    """Generate a N2P2 training file from a list of AiiDA groups."""
     # Gathering aiida nodes containing the desired calculation results
     result_nodes = _gather_result_nodes_aiida(path, aiida_group_list, filter_dict)
 
     # Handling path
-    if path and isinstance(path, str):
-        path = pathlib.Path(path)
-    else:
-        path = pathlib.Path()
+    path = pathlib.Path(path) if path and isinstance(path, str) else pathlib.Path()
 
     ctime = time.strftime("%Y%m%dT%H%M%S")
 
@@ -381,12 +387,12 @@ def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
 
 def gen_mace_train_structure_list(
     path: Union[str, pathlib.Path],
-    structure_list: list,
-    disable=False,
+    structure_list: list | orm.List,
     skip_dipole=True,
     skip_stress=True,
     skip_free_energy=False,
 ):
+    """Generate a MACE training file from a list of structures."""
     # Handling path
     if path and isinstance(path, (str, pathlib.Path)):
         path = pathlib.Path(path).resolve()
@@ -399,7 +405,6 @@ def gen_mace_train_structure_list(
 
         ase_structs = []
         # Converting into ase atoms object
-        # len_struct = len(structure_list)
         if not isinstance(structure_list, list):
             structure_list = structure_list.get_list()
 

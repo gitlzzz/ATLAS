@@ -1,4 +1,4 @@
-"""Definition of an aiida workchain for MACE active learning loops using MD."""
+"""AiiDA workchain for NNP active learning loops using MD."""
 
 import io
 import os
@@ -225,7 +225,8 @@ class ActiveLearningWorkChain(WorkChain):
         # Stop the calculation if initial models must be loaded
         if self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0:
             self.report(
-                f"Loading models from nodes: '{self.inputs.load_init_models.get_list()}'."
+                "Loading models from nodes:"
+                f"'{self.inputs.load_init_models.get_list()}'."
             )
             return
 
@@ -282,9 +283,9 @@ class ActiveLearningWorkChain(WorkChain):
         Returns
         -------
         None
-            The function updates the workchain context with the best model's RMSE values, the
-            LAMMPS potential file, and the committee models' information but does not
-            return any value directly.
+            The function updates the workchain context with the best model's RMSE
+            values, the LAMMPS potential file, and the committee models' information
+            but does not return any value directly.
         """
         if not self.inputs.load_init_models:
             mace_training_results = self.ctx.mace_training_results
@@ -375,9 +376,17 @@ class ActiveLearningWorkChain(WorkChain):
         self.ctx.commitee_models_tupl_name_uuid = commitee_models_tupl_name_uuid
 
     def check_extrapolation_enabled(self):
+        """Check if the extrapolation check is enabled."""
         return self.inputs.check_extrapolation
 
     def generate_descriptors(self):
+        """Generate descriptors for the current seed using the best model.
+
+        The descriptors will be obtained with `GetMACEDescriptorsCalculationParser`
+        calculations, that use the MACE code to generate the descriptors.
+        Descriptors will be available in the workchain context as
+        `mace_descriptor_results` for their use in the next steps.
+        """
         self.report(
             f"Generating descriptors using model '{self.ctx.best_model_name}'..."
         )
@@ -428,6 +437,7 @@ class ActiveLearningWorkChain(WorkChain):
         self.to_context(mace_descriptor_results=append_(future))
 
     def get_mace_descriptors_output(self):
+        """Process the descriptors in the workchain context."""
         mace_descriptor_results = self.ctx.mace_descriptor_results
         for calc in mace_descriptor_results:
             # Loading calculation node
@@ -562,10 +572,10 @@ class ActiveLearningWorkChain(WorkChain):
 
         Notes
         -----
-        - This function assumes the availability of a trained MACE-LAMMPS potential file within
-        the workflow's context.
-        - Submitted calculation jobs are added to an AiiDA orm.Group for organization and
-        are tagged with additional information to link them back to their respective
+        - This function assumes the availability of a trained MACE-LAMMPS potential file
+        within the workflow's context.
+        - Submitted calculation jobs are added to an AiiDA orm.Group for organization
+        and are tagged with additional information to link them back to their respective
         positions in the database.
         """
         self.report("Running MD (using M0) for all structures in the current seed...")
@@ -917,7 +927,8 @@ class ActiveLearningWorkChain(WorkChain):
         ----------
         workchain_results : orm.FolderData
             A orm.FolderData containing the results of a workchain, expected to have
-            a method `get_object_content` to retrieve the contents of `structure.lammpstrj`.
+            a method `get_object_content` to retrieve the contents of
+            `structure.lammpstrj`.
 
         Returns
         -------
@@ -960,6 +971,7 @@ class ActiveLearningWorkChain(WorkChain):
         return traj, np.array(forces_list)
 
     def check_committee_results_calcjob(self):
+        """Gets predictions of all the committee models for the MD trajectories."""
         self.report("Evaluating trajectories with committee models...")
 
         # Gather all commitee models
@@ -1069,6 +1081,7 @@ class ActiveLearningWorkChain(WorkChain):
             self.to_context(committee_results=append_(future))
 
     def gather_committee_results(self):
+        """Gather committee results for all trajectories."""
         self.report("Gathering committee E and F evaluation...")
 
         # # REMOVE: Testing only
@@ -1083,7 +1096,8 @@ class ActiveLearningWorkChain(WorkChain):
             # Skipping calculation if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
                 self.report(
-                    f"Skipping calculation [{curr_calc.pk}] - exit status: {curr_calc.exit_status}"
+                    f"Skipping calculation [{curr_calc.pk}]"
+                    f" - exit status: {curr_calc.exit_status}"
                 )
                 continue
 
@@ -1123,6 +1137,7 @@ class ActiveLearningWorkChain(WorkChain):
         md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
 
     def get_descriptors_from_md_results(self):
+        """Get descriptors for the MD generated structures using the best model."""
         # Getting descriptors for generated structures
         self.report("Getting descriptors for MD generated structures...")
 
@@ -1204,6 +1219,7 @@ class ActiveLearningWorkChain(WorkChain):
             self.to_context(md_descriptor_results=append_(future))
 
     def send_calc_or_remove_structures(self):
+        """Decide which structures to keep and send to DFT or remove from db."""
         self.report("Deciding which structures to keep...")
 
         model_acc_multiplier = self.inputs.model_acc_multiplier.value
@@ -1236,7 +1252,7 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # Creating context manager to load descriptor result files
                 # descr_file
-                with curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path, open(
+                with curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path, open(  # noqa: E501
                     md_descr_file_path, "rb"
                 ) as descr_file:
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
@@ -1438,12 +1454,12 @@ class ActiveLearningWorkChain(WorkChain):
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
                 self.report(f"Gathered {dft_calcs} VASP DFT calculations.")
 
-                return_list = mdb_al_ut.gather_dft_calcs_vasp(
+                mdb_al_ut.gather_dft_calcs_vasp(
                     [node.uuid for node in self.ctx.dft_struct_seed_calcs]
                 )
 
             except AttributeError:
-                return_list = orm.List([])
+                orm.List([])
 
         elif self.inputs.dft_method == "mace":
             try:
@@ -1479,6 +1495,17 @@ class ActiveLearningWorkChain(WorkChain):
 
 
 class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
+    """Base workchain for active learning workflows.
+
+    This workchain is used as a base for the `ActiveLearningWorkChain` workchain.
+    It handles setup of the workchain and the main loop, where the active learning
+    steps are launched. After every step, the results are checked and added to the
+    database, and the next step is prepared. The workchain will loop until the
+    stopping conditions are met.
+
+    Check `ActiveLearningWorkChain` for information on what is done in each step.
+    """
+
     _process_class = ActiveLearningWorkChain
 
     @classmethod
@@ -1666,18 +1693,14 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This function checks for specific conditions that might warrant terminating the
         active learning (AL) loop early:
         - Gathers `stop_md_seed_no_disagreement` from the outputs of the inner workchain
-          and stores it in the workchain's context. If this is True, the workchain will stop.
-        - Checks whether all structures have been removed from the seed generation database
-          (indicating no further candidates for evaluation). If this is True,
+          and stores it in the workchain's context. If this is True, the workchain will
+          stop.
+        - Checks whether all structures have been removed from the seed generation
+          database (indicating no further candidates for evaluation). If this is True,
           the workchain will stop.
 
         The results of these checks are stored in the workflow's context.
         """
-        # # Sending seed disagreement flag to context
-        # self.ctx.stop_md_seed_no_disagreement = self.outputs[
-        #     "stop_md_seed_no_disagreement"
-        # ]
-
         # Sending empty seed_gen_db flag to context
         seed_gen_db = mdb_al_ut.load_database(self.ctx.inputs.seed_db_path)
         if len(seed_gen_db) == 0:
@@ -1934,8 +1957,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         target_file_name = f"al_loop_{self.inputs.active_learning.run_name.value}.model"
         target_file_path = self.ctx.curr_run_results_dir / target_file_name
 
-        with final_model_singlefile.open(mode="rb") as source:
-            with open(target_file_path, mode="wb") as target:
-                shutil.copyfileobj(source, target)
+        with final_model_singlefile.open(mode="rb") as source, open(
+            target_file_path, mode="wb"
+        ) as target:
+            shutil.copyfileobj(source, target)
 
         self.report("Workchain completed!")

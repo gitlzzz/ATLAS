@@ -1,3 +1,5 @@
+"""Utility functions for running several through aiida for active learning loops."""
+
 import copy
 import os
 import pathlib as pl
@@ -579,7 +581,8 @@ def run_dataframe_vasp_simulations_aiida(
 
             mdb_ut.custom_print(
                 (
-                    f"({time.strftime('%H:%M:%S')}) - {np.count_nonzero(node_status_list)}"
+                    f"({time.strftime('%H:%M:%S')})"
+                    f" - {np.count_nonzero(node_status_list)}"
                     f"/{len(node_status_list)} - Waiting for calculations"
                     f" from chunk {chunk_id} to be finished..."
                 ),
@@ -587,7 +590,7 @@ def run_dataframe_vasp_simulations_aiida(
             )
             node_status_list = []
             for nod in chunk_node_list:
-                # Some interesting options with:
+                # Some interesting options related to the node status:
                 # 'is_excepted', 'is_failed', 'is_finished',
                 # 'is_finished_ok', 'is_killed', 'is_sealed', 'is_stored',
                 # 'process_status', exception, 'is_terminated',
@@ -675,7 +678,8 @@ def run_dataframe_vasp_aiida_queue(
 
     mdb_ut.custom_print(
         (
-            f"Starting queue for running database with {len(sel_struct_df)} structures..."
+            "Starting queue for running database with"
+            f" {len(sel_struct_df)} structures..."
         ),
         "info",
     )
@@ -749,7 +753,6 @@ def run_dataframe_vasp_aiida_queue(
             queue.append(node)
             mdb_ut.custom_print(f"Queue length: {len(queue)}/{max_batch}", "debug")
 
-        # print('Waiting 60 seconds...')
         time.sleep(queue_check_interval)
 
         first_step = False
@@ -821,7 +824,7 @@ def sort_chunk_size(chunk):
 
     # Gathering the number of atoms for every structure
     # and adding it to the size_list
-    for it, row in chunk.iterrows():
+    for _it, row in chunk.iterrows():
         size_list.append(len(row.structure.sites))
 
     # Creating a new column for the atom number
@@ -989,7 +992,7 @@ def add_aiida_group_to_db(db_obj: str, group_identifier, copy=False):
             db_path = pl.Path(db_obj)
             database.save_database(path=db_path.parent, suffix="copy")
         else:
-            NotImplementedError
+            raise NotImplementedError
 
 
 def generate_potential_mapping() -> dict:

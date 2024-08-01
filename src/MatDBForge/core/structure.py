@@ -1,3 +1,5 @@
+"""Module for the Structure class."""
+
 import uuid
 
 import pandas as pd
@@ -8,6 +10,63 @@ from MatDBForge.core import initial_db as mdb_indb
 
 
 class Structure:
+    """
+    Wrapper around a pymatgen structure object with extra fields for MDBForge.
+
+    Parameters
+    ----------
+    structure : pymatgen.core.Structure, optional
+        A pymatgen Structure object representing the atomic structure, by default None
+    material_name : str, optional
+        The name of the material, by default None
+    material_id : str or int, optional
+        The unique identifier for the material, by default None
+    phase : str, optional
+        The phase of the material (e.g., solid, liquid, gas), by default None
+    base : bool, optional
+        Flag indicating if this is a base structure, by default None
+    perturb : bool, optional
+        Flag indicating if the structure should be perturbed, by default None
+    supercell : tuple of int, optional
+        The dimensions of the supercell, specified as a tuple of integers
+        (e.g., (2, 2, 2)), by default None
+    surface : bool, optional
+        Flag indicating if this is a surface structure, by default False
+    bulk : bool, optional
+        Flag indicating if this is a bulk structure, by default False
+    cluster : bool, optional
+        Flag indicating if this is a cluster structure, by default False
+    formula : str, optional
+        The chemical formula of the material, by default None
+    replacement : bool, optional
+        Flag indicating if an atomic replacement should be performed, by default False
+    replacement_ind : int, optional
+        The index of the atom to be replaced, by default None
+    symmetry : str, optional
+        The symmetry information of the structure, by default None
+    energy_per_atom : float, optional
+        The energy per atom of the structure, by default None
+    temperature : float, optional
+        The temperature at which the properties are calculated, by default None
+    magnetic_properties : dict, optional
+        A dictionary containing magnetic properties of the structure, by default None
+    calc_energy_per_atom : float, optional
+        The calculated energy per atom from a computational method, by default None
+    calc_energy_toten : float, optional
+        The total energy from a computational method, by default None
+    calc_energy : float, optional
+        The calculated energy of the structure, by default None
+    calc_performed : bool, optional
+        Flag indicating if a calculation has been performed, by default False
+    calc_type : str, optional
+        The type of calculation performed (e.g., DFT, MD), by default None
+    calc_output : dict, optional
+        The output of the calculation, by default None
+    surface_miller : tuple of int, optional
+        The Miller indices of the surface, specified as a tuple of integers,
+        by default None
+    """
+
     def __init__(
         self,
         structure=None,
@@ -220,10 +279,7 @@ class Structure:
 
         is_InitialDatabase = isinstance(db_obj, mdb_indb.InitialDatabase)
 
-        if is_InitialDatabase:
-            struct_df = db_obj.df
-        else:
-            struct_df = db_obj
+        struct_df = db_obj.df if is_InitialDatabase else db_obj
 
         struct_df.fillna(value=False, inplace=True)
         struct_df = struct_df.astype(bool_columns)
@@ -240,20 +296,10 @@ class Structure:
 
         return db_obj
 
-
-class Bulk(Structure):
-    def __init__(
-        self,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-
-        # Setting the bulk property as True.
-        self.bulk = True
-
     def from_mdb_structure(
         self,
         mdb_structure,
+        surface_miller=None,
         new_structure=None,
         material_name=None,
     ):
@@ -276,66 +322,49 @@ class Bulk(Structure):
         self.cluster = mdb_structure.cluster
         self.formula = mdb_structure.formula
         self.symmetry = mdb_structure.symmetry
+        self.temperature = mdb_structure.temperature
         self.replacement = mdb_structure.replacement
         self.replacement_ind = mdb_structure.replacement_ind
-        self.temperature = mdb_structure.temperature
         self.magnetic_properties = mdb_structure.magnetic_properties
         self.calc_energy = mdb_structure.calc_energy
-        self.energy_per_atom = mdb_structure.energy_per_atom
         self.calc_energy_per_atom = mdb_structure.calc_energy_per_atom
         self.calc_energy_toten = mdb_structure.calc_energy_toten
         self.calc_performed = mdb_structure.calc_performed
         self.calc_type = mdb_structure.calc_type
         self.calc_output = mdb_structure.calc_output
+        self.energy_per_atom = mdb_structure.energy_per_atom
+
+        if self.surface:
+            self.surface_miller = surface_miller
+            self.bulk = mdb_structure.surface
 
         return self
 
 
+class Bulk(Structure):
+    """Class for bulk structures."""
+
+    def __init__(
+        self,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        # Setting the bulk property as True.
+        self.bulk = True
+
+
 class Surface(Structure):
+    """Class for slab structures."""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.surface = True
 
-    def from_mdb_structure(
-        self, mdb_structure, surface_miller, new_structure=None, material_name=None
-    ):
-        if material_name:
-            self.material_name = material_name
-        else:
-            self.material_name = mdb_structure.material_name
-
-        if new_structure:
-            self.structure = new_structure
-        else:
-            self.structure = mdb_structure.structure
-
-        self.material_id = mdb_structure.material_id
-        self.phase = mdb_structure.phase
-        self.base = mdb_structure.base
-        self.perturb = mdb_structure.perturb
-        self.supercell = mdb_structure.supercell
-        self.surface = mdb_structure.surface
-        self.surface_miller = surface_miller
-        self.energy_per_atom = mdb_structure.energy_per_atom
-        self.bulk = mdb_structure.surface
-        self.cluster = mdb_structure.cluster
-        self.formula = mdb_structure.formula
-        self.symmetry = mdb_structure.symmetry
-        self.temperature = mdb_structure.temperature
-        self.replacement = mdb_structure.replacement
-        self.replacement_ind = mdb_structure.replacement_ind
-        self.magnetic_properties = mdb_structure.magnetic_properties
-        self.calc_energy = mdb_structure.calc_energy
-        self.calc_energy_per_atom = mdb_structure.calc_energy_per_atom
-        self.calc_energy_toten = mdb_structure.calc_energy_toten
-        self.calc_performed = mdb_structure.calc_performed
-        self.calc_type = mdb_structure.calc_type
-        self.calc_output = mdb_structure.calc_output
-
-        return self
-
 
 class Cluster(Structure):
+    """Class for cluster structures."""
+
     def __init__(self, cluster=True, **kwargs):
         super().__init__(**kwargs)
         self.cluster = cluster

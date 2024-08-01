@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""AiiDA plugin for MACE calculations."""
+
 import json
 import shutil
 import time
@@ -17,6 +19,8 @@ from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
 
 class TrainMACEModelCalculationParser(Parser):
+    """Parser for the retrieved files from a MACE training calculation job."""
+
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
@@ -56,7 +60,15 @@ class TrainMACEModelCalculation(CalcJob):
     """Implementation of CalcJob to perform a MACE training using a settings dir."""
 
     @classmethod
-    def define(cls, spec):
+    def define(cls, spec):  # noqa: D102
+        """
+        Define the input and output specifications for the CalcJob.
+
+        Parameters
+        ----------
+        spec : _type_
+            _description_
+        """
         super().define(spec)
         spec.input(
             "mace_settings_dict",
@@ -114,8 +126,8 @@ class TrainMACEModelCalculation(CalcJob):
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
 
-        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
-        :return: `~aiida.common.datastructures.CalcInfo` instance
+        :param folder: an `Folder` to temporarily write files on disk
+        :return: `CalcInfo` instance
         """
         # Parsing mace settings dict
         # TODO: Add a way of checking if validation_file was given.
@@ -160,8 +172,10 @@ class TrainMACEModelCalculation(CalcJob):
         return calcinfo
 
 
-# mace-get-descriptors
+# mace-descriptors-parser
 class GetMACEDescriptorsCalculationParser(Parser):
+    """Parser for the retrieved files from a MACE descriptors job."""
+
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
@@ -192,11 +206,12 @@ class GetMACEDescriptorsCalculationParser(Parser):
         self.out("descriptors_min_array", descr_min_arr)
 
 
+# mace-get-descriptors
 class GetMACEDescriptorsCalculation(CalcJob):
-    """Implementation of CalcJob to perform a MACE training using a settings dir."""
+    """Calculation to obtain descriptors for a structure database from MACE."""
 
     @classmethod
-    def define(cls, spec):
+    def define(cls, spec):  # noqa: D102
         super().define(spec)
         spec.input(
             "model_file",
@@ -234,8 +249,8 @@ class GetMACEDescriptorsCalculation(CalcJob):
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
 
-        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
-        :return: `~aiida.common.datastructures.CalcInfo` instance
+        :param folder: a `Folder` to temporarily write files on disk
+        :return: `CalcInfo` instance
         """
         # Copying database to temporary folder
         if isinstance(self.inputs.mace_train_file_path, orm.Str):
@@ -286,7 +301,7 @@ class EvaluateMACEConfigsCalculation(CalcJob):
     """CalcJob to evaluate E and F of structures using a MACE model."""
 
     @classmethod
-    def define(cls, spec):
+    def define(cls, spec):  # noqa: D102
         super().define(spec)
         spec.input(
             "mace_settings_dict",
@@ -307,8 +322,8 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         spec.output(
             "configuration_result_file",
             valid_type=orm.SinglefileData,
-            # help="List of dicts representation of the predicted configuration using MACE.",
-            help="File containing all configurations evaluated using MACE in the extxyz format.",
+            help="File containing all configurations evaluated using MACE in"
+            " the extxyz format.",
         )
         spec.output(
             "energy_result_list",
@@ -327,8 +342,8 @@ class EvaluateMACEConfigsCalculation(CalcJob):
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
 
-        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
-        :return: `~aiida.common.datastructures.CalcInfo` instance
+        :param folder: an `Folder` to temporarily write files on disk
+        :return: `CalcInfo` instance
         """
         # Parsing mace settings dict
         params_list = []
@@ -384,6 +399,8 @@ class EvaluateMACEConfigsCalculation(CalcJob):
 
 
 class EvaluateMACEConfigsCalculationParser(Parser):
+    """Parser for MACE E and F evaluation calculation jobs."""
+
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
@@ -444,8 +461,9 @@ class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
             handle.write(self.inputs.script.get_content())
 
         for key, node in self.inputs.get("files", {}).items():
-            # The filename with which the file is written to the working directory is defined by the ``filenames`` input
-            # namespace, falling back to the filename of the ``orm.SinglefileData`` node if not defined.
+            # The filename with which the file is written to the working directory
+            # is defined by the `filenames` input namespace, falling back to the
+            # filename of the `orm.SinglefileData` node if not defined.
             filename = filenames.get(key, node.filename)
 
             with folder.open(filename, "wb") as target, node.open(mode="rb") as source:
@@ -481,47 +499,47 @@ class RunMDCalculationGPULAMMPSMACE(LammpsRawCalculation):
 
 # entry-point: mace-committee-eval
 class CheckMACECommitteeResultsCalculation(CalcJob):
-    """CalcJob to check the E and F of structures using a committee of MACE models."""
+    """CalcJob to check the E and F of structures using a committee of MACE models.
+
+    Define the input and output specifications for the CalcJob.
+
+    Parameters
+    ----------
+    spec : aiida.engine.processes.ports.PortNamespace
+        The process specification to define the inputs, outputs, and exit codes.
+
+    Inputs
+    ------
+    commitee_models : PortNamespace
+        A namespace to hold an arbitrary number of committee MACE potentials.
+    mace_settings_dict : aiida.orm.Dict
+        Dictionary containing MACE settings.
+    configurations_to_evaluate : aiida.orm.orm.SinglefileData
+        Path to the configurations to evaluate in extxyz format.
+
+    Outputs
+    -------
+    energy_result_dict : aiida.orm.Dict
+        Dictionary of values for the energy prediction.
+        The dict has the following format:
+        `{"model_1": [E1, E2...], "model_2": [E1, E2...], ..."}`
+    forces_result_dict : aiida.orm.Dict
+        Dictionary of arrays of values for the force prediction.
+        The dict has the following format:
+        `{"model_1": <ndarray shape n_at, 3, n_frames>, "model_2": ..."}`
+    num_threads : aiida.orm.Int
+        Number of OpenMP threads to use for the evaluation.
+
+    Exit Codes
+    ----------
+    420 : ERROR_OUT_OF_VRAM
+        CUDA out of GPU memory.
+    421 : ERROR_OUTPUT_NOT_FOUND
+        Missing output file.
+    """
 
     @classmethod
-    def define(cls, spec):
-        """
-        Define the input and output specifications for the CalcJob.
-
-        Parameters
-        ----------
-        spec : aiida.engine.processes.ports.PortNamespace
-            The process specification to define the inputs, outputs, and exit codes.
-
-        Inputs
-        ------
-        commitee_models : PortNamespace
-            A namespace to hold an arbitrary number of committee MACE potentials.
-        mace_settings_dict : aiida.orm.Dict
-            Dictionary containing MACE settings.
-        configurations_to_evaluate : aiida.orm.orm.SinglefileData
-            Path to the configurations to evaluate in extxyz format.
-
-        Outputs
-        -------
-        energy_result_dict : aiida.orm.Dict
-            Dictionary of values for the energy prediction.
-            The dict has the following format:
-            `{"model_1": [E1, E2...], "model_2": [E1, E2...], ..."}`
-        forces_result_dict : aiida.orm.Dict
-            Dictionary of arrays of values for the force prediction.
-            The dict has the following format:
-            `{"model_1": <ndarray shape n_at, 3, n_frames>, "model_2": ..."}`
-        num_threads : aiida.orm.Int
-            Number of OpenMP threads to use for the evaluation.
-
-        Exit Codes
-        ----------
-        420 : ERROR_OUT_OF_VRAM
-            CUDA out of GPU memory.
-        421 : ERROR_OUTPUT_NOT_FOUND
-            Missing output file.
-        """
+    def define(cls, spec):  # noqa: D102
         super().define(spec)
 
         # Namespace that will hold an arbitrary number of committee MACE potentials
@@ -565,8 +583,8 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
 
-        :param folder: an `~aiida.common.folders.Folder` to temporarily write files on disk
-        :return: `~aiida.common.datastructures.CalcInfo` instance
+        :param folder: an `Folder` to temporarily write files on disk
+        :return: `CalcInfo` instance
         """
         # Parsing mace settings dict
         params_list = []
@@ -624,6 +642,7 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
 
 
 def prepare_cli_args_mace(params_list: list, settings_dict: dict):
+    """Prepare the command line arguments for the MACE calculation."""
     for key, val in settings_dict.items():
         if key == "train_file":
             val = Path(val).resolve().name
@@ -644,13 +663,13 @@ def prepare_cli_args_mace(params_list: list, settings_dict: dict):
 
 class CheckMACECommiteeResultsCalculationParser(Parser):
     """
-    Parser for processing the retrieved files from a MACE committee results calculation job.
+    Parser for processing the retrieved files from a MACE committee results job.
 
     Methods
     -------
     parse(**kwargs)
-        Parses the retrieved files and extracts the predicted energies and forces for each
-        committee model. Outputs are stored in AiiDA Dict objects.
+        Parses the retrieved files and extracts the predicted energies and forces
+        for each committee model. Outputs are stored in AiiDA Dict objects.
     """
 
     def parse(self, **kwargs):
@@ -713,7 +732,7 @@ class LAMMPSMACERawParser(Parser):
     """Base parser for LAMMPS output."""
 
     def parse(self, **kwargs):
-        """Parse the contents of the output files stored in the ``retrieved`` output node."""
+        """Parse the output files stored in the `retrieved` output node."""
         retrieved = self.retrieved
         retrieved_filenames = retrieved.base.repository.list_object_names()
         filename_out = LammpsRawCalculation.FILENAME_OUTPUT

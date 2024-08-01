@@ -1,3 +1,5 @@
+"""Monitors for the MatDBForge workflows."""
+
 import tempfile
 
 from aiida.orm import CalcJobNode
@@ -9,12 +11,13 @@ KEY_VERSION_PLUGIN: str = "0.1"
 __version__ = "0.1"
 
 
-def output_monitor(node: CalcJobNode, transport: Transport):
+def output_monitor(node: CalcJobNode, transport: Transport) -> str:
     """Retrieve and inspect files in working directory of job to determine whether
     the job should be killed.
 
     :param node: The node representing the calculation job.
-    :param transport: The transport that can be used to retrieve files from remote working directory.
+    :param transport: The transport that can be used to retrieve files from remote
+    working directory.
     :returns: A string if the job should be killed, `None` otherwise.
     """
     output_monitor.__version__ = "0.1"
