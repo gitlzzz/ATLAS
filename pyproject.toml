@@ -35,6 +35,7 @@ dependencies = [
     "python-slugify[unidecode]",
     "tomli",
     "pre-commit",
+    "flask",
 ]
 
 [project.urls]
