@@ -414,7 +414,7 @@ class ActiveLearningWorkChain(WorkChain):
         code = orm.PortableCode(
             label="mace_get_descriptors",
             filepath_files=descriptor_code_path,
-            filepath_executable="./mdb_mace_get_descriptors.py",
+            filepath_executable="mdb_mace_get_descriptors.py",
             prepend_text=prepend_text,
         )
         mace_builder.code = code
@@ -1058,7 +1058,7 @@ class ActiveLearningWorkChain(WorkChain):
             portable_code = orm.PortableCode(
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
-                filepath_executable="./mdb_mace_eval_committee_configs.py",
+                filepath_executable="mdb_mace_eval_committee_configs.py",
                 prepend_text=prepend_text,
             )
             mace_builder.code = portable_code
@@ -1190,7 +1190,7 @@ class ActiveLearningWorkChain(WorkChain):
             code = orm.PortableCode(
                 label="mace_get_descriptors",
                 filepath_files=descriptor_code_path,
-                filepath_executable="./mdb_mace_get_descriptors.py",
+                filepath_executable="mdb_mace_get_descriptors.py",
                 prepend_text=prepend_text,
             )
             mace_builder.code = code

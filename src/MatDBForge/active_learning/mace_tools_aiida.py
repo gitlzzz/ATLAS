@@ -30,9 +30,12 @@ class TrainMACEModelCalculationParser(Parser):
         rmse_e = None
         rmse_f = None
 
-        for child_file in retrieved_temporary_folder.iterdir():
+        for child_file in retrieved_temporary_folder.rglob("*"):
             # create singlefile data for the model
             if "swa.model" in child_file.name:
+                model_file = orm.SinglefileData(file=child_file)
+
+            if ".model" in child_file.name:
                 model_file = orm.SinglefileData(file=child_file)
 
             if "train.txt" in child_file.name:
