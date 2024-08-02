@@ -97,14 +97,14 @@ This example will showcase the training of a MACE potential in a pure Cu databas
 
 ### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a configuration file. Use the `mdb_conf_gen` to generate a template file with instructions that can be customized easily. Available options are listed and described here: [./docs/input.md](./docs/input.md#database-generation)
+In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `mdb_conf_gen` command to generate a template file with instructions that can be customized easily. Available options are listed and described here: [./docs/input.md](./docs/input.md#database-generation)
 
 ```bash
 # Generate a configuration file for the database generation.
 mdb_conf_gen -t initial_db
 ```
 
-With the settings modified as needed, a database can be generated using the `mdb_gen_init_db` with the path to the configuration file:
+After performing any desired changes to the created configuration file, a database can be generated using the `mdb_gen_init_db` with the path to the configuration file:
 
 ```bash
 # Generate the initial database
