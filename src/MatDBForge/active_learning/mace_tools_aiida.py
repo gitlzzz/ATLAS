@@ -31,13 +31,20 @@ class TrainMACEModelCalculationParser(Parser):
         rmse_f = None
 
         for child_file in retrieved_temporary_folder.rglob("*"):
-            # create singlefile data for the model
+            # Create singlefile data for the model
+
+            # If swa was used, get the swa model preferentially
             if "swa.model" in child_file.name:
                 model_file = orm.SinglefileData(file=child_file)
+                continue
 
-            if ".model" in child_file.name:
+            # If swa was not used, get the non-compiled model, as it can be
+            # used to get the descriptors.
+            if ".model" in child_file.name and "compiled" not in child_file.name:
                 model_file = orm.SinglefileData(file=child_file)
+                continue
 
+            # Get train statistics from the training output
             if "train.txt" in child_file.name:
                 # TODO: gather rmse_e, rmse_f
                 with open(child_file) as f:
@@ -60,18 +67,40 @@ class TrainMACEModelCalculationParser(Parser):
 
 
 class TrainMACEModelCalculation(CalcJob):
-    """Implementation of CalcJob to perform a MACE training using a settings dir."""
+    """Implementation of a CalcJob to perform a MACE training using a settings dir.
+
+    Inputs
+    ------
+
+    mace_settings_dict : orm.Dict
+        Dictionary containing MACE settings.
+    mace_train_file_path : orm.Str
+        Local machine path to the structures to evaluate in extxyz format.
+    test_file : orm.SinglefileData
+        Local machine path to the structures for testing in extxyz format.
+    mace_train_file_path : orm.Str
+        Path to the configurations to evaluate in extxyz format.
+    model_name : orm.Str
+        Name given to the model.
+
+    Outputs
+    -------
+    model_file : orm.SinglefileData
+        Path of the trained MACE model
+    m_rmse_e : orm.Float
+        Validation RMSE for the energy, in meV / atom.
+    m_rmse_f : orm.Float
+        Validation RMSE for the forces, in meV / Å.
+
+    Exit Codes
+    ----------
+    420 : ERROR_INVALID_OUTPUT
+        Training calculation could not run.
+    """
 
     @classmethod
-    def define(cls, spec):  # noqa: D102
-        """
-        Define the input and output specifications for the CalcJob.
-
-        Parameters
-        ----------
-        spec : _type_
-            _description_
-        """
+    def define(cls, spec):
+        """Define the input and output specifications for the CalcJob."""
         super().define(spec)
         spec.input(
             "mace_settings_dict",
@@ -92,7 +121,7 @@ class TrainMACEModelCalculation(CalcJob):
             "test_file",
             valid_type=orm.SinglefileData,
             help=(
-                "File containing the structures to be used for training, "
+                "File containing the structures to be used for testing during training,"
                 "in the extxyz format."
             ),
             required=False,

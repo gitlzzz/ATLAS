@@ -1279,7 +1279,7 @@ class ActiveLearningWorkChain(WorkChain):
         # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
         # cluster, material_name, unique_id
         submitted_dft_cnt = 0
-        for db_row_idx, row in md_seed_results_df.iterrows():
+        for _, row in md_seed_results_df.iterrows():
             # Make len(traj) sized array filled with False.
             extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
             if self.inputs.check_extrapolation:
@@ -1398,10 +1398,10 @@ class ActiveLearningWorkChain(WorkChain):
 
                 if self.inputs.dft_method == "mace":
                     builder = mdb_al_ut.get_dft_calc_builder_mace_list(
-                        mace_calcs_struct_list,
-                        row,
-                        db_row_idx,
-                        self.inputs.train_seed_group.value,
+                        struct_list=mace_calcs_struct_list,
+                        row=row,
+                        # db_row_idx,
+                        # self.inputs.train_seed_group.value,
                         dft_settings=self.inputs.dft_settings.get_dict(),
                     )
 
