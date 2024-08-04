@@ -270,7 +270,12 @@ def create_cache(workchain_node_id):
     cache.attrs["max_iters"] = (
         base_workchain.inputs.active_learning.max_iterations.value
     )
-    cache.attrs["curr_iter"] = base_workchain.called[-1].inputs.al_loop_iteration.value
+
+    # Gathering AL steps
+    al_loop_steps = [
+        c for c in base_workchain.called if c.process_label == "ActiveLearningWorkChain"
+    ]
+    cache.attrs["curr_iter"] = al_loop_steps[-1].inputs.al_loop_iteration.value
 
     return cache
 
@@ -352,11 +357,13 @@ def gather_information(workchain_node_id, app):
         progbar_class_name = "workchain-progbar-error"
         iter_text = f"ERROR ({cache.attrs['curr_iter']})"
         curr_iter = cache.attrs["max_iters"]
+        progbar_iter = cache.attrs["max_iters"]
 
     elif orm.load_node(workchain_node_id).is_finished:
         progbar_class_name = "workchain-progbar-done"
         iter_text = f"DONE ({cache.attrs['curr_iter']})"
         curr_iter = cache.attrs["max_iters"]
+        progbar_iter = cache.attrs["max_iters"]
 
     else:
         progbar_class_name = "workchain-progbar"
