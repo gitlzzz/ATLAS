@@ -101,8 +101,10 @@ def create_active_learning_builder(toml_dict: dict):
     al_conf = toml_dict["active_learning"]
     builder.active_learning.run_name = al_conf["run_name"]
     builder.active_learning.load_init_models = al_conf.get("load_init_models")
-    builder.active_learning.init_db_path = al_conf["init_db_path"]
-    builder.active_learning.results_dir = al_conf["results_dir"]
+    builder.active_learning.init_db_path = str(
+        pl.Path(al_conf["init_db_path"]).resolve()
+    )
+    builder.active_learning.results_dir = str(pl.Path(al_conf["results_dir"]).resolve())
     builder.active_learning.final_db_name = al_conf["final_db_name"]
     builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
     builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
