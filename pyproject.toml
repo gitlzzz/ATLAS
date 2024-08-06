@@ -7,7 +7,7 @@ name = "MatDBForge"
 dynamic = ["version"]
 description = "An automatic workflow for generating data and training NNPs"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "Pol Sanz", email = "psanz@iciq.es" },
     { name = "Zan Lian", email = "zlian@iciq.es" },
@@ -34,9 +34,12 @@ dependencies = [
     "pymatgen",
     "python-slugify[unidecode]",
     "tomli",
-    "pre-commit",
     "flask",
 ]
+
+[project.optional-dependencies]
+dev = ["pre-commit", "pytest", "pytest-cov"]
+
 
 [project.urls]
 Homepage = "https://github.com/pol-sb/MatDBForge"
