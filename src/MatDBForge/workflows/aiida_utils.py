@@ -411,7 +411,6 @@ def submit_aiida_vasp_calculation(
     builder["options"] = Dict(options)
     # builder["parameters"] = Dict(incar)
     builder["parameters"] = Dict(upper_incar)
-    print('builder["parameters"]: ', builder["parameters"])
     builder["potential_family"] = Str(potential_family)
     builder["potential_mapping"] = Dict(potential_mapping)
     builder["structure"] = structure
@@ -885,34 +884,34 @@ def generate_incar(
 
 
 def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None):
+    if kspacing is not None and kspacing_vec is not None:
+        raise ValueError("Both kspacing and kspacing_vec cannot be given.")
+
     # Get kpoints for aiida:
     # kpoints_data = DataFactory("core.array.kpoints")
     kpoints_data = KpointsData()
 
-    if not isinstance(structure, StructureData):
+    if isinstance(structure, Slab):
+        structure = _convert_Slab_to_Structure(target_structure=structure)
+        structure = StructureData(pymatgen=structure)
+    elif not isinstance(structure, StructureData):
         structure = StructureData(pymatgen=structure)
 
     kpoints_data.set_cell_from_structure(structuredata=structure)
 
-    # TODO: This conditional could be done with isinstance, if the calc
-    # types were defined differently. Check if the current StrEnum
-    # can be used with isinstance.
     # Bulks
-    if "bulk" in calc_type:
+    if "bulk" in calc_type.name:
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
         mdb_ut.custom_print(
             f"Generated kpoints for bulk: {kpoints_data.get_kpoints_mesh()}", "debug"
         )
 
     # Surfaces
-    elif "surface" in calc_type:
-        # kpoints_data.set_kpoints_mesh(kspacing_vec)
-
+    elif "surface" in calc_type.name:
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
         kpoint_mesh = kpoints_data.get_kpoints_mesh()[0]
 
         # This will return a tuple with the kmesh and displacement
-
         # As the surfaces will be slabs with a long z axis,
         # 1 kpoint on the z-axis wll be employed
         kpoint_mesh[2] = 1
@@ -927,7 +926,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
         )
 
     # Clusters
-    elif "cluster" in calc_type:
+    elif "cluster" in calc_type.name:
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh([1, 1, 1])
         mdb_ut.custom_print(

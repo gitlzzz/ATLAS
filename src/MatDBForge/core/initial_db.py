@@ -8,6 +8,7 @@ import itertools as it
 import lzma
 import os
 import pathlib
+import pathlib as pl
 import pickle
 import re
 import warnings
@@ -37,6 +38,7 @@ import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.surfaces as mdb_surf
+from MatDBForge.core import initial_db as indb
 from MatDBForge.core import utils as ut
 
 # Filtering certain warnings
@@ -1974,3 +1976,179 @@ class InitialDatabase:
         # but not storing them into the database.
         ut.custom_print(f"Generated {len(cluster_list)} base clusters.", "debug")
         return cluster_list
+
+
+def run_gen_initial_database(
+    db_path,
+    sys_dict,
+    phase_diagram_dict,
+    gen_dict,
+    selected_phases,
+    config_dict,
+):
+    # Start logger
+    log_path = pl.Path(db_path) / "logs"
+
+    if not log_path.exists():
+        log_path.mkdir(parents=True)
+
+    ut.init_logger(source=pl.Path(__file__).stem, log_path=f"{db_path}/logs")
+
+    # Create phase diagram
+    phases_list = []
+    for _, phase_d in phase_diagram_dict["phase"].items():
+        curr_phase = mdb_pd.Phase(
+            name=phase_d["name"],
+            base_elem=phase_d["base_elem"],
+            cluster_elem=phase_d["cluster_elem"],
+            base_elem_comp_min=phase_d["base_elem_comp_min"],
+            base_elem_comp_max=phase_d["base_elem_comp_max"],
+            prototype=phase_d["prototype"],
+            offset=phase_d["offset"],
+        )
+        phases_list.append(curr_phase)
+
+    # Assemble phase diagram
+    phase_diagram = mdb_pd.BinaryPhaseDiagram(
+        phase_diagram_dict["material_name"],
+        *phases_list,
+    )
+
+    # Initialize the database
+    structures = indb.InitialDatabase(
+        database_name=sys_dict["database_name"],
+        max_num_atoms=sys_dict["max_num_atoms"],
+        phase_diagram=phase_diagram,
+    )
+
+    ut.custom_print(structures, "done")
+
+    read_from_db = True
+
+    if sys_dict.get("relax_struct_path"):
+        # Initial structures obtained with DFT relaxation are loaded from a given path
+        structures.read_base_structures(
+            path=sys_dict["relax_struct_path"],
+            target_structures=selected_phases,
+        )
+    else:
+        # Obtain structures from Materials Project
+        prototypes = [phase.prototype for phase in phase_diagram.phases]
+        structures.gather_base_structures(target_structures=prototypes)
+        read_from_db = False
+
+    ut.custom_print("Generating structures from initial structures...", "debug")
+
+    for phase in selected_phases:
+        # Line break for aesthetic purposes
+        print()
+
+        # Creating surfaces from the base structures, generating
+        # different supercells and applying replacements.
+        ut.custom_print(f"Current phase: {phase}.", "info")
+
+        # Getting phase object
+        phase = phase_diagram.get_phase(phase)
+        print("command_line phase: ", type(phase))
+
+        if "bulk" in gen_dict:
+            ut.custom_print("Generating bulk structures...", "info")
+
+            # Generating bulk structures.
+            structures.generate_bulk_structures(
+                prototype=phase.prototype,
+                phase=phase,
+                num_struct=gen_dict["bulk"]["num_struct"],
+                num_repeats=gen_dict["bulk"]["num_repeat"],
+                get_different_supercells=True,
+                min_num_atoms=sys_dict["min_num_atoms"],
+                supercell_max_idx=gen_dict["bulk"]["supercell_max_idx"],
+                read=read_from_db,
+            )
+
+            ut.custom_print(structures, "info")
+
+        if "surface" in gen_dict:
+            # Generating surface structures.
+            ut.custom_print("Generating slab structures...", "info")
+
+            slabs = mdb_surf.gene_surfaces_diff_miller(
+                db_obj=structures,
+                phase=phase,
+                min_num_atoms=sys_dict["min_num_atoms"],
+                overwrite_max_num_atoms=sys_dict["max_num_atoms"],
+                min_miller_index=gen_dict["surface"]["min_miller_index"],
+                max_miller_index=gen_dict["surface"]["supercell_max_idx"],
+                min_slab_size=gen_dict["surface"]["min_slab_size_ang"],
+                num_diff_layer_size=gen_dict["surface"]["num_diff_layer_size"],
+                min_vacuum_size=gen_dict["surface"]["min_vacuum_size_ang"],
+                get_supercells=gen_dict["surface"]["get_supercells"],
+                fixed_layers=gen_dict["surface"]["fixed_layers"],
+                limit_supercell=gen_dict["surface"]["max_number_supercells"],
+                save_in_db=gen_dict["surface"]["save_in_db"],
+            )
+
+            ut.custom_print(
+                f"{len(slabs)} slabs generated.",
+                "done",
+            )
+
+        if "cluster" in gen_dict:
+            raise NotImplementedError("Cluster type not implemented yet")
+
+        # Filter small and large structures
+        remove_count = structures.remove_structs_out_of_atom_count_range(
+            min_num_atoms=sys_dict["min_num_atoms"],
+            max_num_atoms=sys_dict["max_num_atoms"],
+        )
+        ut.custom_print(
+            f"Removed {remove_count} structures out of atom count range.", "info"
+        )
+        ut.custom_print(structures, "info")
+
+        # Lattice displacement
+        if "displacement" in config_dict:
+            displ_dict = config_dict["displacement"]
+
+            ut.custom_print("Applying displacements to lattices.", "info")
+
+            structures.perturb_min_displacement(
+                frac_max=displ_dict["lattice_frac_displ_max"],
+                frac_min=displ_dict["lattice_frac_displ_min"],
+                repeat=displ_dict["num_repeats"],
+            )
+            ut.custom_print(structures, "info")
+
+            remove_count = structures.remove_structs_out_of_cell_size_range(
+                min_cell_size=sys_dict["min_cell_size"]
+            )
+            ut.custom_print(
+                f"Removed {remove_count} structures out of cell size range.", "info"
+            )
+
+        if "perturbation" in config_dict:
+            perturb_dict = config_dict["perturbation"]
+            ut.custom_print(
+                "Applying a random perturbation to the structures...",
+                "info",
+            )
+
+            ut.apply_gauss_perturb_db(
+                db_obj=structures,
+                repeat=perturb_dict["num_repeats"],
+                filters=perturb_dict["filter_struct_types"],
+                phase=phase,
+                limit_num_structures=perturb_dict["limit_max_num_perturbs"],
+            )
+
+            ut.custom_print(structures, "info")
+
+    print()
+
+    ut.custom_print(structures, "done")
+    print()
+
+    structures.save_database(
+        path=sys_dict["final_database_path"],
+        suffix=sys_dict["database_name"],
+    )
