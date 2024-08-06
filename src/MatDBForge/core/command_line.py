@@ -2,9 +2,11 @@
 """Run an active-learning procedure based on ML-MD using aiida."""
 
 import argparse
+import multiprocessing as mp
 import pathlib as pl
 import shutil
 import sys
+import time
 import warnings
 from argparse import RawTextHelpFormatter
 
@@ -15,9 +17,6 @@ from aiida.orm import Dict, Int
 from aiida.plugins import WorkflowFactory
 from gunicorn.app.wsgiapp import WSGIApplication
 
-from MatDBForge.active_learning.dashboard.training_dashboard_flask import (
-    run_training_dashboard,
-)
 from MatDBForge.core import MDB_DATA_DIR
 from MatDBForge.core import exceptions as mdb_exc
 from MatDBForge.core import initial_db as indb
@@ -48,34 +47,64 @@ class MDBDashboardApp(WSGIApplication):
 
 def run_dashboard_app(process_id, port, update_interval, debug, online):
     print(
-        f"\n\nRunning dashboard to monitor process: {process_id}.\n"
-        f"Access: http://127.0.0.1:{port}.\n\n"
+        f"\nRunning dashboard to monitor process: {process_id}.\n"
+        f"To access the dashboard visit: http://127.0.0.1:{port}."
     )
-    print("Pres Ctrl+C to stop the dashboard.")
-    if debug:
-        app = run_training_dashboard(
-            workchain_node_id=process_id,
-            refresh_interval={update_interval},
-            port={port},
-        )
-        if online:
-            app.run(debug=True, port=port, host="0.0.0.0")
-        else:
-            app.run(debug=True, port=port, host="0.0.0.0")
+    # if debug:
+    #     app = run_training_dashboard(
+    #         workchain_node_id=process_id,
+    #         refresh_interval={update_interval},
+    #         port={port},
+    #     )
+    #     host = "0.0.0.0" if online else "127.0.0.1"
+
+    #     print("Pres Ctrl+C to stop the dashboard.")
+    #     app.run(debug=True, port=port, host=host)
+    # else:
+    print("\nStarting dashboard in a separate process.")
+    process = mp.Process(
+        target=run_dashboard_process,
+        args=(process_id, port, update_interval, online, debug),
+        name="mdb_dashboard",
+        daemon=True,
+    )
+    process.start()
+    time.sleep(2)
+    with open("./.mdb_dashboard.pid") as f:
+        pid = f.readline().strip()
+    print(
+        f"Use 'kill {pid}' to stop the dashboard.\n"
+        "You can find the pid again in the file '.mdb_dashboard.pid'."
+    )
+    process.join()
+
+
+def run_dashboard_process(process_id, port, update_interval, online, debug):
+    app = MDBDashboardApp(
+        f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
+        f":run_training_dashboard(workchain_node_id={process_id}, "
+        f"refresh_interval={update_interval}, port={port})",
+    )
+    app.options["pidfile"] = ".mdb_dashboard.pid"
+    app.options["daemon"] = "true"
+    app.options["capture_output"] = "true"
+    app.options["errorlog"] = "./mdb_dashboard_output.log"
+    app.options["worker_connections"] = 1
+    app.options["keepalive"] = 5
+    app.options["proc_name"] = "mdb_dashboard"
+    app.options["preload_app"] = "true"
+    if online:
+        app.options["bind"] = f"0.0.0.0:{port}"
     else:
-        app = MDBDashboardApp(
-            f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
-            f":run_training_dashboard(workchain_node_id={process_id}, "
-            f"refresh_interval={update_interval}, port={port})",
-        )
-        if online:
-            app.options["bind"] = f"0.0.0.0:{port}"
-            app.load_config()
-            app.run()
-        else:
-            app.options["bind"] = f"127.0.0.1:{port}"
-            app.load_config()
-            app.run()
+        app.options["bind"] = f"127.0.0.1:{port}"
+    if debug:
+        print("Debug mode enabled.")
+        app.options["reload"] = "true"
+        app.options["loglevel"] = "debug"
+
+    print("Logging in 'mdb_dashboard_output.log'")
+    app.load_config()
+    app.run()
 
 
 def create_active_learning_builder(toml_dict: dict):
@@ -254,9 +283,10 @@ def run_active_learning():
         node = run(builder)
     else:
         node = submit(builder)
+        time.sleep(1)
 
         run_dashboard_app(
-            process_id=node,
+            process_id=str(node.pk),
             port=args.port,
             update_interval=args.update_interval,
             debug=args.debug,

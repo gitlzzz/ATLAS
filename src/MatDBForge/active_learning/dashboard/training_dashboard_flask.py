@@ -11,7 +11,7 @@ from flask import Flask, render_template
 
 
 def get_report(node):
-    if isinstance(node, str):
+    if isinstance(node, (int, str)):
         node = orm.load_node(node)
 
     report = get_workchain_report(node, levelname="REPORT")
@@ -275,22 +275,28 @@ def create_cache(workchain_node_id):
     al_loop_steps = [
         c for c in base_workchain.called if c.process_label == "ActiveLearningWorkChain"
     ]
-    cache.attrs["curr_iter"] = al_loop_steps[-1].inputs.al_loop_iteration.value
+    if len(al_loop_steps) > 0:
+        cache.attrs["curr_iter"] = al_loop_steps[-1].inputs.al_loop_iteration.value
+    else:
+        cache.attrs["curr_iter"] = 0
 
     return cache
 
 
 def gather_information(workchain_node_id, app):
+    app.logger.info(f"Checking workchain '{workchain_node_id}'.")
+
     cache_path = "/tmp"
     cache_filename = f"mdb_cache_{workchain_node_id}.pkl"
     cache_full_path = pl.Path(cache_path) / cache_filename
 
+    # If cache file found, load cache file.
     if cache_full_path.exists():
-        # Load cache file
         cache = pd.read_pickle(cache_full_path)
         app.logger.info(f"Read cache file: '{cache_full_path}'")
+
+    # If cache not found, create cache as a dataframe.
     else:
-        # Create cache  as a dataframe
         cache = create_cache(workchain_node_id)
         app.logger.info(f"Created new cache file: '{cache_full_path}'")
 
@@ -312,15 +318,16 @@ def gather_information(workchain_node_id, app):
         app.logger.info("Cache file up-to-date.")
 
     # Get status for the current iteration from cache
-    curr_step_status = cache.iloc[-1]["exit_status"]
+    curr_step_status = cache.iloc[-1]["exit_status"] if len(cache) > 0 else None
     curr_iter = cache.attrs["curr_iter"]
 
     # If current step is finished, get current iteration
     if curr_step_status:
         progbar_iter = cache.attrs["curr_iter"]
+
     # If current step is not finished, get previous iteration
     else:
-        progbar_iter = cache.attrs["curr_iter"] - 1
+        progbar_iter = max(cache.attrs["curr_iter"] - 1, 0)
 
     iter_text = f"{progbar_iter} / {cache.attrs['max_iters']}"
 
@@ -352,21 +359,23 @@ def gather_information(workchain_node_id, app):
     report = get_report(workchain_node_id)
     app.logger.info(f"Report gather time: {(time.time_ns() - t_ini) * 1e-9:.1f} s")
 
-    # Changing progress bar style
-    if orm.load_node(workchain_node_id).is_excepted:
+    # Determining workchain status
+    wkc = orm.load_node(workchain_node_id)
+    if any([wkc.is_excepted, wkc.is_terminated, wkc.is_killed]):
         progbar_class_name = "workchain-progbar-error"
         iter_text = f"ERROR ({cache.attrs['curr_iter']})"
-        curr_iter = cache.attrs["max_iters"]
+        curr_iter = cache.attrs["curr_iter"]
         progbar_iter = cache.attrs["max_iters"]
-
-    elif orm.load_node(workchain_node_id).is_finished:
+    elif wkc.is_finished_ok:
         progbar_class_name = "workchain-progbar-done"
         iter_text = f"DONE ({cache.attrs['curr_iter']})"
         curr_iter = cache.attrs["max_iters"]
         progbar_iter = cache.attrs["max_iters"]
-
     else:
         progbar_class_name = "workchain-progbar"
+
+    app.logger.info(f"Active learning loop currently in iteration: '{curr_iter}'.")
+    app.logger.info(f"Current iteration training stats: '{model_stats}'.")
 
     return (
         model_stats,
@@ -395,8 +404,6 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             curr_iter,
             progbar_class_name,
         ) = gather_information(workchain_node_id, app)
-        print("cache: ", cache["exit_status"])
-        print("cache: ", cache.columns)
 
         return render_template(
             "training_dashboard.html",
