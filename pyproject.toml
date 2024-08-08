@@ -66,11 +66,11 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mace-lammps-raw-parser" = "MatDBForge.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
 
 [project.scripts]
-"mdb_active_learning" = "MatDBForge.core.command_line.active_learning:run_active_learning"
-"mdb_gen_configuration_file" = "MatDBForge.core.command_line.generate_configuration_file:gen_default_config"
-"mdb_monitor_al_loop" = "MatDBForge.core.command_line.dashboard:monitor_al_loop"
-"mdb_gen_init_db" = "MatDBForge.core.command_line.generate_init_db:run_gen_initial_database"
-"mdb_init_setup" = "MatDBForge.core.command_line.run_initial_config:run_initial_config"
+"mdb_active_learning" = "MatDBForge.core.command_line.cli_active_learning:run_active_learning"
+"mdb_gen_configuration_file" = "MatDBForge.core.command_line.cli_generate_configuration_file:gen_default_config"
+"mdb_monitor_al_loop" = "MatDBForge.core.command_line.cli_dashboard:monitor_al_loop"
+"mdb_gen_init_db" = "MatDBForge.core.command_line.cli_generate_init_db:run_gen_initial_database"
+"mdb_init_setup" = "MatDBForge.core.command_line.cli_run_initial_config:run_initial_config"
 
 [tool.setuptools]
 include-package-data = true
