@@ -31,7 +31,7 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
         Text.assemble(
             "\n\nThe active learning loop has been launched (PK: ",
             (f"{process_pk}", "bold blue"),
-            ") using a dashboard interface in a separate process.\n",
+            ") \nusing a dashboard interface in a separate process.\n",
             "To access the dashboard visit: ",
             (f"http://{url}:{port}.\n", "bold blue"),
             "\n\nUse ",
