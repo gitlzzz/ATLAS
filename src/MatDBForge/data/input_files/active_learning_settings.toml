@@ -17,6 +17,10 @@ init_db_path = ""
 # It will contain a folder named run_{uuid}.
 results_dir = ""
 
+# Path for the log file.
+# Defaults to 'mdb_<PK>_<DATETIME>.log in the result dir if not specified.
+log_path = ""
+
 # Name for the final database
 # The database will be stored in the extxyz format
 final_db_name = "final_data_test"

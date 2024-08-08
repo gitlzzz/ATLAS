@@ -1,6 +1,7 @@
 """AiiDA workchain for NNP active learning loops using MD."""
 
 import io
+import logging
 import os
 import pickle
 import shutil
@@ -1528,8 +1529,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "database_training",
             ],
         )
+        spec.input("log_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
 
         spec.outline(
+            # Add a filehandler to aiida logger
+            cls.setup_textfile_logging,
             # Load the initial database (D_ini), that will be used as the
             # training database (Dt) without changing the original database.
             # Additionally, create a copy of the database (seed_gen_db, Ds),
@@ -1561,6 +1565,20 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             valid_type=orm.SinglefileData,
         )
         spec.output("final_model_file", valid_type=orm.SinglefileData)
+
+    def setup_textfile_logging(self):
+        # Get log path
+        log_path = self.inputs.log_path.value
+
+        # Getting aiida logger
+        aiida_logger = logging.getLogger("aiida")
+
+        # Create a file handler
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setLevel(logging.INFO)
+        aiida_logger.addHandler(file_handler)
+
+        self.report(f"Logging in '{log_path}'")
 
     def get_database(self):
         """Loading initial database."""
