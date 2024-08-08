@@ -6,7 +6,7 @@ from argparse import RawTextHelpFormatter
 
 import tomli
 
-from MatDBForge.core.command_line.cli_command_line_utils import parse_input_toml
+from MatDBForge.core.command_line.command_line_utils import parse_input_toml
 
 
 def gen_initial_database(config_dict: dict):
