@@ -8,6 +8,15 @@ from MatDBForge.core import exceptions as mdb_exc
 warnings.filterwarnings("ignore")
 
 
+MDB_LOGO = """
+  __  __      _   ___  ___ ___
+ |  \/  |__ _| |_|   \| _ ) __|__ _ _ __ _ ___
+ | |\/| / _` |  _| |) | _ \ _/ _ \ '_/ _` / -_)
+ |_|  |_\__,_|\__|___/|___/_|\___/_| \__, \___|
+                                     |___/
+"""
+
+
 def parse_input_toml(toml_dict: dict, type: str):
     """
     Parses and validates the input TOML dictionary based on the specified type.
