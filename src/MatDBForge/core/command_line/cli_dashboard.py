@@ -5,7 +5,6 @@ import multiprocessing as mp
 import time
 from argparse import RawTextHelpFormatter
 
-from aiida.orm import load_node
 from gunicorn.app.wsgiapp import WSGIApplication
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -17,7 +16,9 @@ from MatDBForge.core.command_line.command_line_utils import MDB_LOGO
 
 def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path: str):
     """Prints a console output with the dashboard information using the rich library."""
-    console = Console()
+    console = Console(record=True)
+
+    store_output_file = f"mdb_run_{process_pk}_info.out"
 
     # Creating Text and Panel for each section
     process_text = Text.assemble(
@@ -37,8 +38,8 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
             "\n\nUse ",
             (f"kill {dash_pid}", "bold red"),
             " to stop the dashboard.\n",
-            "You can find the pid again in the file ",
-            (".mdb_dashboard.pid", "bold blue"),
+            "You can find this information again in the file ",
+            (f"{store_output_file}", "bold blue"),
             " in the CWD.",
             "\n",
             justify="full",
@@ -80,6 +81,7 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
 
     # Print the panel
     console.print(panel)
+    console.save_text(f"mdb_run_{process_pk}_info.out")
 
 
 class MDBDashboardApp(WSGIApplication):
@@ -129,6 +131,11 @@ def run_dashboard_process(process_id, port, update_interval, online, debug):
 
 
 def run_dashboard_app(process_id, port, update_interval, debug, online):
+    from aiida import load_profile
+    from aiida.orm import load_node
+
+    load_profile()
+
     process = mp.Process(
         target=run_dashboard_process,
         args=(process_id, port, update_interval, online, debug),
