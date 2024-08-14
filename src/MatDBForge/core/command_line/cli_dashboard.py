@@ -20,7 +20,7 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
 
     store_output_file = f"mdb_run_{process_pk}_info.out"
 
-    # Creating Text and Panel for each section
+    # Creating Text containing the process information
     process_text = Text.assemble(
         (
             f"{MDB_LOGO}",
@@ -68,12 +68,13 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
         f"[bold]{log_path}",
     )
 
+    # Create a group with the text and the table
     grp = Group(process_text, table)
 
-    # Create a panel with the table inside
+    # Create a panel with the group inside
     panel = Panel(
         grp,
-        title="MatDBForge",
+        title="MatDBForge Active Learning",
         border_style="magenta",
         expand=False,
         padding=(2, 2),
