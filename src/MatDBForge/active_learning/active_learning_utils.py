@@ -329,7 +329,7 @@ def get_dft_calc_builder_mace_list(
     mace_builder.mace_settings_dict = dft_settings["settings"]
 
     # Load model
-    model = SinglefileData(dft_settings["mace_potential_path"])
+    model = SinglefileData(file=Path(dft_settings["mace_potential_path"]).resolve())
     mace_builder.model_file = model
 
     # Load structure as SinglefileData
