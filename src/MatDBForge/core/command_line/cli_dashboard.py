@@ -1,11 +1,9 @@
 """Launch a dashboard to monitor the active learning loop."""
 
 import argparse
-import multiprocessing as mp
 import time
 from argparse import RawTextHelpFormatter
 
-from gunicorn.app.wsgiapp import WSGIApplication
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
@@ -85,71 +83,50 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
     console.save_text(f"mdb_run_{process_pk}_info.out")
 
 
-class MDBDashboardApp(WSGIApplication):
-    """Gunicorn application for the MDB dashboard."""
-
-    def __init__(self, app_uri, options=None):
-        self.options = options or {}
-        self.app_uri = app_uri
-        super().__init__()
-
-    def load_config(self):
-        config = {
-            key: value
-            for key, value in self.options.items()
-            if key in self.cfg.settings and value is not None
-        }
-        for key, value in config.items():
-            self.cfg.set(key.lower(), value)
-
-
-def run_dashboard_process(process_id, port, update_interval, online, debug):
-    app = MDBDashboardApp(
-        f"MatDBForge.active_learning.dashboard.training_dashboard_flask"
-        f":run_training_dashboard(workchain_node_id={process_id}, "
-        f"refresh_interval={update_interval}, port={port})",
-    )
-    app.options["pidfile"] = ".mdb_dashboard.pid"
-    app.options["daemon"] = "true"
-    app.options["capture_output"] = "true"
-    app.options["errorlog"] = "./.mdb_dashboard_output.log"
-    app.options["worker_connections"] = 1
-    app.options["keepalive"] = 5
-    app.options["proc_name"] = "mdb_dashboard"
-    app.options["preload_app"] = "true"
-    if online:
-        app.options["bind"] = f"0.0.0.0:{port}"
-    else:
-        app.options["bind"] = f"127.0.0.1:{port}"
-    if debug:
-        print("Debug mode enabled.")
-        app.options["reload"] = "true"
-        app.options["loglevel"] = "debug"
-
-    # print("Logging dashboard status in '.mdb_dashboard_output.log'")
-    app.load_config()
-    app.run()
-
-
 def run_dashboard_app(process_id, port, update_interval, debug, online):
+    import subprocess as sb
+
     from aiida import load_profile
     from aiida.orm import load_node
 
     load_profile()
 
-    process = mp.Process(
-        target=run_dashboard_process,
-        args=(process_id, port, update_interval, online, debug),
-        name="mdb_dashboard",
-        daemon=True,
+    # Get url from settings
+    url = "0.0.0.0" if online else "127.0.0.1"
+
+    # Enable debug mode
+    debug = ["--log-level", "debug"] if debug else ["--log-level", "info"]
+
+    # print('reload_mode: ', reload_mode)
+    # Laucnh the dashboard in a separate process
+    sb.call(
+        [
+            "gunicorn",
+            "--daemon",
+            "--bind",
+            f"{url}:{port}",
+            # reload_mode,
+            *debug,
+            "--capture-output",
+            "--error-logfile",
+            "./.mdb_dashboard_output.log",
+            "--pid",
+            "./.mdb_dashboard.pid",
+            "--name",
+            "mdb_dashboard",
+            f"MatDBForge.active_learning.dashboard.training_dashboard_flask:run_training_dashboard(workchain_node_id='{process_id}',refresh_interval='{update_interval}',port='{port}')",
+        ]
     )
-    process.start()
-    time.sleep(2)
+
+    # Wait for the dashboard to start and get the pid
+    time.sleep(5)
     with open("./.mdb_dashboard.pid") as f:
         pid = f.readline().strip()
 
+    # Get the log path
     log_path = load_node(process_id).inputs.log_path.value
 
+    # Print the dasboard information in the console.
     console_output(
         url="127.0.0.1",
         port=port,
@@ -157,7 +134,6 @@ def run_dashboard_app(process_id, port, update_interval, debug, online):
         process_pk=process_id,
         log_path=log_path,
     )
-    process.join()
 
 
 def monitor_al_loop():
