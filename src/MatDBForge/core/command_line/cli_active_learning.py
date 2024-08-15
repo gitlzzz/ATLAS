@@ -110,6 +110,10 @@ def create_active_learning_builder(toml_dict: dict):
     if al_conf["dft_method"] == "vasp":
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["vasp"])
     elif al_conf["dft_method"] == "mace":
+        # Make sure the path to the MACE potential is absolute
+        toml_dict["dft"]["mace"]["mace_potential_path"] = str(
+            pl.Path(toml_dict["dft"]["mace"]["mace_potential_path"]).resolve()
+        )
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["mace"])
 
     ## Descriptor settings
