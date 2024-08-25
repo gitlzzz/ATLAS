@@ -32,10 +32,11 @@ from ase.io import write as ase_write
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
-from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.workflows import aiida_utils as mdb_aut
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
+
+from MatDBForge.active_learning import conversion as mdb_conv
+from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
 def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
@@ -44,6 +45,22 @@ def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
 
     for _, res in res_dict.items():
         res_model_list.append(res)
+
+    # Find the maximum length of the inner lists
+    sublist_lens = set(len(sublist) for sublist in res_model_list)
+
+    # If lists are of different lengths, pad the shorter lists with np.nan
+    if len(sublist_lens) > 1:
+        max_len = max(sublist_lens)
+
+        # Pad the shorter lists with np.nan
+        padded_list = []
+        for sublist in res_model_list:
+            nan_list = list(it.repeat(np.nan,  (max_len - len(sublist))))
+            padded_sublist = list(sublist) + nan_list
+            padded_list.append(padded_sublist)
+        res_model_list = padded_list
+
     res_model_list = np.array(res_model_list, dtype=float)
 
     return res_model_list
