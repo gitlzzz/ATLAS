@@ -16,7 +16,7 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
     """Prints a console output with the dashboard information using the rich library."""
     console = Console(record=True)
 
-    store_output_file = f"mdb_run_{process_pk}_info.out"
+    store_output_file = f"mdb_dashboard_run_{process_pk}_info.out"
 
     # Creating Text containing the process information
     process_text = Text.assemble(
