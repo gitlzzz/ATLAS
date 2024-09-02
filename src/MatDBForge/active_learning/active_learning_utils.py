@@ -32,16 +32,17 @@ from ase.io import write as ase_write
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
+from MatDBForge.active_learning import conversion as mdb_conv
+from MatDBForge.workflows import aiida_utils as mdb_aut
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 
-from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.workflows import aiida_utils as mdb_aut
-
 
 def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
-    """Convert a result dict to a numpy array."""
+    """Convert a dictionary of model results to a numpy array."""
     res_model_list = []
+
+    select_md_frames_to_keep()
 
     for _, res in res_dict.items():
         res_model_list.append(res)
@@ -56,7 +57,7 @@ def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
         # Pad the shorter lists with np.nan
         padded_list = []
         for sublist in res_model_list:
-            nan_list = list(it.repeat(np.nan,  (max_len - len(sublist))))
+            nan_list = list(it.repeat(np.nan, (max_len - len(sublist))))
             padded_sublist = list(sublist) + nan_list
             padded_list.append(padded_sublist)
         res_model_list = padded_list
@@ -242,6 +243,19 @@ def apply_filter_no_neighbors(struct):
     return has_disconnected_atoms
 
 
+def get_total_num_frames(len_traj, md_tstep_duration_ps, frame_interval):
+    """Compute the number of frames to get from the trajectory using user input."""
+    # Get total MD time in picoseconds
+    total_duration_ps = len_traj * md_tstep_duration_ps
+
+    # Get total number of frames in that time.
+    # Frame interval represents every how many ps of MD simulation
+    # save a frame.
+    total_num_frames = m.ceil(total_duration_ps * 1 / frame_interval)
+
+    return total_num_frames
+
+
 def select_md_frames_to_keep(
     frame_interval: int,
     # total_n_frames: int,
@@ -251,16 +265,13 @@ def select_md_frames_to_keep(
     forces: np.array,
 ):
     """Select MD frames to keep using the frame interval and total number of frames."""
-    # Get total MD time in picoseconds
-    total_duration_ps = len(traj) * md_tstep_duration_ps
-
-    # Get total number of frames in that time.
-    # Frame interval represents every how many ps of MD simulation
-    # save a frame.
-    total_num_frames = m.ceil(total_duration_ps * 1 / frame_interval)
+    len_traj = len(traj)
+    total_num_frames = get_total_num_frames(
+        len_traj, md_tstep_duration_ps, frame_interval
+    )
 
     # Choose the number of frames evenly and create a mask for the arrays
-    mask = np.linspace(0, len(traj) - 1, total_num_frames, dtype=int)
+    mask = np.linspace(0, len_traj - 1, total_num_frames, dtype=int)
 
     # Apply the mask to traj, steps_E_F_arr and forces
     traj_sampled = traj[mask]
@@ -698,8 +709,8 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
             calc_info_dict = {
                 "struct_name": calc_node.label,
                 "dft_calc_uuid": calc_node.uuid,
-                "aiida_uuid": calc_node.extras["mdb_calc_uuid"],
-                "mdb_struct_type": calc_node.extras["mdb_struct_type"],
+                "aiida_uuid": calc_node.base.extras.all["mdb_calc_uuid"],
+                "mdb_struct_type": calc_node.base.extras.all["mdb_struct_type"],
                 # "mdb_md_node": calc_node.uuid,
             }
 

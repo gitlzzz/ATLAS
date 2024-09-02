@@ -1103,8 +1103,8 @@ class ActiveLearningWorkChain(WorkChain):
                 continue
 
             # Gather extras to identify the current calc
-            curr_unique_id = curr_calc.extras["unique_id"]
-            curr_md_temperature = curr_calc.extras["md_temperature"]
+            curr_unique_id = curr_calc.base.extras.all["unique_id"]
+            curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
 
             # Find row matching the calculation using curr_unique_id and
             # current_temperature
@@ -1248,8 +1248,8 @@ class ActiveLearningWorkChain(WorkChain):
                 if not curr_calc.is_finished_ok:
                     continue
 
-                curr_unique_id = curr_calc.extras["unique_id"]
-                curr_md_temperature = curr_calc.extras["md_temperature"]
+                curr_unique_id = curr_calc.base.extras.all["unique_id"]
+                curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
 
                 # Creating context manager to load descriptor result files
                 # descr_file
