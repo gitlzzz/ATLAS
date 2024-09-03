@@ -80,7 +80,7 @@ def console_output(url: str, port: str, dash_pid: str, process_pk: str, log_path
 
     # Print the panel
     console.print(panel)
-    console.save_text(f"mdb_run_{process_pk}_info.out")
+    console.save_text(store_output_file)
 
 
 def run_dashboard_app(process_id, port, update_interval, debug, online):
