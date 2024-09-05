@@ -2,7 +2,6 @@
 
 import io
 import itertools as it
-import math as m
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -32,17 +31,16 @@ from ase.io import write as ase_write
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
-from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.workflows import aiida_utils as mdb_aut
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
+
+from MatDBForge.active_learning import conversion as mdb_conv
+from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
 def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
     """Convert a dictionary of model results to a numpy array."""
     res_model_list = []
-
-    select_md_frames_to_keep()
 
     for _, res in res_dict.items():
         res_model_list.append(res)
@@ -251,7 +249,7 @@ def get_total_num_frames(len_traj, md_tstep_duration_ps, frame_interval):
     # Get total number of frames in that time.
     # Frame interval represents every how many ps of MD simulation
     # save a frame.
-    total_num_frames = m.ceil(total_duration_ps * 1 / frame_interval)
+    total_num_frames = np.ceil(total_duration_ps * 1 / frame_interval)
 
     return total_num_frames
 
@@ -563,8 +561,9 @@ def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
     return Atoms.fromdict(struct_dict)
 
 
-def serialize_ase(curr_s) -> dict:
+def serialize_ase(curr_s: dict | Atoms) -> dict:
     """Serialize an ASE Atoms object to a dictionary."""
+
     if not isinstance(curr_s, dict):
         curr_s = curr_s.todict()
 
@@ -718,10 +717,10 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
                 structure.info[key] = val
 
             # Renaming energy key
-            structure.info["energy"] = structure.info.pop("mdb_mace_eval_energy")
+            structure.info["REF_energy"] = structure.info.pop("mdb_mace_eval_energy")
 
             # Renaming forces dict
-            structure.arrays["forces"] = structure.arrays.pop("mdb_mace_eval_forces")
+            structure.arrays["REF_forces"] = structure.arrays.pop("mdb_mace_eval_forces")
 
             # result_list.append(structure)
             curr_struct_res.append(structure)
