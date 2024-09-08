@@ -288,7 +288,8 @@ class ActiveLearningWorkChain(WorkChain):
             values, the LAMMPS potential file, and the committee models' information
             but does not return any value directly.
         """
-        if not self.inputs.load_init_models:
+        curr_iter = self.inputs.al_loop_iteration.value
+        if (not self.inputs.load_init_models) or (self.inputs.load_init_models and curr_iter != 0):
             mace_training_results = self.ctx.mace_training_results
         else:
             mace_training_results = [
@@ -585,8 +586,6 @@ class ActiveLearningWorkChain(WorkChain):
         self.ctx.current_train_seed = []
 
         # this string with the label used in the code setup.
-        # code = orm.load_code("mace-lammps@localhost-mpirun.mpich")
-        # code = orm.load_code("mace-lammps-gpu@tekla2-updated-2024")
         code_str = self.inputs.lammps_mace.get("code")
         if self.inputs.use_kokkos:
             builder = CalculationFactory("mace-lammps-gpu-md").get_builder()
@@ -626,6 +625,7 @@ class ActiveLearningWorkChain(WorkChain):
                     "numbers",
                     "positions",
                     "forces",
+                    "REF_forces",
                     "MACE_forces",
                 ]:
                     if curr_structure.get(key):
