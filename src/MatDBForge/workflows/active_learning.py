@@ -1253,9 +1253,10 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # Creating context manager to load descriptor result files
                 # descr_file
-                with curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path, open(  # noqa: E501
-                    md_descr_file_path, "rb"
-                ) as descr_file:
+                with (
+                    curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path,
+                    open(md_descr_file_path, "rb") as descr_file,  # noqa: E501
+                ):
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
 
                 # Find row matching the calculation using curr_unique_id and
@@ -1308,8 +1309,14 @@ class ActiveLearningWorkChain(WorkChain):
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
 
             # Checking if the energies are over the error threshold
-            error_e_structures_sm = np.ma.make_mask(energies_stat >= e_error_threshold)
-            error_e_structures_bg = np.ma.make_mask(energies_stat < maximum_value_e)
+            error_e_structures_sm = np.ma.make_mask(
+                energies_stat >= e_error_threshold,
+                shrink=False,
+            )
+            error_e_structures_bg = np.ma.make_mask(
+                energies_stat < maximum_value_e,
+                shrink=False,
+            )
 
             # Any True value in this array is over the energy error threshold
             # and must be sent to calculate with DFT.
@@ -1323,12 +1330,34 @@ class ActiveLearningWorkChain(WorkChain):
             forces_std_norm_max = np.amax(forces_std_norm, axis=1)
 
             # Checking if the forces are over the error threshold
-            err_f_struct_sm = np.ma.make_mask(forces_std_norm_max >= f_error_threshold)
-            err_f_struct_bg = np.ma.make_mask(forces_std_norm_max < maximum_value_f)
+            err_f_struct_sm = np.ma.make_mask(
+                forces_std_norm_max >= f_error_threshold,
+                shrink=False,
+            )
+            err_f_struct_bg = np.ma.make_mask(
+                forces_std_norm_max < maximum_value_f,
+                shrink=False,
+            )
 
             # Any True value in this array is over the force error threshold
             # and must be sent to calculate with DFT.
             error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
+
+            # Pad the extrapolating_frames array with zeros to match the
+            # length of the error arrays
+            # This prevents broadcasting errors when joining the arrays,
+            # as they must have the same shape.
+            # TODO: Find a safer way of doing this, probably once the final
+            # extrapolation method is defined.
+            if len(extrapolating_frames) < len(error_f_structures) or len(
+                extrapolating_frames
+            ) < len(error_e_structures):
+                extrapolating_frames = np.pad(
+                    extrapolating_frames,
+                    (0, len(error_f_structures) - len(extrapolating_frames)),
+                    "constant",
+                    constant_values=(0),
+                )
 
             # Joining both error masks to get a single True/False array marking
             # structures to be computed with True
@@ -1975,9 +2004,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         target_file_name = f"al_loop_{self.inputs.active_learning.run_name.value}.model"
         target_file_path = self.ctx.curr_run_results_dir / target_file_name
 
-        with final_model_singlefile.open(mode="rb") as source, open(
-            target_file_path, mode="wb"
-        ) as target:
+        with (
+            final_model_singlefile.open(mode="rb") as source,
+            open(target_file_path, mode="wb") as target,
+        ):
             shutil.copyfileobj(source, target)
 
         self.report("Workchain completed!")
