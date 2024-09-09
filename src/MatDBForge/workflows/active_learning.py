@@ -289,7 +289,9 @@ class ActiveLearningWorkChain(WorkChain):
             but does not return any value directly.
         """
         curr_iter = self.inputs.al_loop_iteration.value
-        if (not self.inputs.load_init_models) or (self.inputs.load_init_models and curr_iter != 0):
+        if (not self.inputs.load_init_models) or (
+            self.inputs.load_init_models and curr_iter != 0
+        ):
             mace_training_results = self.ctx.mace_training_results
         else:
             mace_training_results = [
@@ -1286,6 +1288,10 @@ class ActiveLearningWorkChain(WorkChain):
             extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
             if self.inputs.check_extrapolation:
                 curr_struct_descr = row["extrapolation"]
+
+                # Safeguard check for filtered trajectories
+                if len(extrapolating_frames) < len(curr_struct_descr):
+                    extrapolating_frames = np.zeros(shape=len(row["extrapolation"]))
 
                 try:
                     # Checking if the frames for the current structure are extrapolating
