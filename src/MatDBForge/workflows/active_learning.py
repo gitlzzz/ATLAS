@@ -1289,9 +1289,17 @@ class ActiveLearningWorkChain(WorkChain):
             if self.inputs.check_extrapolation:
                 curr_struct_descr = row["extrapolation"]
 
-                # Safeguard check for filtered trajectories
-                if len(extrapolating_frames) < len(curr_struct_descr):
-                    extrapolating_frames = np.zeros(shape=len(row["extrapolation"]))
+                # TODO: Check if this can be avoided
+                # Safeguard check for filtered trajectories.
+                # In some cases curr_struct_descr might be an np.nan value, which
+                # will raise an error when trying to iterate over it.
+                if isinstance(curr_struct_descr, float):
+                    extrapolating_frames = np.zeros(shape=1)
+                # If the current structure has no extrapolation data, fill the
+                # extrapolating_frames array with zeros.
+                else:
+                    if len(extrapolating_frames) < len(curr_struct_descr):
+                        extrapolating_frames = np.zeros(shape=len(row["extrapolation"]))
 
                 try:
                     # Checking if the frames for the current structure are extrapolating
