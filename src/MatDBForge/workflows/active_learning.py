@@ -6,7 +6,7 @@ import os
 import pickle
 import shutil
 import time
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, suppress
 from pathlib import Path
 
 import numpy as np
@@ -1399,9 +1399,13 @@ class ActiveLearningWorkChain(WorkChain):
 
                 selected_high_error = np.nonzero(struct_arr)[0]
 
-                dft_structures = [
-                    row["trajectory"][int(struct)] for struct in selected_high_error
-                ]
+                dft_structres = []
+                for struct in selected_high_error:
+                    # Safeguard check for filtered trajectories. In some cases
+                    # the selected structure might be out of bounds for the
+                    # trajectory array if frames are removed.
+                    with suppress(IndexError):
+                        dft_structres.append(row["trajectory"][int(struct)])
 
                 # REMOVE: For testing purposes.
                 # TESTING
