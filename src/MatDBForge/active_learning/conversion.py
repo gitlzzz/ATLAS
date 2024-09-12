@@ -431,7 +431,6 @@ def gen_mace_train_structure_list(
                     "positions",
                     "energy",
                     "numbers",
-                    "energy",
                 ]
             )
 
@@ -442,7 +441,6 @@ def gen_mace_train_structure_list(
                 "struct_name",
                 "energy",
                 "aiida_uuid",
-                "energy",
                 "mdb_struct_type",
             ]
 
