@@ -1399,13 +1399,13 @@ class ActiveLearningWorkChain(WorkChain):
 
                 selected_high_error = np.nonzero(struct_arr)[0]
 
-                dft_structres = []
+                dft_structures = []
                 for struct in selected_high_error:
                     # Safeguard check for filtered trajectories. In some cases
                     # the selected structure might be out of bounds for the
                     # trajectory array if frames are removed.
                     with suppress(IndexError):
-                        dft_structres.append(row["trajectory"][int(struct)])
+                        dft_structures.append(row["trajectory"][int(struct)])
 
                 # REMOVE: For testing purposes.
                 # TESTING
