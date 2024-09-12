@@ -15,6 +15,7 @@ from aiida.parsers.parser import Parser
 from aiida_lammps.calculations.raw import LammpsRawCalculation
 from aiida_lammps.parsers.parse_raw import parse_outputfile
 from ase.io import read as ase_read
+
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
 

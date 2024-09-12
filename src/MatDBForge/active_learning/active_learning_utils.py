@@ -31,10 +31,11 @@ from ase.io import write as ase_write
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
-from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.workflows import aiida_utils as mdb_aut
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
+
+from MatDBForge.active_learning import conversion as mdb_conv
+from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
@@ -360,7 +361,6 @@ def get_dft_calc_builder_mace_list(
 ):
     """Get a MACE calculation builder for a given structure list and row."""
     updated_struct_list = []
-    row["mdb_struct_type"]
 
     for idx, curr_struct in enumerate(struct_list):
         curr_struct = struct_list[idx]
