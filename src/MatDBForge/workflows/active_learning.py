@@ -604,7 +604,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Setting the trajectory to be retrieved and the
             # potential file to be copied into the calculation folder
             builder_settings = {
-                "additional_retrieve_list": ["structure.lammpstrj"],
+                "additional_retrieve_list": ["structure.lammpstrj.gz"],
                 "local_copy_list": [
                     (
                         self.ctx.lammps_potential_file.uuid,
@@ -920,7 +920,7 @@ class ActiveLearningWorkChain(WorkChain):
         """
         Extracts trajectory data from a `LammpsRawCalculation` as pymatgen Trajectory.
 
-        This function parses `structure.lammpstrj` from the given workchain
+        This function parses `structure.lammpstrj.gz` from the given workchain
         results using ase.
         It then constructs a sequence of pymatgen Structure objects
         representing each frame of the trajectory which are combined
@@ -931,7 +931,7 @@ class ActiveLearningWorkChain(WorkChain):
         workchain_results : orm.FolderData
             A orm.FolderData containing the results of a workchain, expected to have
             a method `get_object_content` to retrieve the contents of
-            `structure.lammpstrj`.
+            `structure.lammpstrj.gz`.
 
         Returns
         -------
@@ -954,7 +954,7 @@ class ActiveLearningWorkChain(WorkChain):
         # parse it file using ase
         with workchain_results.as_path() as results_path:
             ase_traj = ase_read(
-                filename=Path(results_path) / "structure.lammpstrj",
+                filename=Path(results_path) / "structure.lammpstrj.gz",
                 format="lammps-dump-text",
                 index=":",
             )
