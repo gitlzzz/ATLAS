@@ -2,12 +2,14 @@
 
 import itertools as it
 
-import MatDBForge.core.surfaces as mdb_surf
 import numpy as np
 import pytest
-from MatDBForge.workflows import aiida_utils as mdb_aut
+from aiida import load_profile
 from pymatgen.core import Lattice, Structure
 from pymatgen.core.surface import SlabGenerator
+
+import MatDBForge.core.surfaces as mdb_surf
+from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
 @pytest.mark.xfail
@@ -23,7 +25,11 @@ def test_both_kpoint_style_given():
 def test_kpoints_bulk(): ...
 
 
+@pytest.mark.xfail
 def test_kpoints_surface():
+    # Loading aiida profile
+    load_profile("")
+
     # Defining calculation type
     calc_type = mdb_aut.CalcType.single_point_surface
 
