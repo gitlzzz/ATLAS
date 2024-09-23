@@ -229,7 +229,7 @@ def get_miller_index_str(miller_source):
     return curr_miller
 
 
-def gene_surfaces_diff_miller(
+def gen_surfaces_diff_miller(
     db_obj: "mdb_indb.InitialDatabase",
     phase: mdb_pd.Phase,
     # num_diff_layer_size: int,
@@ -238,7 +238,7 @@ def gene_surfaces_diff_miller(
     min_slab_size: float = 6,
     min_vacuum_size: float = 10,
     get_supercells=False,
-    # fixed_layers: int = 0,
+    fixed_layers: int = 0,
     min_num_atoms: int = 12,
     overwrite_max_num_atoms: int = None,
     # limit_per_phase: int = None,
@@ -297,6 +297,14 @@ def gene_surfaces_diff_miller(
                 f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
                 f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
             )
+
+            # Fix the bottom `fixed_layers` number of layers
+            if fixed_layers:
+                mdb_ut.custom_print(
+                    "`fixed_layers` specified, but not implemented yet.",
+                    "debug",
+                )
+                # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
 
             # Creating a new surface from the supercell
             curr_strct = mdb_struct.Surface(

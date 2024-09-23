@@ -339,9 +339,6 @@ class InitialDatabase:
 
         if get_different_supercells:
             # Generating all possible combinations of supercells up to a given size
-            # possible_supercells = it.product(
-            #     range(2, initial_supercell_size + 1), repeat=3
-            # )
             possible_supercells = it.combinations_with_replacement(
                 range(2, initial_supercell_size + 1), r=3
             )
@@ -1952,7 +1949,7 @@ class InitialDatabase:
         return cluster_list
 
 
-def run_gen_initial_database(
+def cli_run_gen_initial_database(
     db_path,
     sys_dict,
     phase_diagram_dict,
@@ -1975,10 +1972,10 @@ def run_gen_initial_database(
             name=phase_d["name"],
             base_elem=phase_d["base_elem"],
             cluster_elem=phase_d["cluster_elem"],
-            base_elem_comp_min=phase_d["base_elem_comp_min"],
-            base_elem_comp_max=phase_d["base_elem_comp_max"],
+            base_elem_comp_min=float(phase_d["base_elem_comp_min"]),
+            base_elem_comp_max=float(phase_d["base_elem_comp_max"]),
             prototype=phase_d["prototype"],
-            offset=phase_d["offset"],
+            offset=float(phase_d["offset"]),
         )
         phases_list.append(curr_phase)
 
@@ -1991,7 +1988,7 @@ def run_gen_initial_database(
     # Initialize the database
     structures = indb.InitialDatabase(
         database_name=sys_dict["database_name"],
-        max_num_atoms=sys_dict["max_num_atoms"],
+        max_num_atoms=int(sys_dict["max_num_atoms"]),
         phase_diagram=phase_diagram,
     )
 
@@ -2031,11 +2028,11 @@ def run_gen_initial_database(
             structures.generate_bulk_structures(
                 prototype=phase.prototype,
                 phase=phase,
-                num_struct=gen_dict["bulk"]["num_struct"],
-                num_repeats=gen_dict["bulk"]["num_repeat"],
+                num_struct=int(gen_dict["bulk"]["num_struct"]),
+                num_repeats=int(gen_dict["bulk"]["num_repeat"]),
                 get_different_supercells=True,
-                min_num_atoms=sys_dict["min_num_atoms"],
-                supercell_max_idx=gen_dict["bulk"]["supercell_max_idx"],
+                min_num_atoms=int(sys_dict["min_num_atoms"]),
+                supercell_max_idx=int(gen_dict["bulk"]["supercell_max_idx"]),
                 read=read_from_db,
             )
 
@@ -2045,19 +2042,19 @@ def run_gen_initial_database(
             # Generating surface structures.
             ut.custom_print("Generating slab structures...", "info")
 
-            slabs = mdb_surf.gene_surfaces_diff_miller(
+            slabs = mdb_surf.gen_surfaces_diff_miller(
                 db_obj=structures,
                 phase=phase,
-                min_num_atoms=sys_dict["min_num_atoms"],
-                overwrite_max_num_atoms=sys_dict["max_num_atoms"],
-                min_miller_index=gen_dict["surface"]["min_miller_index"],
-                max_miller_index=gen_dict["surface"]["supercell_max_idx"],
-                min_slab_size=gen_dict["surface"]["min_slab_size_ang"],
-                num_diff_layer_size=gen_dict["surface"]["num_diff_layer_size"],
-                min_vacuum_size=gen_dict["surface"]["min_vacuum_size_ang"],
+                min_num_atoms=int(sys_dict["min_num_atoms"]),
+                overwrite_max_num_atoms=int(sys_dict["max_num_atoms"]),
+                min_miller_index=int(gen_dict["surface"]["min_miller_index"]),
+                max_miller_index=int(gen_dict["surface"]["supercell_max_idx"]),
+                min_slab_size=float(gen_dict["surface"]["min_slab_size_ang"]),
+                # num_diff_layer_size=int(gen_dict["surface"]["num_diff_layer_size"]),
+                min_vacuum_size=float(gen_dict["surface"]["min_vacuum_size_ang"]),
                 get_supercells=gen_dict["surface"]["get_supercells"],
-                fixed_layers=gen_dict["surface"]["fixed_layers"],
-                limit_supercell=gen_dict["surface"]["max_number_supercells"],
+                fixed_layers=int(gen_dict["surface"]["fixed_layers"]),
+                limit_supercell=int(gen_dict["surface"]["max_number_supercells"]),
                 save_in_db=gen_dict["surface"]["save_in_db"],
             )
 
@@ -2071,8 +2068,8 @@ def run_gen_initial_database(
 
         # Filter small and large structures
         remove_count = structures.remove_structs_out_of_atom_count_range(
-            min_num_atoms=sys_dict["min_num_atoms"],
-            max_num_atoms=sys_dict["max_num_atoms"],
+            min_num_atoms=int(sys_dict["min_num_atoms"]),
+            max_num_atoms=int(sys_dict["max_num_atoms"]),
         )
         ut.custom_print(
             f"Removed {remove_count} structures out of atom count range.", "info"
@@ -2086,14 +2083,14 @@ def run_gen_initial_database(
             ut.custom_print("Applying displacements to lattices.", "info")
 
             structures.perturb_min_displacement(
-                frac_max=displ_dict["lattice_frac_displ_max"],
-                frac_min=displ_dict["lattice_frac_displ_min"],
-                repeat=displ_dict["num_repeats"],
+                frac_max=float(displ_dict["lattice_frac_displ_max"]),
+                frac_min=float(displ_dict["lattice_frac_displ_min"]),
+                repeat=int(displ_dict["num_repeats"]),
             )
             ut.custom_print(structures, "info")
 
             remove_count = structures.remove_structs_out_of_cell_size_range(
-                min_cell_size=sys_dict["min_cell_size"]
+                min_cell_size=float(sys_dict["min_cell_size"])
             )
             ut.custom_print(
                 f"Removed {remove_count} structures out of cell size range.", "info"
@@ -2108,10 +2105,10 @@ def run_gen_initial_database(
 
             ut.apply_gauss_perturb_db(
                 db_obj=structures,
-                repeat=perturb_dict["num_repeats"],
+                repeat=int(perturb_dict["num_repeats"]),
                 filters=perturb_dict["filter_struct_types"],
                 phase=phase,
-                limit_num_structures=perturb_dict["limit_max_num_perturbs"],
+                limit_num_structures=int(perturb_dict["limit_max_num_perturbs"]),
             )
 
             ut.custom_print(structures, "info")

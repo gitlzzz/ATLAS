@@ -7,6 +7,7 @@ from argparse import RawTextHelpFormatter
 import tomli
 
 from MatDBForge.core.command_line.command_line_utils import parse_input_toml
+from MatDBForge.core.initial_db import cli_run_gen_initial_database
 
 
 def gen_initial_database(config_dict: dict):
@@ -33,7 +34,7 @@ def gen_initial_database(config_dict: dict):
     selected_phases = list(phase_diagram_dict["phase"].keys())
 
     # Gnerating the database
-    run_gen_initial_database(
+    cli_run_gen_initial_database(
         db_path,
         sys_dict,
         phase_diagram_dict,
