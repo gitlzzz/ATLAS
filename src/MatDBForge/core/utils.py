@@ -674,3 +674,37 @@ def apply_gauss_perturb_db(
     custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
 
     return perturbed_structs
+
+
+def fix_bottom_layers(structure: Structure, n_layers: int) -> Structure:
+    """
+    Fixes the bottom n layers of a pymatgen Structure by setting the selective
+    dynamics to False for the atoms in those layers.
+
+    Parameters
+    ----------
+    structure : pymatgen.core.Structure
+        The structure to modify.
+    n_layers : int
+        The number of bottom layers to fix.
+
+    Returns
+    -------
+    Structure
+        A new Structure object with selective dynamics updated.
+    """
+    sorted_indices = sorted(range(len(structure)), key=lambda i: structure[i].z)
+    bottom_indices = sorted_indices[:n_layers]
+
+    # Set selective dynamics, fixing bottom layers
+    selective_dynamics = [[True, True, True]] * len(structure)
+    for idx in bottom_indices:
+        selective_dynamics[idx] = [False, False, False]
+
+    structure_with_constraints = structure.copy()
+    structure_with_constraints.add_site_property(
+        "selective_dynamics", selective_dynamics
+    )
+
+    print("structure_with_constraints: ", structure_with_constraints.site_properties)
+    return structure_with_constraints
