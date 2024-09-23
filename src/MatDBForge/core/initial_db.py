@@ -832,7 +832,7 @@ class InitialDatabase:
 
     def _apply_gauss_perturb(self, structure: Structure, center: float = 0.04):
         new_structure = structure.copy()
-        new_structure.perturb(distance=0.08, min_distance=0.02)
+        new_structure.perturb(distance=center * 2, min_distance=center / 2)
         return new_structure
 
     def perturb_min_displacement(

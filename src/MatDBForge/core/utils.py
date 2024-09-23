@@ -23,6 +23,12 @@ import MatDBForge.core.structure as mdb_struct
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
+MDB_STRUCT_TYPES = (
+    mdb_struct.Structure,
+    mdb_struct.Bulk,
+    mdb_struct.Cluster,
+    mdb_struct.Surface,
+)
 
 
 def get_config_path() -> pl.Path:
@@ -289,21 +295,14 @@ def similarity_check_list(
 
 
 def gauss_perturb(structure: Structure, center: float = 0.04):
-    struct_types = (
-        mdb_struct.Structure,
-        mdb_struct.Bulk,
-        mdb_struct.Cluster,
-        mdb_struct.Surface,
-    )
-
-    if isinstance(structure, struct_types):
+    if isinstance(structure, MDB_STRUCT_TYPES):
         structure_obj = structure
         structure = structure.structure
 
     new_structure = structure.copy()
-    new_structure.perturb(distance=0.08, min_distance=0.02)
+    new_structure.perturb(distance=center * 2, min_distance=center / 2)
 
-    if isinstance(structure, struct_types):
+    if isinstance(structure, MDB_STRUCT_TYPES):
         structure_obj.structure = new_structure
         new_structure = structure_obj
 
@@ -397,7 +396,7 @@ def _del_structure_list_by_uuid(structure_list, dupl_uuid_list):
     return unique_structure_list
 
 
-def apply_replacement(structure: Structure, phase, n_atoms: int, rng=None):
+def apply_replacement(structure: Structure, phase, n_atoms: int | float, rng=None):
     if not rng:
         rng = np.random.default_rng()
 
@@ -445,8 +444,6 @@ def apply_replacement(structure: Structure, phase, n_atoms: int, rng=None):
         # print('other_atom_change: ', other_atom_change)
 
     # Choosing which species of the structure to change with the other atom.
-    # print('structure_len: ', structure_len)
-    # print('abs(int(other_atom_change)): ', abs(int(other_atom_change)))
     other_elem_choices = rng.choice(
         a=structure_len,
         size=abs(int(other_atom_change)),
@@ -465,6 +462,65 @@ def apply_replacement(structure: Structure, phase, n_atoms: int, rng=None):
     # TODO: Instead of this, create a new structure
     # Copying site properties
     new_structure = new_structure.copy(sanitize=True, site_properties=site_props_before)
+
+    return new_structure
+
+
+def apply_replacement_no_db(
+    structure: Structure,
+    phase,
+    n_atoms: int,
+    replace_elem: str | Element,
+    rng=None,
+):
+    if not rng:
+        rng = np.random.default_rng()
+
+    if isinstance(structure, MDB_STRUCT_TYPES):
+        structure = structure.structure
+
+    # Converting ase.Atoms to pymatgen structures
+    elif isinstance(structure, Atoms):
+        is_ase = True
+        structure = AseAtomsAdaptor.get_structure(structure)
+
+    structure_len = len(structure.species)
+
+    # We assume that if the n_atoms is a fractional number, it must
+    # represent the ratio of atoms in the structure, so we convert
+    # that to a number of atoms.
+    if isinstance(n_atoms, float) and n_atoms < 1:
+        n_atoms = int(n_atoms * structure_len)
+
+    # If no replacements are going to be made, this is probably due to
+    # a low percentage being rounded to 0, thus we attempt to make at
+    # least one replacement.
+    if n_atoms == 0:
+        n_atoms = 1
+    other_atom_change = n_atoms
+
+    # Choosing which species of the structure to change with the other atom.
+    other_elem_choices = rng.choice(
+        a=structure_len,
+        size=abs(int(other_atom_change)),
+        replace=False,
+        shuffle=True,
+    )
+
+    # Creating a new pymatgen structure using the base one as a template
+    new_structure = structure.copy(sanitize=True)
+    site_props_before = structure.site_properties
+
+    # Replacing atoms in the structures
+    for ind in other_elem_choices:
+        new_structure.replace(ind, replace_elem)
+
+    # TODO: Instead of this, create a new structure
+    # Copying site properties
+    new_structure = new_structure.copy(sanitize=True, site_properties=site_props_before)
+
+    if is_ase:
+        new_structure = AseAtomsAdaptor.get_atoms(new_structure)
 
     return new_structure
 
