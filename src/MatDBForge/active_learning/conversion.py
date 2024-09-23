@@ -7,15 +7,16 @@ from io import BytesIO, TextIOWrapper
 from typing import Union
 
 import ase.io as aseio
-import MatDBForge.core.initial_db as mdb_indb
-import MatDBForge.core.structure as mdb_strc
-import MatDBForge.core.utils as mdb_ut
 import numpy as np
 import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
 from ase.atoms import Atoms
 from pymatgen.core import Structure as pmg_structure
+
+import MatDBForge.core.initial_db as mdb_indb
+import MatDBForge.core.structure as mdb_strc
+import MatDBForge.core.utils as mdb_ut
 
 
 class Units(Enum):
@@ -430,7 +431,6 @@ def gen_mace_train_structure_list(
                     "positions",
                     "energy",
                     "numbers",
-                    "energy",
                 ]
             )
 
@@ -441,7 +441,6 @@ def gen_mace_train_structure_list(
                 "struct_name",
                 "energy",
                 "aiida_uuid",
-                "energy",
                 "mdb_struct_type",
             ]
 

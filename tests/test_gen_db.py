@@ -6,8 +6,9 @@ import sys
 import tempfile
 
 import pytest
+
 from MatDBForge.core import MDB_DATA_DIR
-from MatDBForge.core.command_line.generate_configuration_file import (
+from MatDBForge.core.command_line.cli_generate_configuration_file import (
     gen_default_config as mdb_gen,
 )
 

@@ -38,26 +38,55 @@ from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
-def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
-    """Convert a dictionary of model results to a numpy array."""
+def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
+    """Convert a dictionary of model results to a numpy array.
+
+    Parameters
+    ----------
+    res_dict : dict
+        Dictionary containing the model results.
+    dict_type : str
+        Type of the dictionary. Either "energy" or "forces".
+
+    Returns
+    -------
+    np.ndarray
+        Numpy array containing the model results.
+    """
     res_model_list = []
 
+    # Gathering all trajectories
     for _, res in res_dict.items():
         res_model_list.append(res)
 
-    # Find the maximum length of the inner lists
+    # Find the maximum length of the inner lists.
+    # This length corresponds with the number of gathered frames.
+    # All trajs should have the same number of frames. When frames
+    # are missing, np.nan is used to pad their lists.
     sublist_lens = set(len(sublist) for sublist in res_model_list)
+    max_len = max(sublist_lens)
 
-    # If lists are of different lengths, pad the shorter lists with np.nan
+    # If lists need to be padded, checking all trajs while taking into
+    # account if they are energy or forces, as energies will use lists
+    # and forces will use arrays.
     if len(sublist_lens) > 1:
-        max_len = max(sublist_lens)
-
-        # Pad the shorter lists with np.nan
         padded_list = []
         for sublist in res_model_list:
-            nan_list = list(it.repeat(np.nan, (max_len - len(sublist))))
-            padded_sublist = list(sublist) + nan_list
-            padded_list.append(padded_sublist)
+            # Pad the energy lists with np.nan
+            if dict_type == "energy":
+                nan_list = list(it.repeat(np.nan, (max_len - len(sublist))))
+                padded_sublist = list(sublist) + nan_list
+                padded_list.append(padded_sublist)
+            # Pad the forces arrays with (n_at, 3) arrays filled with np.nan
+            elif dict_type == "forces":
+                nan_list = list(
+                    it.repeat(
+                        object=np.full(shape=sublist[0].shape, fill_value=np.nan),
+                        times=(max_len - len(sublist)),
+                    )
+                )
+                padded_sublist = list(sublist) + nan_list
+                padded_list.append(padded_sublist)
         res_model_list = padded_list
 
     res_model_list = np.array(res_model_list, dtype=float)
@@ -67,7 +96,7 @@ def model_res_dict_to_arr(res_dict: dict) -> np.ndarray:
 
 def get_model_forces_variance(forces_dict: dict) -> np.ndarray:
     """Get the variance of the forces for each structure in the dict."""
-    forces_model_list = model_res_dict_to_arr(forces_dict)
+    forces_model_list = model_res_dict_to_arr(forces_dict, dict_type="forces")
     forces_var = forces_model_list.var(axis=0)
 
     return forces_var
@@ -75,7 +104,7 @@ def get_model_forces_variance(forces_dict: dict) -> np.ndarray:
 
 def get_model_energies_variance(energies_dict: dict) -> np.ndarray:
     """Get the variance of the energies for each structure in the dict."""
-    energies_model_list = model_res_dict_to_arr(energies_dict)
+    energies_model_list = model_res_dict_to_arr(energies_dict, dict_type="energy")
     energies_var = energies_model_list.var(axis=0)
 
     return energies_var
@@ -83,7 +112,7 @@ def get_model_energies_variance(energies_dict: dict) -> np.ndarray:
 
 def get_model_forces_std(forces_dict: dict) -> np.ndarray:
     """Get the standard deviation of the forces for each structure in the dict."""
-    forces_model_list = model_res_dict_to_arr(forces_dict)
+    forces_model_list = model_res_dict_to_arr(forces_dict, dict_type="forces")
 
     # Calculate the sample standard deviation of the energies
     # for each structure
@@ -94,7 +123,9 @@ def get_model_forces_std(forces_dict: dict) -> np.ndarray:
 
 def get_model_energies_std(energies_dict: dict) -> np.ndarray:
     """Get the standard deviation of the energies for each structure in the dict."""
-    energies_model_list: np.ndarray = model_res_dict_to_arr(energies_dict)
+    energies_model_list: np.ndarray = model_res_dict_to_arr(
+        energies_dict, dict_type="energy"
+    )
 
     # Calculate the sample standard deviation of the energies
     # for each structure
@@ -330,7 +361,6 @@ def get_dft_calc_builder_mace_list(
 ):
     """Get a MACE calculation builder for a given structure list and row."""
     updated_struct_list = []
-    row["mdb_struct_type"]
 
     for idx, curr_struct in enumerate(struct_list):
         curr_struct = struct_list[idx]
@@ -563,7 +593,6 @@ def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
 
 def serialize_ase(curr_s: dict | Atoms) -> dict:
     """Serialize an ASE Atoms object to a dictionary."""
-
     if not isinstance(curr_s, dict):
         curr_s = curr_s.todict()
 
@@ -720,7 +749,9 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
             structure.info["REF_energy"] = structure.info.pop("mdb_mace_eval_energy")
 
             # Renaming forces dict
-            structure.arrays["REF_forces"] = structure.arrays.pop("mdb_mace_eval_forces")
+            structure.arrays["REF_forces"] = structure.arrays.pop(
+                "mdb_mace_eval_forces"
+            )
 
             # result_list.append(structure)
             curr_struct_res.append(structure)

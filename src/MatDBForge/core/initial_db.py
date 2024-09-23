@@ -115,6 +115,7 @@ class InitialDatabase:
         # Setting the maximum number of atoms of any generated structure.
         self.max_num_atoms = max_num_atoms
 
+        # Setting the phase diagram
         self.phase_diagram = phase_diagram
 
         # Checking if a database is already found in the cwd
@@ -134,9 +135,6 @@ class InitialDatabase:
         else:
             self.df = self._load_database()
 
-        # Loading materials project API key from a json file
-        # ut.gather_secrets() = ut.gather_secrets()
-
     def __repr__(self):
         # Getting the class name
         class_name = self.__class__.__name__
@@ -151,7 +149,6 @@ class InitialDatabase:
         return repr_string
 
     def _adapt_old_db(self, database_old):
-        print("database_old: ", database_old.columns)
         columns_to_add = {
             "bulk": bool,
             "surface": bool,
@@ -178,7 +175,6 @@ class InitialDatabase:
         ut.custom_print(f"Loading database: '{self.database_name}'", "debug")
         self.database_name = db_path.name.replace(db_path.suffix, "")
 
-        print("db_path.suffixes: ", db_path.suffixes)
         if len(db_path.suffixes) == 0:
             suffix = ".xz"
         else:
@@ -208,12 +204,6 @@ class InitialDatabase:
                     )
 
                 return database.df
-            # else:
-            #     err_msg = (
-            #         "MatDBForge InitialDatabase object not found "
-            #         "in the specified location."
-            #     )
-            #     raise FileNotFoundError(err_msg)
 
         ut.custom_print(f"Loaded '{self.database_name}{suffix}'", "info")
         ut.custom_print(f"Path: {db_path}", "debug")
@@ -832,7 +822,7 @@ class InitialDatabase:
 
     def _apply_gauss_perturb(self, structure: Structure, center: float = 0.04):
         new_structure = structure.copy()
-        new_structure.perturb(distance=0.08, min_distance=0.02)
+        new_structure.perturb(distance=center * 2, min_distance=center / 2)
         return new_structure
 
     def perturb_min_displacement(
@@ -1332,11 +1322,8 @@ class InitialDatabase:
 
             # Getting how many atoms of the other element must be changed
             other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
-            # print('other_atom_change: ', other_atom_change)
 
         # Choosing which species of the structure to change with the other atom.
-        # print('structure_len: ', structure_len)
-        # print('abs(int(other_atom_change)): ', abs(int(other_atom_change)))
         other_elem_choices = rng.choice(
             a=structure_len,
             size=abs(int(other_atom_change)),
@@ -1531,7 +1518,6 @@ class InitialDatabase:
         for element in species_list:
             if element.symbol == main_species:
                 main_cnt += 1
-                print("main_cnt: ", main_cnt)
 
         perc = main_cnt / total_atoms
         return perc
@@ -1552,10 +1538,8 @@ class InitialDatabase:
         slabs_df = self.df.loc[self.df.surface]
         slabs_df = slabs_df.loc[self.df.base]
         slabs_df = slabs_df.loc[self.df.phase == phase.name]
-        print("slabs_df: ", slabs_df)
 
-        for idx, row in slabs_df.iterrows():
-            print("idx: ", idx)
+        for _, row in slabs_df.iterrows():
             curr_surface = row.structure
 
             structure_len = len(curr_surface.species)
@@ -1572,8 +1556,6 @@ class InitialDatabase:
                 num_struct=num_struct,
                 current_perc=strct_perc,
             )
-
-            print("subst_base_elem_perc: ", subst_base_elem_perc)
 
             # Choosing the amount of atoms to replace with the base element in the
             # struct, which at this point will be completely replaced by atoms
@@ -1596,9 +1578,7 @@ class InitialDatabase:
             # n_at_replacement_final = self._adjust_replacements()
 
             for str_ind, n_atoms in enumerate(n_at_replacement_upd):
-                print("\nreplacement: ", str_ind)
                 for repl in range(num_repeats):
-                    print("\nreplicate: ", repl)
                     # Replacing atoms according to the current phase from the structure.
                     new_structure = self._apply_replacement(
                         curr_surface, phase, structure_len, n_atoms, rng
@@ -1615,11 +1595,6 @@ class InitialDatabase:
                     mat_id_name = f"{prototype}_{phase.name}"
                     mat_id_surf_data = f"_replacement-({curr_miller})-_{str_ind}-{repl}"
                     material_id = mat_id_name + mat_id_surf_data
-
-                    print("new", new_structure.formula)
-                    final_perc = self._get_main_elem_perc(phase, new_structure)
-                    print(phase)
-                    print("final_perc: ", final_perc)
 
                     # Saving the structure into the database.
                     self._save_row(
@@ -1796,7 +1771,6 @@ class InitialDatabase:
         qb = orm.QueryBuilder()
 
         for group in aiida_group_list:
-            print("group: ", group)
             qb.append(orm.Group, filters={"label": group}, tag="group")
             (qb.append(orm.WorkChainNode, with_group="group", filters=filter_dict),)
 
@@ -2049,7 +2023,6 @@ def run_gen_initial_database(
 
         # Getting phase object
         phase = phase_diagram.get_phase(phase)
-        print("command_line phase: ", type(phase))
 
         if "bulk" in gen_dict:
             ut.custom_print("Generating bulk structures...", "info")
