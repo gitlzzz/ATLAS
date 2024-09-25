@@ -201,9 +201,12 @@ def check_incorrect_ratios(df, curr_phase_diag):
             )
 
             # Checking the total atom number
-            assert tot_cu + tot_zn == tot_atoms, f"""Total count does not match.
-            tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}.
-            Species: {set(strct.species)}"""
+            if tot_cu + tot_zn != tot_atoms:
+                raise ValueError(
+                    "Total count does not match."
+                    f" tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}."
+                    f" Species: {set(strct.species)}"
+                )
 
             perc = round(tot_zn / tot_atoms, 2)
 
@@ -636,9 +639,9 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
 
 def apply_gauss_perturb_db(
     repeat: int,
-    db_obj,
+    db_obj: "mdb_indb.InitialDatabase",
     filters: list,
-    phase,
+    phase: mdb_pd.Phase,
     center: float = 0.04,
     limit_num_structures: int = None,
 ):
@@ -671,12 +674,15 @@ def apply_gauss_perturb_db(
         custom_print(
             f"Limiting number of structures to  {limit_num_structures}", "debug"
         )
+
+        limit_num_structures = np.min([limit_num_structures, len(perturbed_structs)])
+
         perturbed_structs = np.random.choice(
             perturbed_structs, limit_num_structures, replace=False
         )
 
     # Saving in database
-    custom_print("Saving perturbed surfstructsaces in dataframe", "debug")
+    custom_print("Saving perturbed surfaces in dataframe...", "debug")
     for surface in perturbed_structs:
         db_obj._save_row(structure=surface)
     custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
