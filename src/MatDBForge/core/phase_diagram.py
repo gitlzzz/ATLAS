@@ -2,8 +2,10 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import rcParams
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 from pymatgen.core.periodic_table import Element
+from slugify import slugify
 
 from MatDBForge.core import exceptions as mdb_exc
 
@@ -80,7 +82,7 @@ class BasePhaseDiagram:
         for phase in self.phases:
             self.phase_names.append(phase.name)
 
-        self.alloy_set = element_list
+        self.alloy_set = set(element_list)
 
     def add_phase(self, phase):
         """Add a phase to the phase diagram."""
@@ -99,7 +101,7 @@ class BasePhaseDiagram:
         if isinstance(phase, Phase):
             return self.phase_dict[phase.name]
         if isinstance(phase, str):
-            phase = self.phase_dict.get(phase, None)
+            phase = self.phase_dict.get(slugify(phase), None)
             if phase:
                 return phase
             else:
@@ -151,42 +153,111 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
             raise ValueError("BinaryPhaseDiagram requires exactly 2 elements.")
         super().__init__(material, element_list, base_elem, *phases)
 
-    def plot_diagram(self, max_temp_K: float = 1000):
+    def plot_diagram(
+        self,
+        max_temp_K: float = 1000,
+        min_temp_K: float = 300,
+        rc_params=None,
+        show_plot=True,
+    ) -> plt.Axes:
+        """
+        Plot a basic binary phase diagram of the material with temperature
+        and composition axes.
+
+        Parameters
+        ----------
+        max_temp_K : float, optional
+            The maximum temperature in Kelvin for the y-axis (default is 1000 K).
+        min_temp_K : float, optional
+            The minimum temperature in Kelvin for the y-axis (default is 300 K).
+        rc_params : dict, optional
+            Dictionary of matplotlib rcParams to override default plotting
+            parameters (default is None).
+
+        Returns
+        -------
+        plt.Axes
+            The matplotlib Axes object containing the plot.
+
+        Notes
+        -----
+        - The function generates a plot with the x-axis representing the
+        composition (in wt. %)
+        of the base element in the material, and the y-axis representing the
+        temperature in Kelvin.
+        - Each phase is represented by a filled patch in the diagram, and the
+        phases are labeled
+        at their centroid positions.
+        - The function uses the `viridis` colormap to assign colors to phases.
+
+        Examples
+        --------
+        >>> diagram.plot_diagram(
+            max_temp_K=1200,
+            min_temp_K=400,
+            rc_params={'figure.figsize': (10, 6)}
+        )
+        """
+        if rc_params:
+            rcParams.update(rc_params)
+
         ax = plt.subplot()
 
         # Get the number of phases and create n colors from the viridis colormap
         color_list = plt.cm.viridis(np.linspace(0, 1, len(self.phases)))
+        ini_zorder = 2.1 + (len(self.phases) * 0.1)
 
         for idx, phase in enumerate(self.phases):
             comp_min = phase.composition[str(self.base_elem)]["min"] * 100
             comp_max = phase.composition[str(self.base_elem)]["max"] * 100
-            p1 = [0, comp_min]
-            p2 = [max_temp_K, comp_min]
-            p3 = [max_temp_K, comp_max]
-            p4 = [0, comp_max]
-            arr = np.array([p1, p2, p3, p4])
-            patch = ax.fill(arr, ec="k", fc=color_list[idx], alpha=0.6, zorder=2.1)
+            arr = np.array(
+                [
+                    (comp_min, max_temp_K),
+                    (comp_min, min_temp_K),
+                    (comp_max, min_temp_K),
+                    (comp_max, max_temp_K),
+                ]
+            )
+            patch = ax.fill(
+                arr[:, 0],
+                arr[:, 1],
+                ec="k",
+                fc=color_list[idx],
+                alpha=0.3,
+                zorder=ini_zorder - (idx * 0.1),
+            )
+
+            # Write name
+            label = phase.name
 
             centroid = self._calculate_centroid(patch[0].get_xy())
+            centroid_y_offset = 0
 
-            # last space replaced with line break
-            label = phase.name
+            # Adjust the label position for even indices to avoid
+            # overlaps
+            if idx % 2 == 0:
+                centroid_y_offset = -0.05 * (max_temp_K - min_temp_K)
 
             ax.text(
                 centroid[0],
-                centroid[1],
+                centroid[1] + centroid_y_offset,
                 label,
                 ha="center",
                 va="center",
                 transform=ax.transData,
+                rotation=45,
             )
 
         ax.grid(which="both")
-        ax.set_xlabel(f"{self.base_elem} %")
+        ax.set_xlabel(f"Composition wt. % {self.base_elem}")
         ax.set_ylabel("T [K]")
         ax.set_xlim(0, 100)
-        ax.set_ylim(0, max_temp_K)
-        plt.show()
+        ax.set_ylim(min_temp_K, max_temp_K)
+        ax.set_title(f"'{self.material}' Binary Phase Diagram")
+
+        if show_plot:
+            plt.show()
+        return ax
 
 
 class TernaryPhaseDiagram(BasePhaseDiagram):
@@ -272,7 +343,7 @@ class Phase:
         cluster_elem: str = None,
         base_elem: str = None,
     ):
-        self.name = name
+        self.name = slugify(name)
         self.phase_diagram = phase_diagram
         self.element_list = [Element(ele) for ele in sorted(element_list)]
 
@@ -337,10 +408,7 @@ class Phase:
             str: The string representation of the phase.
 
         """
-        return (
-            f"{self.__class__.__name__} named '{self.material}' containing phases:"
-            f" {[phase.name for phase in self.phases]}"
-        )
+        return f"phase: '{self.name}'"
 
     def __key(self):
         return (

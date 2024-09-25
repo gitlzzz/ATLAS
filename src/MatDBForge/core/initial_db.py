@@ -103,8 +103,9 @@ class InitialDatabase:
     def __init__(
         self,
         database_name: str,
-        phase_diagram: mdb_pd.BinaryPhaseDiagram,
         max_num_atoms: int = 64,
+        load_db: bool = True,
+        phase_diagram: mdb_pd.BinaryPhaseDiagram = None,
         use_offset=True,
     ) -> None:
         self.db_version = mdb.__version__
@@ -118,9 +119,6 @@ class InitialDatabase:
         # Setting the phase diagram
         self.phase_diagram = phase_diagram
 
-        # Checking if a database is already found in the cwd
-        check_flag = self._check_database()
-
         # Using the offset
         if use_offset:
             ut.custom_print(
@@ -130,7 +128,9 @@ class InitialDatabase:
 
         # Create the database if it does not exists
         # Load it if otherwise.
-        if not check_flag:
+        check_flag = self._check_database()
+
+        if not check_flag or not load_db:
             self.df = self._create_database()
         else:
             self.df = self._load_database()
@@ -175,6 +175,7 @@ class InitialDatabase:
         ut.custom_print(f"Loading database: '{self.database_name}'", "debug")
         self.database_name = db_path.name.replace(db_path.suffix, "")
 
+        print("db_path.suffixes: ", db_path.suffixes)
         if len(db_path.suffixes) == 0:
             suffix = ".xz"
         else:
@@ -613,16 +614,24 @@ class InitialDatabase:
             )
 
     def gather_base_structures(self, target_structures):
+        prototypes = [phase.prototype for phase in target_structures]
+
         # Checking which materials are already on the database
-        missing_mat = set(target_structures) - set(self.df["material_id"].values)
+        missing_mat = set(prototypes) - set(self.df["material_id"].values)
+
+        if not missing_mat:
+            ut.custom_print("All base structures are already in the database.", "info")
+            return
 
         # Querying materials project database.
-        with MPRester(ut.gather_secrets()["API_KEY"]) as mpr:
+        ut.custom_print("Querying the MP API...", "info")
+        with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
             query_result = mpr.summary.search(material_ids=missing_mat)
             for material in query_result:
                 for phase in self.phase_diagram.phases:
                     if phase.prototype == material.material_id:
                         curr_phase = phase.name
+                        break
                     else:
                         curr_phase = np.nan
 
@@ -1083,8 +1092,10 @@ class InitialDatabase:
 
         # Querying alloy prototype structure
         else:
-            ut.custom_print("Querying the MP API...", "debug")
-            with MPRester(ut.gather_secrets()["API_KEY"]) as mpr:
+            ut.custom_print("Querying the MP API...", "info")
+            with MPRester(
+                ut.gather_secrets()["API_KEY"], mute_progress_bars=True
+            ) as mpr:
                 query_result = mpr.summary.search(material_ids=[prototype])[0]
                 structure = query_result.structure
                 material_id_prefix = query_result.material_id
@@ -1298,7 +1309,7 @@ class InitialDatabase:
         # although this results in more randomness.
         base_elem = phase.base_elem
         if len(self.phase_diagram.alloy_set) > 1:
-            (other_elem,) = self.phase_diagram.alloy_set - {base_elem}
+            (other_elem,) = self.phase_diagram.alloy_set - {base_elem.symbol}
         else:
             other_elem = list(self.phase_diagram.alloy_set)[0]
 
@@ -1978,9 +1989,9 @@ def cli_run_gen_initial_database(
 
     # Create phase diagram
     phases_list = []
-    for _, phase_d in phase_diagram_dict["phase"].items():
+    for curr_phase_name, phase_d in phase_diagram_dict["phase"].items():
         curr_phase = mdb_pd.Phase(
-            name=phase_d["name"],
+            name=curr_phase_name,
             element_list=phase_diagram_dict["element_list"],
             cluster_elem=phase_d["cluster_element"],
             composition=phase_d["composition"],
@@ -1992,17 +2003,31 @@ def cli_run_gen_initial_database(
 
     for phase in phases_list:
         phase_diagram.add_phase(phase)
-    phase_diagram.plot_diagram()
-    quit()
+
+    # Plot the phase diagram if requested
+    if phase_diagram_dict.get("display").get("plot_display"):
+        ut.custom_print("Plotting phase diagram...", "info")
+
+        # Selecting plot style settings for the plot
+        if phase_diagram_dict["display"].get("rc_params"):
+            params = phase_diagram_dict["display"]["rc_params"]
+        else:
+            params = None
+
+        # Plotting the phase diagram
+        phase_diagram.plot_diagram(
+            rc_params=params,
+        )
 
     # Initialize the database
     structures = indb.InitialDatabase(
         database_name=sys_dict["database_name"],
         max_num_atoms=int(sys_dict["max_num_atoms"]),
         phase_diagram=phase_diagram,
+        load_db=False,
     )
 
-    ut.custom_print(structures, "done")
+    # ut.custom_print(structures, "done")
 
     read_from_db = True
 
@@ -2014,19 +2039,20 @@ def cli_run_gen_initial_database(
         )
     else:
         # Obtain structures from Materials Project
-        prototypes = [phase.prototype for phase in phase_diagram.phases]
-        structures.gather_base_structures(target_structures=prototypes)
+        structures.gather_base_structures(target_structures=phase_diagram.phases)
         read_from_db = False
 
     ut.custom_print("Generating structures from initial structures...", "debug")
 
-    for phase in selected_phases:
+    for phase_idx, phase in enumerate(selected_phases):
         # Line break for aesthetic purposes
         print()
 
         # Creating surfaces from the base structures, generating
         # different supercells and applying replacements.
-        ut.custom_print(f"Current phase: {phase}.", "info")
+        ut.custom_print(
+            f"({phase_idx}/{len(selected_phases)}) - Current phase: {phase}", "info"
+        )
 
         # Getting phase object
         phase = phase_diagram.get_phase(phase)
@@ -2070,7 +2096,7 @@ def cli_run_gen_initial_database(
 
             ut.custom_print(
                 f"{len(slabs)} slabs generated.",
-                "done",
+                "info",
             )
 
         if "cluster" in gen_dict:
@@ -2123,12 +2149,32 @@ def cli_run_gen_initial_database(
 
             ut.custom_print(structures, "info")
 
+        ut.custom_print(
+            "Finishing populating structures from every phase...",
+            "done",
+        )
     print()
+    if "adsorbates" in config_dict:
+        ut.custom_print(
+            "Adding adsorbates on top of the structures...",
+            "info",
+        )
+
+        adsorb_dict = config_dict["adsorbates"]
+        ut.add_adsorbates(
+            db_obj=structures,
+            repeat=int(adsorb_dict["num_repeats"]),
+            filters=adsorb_dict["filter_struct_types"],
+            phase=phase,
+            limit_num_structures=int(adsorb_dict["limit_max_num_perturbs"]),
+            adsorbate_species=adsorb_dict["adsorbate_species"],
+        )
 
     ut.custom_print(structures, "done")
     print()
 
     structures.save_database(
         path=sys_dict["final_database_path"],
-        suffix=sys_dict["database_name"],
     )
+
+    structures.display_db_ase()

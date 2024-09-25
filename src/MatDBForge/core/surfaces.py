@@ -287,6 +287,7 @@ def gen_surfaces_diff_miller(
                 total_slabs.append((slab_to_bottom(slab=slab), miller))
 
         generated_structures = []
+        fix_layers_warn = True
         # Storing the remaining slabs.
         for idx, (slab, mill) in enumerate(total_slabs):
             # Getting the current slab's miller index
@@ -299,11 +300,13 @@ def gen_surfaces_diff_miller(
             )
 
             # Fix the bottom `fixed_layers` number of layers
-            if fixed_layers:
+            # TODO: Implement this feature and remove warning
+            if fixed_layers and fix_layers_warn:
                 mdb_ut.custom_print(
                     "`fixed_layers` specified, but not implemented yet.",
                     "warn",
                 )
+                fix_layers_warn = False
                 # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
 
             # Creating a new surface from the supercell
