@@ -1957,6 +1957,10 @@ def cli_run_gen_initial_database(
     selected_phases,
     config_dict,
 ):
+    # If db_path is not given, the current directory is used.
+    if not db_path:
+        db_path = pl.Path.cwd()
+
     # Start logger
     log_path = pl.Path(db_path) / "logs"
 
@@ -1965,25 +1969,31 @@ def cli_run_gen_initial_database(
 
     ut.init_logger(source=pl.Path(__file__).stem, log_path=f"{db_path}/logs")
 
+    # Assemble phase diagram
+    phase_diagram = mdb_pd.PhaseDiagram(
+        material=phase_diagram_dict["material_name"],
+        base_elem=phase_diagram_dict["base_element"],
+        element_list=phase_diagram_dict["element_list"],
+    )
+
     # Create phase diagram
     phases_list = []
     for _, phase_d in phase_diagram_dict["phase"].items():
         curr_phase = mdb_pd.Phase(
             name=phase_d["name"],
-            base_elem=phase_d["base_elem"],
-            cluster_elem=phase_d["cluster_elem"],
-            base_elem_comp_min=float(phase_d["base_elem_comp_min"]),
-            base_elem_comp_max=float(phase_d["base_elem_comp_max"]),
+            element_list=phase_diagram_dict["element_list"],
+            cluster_elem=phase_d["cluster_element"],
+            composition=phase_d["composition"],
             prototype=phase_d["prototype"],
             offset=float(phase_d["offset"]),
+            phase_diagram=phase_diagram,
         )
         phases_list.append(curr_phase)
 
-    # Assemble phase diagram
-    phase_diagram = mdb_pd.BinaryPhaseDiagram(
-        phase_diagram_dict["material_name"],
-        *phases_list,
-    )
+    for phase in phases_list:
+        phase_diagram.add_phase(phase)
+    phase_diagram.plot_diagram()
+    quit()
 
     # Initialize the database
     structures = indb.InitialDatabase(

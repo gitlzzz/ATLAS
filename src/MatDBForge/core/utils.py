@@ -60,7 +60,6 @@ def init_config_dir(config_dir):
 
 def init_logger(source, log_path=None):
     logger = logging.getLogger("mdb")
-    # logger.levels
     logger.setLevel(logging.DEBUG)
 
     # Console logger
@@ -77,7 +76,7 @@ def init_logger(source, log_path=None):
         log_filename = pathlib.Path(filename + ".log").stem
         filename = log_path_dir / log_filename
 
-    fh = logging.FileHandler(filename=filename)
+    fh = logging.FileHandler(filename=filename, mode="a+")
     fh.setLevel(logging.DEBUG)
     formatter_fil = logging.Formatter("%(asctime)s - %(levelname)s - %(shortmsg)s")
     fh.setFormatter(formatter_fil)
