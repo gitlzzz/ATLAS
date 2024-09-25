@@ -137,7 +137,12 @@ def clear_previous_print():
 
 def gather_secrets():
     """
-    Gather Materials project API key from a secret.json file.
+    Gather Materials project API key from file/env var.
+
+    The API key can be gathered from a secrets.json file that can
+    be placed in the config directory or in the current working
+    directory. If the file is not found, the function will check
+    for an environment variable named 'MP_API_KEY'.
 
     Notes
     -----
@@ -163,10 +168,14 @@ def gather_secrets():
         path = pathlib.Path(config_path, "secrets.json")
         with open(path) as f:
             secrets = js.load(f)
+    elif os.environ.get("MP_API_KEY"):
+        secrets = {"API_KEY": os.environ.get("MP_API_KEY")}
 
     else:
         raise FileNotFoundError(
-            "'secrets.json' not found!\nPlease, add a 'secrets.json' file in the"
+            "'secrets.json' not found!\n"
+            "Please, run `mdb_init_setup`, set the `MP_API_KEY`"
+            " environment variable, or add a 'secrets.json' file in the"
             f" following directory: '{config_path}'. "
         )
         secrets = None
