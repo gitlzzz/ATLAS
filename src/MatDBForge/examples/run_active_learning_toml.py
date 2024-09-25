@@ -2,8 +2,12 @@
 
 import argparse
 import pathlib as pl
+import sys
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 from aiida import load_profile
 from aiida.engine import run
 from aiida.orm import Dict, Int
@@ -79,7 +83,7 @@ if __name__ == "__main__":
 
     # Loading TOML config file
     with open(args.config_file, "rb") as f:
-        toml_dict = tomli.load(f)
+        toml_dict = tomllib.load(f)
 
     # Loading default aiida profile
     load_profile(profile=toml_dict["active_learning"]["aiida_profile"])

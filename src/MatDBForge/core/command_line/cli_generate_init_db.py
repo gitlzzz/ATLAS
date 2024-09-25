@@ -2,12 +2,21 @@
 
 import argparse
 import pathlib as pl
+import sys
 from argparse import RawTextHelpFormatter
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
+import warnings
 
 from MatDBForge.core.command_line.command_line_utils import parse_input_toml
 from MatDBForge.core.initial_db import cli_run_gen_initial_database
+
+# TODO: Remove this once the deprecation warnings are fixed
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 def gen_initial_database(config_dict: dict):
@@ -69,7 +78,7 @@ def run_gen_initial_database():
     # Loading TOML config file
     try:
         with open(args.config_file, "rb") as f:
-            toml_dict = tomli.load(f)
+            toml_dict = tomllib.load(f)
     except FileNotFoundError as e:
         error_message = (
             f"The config file '{args.config_file}' does not exist. "

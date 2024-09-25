@@ -2,11 +2,15 @@
 
 import argparse
 import pathlib as pl
+import sys
 import time
 import warnings
 from argparse import RawTextHelpFormatter
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 warnings.filterwarnings("ignore")
 
@@ -193,7 +197,7 @@ def run_active_learning():
     # Loading TOML config file
     try:
         with open(args.config_file, "rb") as f:
-            toml_dict = tomli.load(f)
+            toml_dict = tomllib.load(f)
     except FileNotFoundError as e:
         error_message = (
             f"The config file '{args.config_file}' does not exist. "
