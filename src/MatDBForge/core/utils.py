@@ -10,6 +10,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 from ase import Atoms, visualize
+from ase.io import read as ase_read
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from pymatgen.core import Structure
@@ -688,6 +689,83 @@ def apply_gauss_perturb_db(
     custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
 
     return perturbed_structs
+
+
+def add_adsorbates(
+    repeat: int,
+    db_obj: "mdb_indb.InitialDatabase",
+    filters: list,
+    phase: mdb_pd.Phase,
+    adsorbate_species: list[str],
+    limit_num_structures: int = None,
+):
+    from acat.build.adlayer import RandomPatternGenerator as RPG
+    from acat.settings import site_heights
+
+    # Create temporary file to store the trajectory using tmpfile
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".traj").name
+
+    adsorb_structs = []
+
+    if not isinstance(db_obj, mdb_indb.InitialDatabase):
+        raise TypeError(
+            f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
+            f"database object, not a {type(db_obj)}."
+        )
+
+    # Filtering structures to perturb
+    filtered_df, _, _ = apply_filters_db(db_obj, filters, phase)
+
+    # Iterating over all filtered database rows to get desired surfaces
+    custom_print(
+        f"Perturbation will be applied to: {filtered_df.shape[0]} structures.", "debug"
+    )
+    for _, row in filtered_df.iterrows():
+        struct = row.structure
+        if not isinstance(row.structure, Atoms):
+            struct = AseAtomsAdaptor().get_atoms(row.structure)
+
+        print("struct: ", type(struct))
+        # Add more heights to the CHOO*
+        heights = {k: v + 0.5 for k, v in site_heights.items()}
+
+        # TODO: Change surface to the correct one
+        for spec in adsorbate_species:
+            gen = RPG(
+                images=struct,
+                adsorbate_species=spec,
+                min_adsorbate_distance=1.5,
+                surface="fcc111",
+                heights=heights,
+                # species_forbidden_sites={'CHOO': ['ontop','bridge']},
+                trajectory=tmp_file,
+            )
+            gen.run(num_gen=repeat, action="add", num_act=5)
+            atoms = ase_read(tmp_file)
+            adsorb_structs.append(atoms)
+            visualize(atoms)
+
+    if limit_num_structures:
+        custom_print(
+            f"Limiting number of structures to  {limit_num_structures}", "debug"
+        )
+
+        limit_num_structures = np.min([limit_num_structures, len(adsorb_structs)])
+
+        adsorb_structs = np.random.choice(
+            adsorb_structs, limit_num_structures, replace=False
+        )
+
+    # Saving in database
+    custom_print("Saving surfaces with adsorbates in dataframe...", "debug")
+    for surface in adsorb_structs:
+        db_obj._save_row(structure=surface)
+    custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
+
+    # Deleting temporary file
+    os.remove(tmp_file)
+
+    return adsorb_structs
 
 
 def fix_bottom_layers(structure: Structure, n_layers: int) -> Structure:
