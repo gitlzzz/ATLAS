@@ -154,7 +154,7 @@ The main functionalities are organized into the following modules:
 
 The following examples demonstrate the usage of MatDBForge:
 
-- [launch_sp_calcs_db_aiida.py](src/MatDBForge/examples/aunch_sp_calcs_db_aiida.py): This example script demonstrates how to launch single-point calculations for a given set of structures and store the results in the database.
+- [launch_sp_calcs_db_aiida.py](src/MatDBForge/examples/launch_sp_calcs_db_aiida.py): This example script demonstrates how to launch single-point calculations for a given set of structures and store the results in the database.
 - [create_init_db_new.py](src/MatDBForge/examples/create_init_db_new.py): This example script showcases how to create and initialize a new database with initial data.
 
 Please refer to the examples in the examples directory for more details on how to utilize the library for your specific needs.
