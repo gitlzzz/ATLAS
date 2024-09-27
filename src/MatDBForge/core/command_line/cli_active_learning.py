@@ -74,6 +74,12 @@ def create_active_learning_builder(toml_dict: dict):
         "seed_select_settings"
     ]
 
+    # Delete structures from MD seed if they are well represented
+    # Default is True
+    builder.active_learning.delete_seed_structs = toml_dict.get("al_seed", {}).get(
+        "delete_seed_structs", True
+    )
+
     builder.active_learning.committee_num_models = int(
         toml_dict["committee_eval"]["committee_num_models"]
     )
