@@ -352,6 +352,8 @@ class Bulk(Structure):
 
         # Setting the bulk property as True.
         self.bulk = True
+        self.surface = False
+        self.cluster = False
 
 
 class Surface(Structure):
@@ -360,6 +362,8 @@ class Surface(Structure):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.surface = True
+        self.cluster = False
+        self.bulk = False
 
 
 class Cluster(Structure):
@@ -367,4 +371,6 @@ class Cluster(Structure):
 
     def __init__(self, cluster=True, **kwargs):
         super().__init__(**kwargs)
-        self.cluster = cluster
+        self.cluster = True
+        self.surface = False
+        self.bulk = False

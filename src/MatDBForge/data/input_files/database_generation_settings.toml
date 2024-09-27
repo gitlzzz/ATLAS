@@ -2,10 +2,11 @@
 # Please, fill in the values for the parameters below.
 
 ############################################
-# General system description
+# General database description, export and
+# display options
 ############################################
 
-[system]
+[database]
 # (str) Name of the database to be used as filename and for internal reference
 database_name = "input_name_here"
 
@@ -21,8 +22,33 @@ min_cell_size = 5.0
 # (optional, str) Path to a folder containing DFT optimized structures
 relax_struct_path = ""
 
-# (mandatory, str) Path for the final database 
-final_database_path = ""
+# (mandatory, str) Path for the final database
+database_path = ""
+
+
+
+[database.plot_db]
+# (bool) Display database with phase diagram after creation
+show = true
+
+# Display options which follow the RCParams of matplotlib
+rc_params."font.family" = "monospace"
+rc_params."font.size" = 14
+
+
+[database.show_db_ase]
+# (bool) Display database with ASE GUI after creation
+show = true
+
+
+[database.export]
+# (str) Export format for the database, such as 'extxyz'.
+# The format must be supported by ASE, see:
+# https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read
+export = true
+format = 'extxyz'
+file_path = ""
+file_name = "nispero"
 
 
 ############################################
@@ -40,11 +66,6 @@ element_list = ["Cu", "O"]
 # (str) Symbol of the most abundant element in the phase
 # It must be one of the elements in the `element_list`
 base_element = "Cu"
-
-# Display phase diagram after creation and plot display options
-# Display options follow the RCParams of matplotlib
-display.plot_display = true
-# display.rc_params."font.family" = "monospace"
 
 ##### Phases definition #####
 # The `phase` key in `phase_diagram` will contain information
@@ -92,6 +113,12 @@ prototype = "mp-XX"
 # the limits of the phase
 offset = 0.1
 
+# (bool) Whether to replace a series of elements with the base element
+replacements.replace = true
+# (list[str]) List of elements to replace with the base element
+replacements.element_list = ["Ti"]
+
+
 # To add additional phases, add a new entry to the `phase_diagram` key
 #
 # [phase_diagram.phase.XXXXX]
@@ -130,7 +157,7 @@ min_miller_index = 1
 
 # (int) Highest index for the supercell generation
 # Supercells will be created in the x and y directions
-supercell_max_idx = 3
+max_miller_index = 3
 
 # (float) Minimum slab size in Angstrom
 min_slab_size_ang = 7
@@ -161,7 +188,8 @@ save_in_db = true
 
 
 ############################################
-# Settings related to the lattice deformation
+# Settings related to the lattice 
+# deformation
 ############################################
 
 # The lattice deformation chooses a random deformation value
@@ -200,7 +228,7 @@ num_repeats = 7
 
 
 ############################################
-# Settings related to adsorbates
+# Settings related to adsorbate addition
 ############################################
 
 [adsorbates]

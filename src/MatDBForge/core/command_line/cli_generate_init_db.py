@@ -36,8 +36,8 @@ def gen_initial_database(config_dict: dict):
     parse_input_toml(toml_dict=config_dict, type="generate_database")
 
     # Extract parameters from toml
-    sys_dict = config_dict["system"]
-    db_path = sys_dict["final_database_path"]
+    database_dict = config_dict["database"]
+    db_path = database_dict["database_path"]
     phase_diagram_dict = config_dict["phase_diagram"]
     gen_dict = config_dict["generation"]
     selected_phases = list(phase_diagram_dict["phase"].keys())
@@ -45,7 +45,7 @@ def gen_initial_database(config_dict: dict):
     # Gnerating the database
     cli_run_gen_initial_database(
         db_path,
-        sys_dict,
+        database_dict,
         phase_diagram_dict,
         gen_dict,
         selected_phases,

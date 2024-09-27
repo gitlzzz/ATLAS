@@ -159,6 +159,7 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
         min_temp_K: float = 300,
         rc_params=None,
         show_plot=True,
+        ax=None,
     ) -> plt.Axes:
         """
         Plot a basic binary phase diagram of the material with temperature
@@ -182,7 +183,7 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
         Notes
         -----
         - The function generates a plot with the x-axis representing the
-        composition (in wt. %)
+        composition (in at. %)
         of the base element in the material, and the y-axis representing the
         temperature in Kelvin.
         - Each phase is represented by a filled patch in the diagram, and the
@@ -198,15 +199,19 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
             rc_params={'figure.figsize': (10, 6)}
         )
         """
+        # Update the rcParams if provided
         if rc_params:
             rcParams.update(rc_params)
 
-        ax = plt.subplot()
+        # Create a new figure if ax is not provided
+        if not ax:
+            ax = plt.subplot()
 
         # Get the number of phases and create n colors from the viridis colormap
         color_list = plt.cm.viridis(np.linspace(0, 1, len(self.phases)))
         ini_zorder = 2.1 + (len(self.phases) * 0.1)
 
+        # Plot the phases
         for idx, phase in enumerate(self.phases):
             comp_min = phase.composition[str(self.base_elem)]["min"] * 100
             comp_max = phase.composition[str(self.base_elem)]["max"] * 100
@@ -248,15 +253,18 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
                 rotation=45,
             )
 
+        # Update the chart layout
         ax.grid(which="both")
-        ax.set_xlabel(f"Composition wt. % {self.base_elem}")
+        ax.set_xlabel(f"Composition at. % {self.base_elem}")
         ax.set_ylabel("T [K]")
-        ax.set_xlim(0, 100)
+        ax.set_xlim(-5, 105)
         ax.set_ylim(min_temp_K, max_temp_K)
         ax.set_title(f"'{self.material}' Binary Phase Diagram")
 
+        # Plot the phase diagram if show_plot is True
         if show_plot:
             plt.show()
+
         return ax
 
 
@@ -329,6 +337,8 @@ class Phase:
         The offset value of the phase.
     phase_diagram: PhaseDiagram
         The parent PhaseDiagram object that the phase belongs to.
+    replace_dict: dict
+        A dictionary of replacements for the prototype structure.
 
     """
 
@@ -341,6 +351,7 @@ class Phase:
         offset: float = 0,
         phase_diagram: PhaseDiagram = None,
         cluster_elem: str = None,
+        replace_dict: dict = None,
         base_elem: str = None,
     ):
         self.name = slugify(name)
@@ -349,7 +360,6 @@ class Phase:
 
         if not base_elem:
             self.base_elem = self.phase_diagram.base_elem
-
         elif Element(base_elem) in self.element_list:
             self.base_elem = Element(base_elem)
         else:
@@ -373,6 +383,7 @@ class Phase:
         self.base_elem_comp_min = float(self.composition[str(self.base_elem)]["min"])
 
         self.prototype = prototype
+        self.replace_dict = replace_dict
         self.offset = float(offset)
 
     def __str__(self):
@@ -436,11 +447,9 @@ class Phase:
 
         offset = self.offset if offset else 0
 
-        inPhase = (
-            (self.base_elem_comp_min - offset)
-            < perc
-            < (self.base_elem_comp_max + offset)
-        )
+        min_range = max(self.base_elem_comp_min - offset, 0)
+        max_range = min(self.base_elem_comp_max + offset, 1)
+        inPhase = min_range < perc < max_range
 
         return bool(inPhase)
 

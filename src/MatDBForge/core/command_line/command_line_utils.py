@@ -37,7 +37,7 @@ def parse_input_toml(toml_dict: dict, type: str):
         mandatory_keys_list = ["active_learning", "md", "committee_eval", "dft"]
 
     elif type == "generate_database":
-        mandatory_keys_list = ["system", "generation"]
+        mandatory_keys_list = ["database", "phase_diagram", "generation"]
 
     for key in mandatory_keys_list:
         if key not in list(toml_dict.keys()):
