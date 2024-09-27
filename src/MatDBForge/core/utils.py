@@ -628,13 +628,14 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             phase=row.phase,
             perturb=True,
         )
-    perturb_struct = mdb_struct.Cluster(
-        material_name=mat_str,
-        structure=new_struct_perturb,
-        replacement_ind=row.replacement_ind,
-        phase=row.phase,
-        perturb=True,
-    )
+    elif row.cluster:
+        perturb_struct = mdb_struct.Cluster(
+            material_name=mat_str,
+            structure=new_struct_perturb,
+            replacement_ind=row.replacement_ind,
+            phase=row.phase,
+            perturb=True,
+        )
     return perturb_struct
 
 
