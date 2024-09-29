@@ -9,3 +9,4 @@ build
 src/MatDBForge/benchmarks/
 src/MatDBForge/devel
 src/MatDBForge/display_db
+*.sync-conflict*

@@ -81,10 +81,6 @@ def adjust_vacuum(db_obj, slab: Slab, vacuum_size: float) -> Slab:
 
     # Computing the difference between the correct slab
     diff = vec_c - corr_slab_size
-    # print('vec_c: ', vec_c)
-    # print('top layer: ', z_axis_max)
-    # print('calculated distance:',vec_c-z_axis_max)
-    # print('corr_slab_size: ', corr_slab_size)
 
     # Changing the 'c' vector
     if current_vacuum_size > vacuum_size:

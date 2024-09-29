@@ -281,6 +281,7 @@ class InitialDatabase:
                 "calc_type",
                 "calc_output",
                 "replacement",
+                "vacancy",
             ]
         )
 
@@ -728,6 +729,8 @@ class InitialDatabase:
                     structure=material.structure,
                     temperature=np.nan,
                     perturb=False,
+                    bulk=True,
+                    vacancy=False,
                     formula=material.composition_reduced,
                     symmetry=material_symmetry,
                     base=True,
@@ -788,6 +791,7 @@ class InitialDatabase:
                 material_name=curr_name,
                 bulk=True,
                 perturb=False,
+                vacancy=False,
                 cluster=False,
                 surface=False,
                 material_id=curr_mat_id,
@@ -837,6 +841,89 @@ class InitialDatabase:
 
         return target_entries_filter
 
+    def apply_vacancies_random(
+        self,
+        filters: list,
+        seed: int,
+        repeat=2,
+        max_vac_perc: float = 0.75,
+        min_vac_perc: float = 0.25,
+        lim_num_struc: int = 100,
+    ):
+        # Instantiating RNG
+        rng = np.random.default_rng(seed=seed)
+
+        # Apply filters to the database
+        filtered_df, _, _ = ut.apply_filters_db(db_obj=self, filters=filters)
+
+        # Check if the number of structures is less than the limit
+        lim_num_struc = min(filtered_df.shape[0], lim_num_struc)
+
+        # Select the random subset structures that will be perturbed
+        sel_idx = rng.choice(filtered_df.index, size=lim_num_struc, replace=False)
+
+        # Getting the structures that will be perturbed
+        target_entries = filtered_df.loc[sel_idx]
+
+        # Applying displacement to all perturbed structures
+        for _, entry in target_entries.iterrows():
+            if isinstance(entry.phase, str):
+                curr_phase = self.phase_diagram.get_phase(entry.phase)
+            else:
+                curr_phase = entry.phase
+            # Applying repeat times
+            for vac_idx in range(repeat):
+                # Getting random vacancy percentage
+                vac_perc = rng.uniform(min_vac_perc, max_vac_perc)
+
+                # Getting random indices for the vacancies
+                vac_indices = rng.choice(
+                    entry.structure.num_sites,
+                    size=int(vac_perc * entry.structure.num_sites),
+                    replace=False,
+                )
+
+                # Removing site from the structure
+                new_struct_vac = entry.structure.copy()
+                new_struct_vac = new_struct_vac.remove_sites(vac_indices)
+
+                mat_str = f"{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx+1}"
+
+                # Creating a new Structure from the perturbed structure structure
+                curr_struct = mdb_struct.Structure(
+                    material_name=mat_str,
+                    structure=new_struct_vac,
+                    material_id=entry.material_id,
+                    phase=curr_phase,
+                    base=False,
+                    bulk=entry.bulk,
+                    surface=entry.surface,
+                    cluster=entry.cluster,
+                    perturb=True,
+                    supercell=entry.supercell,
+                    replacement=entry.replacement,
+                    formula=entry.formula,
+                    symmetry=new_struct_vac.get_space_group_info(),
+                    temperature=entry.temperature,
+                    calc_performed=False,
+                    vacancy=True,
+                )
+
+                # Converting the structure to the appropiate type
+                if entry.bulk:
+                    curr_struct_conv = mdb_struct.Bulk().from_mdb_structure(curr_struct)
+                elif entry.surface:
+                    curr_struct_conv = mdb_struct.Surface().from_mdb_structure(
+                        curr_struct
+                    )
+                else:
+                    curr_struct_conv = mdb_struct.Cluster().from_mdb_structure(
+                        curr_struct
+                    )
+
+                # Saving the bulk to the db.
+                self.df = curr_struct_conv.save_to_db(self.df)
+
     def perturb_gauss(
         self, center: float = 0.04, repeat: int = 5, filters: list = None
     ):
@@ -884,6 +971,7 @@ class InitialDatabase:
                     phase=str_phase,
                     base=False,
                     perturb=True,
+                    vacancy=entry.vacancy,
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=new_struct_perturb.formula,
@@ -988,6 +1076,7 @@ class InitialDatabase:
                     phase=str_phase,
                     base=False,
                     perturb=True,
+                    vacancy=entry.vacancy,
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=entry.formula,
@@ -1248,6 +1337,7 @@ class InitialDatabase:
                 surface=False,
                 base=False,
                 cluster=False,
+                vacancy=False,
                 calc_performed=False,
                 supercell=idxs,
                 phase=phase,
@@ -1298,11 +1388,13 @@ class InitialDatabase:
             material_id=material_id_prefix,
             structure=structure,
             temperature=structure_obj.temperature,
-            perturb=False,
-            surface=False,
-            base=False,
-            cluster=False,
-            calc_performed=False,
+            bulk=structure_obj.bulk,
+            surface=structure_obj.surface,
+            surface_miller=structure_obj.surface_miller,
+            cluster=structure_obj.cluster,
+            perturb=structure_obj.perturb,
+            base=structure_obj.base,
+            calc_performed=structure_obj.calc_performed,
             supercell=structure_obj.supercell,
             phase=phase,
         )
@@ -1386,9 +1478,7 @@ class InitialDatabase:
                 else:
                     inPhase = phase.perc_in_phase(curr_perc)
 
-            # print("_fit_repl curr_perc 2: ", curr_perc)
             new_n_at = int(round(curr_perc * structure_len, 0))
-            # print("_fit_repl new_n_at: ", new_n_at)
             n_at_replacement_upd.append(new_n_at)
 
         return n_at_replacement_upd
@@ -1415,7 +1505,6 @@ class InitialDatabase:
         # We assume that if the n_atoms is a fractional number, it must
         # represent the ratio of atoms in the structure, so we convert
         # that to a number of atoms.
-        # print("n_target_at: ", n_target_at)
         if isinstance(n_target_at, float) and n_target_at < 1:
             n_target_at = int(n_target_at * structure_len)
 
@@ -1481,7 +1570,6 @@ class InitialDatabase:
 
         # Replacing atoms in the structures
         for ind in replace_elem_choices:
-            # print(f"Replaced idx {ind}: {new_structure.species[ind]} -> {other_elem}")
             new_structure = new_structure.replace(ind, replacing_elem)
 
         # Copying site properties
@@ -1491,69 +1579,6 @@ class InitialDatabase:
             new_structure = new_structure.copy(
                 sanitize=True, site_properties=site_props_before
             )
-
-        # new_comp = new_structure.composition
-        # print("new_comp: ", new_comp)
-        # print(
-        #     "new_comp.get_atomic_fraction(base_elem): ",
-        #     new_comp.get_atomic_fraction(phase.base_elem),
-        # )
-
-        return new_structure
-
-        # else:
-        #     # Getting how many base atoms must be changed in order for the
-        #     # structure to meet the current percentage requirements.
-        #     print('curr_comp: ', curr_comp)
-        #     print('curr_comp[base_elem]: ', curr_comp[base_elem])
-        #     target_atoms_base = curr_comp[base_elem] - abs(n_target_at)
-        #     print('target_atoms_base: ', target_atoms_base)
-
-        #     # Getting how many atoms of the other element must be changed
-        #     # other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
-        #     other_atom_change = int(curr_comp[other_elem] + target_atoms_base)
-        #     other_atom_change = other_atom_change - curr_comp[other_elem]
-
-        # print("other_atom_change: ", other_atom_change)
-        # # Choosing which species of the structure to change with the other atom.
-
-        # # Get indices of other atoms in the structure
-        # if isinstance(other_elem, Element):
-        #     replacable_sites = structure.indices_from_symbol(other_elem.symbol)
-        # else:
-        #     replacable_sites = structure.indices_from_symbol(other_elem)
-
-        # print("replacable_sites: ", replacable_sites)
-
-        # other_elem_choices = rng.choice(
-        #     a=replacable_sites,
-        #     size=abs(int(other_atom_change)),
-        #     replace=False,
-        #     shuffle=True,
-        # )
-
-        # print("other_elem_choices: ", other_elem_choices)
-        # # Creating a new pymatgen structure using the base one as a template
-        # new_structure = structure.copy(sanitize=True)
-        # site_props_before = structure.site_properties
-        # print("site_props_before: ", site_props_before)
-
-        # # Replacing atoms in the structures
-        # for ind in other_elem_choices:
-        #     print(f"Replaced idx {ind}: {new_structure.species[ind]} -> {other_elem}")
-        #     new_structure = new_structure.replace(ind, other_elem)
-
-        # # TODO: Instead of this, create a new structure
-        # # Copying site properties
-        # new_structure = new_structure.copy(
-        #     sanitize=True, site_properties=site_props_before
-        # )
-        # new_comp = new_structure.composition
-        # print("new_comp: ", new_comp)
-        # print(
-        #     "new_comp.get_atomic_fraction(base_elem): ",
-        #     new_comp.get_atomic_fraction(phase.base_elem),
-        # )
 
         return new_structure
 
@@ -2196,7 +2221,7 @@ class InitialDatabase:
         }
 
         # Get base element composition for every structure in the database
-        for idx, row in self.df.iterrows():
+        for _, row in self.df.iterrows():
             curr_comp = row.structure.composition
             curr_frac = curr_comp.get_atomic_fraction(base_elem.symbol)
 
@@ -2207,10 +2232,6 @@ class InitialDatabase:
             elif row.cluster:
                 plot_dict["cluster"]["structs"].append(curr_frac * 100)
             else:
-                print("idx: ", idx)
-                print("row.cluster: ", row.cluster)
-                print("row.surface: ", row.surface)
-                print("row.bulk: ", row.bulk)
                 plot_dict["unknown"]["structs"].append(curr_frac * 100)
 
         plot_dict["bulk"]["structs"] = np.array(plot_dict["bulk"]["structs"])
@@ -2458,7 +2479,29 @@ def cli_run_gen_initial_database(
             "Finishing populating structures from every phase...",
             "done",
         )
-    print()
+        print()
+
+    if "vacancies" in config_dict:
+        vacancies_dict = config_dict["vacancies"]
+        ut.custom_print(
+            (
+                f"Applying vacancies to a random subset of "
+                f"{vacancies_dict['limit_max_num_vacancies']} structures..."
+            ),
+            "info",
+        )
+
+        structures.apply_vacancies_random(
+            max_vac_perc=vacancies_dict["max_vacancy_percentage"],
+            min_vac_perc=vacancies_dict["min_vacancy_percentage"],
+            filters=vacancies_dict["filter_struct_types"],
+            lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
+            repeat=int(vacancies_dict["num_repeats"]),
+            seed=rng_seed,
+        )
+
+        ut.custom_print(structures, "info")
+
     if "adsorbates" in config_dict:
         ut.custom_print(
             "Adding adsorbates on top of the structures...",

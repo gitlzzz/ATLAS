@@ -36,6 +36,8 @@ class Structure:
         Flag indicating if this is a bulk structure, by default False
     cluster : bool, optional
         Flag indicating if this is a cluster structure, by default False
+    vacancy: bool, optionsl
+        Flag indicating if the structure contains a vacancy, by default False
     formula : str, optional
         The chemical formula of the material, by default None
     replacement : bool, optional
@@ -82,6 +84,7 @@ class Structure:
         formula=None,
         replacement: bool = False,
         replacement_ind=None,
+        vacancy: bool = False,
         symmetry=None,
         # This should be the material's project db energies
         energy_per_atom=None,
@@ -126,6 +129,7 @@ class Structure:
         self.calc_performed = calc_performed
         self.calc_type = calc_type
         self.calc_output = calc_output
+        self.vacancy = vacancy
 
     def from_vasprun(
         self,
@@ -264,6 +268,7 @@ class Structure:
                 "calc_performed": self.calc_performed,
                 "calc_type": self.calc_type,
                 "calc_output": self.calc_output,
+                "vacancy": self.vacancy,
             }
         )
         bool_columns = {
@@ -274,6 +279,7 @@ class Structure:
             "cluster": bool,
             "calc_performed": bool,
             "replacement": bool,
+            "vacancy": bool,
         }
         new_row = new_row.to_frame().T.astype(bool_columns)
 
@@ -317,6 +323,7 @@ class Structure:
         self.phase = mdb_structure.phase
         self.base = mdb_structure.base
         self.perturb = mdb_structure.perturb
+        self.vacancy = mdb_structure.vacancy
         self.supercell = mdb_structure.supercell
         self.surface = mdb_structure.surface
         self.cluster = mdb_structure.cluster
@@ -334,9 +341,19 @@ class Structure:
         self.calc_output = mdb_structure.calc_output
         self.energy_per_atom = mdb_structure.energy_per_atom
 
-        if self.surface:
-            self.surface_miller = surface_miller
-            self.bulk = mdb_structure.surface
+        if mdb_structure.bulk:
+            self.bulk = True
+            self.surface = False
+            self.cluster = False
+        elif mdb_structure.surface:
+            self.surface_miller = mdb_structure.surface_miller
+            self.surface = True
+            self.bulk = False
+            self.cluster = False
+        elif mdb_structure.cluster:
+            self.cluster = True
+            self.bulk = False
+            self.surface = False
 
         return self
 

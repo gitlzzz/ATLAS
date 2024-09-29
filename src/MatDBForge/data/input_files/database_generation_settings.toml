@@ -246,3 +246,32 @@ num_repeats = 7
 
 # (list[str]) List of adsorbate species to consider
 adsorbate_species = ["H", "H2O"]
+
+
+############################################
+# Settings related to vacancy generation
+############################################
+
+# Apply vacancies to a random subset of structures.
+# The sites to be removed will be selected randomly,
+# according to an user-specified maxium number of vacancies.
+[vacancies]
+
+# Only apply the perturbation to the following types of structures
+# valid types: 'bulk', 'surface', 'cluster'
+filter_struct_types = ['bulk', 'surface']
+
+# (int) Maximum number of structures with vacancies to generate
+limit_max_num_vacancies = 200
+
+# (int) Number of repeats for each structure.
+# Each repeat will get different random vacancies.
+num_repeats = 3
+
+# (float) Max vacancies to generate as a percentage of the total number of atoms
+# The actual number will be selected randomly between the min and max values
+max_vacancy_percentage = 0.075
+
+# (float) Min vacancies to generate as a percentage of the total number of atoms
+# The actual number will be selected randomly between the min and max values
+min_vacancy_percentage = 0.025

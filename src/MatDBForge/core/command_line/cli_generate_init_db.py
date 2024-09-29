@@ -42,7 +42,7 @@ def gen_initial_database(config_dict: dict):
     gen_dict = config_dict["generation"]
     selected_phases = list(phase_diagram_dict["phase"].keys())
 
-    # Gnerating the database
+    # Generating the database
     cli_run_gen_initial_database(
         db_path,
         database_dict,
