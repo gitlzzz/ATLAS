@@ -913,14 +913,15 @@ class InitialDatabase:
 
                 # Converting the structure to the appropiate type
                 if entry.bulk:
-                    curr_struct_conv = mdb_struct.Bulk().from_mdb_structure(curr_struct)
+                    curr_struct_conv = curr_struct.to_bulk()
                 elif entry.surface:
-                    curr_struct_conv = mdb_struct.Surface().from_mdb_structure(
-                        curr_struct
-                    )
+                    curr_struct_conv = curr_struct.to_surface()
+                elif entry.cluster:
+                    curr_struct_conv = curr_struct.to_cluster()
                 else:
-                    curr_struct_conv = mdb_struct.Cluster().from_mdb_structure(
-                        curr_struct
+                    raise NotImplementedError(
+                        "Vacancy generation is not implemented "
+                        "for the current structure type."
                     )
 
                 # Saving the bulk to the db.
@@ -984,12 +985,11 @@ class InitialDatabase:
 
                 # Converting the structure to the appropiate type
                 if entry.bulk:
-                    curr_struct_conv = mdb_struct.Bulk().from_mdb_structure(curr_struct)
+                    curr_struct_conv = curr_struct.to_bulk()
                 elif entry.surface:
-                    curr_struct_conv = mdb_struct.Surface().from_mdb_structure(
-                        curr_struct,
-                        entry.surface_miller,
-                    )
+                    curr_struct_conv = curr_struct.to_surface()
+                elif entry.cluster:
+                    curr_struct_conv = curr_struct.to_cluster()
                 else:
                     raise NotImplementedError(
                         "This perturbation strategy is not implemented "
@@ -1089,11 +1089,11 @@ class InitialDatabase:
 
                 # Converting the structure to the appropiate type
                 if entry.bulk:
-                    curr_struct_conv = mdb_struct.Bulk().from_mdb_structure(curr_struct)
+                    curr_struct_conv = curr_struct.to_bulk()
                 elif entry.surface:
-                    curr_struct_conv = mdb_struct.Surface().from_mdb_structure(
-                        curr_struct
-                    )
+                    curr_struct_conv = curr_struct.to_surface()
+                elif entry.cluster:
+                    curr_struct_conv = curr_struct.to_cluster()
                 else:
                     raise NotImplementedError(
                         "This perturbation strategy is not implemented "
@@ -1402,19 +1402,16 @@ class InitialDatabase:
         )
 
         if structure_obj.bulk:
-            final_struct = mdb_struct.Bulk().from_mdb_structure(
-                mdb_structure=new_struct_symm,
-                new_structure=structure,
-            )
+            final_struct = new_struct_symm.to_bulk()
         elif structure_obj.surface:
-            final_struct = mdb_struct.Surface().from_mdb_structure(
-                mdb_structure=new_struct_symm,
-                new_structure=structure,
-            )
-
-        # TODO: Make this work for surfaces and clusters.
+            final_struct = new_struct_symm.to_surface()
+        elif structure_obj.cluster:
+            final_struct = new_struct_symm.to_cluster()
         else:
-            raise NotImplementedError("Current function only implemented for bulks.")
+            raise NotImplementedError(
+                "Symmetrical prototype not implemented for"
+                "implemented for current structure type."
+            )
 
         self.df = final_struct.save_to_db(self.df)
 

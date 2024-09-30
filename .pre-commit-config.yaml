@@ -18,3 +18,4 @@ repos:
         args: [--fix, --config, .ruff.toml]
       # Run the formatter.
       - id: ruff-format
+        args: [--diff]

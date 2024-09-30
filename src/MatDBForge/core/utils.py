@@ -674,7 +674,7 @@ def apply_gauss_perturb_db(
 
     if limit_num_structures:
         custom_print(
-            f"Limiting number of structures to  {limit_num_structures}", "debug"
+            f"Limiting number of perturbations to  {limit_num_structures}", "debug"
         )
 
         limit_num_structures = np.min([limit_num_structures, len(perturbed_structs)])

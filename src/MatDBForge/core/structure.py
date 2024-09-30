@@ -133,6 +133,33 @@ class Structure:
         self.calc_output = calc_output
         self.vacancy = vacancy
 
+    def to_bulk(self):
+        # Create a Bulk instance by passing the current object's attributes
+        attributes = {
+            name: value
+            for name, value in inspect.getmembers(self)
+            if not inspect.isroutine(value) and not name.startswith("__")
+        }
+        return Bulk(**attributes)
+
+    def to_surface(self):
+        # Create a surface instance by passing the current object's attributes
+        attributes = {
+            name: value
+            for name, value in inspect.getmembers(self)
+            if not inspect.isroutine(value) and not name.startswith("__")
+        }
+        return Surface(**attributes)
+
+    def to_cluster(self):
+        # Create a cluster instance by passing the current object's attributes
+        attributes = {
+            name: value
+            for name, value in inspect.getmembers(self)
+            if not inspect.isroutine(value) and not name.startswith("__")
+        }
+        return Cluster(**attributes)
+
     def from_vasprun(
         self,
         vasprun: vasp.Vasprun,
@@ -305,13 +332,39 @@ class Structure:
 
         return db_obj
 
+    @deprecated(reason="Use to_bulk/to_surface/to_cluster instead.", since_ver="0.6.2")
     def from_mdb_structure(
         self,
         mdb_structure,
-        surface_miller=None,
         new_structure=None,
         material_name=None,
     ):
+        """
+        Convert a structure from the Structure to a different type.
+
+        Note
+        ----------
+        This function is deprecated and will be removed in a future version.
+
+        Use `to_bulk`/`to_surface`/`to_cluster` instead.
+
+        Deprecated since version `0.6.2`.
+
+
+        Parameters
+        ----------
+        mdb_structure : Structure
+            The structure to be converted.
+        new_structure : Structure, optional
+            Either do the conversion in place or use a new structure, by default None.
+        material_name : str, optional
+            New name to give to the structure, by default None.
+
+        Returns
+        -------
+        Bulk, Surface, Cluster
+            The converted structure.
+        """
         if material_name:
             self.material_name = material_name
         else:
@@ -381,6 +434,8 @@ class Surface(Structure):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # Setting the surface property as True.
         self.surface = True
         self.cluster = False
         self.bulk = False
@@ -389,8 +444,10 @@ class Surface(Structure):
 class Cluster(Structure):
     """Class for cluster structures."""
 
-    def __init__(self, cluster=True, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # Setting the cluster property as True.
         self.cluster = True
         self.surface = False
         self.bulk = False
