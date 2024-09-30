@@ -394,7 +394,7 @@ class Phase:
             str: The string representation of the phase.
 
         """
-        repr_string = f"Phase '{self.name}' |"
+        repr_string = f"Phase: '{self.name}' |"
 
         for ele in self.composition:
             repr_string += (

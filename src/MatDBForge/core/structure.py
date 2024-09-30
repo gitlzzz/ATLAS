@@ -88,12 +88,9 @@ class Structure:
         replacement_ind=None,
         vacancy: bool = False,
         symmetry=None,
-        # This should be the material's project db energies
         energy_per_atom=None,
         temperature: float = None,
         magnetic_properties=None,
-        # Everything prefixed with calc_ should come from a DFT
-        # calculation, and not the materials project db
         calc_energy_per_atom=None,
         calc_energy_toten=None,
         calc_energy=None,
@@ -101,6 +98,7 @@ class Structure:
         calc_type=None,
         calc_output=None,
         surface_miller=None,
+        unique_id=None,
     ):
         self.unique_id = uuid.uuid4()
         self.material_name = material_name
@@ -116,6 +114,8 @@ class Structure:
         self.replacement = replacement
         self.replacement_ind = replacement_ind
         self.cluster = cluster
+
+        # This should be the material's project db energies
         self.energy_per_atom = energy_per_atom
 
         if not formula and structure:
@@ -125,6 +125,9 @@ class Structure:
         self.symmetry = symmetry
         self.temperature = temperature
         self.magnetic_properties = magnetic_properties
+
+        # Everything prefixed with calc_ should come from a DFT
+        # calculation, and not the materials project db
         self.calc_energy_per_atom = calc_energy_per_atom
         self.calc_energy_toten = calc_energy_toten
         self.calc_energy = calc_energy
@@ -216,45 +219,47 @@ class Structure:
 
     def __repr__(self):
         repr_str = ""
+        spc = " " * 2
 
         # Gathering name information
         if self.material_name:
-            repr_str += f"MatDBForge {self.__class__.__name__}"
-            repr_str += " - "
-            repr_str += f"{self.material_name}\n"
-            repr_str += f"{self.unique_id}\n"
+            repr_str += f"MatDBForge {self.__class__.__name__}: {self.material_name}\n"
         else:
-            repr_str += f"MatDBForge Structure - {self.unique_id} (no name)\n"
+            repr_str += f"MatDBForge {self.__class__.__name__}: (no name)\n"
+
+        repr_str += f"{spc}ID: {self.unique_id}\n"
 
         # Gathing formula and phase
         if self.formula:
-            repr_str += f"{self.formula} - "
+            repr_str += f"{spc}Formula: {self.formula}\n"
         if self.phase:
-            repr_str += f"{self.phase}\n"
+            repr_str += f"{spc}{self.phase}\n"
         else:
-            repr_str += "unknown phase\n"
+            repr_str += f"{spc}Phase: unknown phase\n"
 
+        repr_str += f"{spc}Status flags: "
         # Gathering if the structure is a base or structure phase
         props = []
         if self.base:
-            props.append("Base")
+            props.append("base")
         elif self.perturb:
-            props.append("Perturbed")
+            props.append("+perturbed")
+        elif self.vacancy:
+            props.append("+vacancies")
 
         # Gathering the type of structure
         if self.bulk:
-            props.append("Bulk")
+            props.append("bulk")
         elif self.surface:
-            props.append("Surface")
+            props.append("surface")
         elif self.cluster:
-            props.append("Cluster")
+            props.append("cluster")
 
         repr_str += " ".join(props)
 
-        repr_str += "\n"
-
         # Gathering DFT data
         if self.calc_performed:
+            repr_str += "\n"
             repr_str += f"Obtained with DFT {self.calc_type} calculation:\n"
             repr_str += f"\t - Energy {self.calc_energy}\n"
             repr_str += f"\t - Free energy {self.calc_energy_toten}\n"

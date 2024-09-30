@@ -1008,13 +1008,18 @@ class InitialDatabase:
         self,
         frac_max: float = 0.05,
         frac_min: float = 0.01,
-        repeat=5,
+        repeat: int = 1,
+        filters: list["str"] = None,
+        only_use_base: bool = True,
+        use_phase: mdb_pd.Phase = None,
+        rng_seed: int = None,
+        limit_num_structures: int = None,
     ):
         """
         Apply small displacements to the lattice parameters of relaxed structures.
 
-        This method perturbs the lattice parameters of relaxed structures by applying
-        small random displacements to their lattice matrix elements.
+        This method perturbs the lattice parameters of structures by applying small
+        displacements to their lattice matrix elements.
         The perturbations are repeated a specified number of times, creating multiple
         perturbed structures for each initial structure. This helps in generating
         structures with slightly higher energies and forces, useful for generating
@@ -1025,10 +1030,24 @@ class InitialDatabase:
         ----------
         frac_max : float, optional
             Maximum fraction of the lattice parameter perturbation, by default 0.05.
+        use_phase: mdb_pd.Phase, optional
+            Phase to be used for the perturbation.
+        filters : list[str], optional
+            List of filters to apply to the database, by default None. It can be one of
+            'bulk', 'surface', 'cluster', 'vacancy' or 'perturb'.
+        only_use_base: bool, optional
+            If True, only the base structures will be perturbed, by default True in
+            order to maintain the perturbation strategy consistent with previous
+            versions.
         frac_min : float, optional
             Minimum fraction of the lattice parameter perturbation, by default 0.01.
         repeat : int, optional
-            Number of times to apply the perturbation to each structure, by default 5.
+            Number of times to apply the perturbation to each structure, by default 1.
+        rng_seed : int, optional
+            Seed for the random number generator, by default None.
+        limit_num_structures : int, optional
+            Limit the number of structures to be perturbed, by default None.
+
 
         Raises
         ------
@@ -1046,8 +1065,34 @@ class InitialDatabase:
         >>> initial_db.perturb_min_displacement(frac_max=0.05, frac_min=0.01, repeat=5)
 
         """
-        # Getting all relaxed structures
-        target_entries = self.df.loc[self.df.base]
+        # Instantiating RNG
+        if not rng_seed:
+            rng_seed = np.random.randint(0, 100000)
+        rng = np.random.default_rng(seed=rng_seed)
+
+        # Selecting which subset of structures to use by either
+        # selecting only the relaxed structures, applying filters
+        # and selecting a specific phase or using all structures.
+        if only_use_base:
+            # Getting all relaxed structures.
+            target_entries = self.df.loc[self.df.base]
+        elif not only_use_base and filters or use_phase:
+            # Filtering structures to perturb.
+            target_entries, _, _ = ut.apply_filters_db(self, filters, use_phase)
+        else:
+            # Using the entire database.
+            target_entries = self.df
+
+        # Limiting number of structures
+        if limit_num_structures:
+            limit_num_structures = min(limit_num_structures // repeat, self.df.shape[0])
+            ut.custom_print(
+                f"Limiting number of displacements to  {limit_num_structures}", "debug"
+            )
+            rng_idxs = rng.choice(
+                self.df.shape[0], size=limit_num_structures, replace=False
+            )
+            target_entries = self.df.iloc[rng_idxs]
 
         # Applying displacement to all perturbed structures
         for _, entry in target_entries.iterrows():
@@ -1055,6 +1100,8 @@ class InitialDatabase:
             str_matid = entry.material_id
             if isinstance(entry.phase, str):
                 str_phase = self.phase_diagram.get_phase(entry.phase)
+            else:
+                str_phase = entry.phase
             curr_str = entry.structure
 
             # Applying the perturbation 'repeat' times.
@@ -1629,7 +1676,7 @@ class InitialDatabase:
         """
         # Instantiating RNG
         if not seed:
-            seed = np.random.randint(0, 100000)
+            seed = np.random.randint(0, int(1e12))
 
         rng = np.random.default_rng(seed=seed)
         ut.custom_print(f"Using RNG seed: {str(seed)}", "debug")
@@ -2321,7 +2368,7 @@ def cli_run_gen_initial_database(
 
     # Get seed from input file or generate one
     rng_seed = int(db_dict.get("rng_seed", np.random.randint(0, 10000000)))
-    ut.custom_print(f"Using seed: '{rng_seed}'.", "info")
+    ut.custom_print(f"Using RNG seed: '{rng_seed}'.", "info")
 
     # Assemble phase diagram
     phase_diagram = mdb_pd.PhaseDiagram(
@@ -2406,9 +2453,9 @@ def cli_run_gen_initial_database(
             ut.custom_print(structures, "info")
 
         if "surface" in gen_dict:
-            # Generating surface structures.
             ut.custom_print("Generating surface structures...", "info")
 
+            # Generating surface structures.
             mdb_surf.gen_surfaces_diff_miller(
                 db_obj=structures,
                 phase=phase,
@@ -2417,7 +2464,6 @@ def cli_run_gen_initial_database(
                 min_miller_index=int(gen_dict["surface"]["min_miller_index"]),
                 max_miller_index=int(gen_dict["surface"]["max_miller_index"]),
                 min_slab_size=float(gen_dict["surface"]["min_slab_size_ang"]),
-                # num_diff_layer_size=int(gen_dict["surface"]["num_diff_layer_size"]),
                 min_vacuum_size=float(gen_dict["surface"]["min_vacuum_size_ang"]),
                 get_supercells=gen_dict["surface"]["get_supercells"],
                 fixed_layers=int(gen_dict["surface"]["fixed_layers"]),
@@ -2450,6 +2496,11 @@ def cli_run_gen_initial_database(
                 frac_max=float(displ_dict["lattice_frac_displ_max"]),
                 frac_min=float(displ_dict["lattice_frac_displ_min"]),
                 repeat=int(displ_dict["num_repeats"]),
+                use_phase=phase,
+                only_use_base=False,
+                limit_num_structures=int(displ_dict["limit_max_num_displacements"]),
+                filters=displ_dict["filter_struct_types"],
+                rng_seed=rng_seed,
             )
             ut.custom_print(structures, "info")
 
@@ -2477,11 +2528,11 @@ def cli_run_gen_initial_database(
 
             ut.custom_print(structures, "info")
 
-        ut.custom_print(
-            "Finishing populating structures from every phase...",
-            "done",
-        )
-        print()
+    ut.custom_print(
+        "Finishing populating structures from every phase...",
+        "done",
+    )
+    print()
 
     if "vacancies" in config_dict:
         vacancies_dict = config_dict["vacancies"]
