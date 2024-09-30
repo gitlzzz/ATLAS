@@ -11,7 +11,7 @@ from MatDBForge.core import MDB_DATA_DIR
 
 def gen_default_config():
     parser = argparse.ArgumentParser(
-        prog="mdb_conf_gen",
+        prog="mdb_gen_configuration_file",
         description="Generate MDB default configuration files in the TOML format.",
         formatter_class=RawTextHelpFormatter,
     )
