@@ -1,9 +1,6 @@
 """Main module for the core package of MatDBForge."""
 
 import pathlib as pl
-import warnings
-
-warnings.filterwarnings("ignore")
 
 # Core directory
 MDB_CORE_DIR = (pl.Path(__file__).parent).resolve()

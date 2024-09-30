@@ -20,10 +20,11 @@ def run_initial_config():
     if config_dir:
         mdb_ut.custom_print(
             f"Enter your materials project API key in '{config_dir/'secrets.json'}'"
-            f" to finish the setup process.",
-            print_type="info",
+            f" to finish the setup process."
+            "You can get your API key from https://next-gen.materialsproject.org/api",
+            print_type="warn",
         )
     else:
         mdb_ut.custom_print(
-            "Initial configuration already done: 'secrets.json' already exists.", "info"
+            "Initial configuration already done: 'secrets.json' already exists.", "done"
         )

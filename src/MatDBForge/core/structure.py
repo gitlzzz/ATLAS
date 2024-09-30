@@ -1,10 +1,12 @@
 """Module for the Structure class."""
 
+import inspect  # noqa
 import uuid
 
 import pandas as pd
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
+from MatDBForge.core.code_utils import deprecated  # noqa
 
 from MatDBForge.core import initial_db as mdb_indb
 
@@ -36,6 +38,8 @@ class Structure:
         Flag indicating if this is a bulk structure, by default False
     cluster : bool, optional
         Flag indicating if this is a cluster structure, by default False
+    vacancy: bool, optionsl
+        Flag indicating if the structure contains a vacancy, by default False
     formula : str, optional
         The chemical formula of the material, by default None
     replacement : bool, optional
@@ -82,13 +86,11 @@ class Structure:
         formula=None,
         replacement: bool = False,
         replacement_ind=None,
+        vacancy: bool = False,
         symmetry=None,
-        # This should be the material's project db energies
         energy_per_atom=None,
         temperature: float = None,
         magnetic_properties=None,
-        # Everything prefixed with calc_ should come from a DFT
-        # calculation, and not the materials project db
         calc_energy_per_atom=None,
         calc_energy_toten=None,
         calc_energy=None,
@@ -96,6 +98,7 @@ class Structure:
         calc_type=None,
         calc_output=None,
         surface_miller=None,
+        unique_id=None,
     ):
         self.unique_id = uuid.uuid4()
         self.material_name = material_name
@@ -111,6 +114,8 @@ class Structure:
         self.replacement = replacement
         self.replacement_ind = replacement_ind
         self.cluster = cluster
+
+        # This should be the material's project db energies
         self.energy_per_atom = energy_per_atom
 
         if not formula and structure:
@@ -120,12 +125,43 @@ class Structure:
         self.symmetry = symmetry
         self.temperature = temperature
         self.magnetic_properties = magnetic_properties
+
+        # Everything prefixed with calc_ should come from a DFT
+        # calculation, and not the materials project db
         self.calc_energy_per_atom = calc_energy_per_atom
         self.calc_energy_toten = calc_energy_toten
         self.calc_energy = calc_energy
         self.calc_performed = calc_performed
         self.calc_type = calc_type
         self.calc_output = calc_output
+        self.vacancy = vacancy
+
+    def to_bulk(self):
+        # Create a Bulk instance by passing the current object's attributes
+        attributes = {
+            name: value
+            for name, value in inspect.getmembers(self)
+            if not inspect.isroutine(value) and not name.startswith("__")
+        }
+        return Bulk(**attributes)
+
+    def to_surface(self):
+        # Create a surface instance by passing the current object's attributes
+        attributes = {
+            name: value
+            for name, value in inspect.getmembers(self)
+            if not inspect.isroutine(value) and not name.startswith("__")
+        }
+        return Surface(**attributes)
+
+    def to_cluster(self):
+        # Create a cluster instance by passing the current object's attributes
+        attributes = {
+            name: value
+            for name, value in inspect.getmembers(self)
+            if not inspect.isroutine(value) and not name.startswith("__")
+        }
+        return Cluster(**attributes)
 
     def from_vasprun(
         self,
@@ -183,45 +219,47 @@ class Structure:
 
     def __repr__(self):
         repr_str = ""
+        spc = " " * 2
 
         # Gathering name information
         if self.material_name:
-            repr_str += f"MatDBForge {self.__class__.__name__}"
-            repr_str += " - "
-            repr_str += f"{self.material_name}\n"
-            repr_str += f"{self.unique_id}\n"
+            repr_str += f"MatDBForge {self.__class__.__name__}: {self.material_name}\n"
         else:
-            repr_str += f"MatDBForge Structure - {self.unique_id} (no name)\n"
+            repr_str += f"MatDBForge {self.__class__.__name__}: (no name)\n"
+
+        repr_str += f"{spc}ID: {self.unique_id}\n"
 
         # Gathing formula and phase
         if self.formula:
-            repr_str += f"{self.formula} - "
+            repr_str += f"{spc}Formula: {self.formula}\n"
         if self.phase:
-            repr_str += f"{self.phase}\n"
+            repr_str += f"{spc}{self.phase}\n"
         else:
-            repr_str += "unknown phase\n"
+            repr_str += f"{spc}Phase: unknown phase\n"
 
+        repr_str += f"{spc}Status flags: "
         # Gathering if the structure is a base or structure phase
         props = []
         if self.base:
-            props.append("Base")
+            props.append("base")
         elif self.perturb:
-            props.append("Perturbed")
+            props.append("+perturbed")
+        elif self.vacancy:
+            props.append("+vacancies")
 
         # Gathering the type of structure
         if self.bulk:
-            props.append("Bulk")
+            props.append("bulk")
         elif self.surface:
-            props.append("Surface")
+            props.append("surface")
         elif self.cluster:
-            props.append("Cluster")
+            props.append("cluster")
 
         repr_str += " ".join(props)
 
-        repr_str += "\n"
-
         # Gathering DFT data
         if self.calc_performed:
+            repr_str += "\n"
             repr_str += f"Obtained with DFT {self.calc_type} calculation:\n"
             repr_str += f"\t - Energy {self.calc_energy}\n"
             repr_str += f"\t - Free energy {self.calc_energy_toten}\n"
@@ -264,6 +302,7 @@ class Structure:
                 "calc_performed": self.calc_performed,
                 "calc_type": self.calc_type,
                 "calc_output": self.calc_output,
+                "vacancy": self.vacancy,
             }
         )
         bool_columns = {
@@ -274,6 +313,7 @@ class Structure:
             "cluster": bool,
             "calc_performed": bool,
             "replacement": bool,
+            "vacancy": bool,
         }
         new_row = new_row.to_frame().T.astype(bool_columns)
 
@@ -281,7 +321,8 @@ class Structure:
 
         struct_df = db_obj.df if is_InitialDatabase else db_obj
 
-        struct_df.fillna(value=False, inplace=True)
+        with pd.option_context("future.no_silent_downcasting", True):
+            struct_df = struct_df.fillna(value=False).infer_objects(copy=False)
         struct_df = struct_df.astype(bool_columns)
 
         if struct_df.shape[0] == 0:
@@ -296,13 +337,39 @@ class Structure:
 
         return db_obj
 
+    @deprecated(reason="Use to_bulk/to_surface/to_cluster instead.", since_ver="0.6.2")
     def from_mdb_structure(
         self,
         mdb_structure,
-        surface_miller=None,
         new_structure=None,
         material_name=None,
     ):
+        """
+        Convert a structure from the Structure to a different type.
+
+        Note
+        ----------
+        This function is deprecated and will be removed in a future version.
+
+        Use `to_bulk`/`to_surface`/`to_cluster` instead.
+
+        Deprecated since version `0.6.2`.
+
+
+        Parameters
+        ----------
+        mdb_structure : Structure
+            The structure to be converted.
+        new_structure : Structure, optional
+            Either do the conversion in place or use a new structure, by default None.
+        material_name : str, optional
+            New name to give to the structure, by default None.
+
+        Returns
+        -------
+        Bulk, Surface, Cluster
+            The converted structure.
+        """
         if material_name:
             self.material_name = material_name
         else:
@@ -317,6 +384,7 @@ class Structure:
         self.phase = mdb_structure.phase
         self.base = mdb_structure.base
         self.perturb = mdb_structure.perturb
+        self.vacancy = mdb_structure.vacancy
         self.supercell = mdb_structure.supercell
         self.surface = mdb_structure.surface
         self.cluster = mdb_structure.cluster
@@ -334,9 +402,19 @@ class Structure:
         self.calc_output = mdb_structure.calc_output
         self.energy_per_atom = mdb_structure.energy_per_atom
 
-        if self.surface:
-            self.surface_miller = surface_miller
-            self.bulk = mdb_structure.surface
+        if mdb_structure.bulk:
+            self.bulk = True
+            self.surface = False
+            self.cluster = False
+        elif mdb_structure.surface:
+            self.surface_miller = mdb_structure.surface_miller
+            self.surface = True
+            self.bulk = False
+            self.cluster = False
+        elif mdb_structure.cluster:
+            self.cluster = True
+            self.bulk = False
+            self.surface = False
 
         return self
 
@@ -352,6 +430,8 @@ class Bulk(Structure):
 
         # Setting the bulk property as True.
         self.bulk = True
+        self.surface = False
+        self.cluster = False
 
 
 class Surface(Structure):
@@ -359,12 +439,20 @@ class Surface(Structure):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # Setting the surface property as True.
         self.surface = True
+        self.cluster = False
+        self.bulk = False
 
 
 class Cluster(Structure):
     """Class for cluster structures."""
 
-    def __init__(self, cluster=True, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.cluster = cluster
+
+        # Setting the cluster property as True.
+        self.cluster = True
+        self.surface = False
+        self.bulk = False

@@ -20,38 +20,45 @@ MatDBForge is a Python library that enables the generation of chemical structure
 
 To install MatDBForge, you can use pip in a python virtual environment or conda environment. Any python versions above `python3.9` should work. Most development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
-First, create a virtual environment and activate it:
+1. First, **create a virtual environment** and activate it:
 
 ```bash
-# Create and activate the environment
+# Using python venv - create and activate the environment
 python3.11 -m venv mdb
 source mdb/bin/activate
 ```
 
-Next, clone the repository:
+2. Next,**clone the repository**:
 
 ```bash
 # Clone the reposittory
 git clone https://github.com/pol-sb/MatDBForge.git
 ```
 
-Next, install the library using pip in the desired python environment:
+3. Next, **install the library** using pip in the desired python environment:
 
 ```shell
-# Install the library using pip
+# Install the library in the venv using pip
 python3 -m pip install MatDBForge
 ```
 
-Finally, initialize configuration files by running the initial configuration command. Then, enter your [Materials Project API key](https://next-gen.materialsproject.org/api) in the path displayed in the output to finish the setup process:
+4. Finally, initialize configuration files by running the **initial configuration command** (`mdb_init_setup`). Then, enter your [Materials Project API key](https://next-gen.materialsproject.org/api) in the path displayed in the output to finish the setup process:
 
 ```shell
-# Run the last setup step
+# Run the last setup step - configuration initialization
 mdb_init_setup
 ```
 
-The active learning (AL) loop uses the [AiiDA](https://github.com/aiidateam/aiida-core) library for managing the workflow. In order to run the AL loop in compute clusters, codes and computers must be conifigured in AiiDA.
+> [!NOTE]
+> If the user is only interested in database generation, the setup can be completed only up until this point, skipping the AiiDA setup.
 
-DFT calculations with VASP use the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin, which needs additional configuration. Please, follow the [instructions on their website](https://aiida-vasp.readthedocs.io/en/latest/getting_started/general.html).
+The **active learning (AL)** loop uses the [AiiDA](https://github.com/aiidateam/aiida-core) library for managing the workflow. In order to run the AL loop in compute clusters, codes and computers must be conifigured in AiiDA. See the [AiiDA installation guide](https://aiida.readthedocs.io/projects/aiida-core/en/stable/installation/guide_quick.html) for installation instructions. DFT calculations with VASP use the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin, which needs additional configuration. Please, follow the [instructions on their website](https://aiida-vasp.readthedocs.io/en/latest/getting_started/general.html).
+
+The steps required to set up the active learning loop with the simplest AiiDA configuration are the following:
+
+1. Set up an aiida profile and database with `verdi presto`.
+2. Create the AiiDA computer and code entries for MatDBForge and aiida-vasp.
+3. Add the potential datasets for aiida-vasp ([information here](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html)).
 
 ## Usage
 
@@ -59,7 +66,8 @@ The goal of this library is to provide workflows, functions and utilities for st
 
 During the library installation, several entry points will be added so that the user can easily run the different utilities:
 
-- `mdb_conf_gen`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
+- `mdb_init_setup`: Run initial configuration steps after installing MatDBForge.
+- `mdb_gen_configuration_file`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
 - `mdb_gen_init_db`: Generate a database containing structures for NNP training.
 - `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
 - `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
@@ -67,9 +75,9 @@ During the library installation, several entry points will be added so that the 
 All of the entry points provide usage documentation when launched with the `-h`/`--help` argument, e.g.:
 
 ```bash
-$> mdb_conf_gen --help
+$> mdb_gen_configuration_file --help
 
->>> usage: gen_default_config [-h] -t TYPE [-p PATH] [-o]
+>>> usage:  mdb_gen_configuration_file [-h] -t TYPE [-p PATH] [-o]
 >>>
 >>> Generate MDB default configuration files in the TOML format.
 >>>
@@ -87,7 +95,7 @@ $> mdb_conf_gen --help
                         Whether to overwrite the destination file, if existent.
 ```
 
-The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `mdb_conf_gen` to generate a template file which can be customized.
+The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `mdb_gen_configuration_file` to generate a template file which can be customized.
 
 A description of all the possible parameters is available in the documentation for the input files: [Input](./docs/input.md).
 
@@ -97,11 +105,11 @@ This example will showcase the training of a MACE potential in a pure Cu databas
 
 ### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `mdb_conf_gen` command to generate a template file with instructions that can be customized easily. Available options are listed and described here: [./docs/input.md](./docs/input.md#database-generation)
+In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `mdb_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](./docs/input.md#database-generation)
 
 ```bash
 # Generate a configuration file for the database generation.
-mdb_conf_gen -t initial_db
+mdb_gen_configuration_file -t initial_db
 ```
 
 After performing any desired changes to the created configuration file, a database can be generated using the `mdb_gen_init_db` with the path to the configuration file:
@@ -130,18 +138,20 @@ mace_eval_configs  --configs ./unlabelled_db.xyz  --model /model/path cu_model_z
 Generate a settings file, customize it using [the options here](./docs/input.md#active-learning-loop) and run the active learning loop:
 
 ```bash
-# Generate a template file
-mdb_conf_gen -t active_learning
+# Generate a template file for active learning
+mdb_gen_configuration_file -t active_learning
 
 # Run the active learning loop, piping its outputs to a file.
-# Without the '-c', the program will search for the 'active_learning_settings.toml'
+# Without the '-c' option, the program will search for the 'active_learning_settings.toml'
 # in the current directory
+# The gui subcommand will launch a gui interface in the localhost, which can be
+# viewed in a browser.
 mdb_active_learning gui --n_sec 60 2>&1 | tee ./run_mdb_al.log
 ```
 
 The progress of the AL Loop can be monitored by checking its output, or opening the dashboard running at <http://127.0.0.1:8000>.
 
-After the loop is done, a database in the extxyz format and a model file for the potential will be returned.
+After the active learning procedure is completed, a database in the extxyz format and a model file for the potential will be returned.
 
 ## Package structure
 

@@ -1,49 +1,49 @@
 # Active Learning Settings
 [active_learning]
 
-# Name of the aiida profile to be used
+# (str) Name of the aiida profile to be used
 aiida_profile = ""
 
-# Internal name for the run
+# (str) Internal name for the run
 run_name = ""
 
-# Path to the folder where the initial database is contained.
+# (str) Path to the folder where the initial database is contained.
 data_path = ""
 
-# Path to the folder where the initial database is contained.
+# (str) Path to the folder where the initial database is contained.
 init_db_path = ""
 
-# Path for final results. Will be created if not existent.
+# (str) Path for final results. Will be created if not existent.
 # It will contain a folder named run_{uuid}.
 results_dir = ""
 
-# Path for the log file.
+# (optional, str) Path for the log file.
 # Defaults to 'mdb_<PK>_<DATETIME>.log in the result dir if not specified.
 log_path = ""
 
-# Name for the final database
+# (str) Name for the final database
 # The database will be stored in the extxyz format
 final_db_name = "final_data_test"
 
-# Maximum number of AL loop iterations.
+# (int) Maximum number of AL loop iterations.
 max_iterations = 3
 
-# Multiplier for model accuracy. Loosens model accuracy threshold.
+# (float) Multiplier for model accuracy. Loosens model accuracy threshold.
 # Tighter thresholds (lower values) will result in more DFT calculations.
 # Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
 model_acc_multiplier = 10
 
-# Every how many ps of MD simulation keep a structure. 
+# (int) Every how many ps of MD simulation keep a structure. 
 # Influences the total number of energy evaluations and possibly DFT calculations.
 al_keep_struct_every_n_ps = 1
 
-# Whether to check for extrapolation using the MACE descriptors
+# (bool) Whether to check for extrapolation using the MACE descriptors
 check_extrapolation = true
 
-# Selection of DFT calculator.
+# (str) Selection of DFT calculator.
 dft_method = "vasp" # Options: "vasp", "mace"
 
-# Load initial models from several aiida uuids/pk.
+# (optional, list[int]) Load initial models from several aiida uuids/pk.
 load_init_models = []
 
 ###############################################
@@ -51,26 +51,31 @@ load_init_models = []
 # AL seed generation settings
 [al_seed]
 
-# Sets total structures in AL seed as a function of the training db size.
+# (float) Sets total structures in AL seed as a function of the training db size.
 # This influences the amount of MD calculations and E F evaluations.
 seed_size_frac = 0.01
 
-# Maximum number of structures in the MD seed.
+# (int) Maximum number of structures in the MD seed.
 seed_max_num_structs = 500
+
+# (optional, bool) Whether to delete structures from the seed database
+# even if they are in domain.
+# default: true
+delete_seed_structs = true
 
 
 [al_seed.seed_select_settings]
 
-# MD seed selection mode.
-# `random` selects random structures from the seed pool.
-# `small_first` selects random structures smaller than small_first_max_size
-# for the first small_first_max_iter iters.
+# (str) MD seed selection mode.
+# - `random` selects random structures from the seed pool.
+# - `small_first` selects random structures smaller than small_first_max_size
+#   for the first small_first_max_iter iters.
 seed_select_type = "random" # random (default) / small_first
 
-# Maximum size in number of atoms for the structures selected with small_first mode
+# (int) Maximum size in number of atoms for the structures selected with small_first mode
 small_first_max_size = 50
 
-# Apply small_first mode for the first n iterations
+# (int) Apply small_first mode for the first n iterations
 small_first_max_iter = 5
 
 ###############################################
@@ -78,36 +83,47 @@ small_first_max_iter = 5
 # Settings for MD simulations using LAMMPS
 [md]
 [md.parameters]
-# List of different temperatures (in K) to be used for the MD simulations.
+
+# (list[float]) List of different temperatures (in K) to be used for the MD simulations.
 temperature_list_K = [300.0, 500.0, 900.0]
 
-# Multiplier for the user-specified MD temperature to determine the upper 
+# (float) Multiplier for the user-specified MD temperature to determine the upper 
 # bound of the temperature at the end of the simulation run. 
 # Set to 1 to ensure the multiplier has no effect.
 max_temp_multiplier = 1.3
 
-# Total number of timesteps for each MD simulations
+# (int) Total number of timesteps for each MD simulations
 num_steps = 1000
 
-# Duration of each timestep (in ps).
+# (int) Duration of each timestep (in ps).
 timestep_duration_ps = 0.003
 
-# Consider constant lattice when gathering trajectories
+# (bool) Consider constant lattice when gathering trajectories
 gather_traj_cnt_lattice = true
 
-# Whether to use kokkos to run the MD
+# (bool) Whether to use kokkos to run the MD
 use_kokkos = true
 
+
+# Specific settings for the neighbor check MD filter.
 [md.filters]
+
+# (bool) Check for structures that have atoms with no neighbors.
+# WARNING: only use when dealing with bulks, surfaces or clusters
+# that have no adsorbed molecules.
 check_atoms_no_neighbor = true
 
+
+# Specific settings for the layer distance MD filter.
 [md.filters.layer_distance]
+
+# (float) Maximum accepted distance between layers (in Angstrom).
 max_layer_distance_ang = 3.5
 
 # AiiDA options for the MD code to be used (only LAMMPS-MACE for now)
 [md.queue]
 
-# AiiDA code name for MD software to be used
+# (str) AiiDA code name for MD software to be used
 code = "mace-lammps-gpu@tekla2-updated-2024"
 
 # AiiDA scheduler options for MD
@@ -124,11 +140,11 @@ metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
 # Committee Evaluation Settings (MACE)
 [committee_eval]
 
-# Total number of MACE models. 
+# (int) Total number of MACE models.
 # Increases resources necessary for training.
 committee_num_models = 4
 
-# Number of OpenMP threads to be used for MACE CPU evaluation.
+# (int) Number of OpenMP threads to be used for MACE CPU evaluation.
 openmp_threads = 8
 
 # prepend text for the PortableCode
@@ -136,9 +152,9 @@ prepend_text = """"""
 
 # Settings for MACE evaluator
 [committee_eval.mace]
-device = "cuda"           # cpu, cuda
-default_dtype = "float32" # float32, float64
-batch_size = 64
+device = "cuda"           # cpu / cuda
+default_dtype = "float32" # float32 / float64
+batch_size = 64           # (int)
 compute_stress = true     # whether or not to compute stress (true/false)
 
 # AiiDA scheduler options for MACE Evaluations

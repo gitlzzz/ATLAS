@@ -2,11 +2,15 @@
 
 import argparse
 import pathlib as pl
+import sys
 import time
 import warnings
 from argparse import RawTextHelpFormatter
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 warnings.filterwarnings("ignore")
 
@@ -69,6 +73,12 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.seed_select_settings = toml_dict["al_seed"][
         "seed_select_settings"
     ]
+
+    # Delete structures from MD seed if they are well represented
+    # Default is True
+    builder.active_learning.delete_seed_structs = toml_dict.get("al_seed", {}).get(
+        "delete_seed_structs", True
+    )
 
     builder.active_learning.committee_num_models = int(
         toml_dict["committee_eval"]["committee_num_models"]
@@ -193,7 +203,7 @@ def run_active_learning():
     # Loading TOML config file
     try:
         with open(args.config_file, "rb") as f:
-            toml_dict = tomli.load(f)
+            toml_dict = tomllib.load(f)
     except FileNotFoundError as e:
         error_message = (
             f"The config file '{args.config_file}' does not exist. "

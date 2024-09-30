@@ -10,6 +10,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 from ase import Atoms, visualize
+from ase.io import read as ase_read
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from pymatgen.core import Structure
@@ -60,7 +61,6 @@ def init_config_dir(config_dir):
 
 def init_logger(source, log_path=None):
     logger = logging.getLogger("mdb")
-    # logger.levels
     logger.setLevel(logging.DEBUG)
 
     # Console logger
@@ -77,7 +77,7 @@ def init_logger(source, log_path=None):
         log_filename = pathlib.Path(filename + ".log").stem
         filename = log_path_dir / log_filename
 
-    fh = logging.FileHandler(filename=filename)
+    fh = logging.FileHandler(filename=filename, mode="a+")
     fh.setLevel(logging.DEBUG)
     formatter_fil = logging.Formatter("%(asctime)s - %(levelname)s - %(shortmsg)s")
     fh.setFormatter(formatter_fil)
@@ -138,7 +138,12 @@ def clear_previous_print():
 
 def gather_secrets():
     """
-    Gather Materials project API key from a secret.json file.
+    Gather Materials project API key from file/env var.
+
+    The API key can be gathered from a secrets.json file that can
+    be placed in the config directory or in the current working
+    directory. If the file is not found, the function will check
+    for an environment variable named 'MP_API_KEY'.
 
     Notes
     -----
@@ -164,10 +169,14 @@ def gather_secrets():
         path = pathlib.Path(config_path, "secrets.json")
         with open(path) as f:
             secrets = js.load(f)
+    elif os.environ.get("MP_API_KEY"):
+        secrets = {"API_KEY": os.environ.get("MP_API_KEY")}
 
     else:
         raise FileNotFoundError(
-            "'secrets.json' not found!\nPlease, add a 'secrets.json' file in the"
+            "'secrets.json' not found!\n"
+            "Please, run `mdb_init_setup`, set the `MP_API_KEY`"
+            " environment variable, or add a 'secrets.json' file in the"
             f" following directory: '{config_path}'. "
         )
         secrets = None
@@ -193,9 +202,12 @@ def check_incorrect_ratios(df, curr_phase_diag):
             )
 
             # Checking the total atom number
-            assert tot_cu + tot_zn == tot_atoms, f"""Total count does not match.
-            tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}.
-            Species: {set(strct.species)}"""
+            if tot_cu + tot_zn != tot_atoms:
+                raise ValueError(
+                    "Total count does not match."
+                    f" tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}."
+                    f" Species: {set(strct.species)}"
+                )
 
             perc = round(tot_zn / tot_atoms, 2)
 
@@ -616,21 +628,22 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             phase=row.phase,
             perturb=True,
         )
-    perturb_struct = mdb_struct.Cluster(
-        material_name=mat_str,
-        structure=new_struct_perturb,
-        replacement_ind=row.replacement_ind,
-        phase=row.phase,
-        perturb=True,
-    )
+    elif row.cluster:
+        perturb_struct = mdb_struct.Cluster(
+            material_name=mat_str,
+            structure=new_struct_perturb,
+            replacement_ind=row.replacement_ind,
+            phase=row.phase,
+            perturb=True,
+        )
     return perturb_struct
 
 
 def apply_gauss_perturb_db(
     repeat: int,
-    db_obj,
+    db_obj: "mdb_indb.InitialDatabase",
     filters: list,
-    phase,
+    phase: mdb_pd.Phase,
     center: float = 0.04,
     limit_num_structures: int = None,
 ):
@@ -661,16 +674,130 @@ def apply_gauss_perturb_db(
 
     if limit_num_structures:
         custom_print(
-            f"Limiting number of structures to  {limit_num_structures}", "debug"
+            f"Limiting number of perturbations to  {limit_num_structures}", "debug"
         )
+
+        limit_num_structures = np.min([limit_num_structures, len(perturbed_structs)])
+
         perturbed_structs = np.random.choice(
             perturbed_structs, limit_num_structures, replace=False
         )
 
     # Saving in database
-    custom_print("Saving perturbed surfstructsaces in dataframe", "debug")
+    custom_print("Saving perturbed surfaces in dataframe...", "debug")
     for surface in perturbed_structs:
         db_obj._save_row(structure=surface)
     custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
 
     return perturbed_structs
+
+
+def add_adsorbates(
+    repeat: int,
+    db_obj: "mdb_indb.InitialDatabase",
+    filters: list,
+    phase: mdb_pd.Phase,
+    adsorbate_species: list[str],
+    limit_num_structures: int = None,
+):
+    from acat.build.adlayer import RandomPatternGenerator as RPG
+    from acat.settings import site_heights
+
+    # Create temporary file to store the trajectory using tmpfile
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".traj").name
+
+    adsorb_structs = []
+
+    if not isinstance(db_obj, mdb_indb.InitialDatabase):
+        raise TypeError(
+            f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
+            f"database object, not a {type(db_obj)}."
+        )
+
+    # Filtering structures to perturb
+    filtered_df, _, _ = apply_filters_db(db_obj, filters, phase)
+
+    # Iterating over all filtered database rows to get desired surfaces
+    custom_print(
+        f"Perturbation will be applied to: {filtered_df.shape[0]} structures.", "debug"
+    )
+    for _, row in filtered_df.iterrows():
+        struct = row.structure
+        if not isinstance(row.structure, Atoms):
+            struct = AseAtomsAdaptor().get_atoms(row.structure)
+
+        print("struct: ", type(struct))
+        # Add more heights to the CHOO*
+        heights = {k: v + 0.5 for k, v in site_heights.items()}
+
+        # TODO: Change surface to the correct one
+        for spec in adsorbate_species:
+            gen = RPG(
+                images=struct,
+                adsorbate_species=spec,
+                min_adsorbate_distance=1.5,
+                surface="fcc111",
+                heights=heights,
+                # species_forbidden_sites={'CHOO': ['ontop','bridge']},
+                trajectory=tmp_file,
+            )
+            gen.run(num_gen=repeat, action="add", num_act=5)
+            atoms = ase_read(tmp_file)
+            adsorb_structs.append(atoms)
+            visualize(atoms)
+
+    if limit_num_structures:
+        custom_print(
+            f"Limiting number of structures to  {limit_num_structures}", "debug"
+        )
+
+        limit_num_structures = np.min([limit_num_structures, len(adsorb_structs)])
+
+        adsorb_structs = np.random.choice(
+            adsorb_structs, limit_num_structures, replace=False
+        )
+
+    # Saving in database
+    custom_print("Saving surfaces with adsorbates in dataframe...", "debug")
+    for surface in adsorb_structs:
+        db_obj._save_row(structure=surface)
+    custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
+
+    # Deleting temporary file
+    os.remove(tmp_file)
+
+    return adsorb_structs
+
+
+def fix_bottom_layers(structure: Structure, n_layers: int) -> Structure:
+    """
+    Fixes the bottom n layers of a pymatgen Structure by setting the selective
+    dynamics to False for the atoms in those layers.
+
+    Parameters
+    ----------
+    structure : pymatgen.core.Structure
+        The structure to modify.
+    n_layers : int
+        The number of bottom layers to fix.
+
+    Returns
+    -------
+    Structure
+        A new Structure object with selective dynamics updated.
+    """
+    sorted_indices = sorted(range(len(structure)), key=lambda i: structure[i].z)
+    bottom_indices = sorted_indices[:n_layers]
+
+    # Set selective dynamics, fixing bottom layers
+    selective_dynamics = [[True, True, True]] * len(structure)
+    for idx in bottom_indices:
+        selective_dynamics[idx] = [False, False, False]
+
+    structure_with_constraints = structure.copy()
+    structure_with_constraints.add_site_property(
+        "selective_dynamics", selective_dynamics
+    )
+
+    print("structure_with_constraints: ", structure_with_constraints.site_properties)
+    return structure_with_constraints

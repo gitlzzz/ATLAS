@@ -81,10 +81,6 @@ def adjust_vacuum(db_obj, slab: Slab, vacuum_size: float) -> Slab:
 
     # Computing the difference between the correct slab
     diff = vec_c - corr_slab_size
-    # print('vec_c: ', vec_c)
-    # print('top layer: ', z_axis_max)
-    # print('calculated distance:',vec_c-z_axis_max)
-    # print('corr_slab_size: ', corr_slab_size)
 
     # Changing the 'c' vector
     if current_vacuum_size > vacuum_size:
@@ -229,7 +225,7 @@ def get_miller_index_str(miller_source):
     return curr_miller
 
 
-def gene_surfaces_diff_miller(
+def gen_surfaces_diff_miller(
     db_obj: "mdb_indb.InitialDatabase",
     phase: mdb_pd.Phase,
     # num_diff_layer_size: int,
@@ -238,13 +234,18 @@ def gene_surfaces_diff_miller(
     min_slab_size: float = 6,
     min_vacuum_size: float = 10,
     get_supercells=False,
-    # fixed_layers: int = 0,
+    num_replacements: int = 5,
+    fixed_layers: int = 0,
     min_num_atoms: int = 12,
     overwrite_max_num_atoms: int = None,
     # limit_per_phase: int = None,
-    limit_supercell: int = None,
+    limit_supercell: int = 0,
     save_in_db=False,
+    rng_seed: int = 42,
 ):
+    # Instantiating RNG
+    rng = np.random.default_rng(seed=rng_seed)
+
     # Getting the current phase from the phase name.
     if isinstance(phase, str):
         phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
@@ -287,6 +288,8 @@ def gene_surfaces_diff_miller(
                 total_slabs.append((slab_to_bottom(slab=slab), miller))
 
         generated_structures = []
+        fix_layers_warn = True
+
         # Storing the remaining slabs.
         for idx, (slab, mill) in enumerate(total_slabs):
             # Getting the current slab's miller index
@@ -297,6 +300,16 @@ def gene_surfaces_diff_miller(
                 f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
                 f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
             )
+
+            # Fix the bottom `fixed_layers` number of layers
+            # TODO: Implement this feature and remove warning
+            if fixed_layers and fix_layers_warn:
+                mdb_ut.custom_print(
+                    "`fixed_layers` specified, but not implemented yet.",
+                    "warn",
+                )
+                fix_layers_warn = False
+                # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
 
             # Creating a new surface from the supercell
             curr_strct = mdb_struct.Surface(
@@ -312,7 +325,7 @@ def gene_surfaces_diff_miller(
             )
 
             # Saving the surface to the db.
-            db_obj.df = curr_strct.save_to_db(db_obj.df)
+            # db_obj.df = curr_strct.save_to_db(db_obj.df)
             generated_structures.append(curr_strct)
 
         # Getting supercells
@@ -356,38 +369,95 @@ def gene_surfaces_diff_miller(
 
                         supercell_list.append(curr_strct)
 
-            # Limiting the number of generated supercells to
-            # the supercell limit.
-            mdb_ut.custom_print(
-                f"Length of the supercell list: {len(supercell_list)}", "debug"
-            )
-            if len(supercell_list) > limit_supercell:
-                mdb_ut.custom_print(
-                    (
-                        f"Limiting the number of supercells ({len(supercell_list)})"
-                        f" to {limit_supercell}."
-                    ),
-                    "debug",
+    for structure_obj, supr_idx in zip(supercell_list, idx_list):
+        structure = structure_obj.structure
+
+        # Replacing some atoms using symmetry
+        structure = db_obj._create_symmetrical_prototype(
+            structure=structure, phase=phase, structure_obj=structure_obj
+        )
+        # Preparing an array of randomly generated base elem percentages
+        # for the new structures
+        subst_base_elem_perc = db_obj._gen_base_elem_perc(phase, num_replacements)
+
+        # Choosing the amount of atoms to replace with the base element in the
+        # struct which at this point will be completely replaced by atoms
+        # of the remaining species of the alloy.
+        # n_at_replacement = [
+        #     int(round(structure_len * stct, 0)) for stct in subst_base_elem_perc
+        # ]
+
+        # Attempting to fix any percentages outside of the
+        # current phase ratios.
+        # n_at_replacement_upd is a list which contains the
+        # target number of base atoms in the new structure.
+        n_at_replacement_upd = db_obj._fit_replacements_phase(
+            phase, structure, subst_base_elem_perc
+        )
+        # Replacing the atoms and generate 'num_replacements'
+        # structures for each percentage
+        for str_ind, n_atoms in enumerate(n_at_replacement_upd):
+            for repl in range(num_replacements):
+                # Applying the replacement
+                new_structure = db_obj._apply_replacement(
+                    structure, phase, n_atoms, rng
                 )
 
-                supercell_list = np.random.choice(
-                    supercell_list, size=limit_supercell, replace=False
+                # Getting the supercell vector
+                supercell_vec_str = get_miller_index_str(structure_obj.supercell)
+
+                bulk_temp = np.nan
+
+                # Creating a new Bulk object for the structure with replacement
+                new_struct_symm = mdb_struct.Surface(
+                    material_name=f"{row.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
+                    material_id=row.material_id,
+                    structure=new_structure,
+                    temperature=bulk_temp,
+                    perturb=False,
+                    replacement=True,
+                    replacement_ind=(str_ind + 1, repl + 1),
+                    base=False,
+                    cluster=False,
+                    calc_performed=False,
+                    supercell=structure_obj.supercell,
+                    phase=phase,
                 )
+                supercell_list.append(new_struct_symm)
 
-            generated_structures.extend(supercell_list)
+        # Limiting the number of generated supercells to
+        # the supercell limit.
+        # generated_structures.extend(supercell_list)
+        generated_structures = np.concatenate((generated_structures, supercell_list))
 
-        mdb_ut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+        mdb_ut.custom_print(
+            f"Length of the supercell+replacement list: {len(generated_structures)}",
+            "debug",
+        )
 
-        # Saving the structures in the db.
-        if save_in_db:
-            mdb_ut.custom_print("Saving replaced structures in dataframe.", "debug")
-            for slab in generated_structures:
-                slab.save_to_db(db_obj=db_obj)
+        if len(generated_structures) > limit_supercell:
             mdb_ut.custom_print(
-                f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+                (
+                    f"Limiting the number of slabs ({len(generated_structures)})"
+                    f" to {limit_supercell}."
+                ),
+                "debug",
             )
 
-        return generated_structures
+            generated_structures = np.random.choice(
+                generated_structures, size=limit_supercell, replace=False
+            )
+
+    mdb_ut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+
+    # Saving the structures in the db.
+    if save_in_db:
+        mdb_ut.custom_print("Saving replaced structures in dataframe.", "debug")
+        for slab in generated_structures:
+            slab.save_to_db(db_obj=db_obj)
+        mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}", "debug")
+
+    return generated_structures
 
 
 def apply_replacement_surface(
@@ -474,7 +544,7 @@ def apply_replacement_surface(
 
     # Limiting the number of replaced surfaces
     if limit_replacements and len(replacement_list) > limit_replacements:
-        replacement_list = np.random.choice(
+        replacement_list = rng.choice(
             replacement_list, size=limit_replacements, replace=False
         )
 

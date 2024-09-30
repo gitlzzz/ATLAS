@@ -2,11 +2,21 @@
 
 import argparse
 import pathlib as pl
+import sys
 from argparse import RawTextHelpFormatter
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
+import warnings
 
 from MatDBForge.core.command_line.command_line_utils import parse_input_toml
+from MatDBForge.core.initial_db import cli_run_gen_initial_database
+
+# TODO: Remove this once the deprecation warnings are fixed
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="spglib")
 
 
 def gen_initial_database(config_dict: dict):
@@ -26,16 +36,16 @@ def gen_initial_database(config_dict: dict):
     parse_input_toml(toml_dict=config_dict, type="generate_database")
 
     # Extract parameters from toml
-    sys_dict = config_dict["system"]
-    db_path = sys_dict["final_database_path"]
+    database_dict = config_dict["database"]
+    db_path = database_dict["database_path"]
     phase_diagram_dict = config_dict["phase_diagram"]
     gen_dict = config_dict["generation"]
     selected_phases = list(phase_diagram_dict["phase"].keys())
 
-    # Gnerating the database
-    run_gen_initial_database(
+    # Generating the database
+    cli_run_gen_initial_database(
         db_path,
-        sys_dict,
+        database_dict,
         phase_diagram_dict,
         gen_dict,
         selected_phases,
@@ -68,7 +78,7 @@ def run_gen_initial_database():
     # Loading TOML config file
     try:
         with open(args.config_file, "rb") as f:
-            toml_dict = tomli.load(f)
+            toml_dict = tomllib.load(f)
     except FileNotFoundError as e:
         error_message = (
             f"The config file '{args.config_file}' does not exist. "

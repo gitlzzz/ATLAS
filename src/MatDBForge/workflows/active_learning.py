@@ -68,6 +68,9 @@ class ActiveLearningWorkChain(WorkChain):
             "seed_select_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
         )
         spec.input(
+            "delete_seed_structs", valid_type=orm.Bool, serializer=orm.to_aiida_type
+        )
+        spec.input(
             "committee_num_models", valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
@@ -1471,8 +1474,11 @@ class ActiveLearningWorkChain(WorkChain):
             f"{len(delete_indices)} delete."
         )
 
-        # Deleting well represented structures from seed_gen_db (Ds), if any.
-        if len(delete_indices) > 0:
+        # Deleting well represented structures from seed_gen_db (Ds), if
+        # there are any and the seed deletion is enabled in the configuration
+        # file.
+        delete_seed_structs: bool = self.inputs.delete_seed_structs.value
+        if len(delete_indices) > 0 and delete_seed_structs:
             self.report(
                 f"Deleting {len(delete_indices)} structures from seed"
                 " generating DB (Ds)"
