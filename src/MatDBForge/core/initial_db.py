@@ -44,6 +44,8 @@ from MatDBForge.core import utils as ut
 
 # Filtering certain warnings
 warnings.filterwarnings("ignore", category=vasp.outputs.UnconvergedVASPWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="pymatgen")
+warnings.filterwarnings("ignore", category=FutureWarning, module="pandas")
 
 
 class InitialDatabase:

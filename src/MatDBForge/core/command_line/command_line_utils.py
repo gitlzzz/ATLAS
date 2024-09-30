@@ -5,7 +5,7 @@ import warnings
 
 from MatDBForge.core import exceptions as mdb_exc
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", module="paramiko")
 
 
 MDB_LOGO = """

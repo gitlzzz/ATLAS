@@ -16,7 +16,7 @@ from MatDBForge.core.command_line.command_line_utils import parse_input_toml
 from MatDBForge.core.initial_db import cli_run_gen_initial_database
 
 # TODO: Remove this once the deprecation warnings are fixed
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="spglib")
 
 
 def gen_initial_database(config_dict: dict):

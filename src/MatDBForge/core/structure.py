@@ -1,10 +1,12 @@
 """Module for the Structure class."""
 
+import inspect  # noqa
 import uuid
 
 import pandas as pd
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
+from MatDBForge.core.code_utils import deprecated  # noqa
 
 from MatDBForge.core import initial_db as mdb_indb
 
@@ -287,7 +289,8 @@ class Structure:
 
         struct_df = db_obj.df if is_InitialDatabase else db_obj
 
-        struct_df.fillna(value=False, inplace=True)
+        with pd.option_context("future.no_silent_downcasting", True):
+            struct_df = struct_df.fillna(value=False).infer_objects(copy=False)
         struct_df = struct_df.astype(bool_columns)
 
         if struct_df.shape[0] == 0:
