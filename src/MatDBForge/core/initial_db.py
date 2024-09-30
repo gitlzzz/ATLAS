@@ -1297,8 +1297,8 @@ class InitialDatabase:
         # Saving all the generated supercells as separate bulk structures
         for structure, idxs in zip(structure_list, supercells):
             # Ignore small structures
-            # if len(structure) < num_min_atoms:
-            #     continue
+            if len(structure) < num_min_atoms:
+                continue
 
             # Replacing elements
             if phase.replace_dict.get("replace"):
@@ -1527,7 +1527,6 @@ class InitialDatabase:
         else:
             other_elem = list(self.phase_diagram.alloy_set)[0]
 
-        # TODO: Check if this must be reenabled
         # If the structure only has one type of Element, and that is not the base
         # element, this changes with what to replace.
         if not curr_comp.as_dict().get(base_elem.symbol):
@@ -1593,7 +1592,7 @@ class InitialDatabase:
         supercell_max_idx: int,
         convert_to_base: bool = True,
         read: bool = True,
-        seed: int = 42,
+        seed: int = None,
     ):
         """
         Allows to create several variations of a certain phase
@@ -1630,7 +1629,11 @@ class InitialDatabase:
             More phases could be added there if necessary.
         """
         # Instantiating RNG
+        if not seed:
+            seed = np.random.randint(0, 100000)
+
         rng = np.random.default_rng(seed=seed)
+        ut.custom_print(f"Using RNG seed: {str(seed)}", "debug")
 
         # Getting the prototype structure
         # First, the structure is either gathered from the MP or the initial database,
