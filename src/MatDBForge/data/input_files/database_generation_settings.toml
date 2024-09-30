@@ -26,7 +26,6 @@ relax_struct_path = ""
 database_path = ""
 
 
-
 [database.plot_db]
 # (bool) Display database with phase diagram after creation
 show = true
@@ -145,7 +144,7 @@ num_struct = 25
 # (int) Number of repeats for each structure
 num_repeat = 5
 
-# (int) Minimum Miller index for the bulk supercells
+# (int) Maximum Miller index for the bulk supercells
 supercell_max_idx = 2
 
 
@@ -197,16 +196,19 @@ save_in_db = true
 [displacement]
 
 # (float) Value as a percentage of the lattice side length
-# that will be used as the maximum displacement
+# that will be used as the maximum displacement.
 lattice_frac_displ_max = 0.05
 
 # (float) Value as a percentage of the lattice side length
-# that will be used as the minimum displacement
+# that will be used as the minimum displacement.
 lattice_frac_displ_min = 0.01
 
-# (int) Number of repeats for each structure. 
-# Each repeat will get different random displacements
+# (int) Number of repeats for each structure.
+# Each repeat will get different random displacements.
 num_repeats = 5
+
+# (int) Maximum number of lattice displacements to generate.
+limit_max_num_displacements = 100
 
 
 ############################################
@@ -220,9 +222,9 @@ num_repeats = 5
 filter_struct_types = ['bulk', 'surface']
 
 # (int) Maximum number of perturbations to generate
-limit_max_num_perturbs = 1700
+limit_max_num_perturbs = 100
 
-# (int) Number of repeats for each structure. 
+# (int) Number of repeats for each structure.
 # Each repeat will get different random perturbations.
 num_repeats = 7
 
@@ -240,7 +242,7 @@ filter_struct_types = ['surface']
 # (int) Maximum number of perturbations to generate
 limit_max_num_perturbs = 1700
 
-# (int) Number of repeats for each structure. 
+# (int) Number of repeats for each structure.
 # Each repeat will get different random perturbations.
 num_repeats = 7
 
@@ -258,10 +260,10 @@ adsorbate_species = ["H", "H2O"]
 [vacancies]
 
 # Only apply the perturbation to the following types of structures
-# valid types: 'bulk', 'surface', 'cluster'
+# valid types: 'bulk', 'surface', 'cluster'.
 filter_struct_types = ['bulk', 'surface']
 
-# (int) Maximum number of structures with vacancies to generate
+# (int) Maximum number of structures with vacancies to generate.
 limit_max_num_vacancies = 200
 
 # (int) Number of repeats for each structure.
@@ -269,9 +271,9 @@ limit_max_num_vacancies = 200
 num_repeats = 3
 
 # (float) Max vacancies to generate as a percentage of the total number of atoms
-# The actual number will be selected randomly between the min and max values
+# The actual number will be selected randomly between the min and max values.
 max_vacancy_percentage = 0.075
 
 # (float) Min vacancies to generate as a percentage of the total number of atoms
-# The actual number will be selected randomly between the min and max values
+# The actual number will be selected randomly between the min and max values.
 min_vacancy_percentage = 0.025
