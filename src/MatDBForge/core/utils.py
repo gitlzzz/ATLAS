@@ -588,10 +588,14 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
 
     # Getting the current phase structures
     # In order to access a method from an object saved in a df, we need to do a
-    # list comprehension, like the following:
-    filtered_df = filtered_df.iloc[
-        [idx for idx, val in enumerate(filtered_df["phase"]) if val.name in phase_list]
-    ]
+    # check like the following:
+    idxs_list = []
+    for idx, val in enumerate(filtered_df["phase"]):
+        name = val if isinstance(val, str) else val.name
+        if name in phase_list:
+            idxs_list.append(idx)
+
+    filtered_df = filtered_df.iloc[idxs_list]
 
     # Getting the remaining structures after selecting the phase
     remaining_df = remaining_df.loc[remaining_df.index.difference(filtered_df.index)]
