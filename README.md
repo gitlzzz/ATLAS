@@ -20,15 +20,18 @@ MatDBForge is a Python library that enables the generation of chemical structure
 
 To install MatDBForge, you can use pip in a python virtual environment or conda environment. Any python versions above `python3.9` should work. Most development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
-1. First, **create a virtual environment** and activate it:
+1. First, **create a virtual environment** and activate it. This can be done using `conda` or python `venv`. One example for an ubuntu system, using python3.11 and venv:
 
 ```bash
+# Install python3.11 and venv
+sudo apt install python3.11 python3.11-venv
+
 # Using python venv - create and activate the environment
-python3.11 -m venv mdb
+python3 -m venv mdb
 source mdb/bin/activate
 ```
 
-2. Next,**clone the repository**:
+2. Next, **clone the repository**:
 
 ```bash
 # Clone the reposittory
@@ -39,7 +42,7 @@ git clone https://github.com/pol-sb/MatDBForge.git
 
 ```shell
 # Install the library in the venv using pip
-python3 -m pip install MatDBForge
+python3 -m pip install ./MatDBForge
 ```
 
 4. Finally, initialize configuration files by running the **initial configuration command** (`mdb_init_setup`). Then, enter your [Materials Project API key](https://next-gen.materialsproject.org/api) in the path displayed in the output to finish the setup process:

@@ -31,7 +31,7 @@ from pymatgen.core.structure import Structure
 from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from rich import print
+from rich import print as rprint
 from rich.panel import Panel
 from rich.pretty import Pretty
 from slugify import slugify
@@ -924,6 +924,7 @@ class InitialDatabase:
         filters: list,
         seed: int,
         repeat=2,
+        element_list: list = None,
         max_vac_perc: float = 0.75,
         min_vac_perc: float = 0.25,
         lim_num_struc: int = 100,
@@ -949,6 +950,15 @@ class InitialDatabase:
                 curr_phase = self.phase_diagram.get_phase(entry.phase)
             else:
                 curr_phase = entry.phase
+
+            # If element_list is given, get the indices from the atoms in the
+            # structure that match atoms in the element_list
+            available_sites = []
+            if element_list:
+                for symbol in element_list:
+                    idxs = entry.structure.indices_from_symbol(symbol)
+                    available_sites.extend(idxs)
+
             # Applying repeat times
             for vac_idx in range(repeat):
                 # Getting random vacancy percentage
@@ -956,8 +966,8 @@ class InitialDatabase:
 
                 # Getting random indices for the vacancies
                 vac_indices = rng.choice(
-                    entry.structure.num_sites,
-                    size=int(vac_perc * entry.structure.num_sites),
+                    available_sites,
+                    size=int(vac_perc * len(available_sites)),
                     replace=False,
                 )
 
@@ -2626,6 +2636,7 @@ def cli_run_gen_initial_database(
             lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
             repeat=int(vacancies_dict["num_repeats"]),
             seed=rng_seed,
+            element_list=vacancies_dict["element_list"],
         )
 
         ut.custom_print(structures, "info")
@@ -2654,10 +2665,12 @@ def cli_run_gen_initial_database(
     )
 
     # Generating report with database composition
+    # Print using rich
     report = structures.gen_report()
     pretty = Pretty(report)
     panel = Panel(pretty, title="Database report")
-    print(panel)
+    rprint(panel)
+    ut.custom_print(f"Database report generated:\n{report}", "debug")
 
     # Plot the database if requested
     if db_dict.get("plot_db", {}).get("show"):
