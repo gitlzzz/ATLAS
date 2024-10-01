@@ -31,6 +31,9 @@ from pymatgen.core.structure import Structure
 from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from rich import print
+from rich.panel import Panel
+from rich.pretty import Pretty
 from slugify import slugify
 
 import MatDBForge as mdb
@@ -218,6 +221,79 @@ class InitialDatabase:
 
         ut.custom_print(f"Loaded '{self.database_name}{suffix}'", "info")
         ut.custom_print(f"Path: {db_path}", "debug")
+
+    def gen_report(self) -> str:
+        """
+        Generate a report containing the database information.
+
+        Returns
+        -------
+        str
+            String containing the database information.
+        """
+        ut.custom_print(f"Generating report for '{self.database_name}'...", "info")
+
+        # Getting the amount of entries in the database
+        count = len(self.df.count(axis=1))
+
+        # Getting the database name
+        db_name = self.database_name
+
+        # Getting the database path
+        db_path = self.database_path
+
+        # Getting the database version
+        db_version = self.db_version
+
+        # Getting the maximum number of atoms
+        max_atoms = self.max_num_atoms
+
+        struct_info_dict = {
+            "structure_count": {
+                "bulk": 0,
+                "base": 0,
+                "surface": 0,
+                "cluster": 0,
+                "perturb": 0,
+                "vacancy": 0,
+            }
+        }
+
+        for phase in self.phase_diagram.phases:
+            struct_info_dict["structure_count"][phase.name] = 0
+
+        for struct in self.df.iterrows():
+            if struct[1].bulk:
+                struct_info_dict["structure_count"]["bulk"] += 1
+            if struct[1].base:
+                struct_info_dict["structure_count"]["base"] += 1
+            if struct[1].surface:
+                struct_info_dict["structure_count"]["surface"] += 1
+            if struct[1].cluster:
+                struct_info_dict["structure_count"]["cluster"] += 1
+            if struct[1].perturb:
+                struct_info_dict["structure_count"]["perturb"] += 1
+            if struct[1].vacancy:
+                struct_info_dict["structure_count"]["vacancy"] += 1
+
+            if isinstance(struct[1].phase, str):
+                struct_info_dict["structure_count"][struct[1].phase] += 1
+            else:
+                struct_info_dict["structure_count"][struct[1].phase.name] += 1
+
+        # Adding database info
+        struct_info_dict.update(
+            {
+                "database_settings": {
+                    "database_name": db_name,
+                    "database_version": db_version,
+                    "database_path": str(db_path.absolute()),
+                    "total_entries": count,
+                    "structure_max_atoms": max_atoms,
+                },
+            }
+        )
+        return struct_info_dict
 
     def _check_database(self) -> bool:
         """
@@ -2367,7 +2443,7 @@ def cli_run_gen_initial_database(
     print()
 
     # Get seed from input file or generate one
-    rng_seed = int(db_dict.get("rng_seed", np.random.randint(0, 10000000)))
+    rng_seed = int(db_dict.get("rng_seed", np.random.randint(0, int(1e15))))
     ut.custom_print(f"Using RNG seed: '{rng_seed}'.", "info")
 
     # Assemble phase diagram
@@ -2406,7 +2482,6 @@ def cli_run_gen_initial_database(
     ut.custom_print(structures, "info")
 
     read_from_db = True
-
     if db_dict.get("relax_struct_path"):
         # Initial structures obtained with DFT relaxation are loaded from a given path
         structures.read_base_structures(
@@ -2577,6 +2652,12 @@ def cli_run_gen_initial_database(
     structures.save_database(
         path=db_dict["database_path"],
     )
+
+    # Generating report with database composition
+    report = structures.gen_report()
+    pretty = Pretty(report)
+    panel = Panel(pretty, title="Database report")
+    print(panel)
 
     # Plot the database if requested
     if db_dict.get("plot_db", {}).get("show"):
