@@ -27,7 +27,8 @@ This section defines the general settings and file paths for the database.
 - `max_num_atoms`: (int) Maximum number of atoms allowed in the generated structures.
 - `min_cell_size`: (float) Minimum cell size in Angstrom.
 - `relax_struct_path`: (str) Path to a folder containing DFT optimized structures (optional).
-- `final_database_path`: (str) Path where the final database will be saved.
+- `database_path`: (str) Path where the final database will be saved.
+- `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run.
 
 #### Display and Export Options - `[database.plot_db]`
 
@@ -76,7 +77,6 @@ The key name (`XXXXX`) is used as the reference name for the phase (e.g., 'alpha
 This key describes the settings related to the generation of structures.
 
 - `generate_type`: (list[str]) Types of structures to generate. Options: `'bulk'`, `'surface'`, `'cluster'`.
-
 
 ### Bulk Structure Generation - `[generation.bulk]`
 
