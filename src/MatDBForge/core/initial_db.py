@@ -31,7 +31,7 @@ from pymatgen.core.structure import Structure
 from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from rich import print
+from rich import print as rprint
 from rich.panel import Panel
 from rich.pretty import Pretty
 from slugify import slugify
@@ -2654,10 +2654,12 @@ def cli_run_gen_initial_database(
     )
 
     # Generating report with database composition
+    # Print using rich
     report = structures.gen_report()
     pretty = Pretty(report)
     panel = Panel(pretty, title="Database report")
-    print(panel)
+    rprint(panel)
+    ut.custom_print(f"Database report generated:\n{report}", "debug")
 
     # Plot the database if requested
     if db_dict.get("plot_db", {}).get("show"):
