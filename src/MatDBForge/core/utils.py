@@ -567,16 +567,14 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
         if isinstance(phase, list):
             for curr_phase in phase:
                 if isinstance(curr_phase, "str"):
-                    curr_phase = (
-                        mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
-                    )
+                    curr_phase = db_obj.phase_diagram.get_phase(phase)
 
-                phase_list.append(curr_phase)
+                phase_list.append(curr_phase.name)
 
         else:
             if isinstance(phase, str):
-                phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
-            phase_list = [phase]
+                phase = db_obj.phase_diagram.get_phase(phase)
+            phase_list = [phase.name]
 
         custom_print(f"phase_list: {phase_list}.", "debug")
 
@@ -589,7 +587,11 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
         )
 
     # Getting the current phase structures
-    filtered_df = filtered_df[filtered_df["phase"].isin(phase_list)]
+    # In order to access a method from an object saved in a df, we need to do a
+    # list comprehension, like the following:
+    filtered_df = filtered_df.iloc[
+        [idx for idx, val in enumerate(filtered_df["phase"]) if val.name in phase_list]
+    ]
 
     # Getting the remaining structures after selecting the phase
     remaining_df = remaining_df.loc[remaining_df.index.difference(filtered_df.index)]
