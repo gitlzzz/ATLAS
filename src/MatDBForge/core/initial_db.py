@@ -765,6 +765,11 @@ class InitialDatabase:
         report_replacements = True
         with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
             query_result = mpr.summary.search(material_ids=missing_mat)
+
+            ut.custom_print(
+                f"Gathered {len(query_result)} structures from the MP.", "info"
+            )
+
             for material in query_result:
                 for phase in self.phase_diagram.phases:
                     if phase.prototype == material.material_id:
