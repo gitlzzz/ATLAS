@@ -22,10 +22,10 @@ min_cell_size = 5.0
 # (optional, str) Path to a folder containing DFT optimized structures
 relax_struct_path = ""
 
-# (mandatory, str) Path for the final database
+# (str) Path for the final database
 database_path = ""
 
-# (optional, int) RNG seed
+# (optional, int) Value for the RNG seed
 # rng_seed = 420
 
 
@@ -117,9 +117,12 @@ offset = 0.1
 
 # (bool) Whether to replace a series of elements with the base element
 replacements.replace = true
+
 # (list[str]) List of elements to replace with the base element
 replacements.element_list = ["Ti"]
 
+# (optional, int) Maximum number of structures to generate for the phase
+limit_max_num_structures = 100
 
 # To add additional phases, add a new entry to the `phase_diagram` key
 #

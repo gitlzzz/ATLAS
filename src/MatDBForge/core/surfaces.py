@@ -321,7 +321,7 @@ def gen_surfaces_diff_miller(
                 perturb=False,
                 base=False,
                 calc_performed=False,
-                phase=phase,
+                phase=phase.name,
             )
 
             # Saving the surface to the db.
@@ -363,7 +363,7 @@ def gen_surfaces_diff_miller(
                             perturb=False,
                             base=False,
                             calc_performed=False,
-                            phase=phase,
+                            phase=phase.name,
                             supercell=sup_vec,
                         )
 
@@ -421,7 +421,7 @@ def gen_surfaces_diff_miller(
                     cluster=False,
                     calc_performed=False,
                     supercell=structure_obj.supercell,
-                    phase=phase,
+                    phase=phase.name,
                 )
                 supercell_list.append(new_struct_symm)
 

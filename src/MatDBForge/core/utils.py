@@ -698,6 +698,36 @@ def apply_gauss_perturb_db(
     return perturbed_structs
 
 
+def limit_num_structures_phase(
+    db_obj: "mdb_indb.InitialDatabase",
+    phase: "mdb_pd.Phase",
+    num_limit: int,
+    rng_seed: int,
+):
+    # Instantiating RNG
+    rng = np.random.default_rng(seed=rng_seed)
+
+    # Getting the current phase structures (df_filtered)
+    df_filtered = db_obj.df.loc[db_obj.df["phase"] == phase.name]
+
+    # Getting the remaining structures after selecting
+    # the phase (df_remaining)
+    df_remaining = db_obj.df.loc[db_obj.df["phase"] != phase.name]
+
+    # Getting a num_limit size random sample of the structures from
+    # the current phase (df_filt_sample)
+    num_limit = np.min([num_limit, df_filtered.shape[0]])
+    df_filt_sampl_idx = rng.choice(
+        range(df_filtered.shape[0]), num_limit, replace=False
+    )
+    df_filt_sampl = df_filtered.iloc[df_filt_sampl_idx]
+
+    # Adding df_filt_sample to the df_remaining
+    df_remaining = pd.concat([df_remaining, df_filt_sampl], axis=0)
+    db_obj.df = df_remaining
+    return db_obj
+
+
 def add_adsorbates(
     repeat: int,
     db_obj: "mdb_indb.InitialDatabase",

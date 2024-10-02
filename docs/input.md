@@ -71,6 +71,7 @@ The key name (`XXXXX`) is used as the reference name for the phase (e.g., 'alpha
 - `replacements.replace`: (bool) Whether to replace specific elements.
 - `replacements.element_list`: (list[str]) List of elements to be replaced.
 - `replacements.replace_with`: (str) Element to replace with.
+- `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for the current phase. This limit is enforced after the initial phase generation, but subsequent operations (e.g., perturbations, vacancy generation) may add new structures, potentially exceeding the specified limit.
 
 ### Structure Generation Settings - `[generation]`
 

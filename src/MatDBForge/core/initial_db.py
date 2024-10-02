@@ -982,7 +982,7 @@ class InitialDatabase:
                     material_name=mat_str,
                     structure=new_struct_vac,
                     material_id=entry.material_id,
-                    phase=curr_phase,
+                    phase=curr_phase.name,
                     base=False,
                     bulk=entry.bulk,
                     surface=entry.surface,
@@ -1208,7 +1208,7 @@ class InitialDatabase:
                     material_name=mat_str,
                     structure=new_struct_perturb,
                     material_id=str_matid,
-                    phase=str_phase,
+                    phase=str_phase.name,
                     base=False,
                     perturb=True,
                     vacancy=entry.vacancy,
@@ -1475,7 +1475,7 @@ class InitialDatabase:
                 vacancy=False,
                 calc_performed=False,
                 supercell=idxs,
-                phase=phase,
+                phase=phase.name,
             )
 
             # Saving the bulk to the db.
@@ -1492,6 +1492,10 @@ class InitialDatabase:
         structure_obj: mdb_struct.Structure,
     ):
         phase = structure_obj.phase
+
+        if isinstance(phase, str):
+            phase = self.phase_diagram.get_phase(phase)
+
         # curr_phase_atom = self.phase_diagram.get_phase(phase).base_elem
         # base_atom_set = list(self.phase_diagram.alloy_set - {curr_phase_atom})
 
@@ -1531,7 +1535,7 @@ class InitialDatabase:
             base=structure_obj.base,
             calc_performed=structure_obj.calc_performed,
             supercell=structure_obj.supercell,
-            phase=phase,
+            phase=phase.name,
         )
 
         if structure_obj.bulk:
@@ -1846,7 +1850,7 @@ class InitialDatabase:
                         cluster=False,
                         calc_performed=False,
                         supercell=structure_obj.supercell,
-                        phase=phase,
+                        phase=phase.name,
                     )
 
                     self.df = new_struct_symm.save_to_db(self.df)
@@ -2611,6 +2615,26 @@ def cli_run_gen_initial_database(
                 limit_num_structures=int(perturb_dict["limit_max_num_perturbs"]),
             )
 
+            ut.custom_print(structures, "info")
+
+        # Limiting structures for current phase
+        lim_phas_structs = phase_diagram_dict["phase"][phase.original_name].get(
+            "limit_max_num_structures"
+        )
+        if lim_phas_structs:
+            ut.custom_print(
+                (
+                    "Limiting number of structures"
+                    f"from phase '{phase.name}' to {lim_phas_structs}."
+                ),
+                "info",
+            )
+            structures = ut.limit_num_structures_phase(
+                structures,
+                phase,
+                lim_phas_structs,
+                rng_seed,
+            )
             ut.custom_print(structures, "info")
 
     ut.custom_print(
