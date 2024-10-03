@@ -228,7 +228,6 @@ def get_miller_index_str(miller_source):
 def gen_surfaces_diff_miller(
     db_obj: "mdb_indb.InitialDatabase",
     phase: mdb_pd.Phase,
-    # num_diff_layer_size: int,
     max_miller_index: int,
     min_miller_index: int = 2,
     min_slab_size: float = 6,
@@ -238,10 +237,11 @@ def gen_surfaces_diff_miller(
     fixed_layers: int = 0,
     min_num_atoms: int = 12,
     overwrite_max_num_atoms: int = None,
-    # limit_per_phase: int = None,
-    limit_supercell: int = 0,
     save_in_db=False,
     rng_seed: int = 42,
+    frac_slabs_save: float = 1.0,
+    frac_supercells_save: float = 1.0,
+    limit_total_num_struct: int = 0,
 ):
     # Instantiating RNG
     rng = np.random.default_rng(seed=rng_seed)
@@ -278,8 +278,8 @@ def gen_surfaces_diff_miller(
             slabgen = SlabGenerator(
                 row.structure,
                 miller_index=miller,
-                min_slab_size=6,
-                min_vacuum_size=12,
+                min_slab_size=min_slab_size,
+                min_vacuum_size=min_vacuum_size,
                 center_slab=True,
                 lll_reduce=True,
             )
@@ -369,6 +369,7 @@ def gen_surfaces_diff_miller(
 
                         supercell_list.append(curr_strct)
 
+    replacement_list = []
     for structure_obj, supr_idx in zip(supercell_list, idx_list):
         structure = structure_obj.structure
 
@@ -394,6 +395,7 @@ def gen_surfaces_diff_miller(
         n_at_replacement_upd = db_obj._fit_replacements_phase(
             phase, structure, subst_base_elem_perc
         )
+
         # Replacing the atoms and generate 'num_replacements'
         # structures for each percentage
         for str_ind, n_atoms in enumerate(n_at_replacement_upd):
@@ -423,29 +425,44 @@ def gen_surfaces_diff_miller(
                     supercell=structure_obj.supercell,
                     phase=phase.name,
                 )
-                supercell_list.append(new_struct_symm)
+                replacement_list.append(new_struct_symm)
+
+        # Getting a random subset of the initial slabs
+        generated_structures = rng.choice(
+            generated_structures,
+            int(len(generated_structures) * frac_slabs_save),
+            replace=False,
+        )
+
+        # Getting a random subset of the inital supercells
+        supercell_list = rng.choice(
+            supercell_list,
+            int(len(supercell_list) * frac_supercells_save),
+            replace=False,
+        )
+
+        generated_structures = np.concatenate(
+            (generated_structures, supercell_list, replacement_list)
+        )
 
         # Limiting the number of generated supercells to
         # the supercell limit.
-        # generated_structures.extend(supercell_list)
-        generated_structures = np.concatenate((generated_structures, supercell_list))
-
         mdb_ut.custom_print(
             f"Length of the supercell+replacement list: {len(generated_structures)}",
             "debug",
         )
 
-        if len(generated_structures) > limit_supercell:
+        if len(generated_structures) > limit_total_num_struct:
             mdb_ut.custom_print(
                 (
                     f"Limiting the number of slabs ({len(generated_structures)})"
-                    f" to {limit_supercell}."
+                    f" to {limit_total_num_struct}."
                 ),
                 "debug",
             )
 
             generated_structures = np.random.choice(
-                generated_structures, size=limit_supercell, replace=False
+                generated_structures, size=limit_total_num_struct, replace=False
             )
 
     mdb_ut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")

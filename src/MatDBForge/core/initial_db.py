@@ -6,7 +6,6 @@ with an applied perturbation with respect to the temperature.
 
 import itertools as it
 import lzma
-import os
 import pathlib
 import pathlib as pl
 import pickle
@@ -256,6 +255,7 @@ class InitialDatabase:
                 "cluster": 0,
                 "perturb": 0,
                 "vacancy": 0,
+                "displacement": 0,
             }
         }
 
@@ -263,10 +263,10 @@ class InitialDatabase:
             struct_info_dict["structure_count"][phase.name] = 0
 
         for struct in self.df.iterrows():
-            if struct[1].bulk:
-                struct_info_dict["structure_count"]["bulk"] += 1
             if struct[1].base:
                 struct_info_dict["structure_count"]["base"] += 1
+            if struct[1].bulk:
+                struct_info_dict["structure_count"]["bulk"] += 1
             if struct[1].surface:
                 struct_info_dict["structure_count"]["surface"] += 1
             if struct[1].cluster:
@@ -275,6 +275,8 @@ class InitialDatabase:
                 struct_info_dict["structure_count"]["perturb"] += 1
             if struct[1].vacancy:
                 struct_info_dict["structure_count"]["vacancy"] += 1
+            if struct[1].displacement:
+                struct_info_dict["structure_count"]["displacement"] += 1
 
             if isinstance(struct[1].phase, str):
                 struct_info_dict["structure_count"][struct[1].phase] += 1
@@ -308,9 +310,13 @@ class InitialDatabase:
         """
         # Checking if dataframe already exists on the cwd.
         file_exists = False
-        file_check = [
-            f for f in os.listdir(path=self.database_path) if self.database_name in f
-        ]
+        file_check = []
+
+        # Checking for a file with correct name and suffixes.
+        for file in pl.Path(self.database_path).iterdir():
+            if self.database_name in file.name and set(file.suffixes) & {".xz", ".pkl"}:
+                file_check.append(file)
+
         if len(file_check) > 0:
             file_exists = True
 
@@ -932,7 +938,7 @@ class InitialDatabase:
         element_list: list = None,
         max_vac_perc: float = 0.75,
         min_vac_perc: float = 0.25,
-        lim_num_struc: int = 100,
+        lim_num_struc: int = None,
     ):
         # Instantiating RNG
         rng = np.random.default_rng(seed=seed)

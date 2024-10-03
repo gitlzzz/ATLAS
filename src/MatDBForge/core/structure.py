@@ -79,6 +79,7 @@ class Structure:
         phase=None,
         base: bool = None,
         perturb: bool = None,
+        displacement: bool = None,
         supercell=None,
         surface: bool = False,
         bulk: bool = False,
@@ -108,6 +109,7 @@ class Structure:
         self.base = base
         self.perturb = perturb
         self.supercell = supercell
+        self.displacement = displacement
         self.surface = surface
         self.surface_miller = surface_miller
         self.bulk = bulk
