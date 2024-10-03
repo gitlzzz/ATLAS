@@ -366,6 +366,7 @@ class InitialDatabase:
                 "calc_output",
                 "replacement",
                 "vacancy",
+                "displacement",
             ]
         )
 
@@ -820,6 +821,7 @@ class InitialDatabase:
                     perturb=False,
                     bulk=True,
                     vacancy=False,
+                    displacement=False,
                     formula=material.composition_reduced,
                     symmetry=material_symmetry,
                     base=True,
@@ -880,6 +882,7 @@ class InitialDatabase:
                 material_name=curr_name,
                 bulk=True,
                 perturb=False,
+                displacement=False,
                 vacancy=False,
                 cluster=False,
                 surface=False,
@@ -1063,7 +1066,7 @@ class InitialDatabase:
 
                 mat_str = f"{entry.material_name}_perturb_gauss_{perturb_repeat_idx+1}"
 
-                # Creating a new Structure from the perturbed structure structure
+                # Creating a new Structure from the perturbed structure
                 curr_struct = mdb_struct.Structure(
                     material_name=mat_str,
                     structure=new_struct_perturb,
@@ -1221,7 +1224,8 @@ class InitialDatabase:
                     material_id=str_matid,
                     phase=str_phase.name,
                     base=False,
-                    perturb=True,
+                    perturb=False,
+                    displacement=True,
                     vacancy=entry.vacancy,
                     supercell=entry.supercell,
                     replacement=entry.replacement,
@@ -1676,18 +1680,18 @@ class InitialDatabase:
 
         # If the structure only has one type of Element, and that is not the base
         # element, this changes with what to replace.
-        if not curr_comp.as_dict().get(base_elem.symbol):
-            base_elem = str(phase.phase_diagram.element_list[0])
-            if len(self.phase_diagram.alloy_set) > 1:
-                (other_elem,) = self.phase_diagram.alloy_set - {base_elem}
-            else:
-                other_elem = list(self.phase_diagram.alloy_set)[0]
+        # if not curr_comp.as_dict().get(base_elem.symbol):
+        #     base_elem = str(phase.phase_diagram.element_list[0])
+        #     if len(self.phase_diagram.alloy_set) > 1:
+        #         (other_elem,) = self.phase_diagram.alloy_set - {base_elem}
+        #     else:
+        #         other_elem = list(self.phase_diagram.alloy_set)[0]
 
         # Adding base atoms to match the target percentage
         if replacement_type == "add":
             n_at_diff = n_target_at - curr_n_base_atoms
-            spec_to_replace = Element(base_elem)
-            replacing_elem = Element(other_elem)
+            spec_to_replace = Element(other_elem)
+            replacing_elem = Element(base_elem)
         # Removing base atoms to match the target percentage
         else:
             n_at_diff = curr_n_base_atoms - n_target_at
@@ -1780,7 +1784,7 @@ class InitialDatabase:
             seed = np.random.randint(0, int(1e12))
 
         rng = np.random.default_rng(seed=seed)
-        ut.custom_print(f"Using RNG seed: {str(seed)}", "debug")
+        ut.custom_print(f"Bulk generation RNG seed: {str(seed)}", "debug")
 
         # Getting the prototype structure
         # First, the structure is either gathered from the MP or the initial database,
@@ -1813,6 +1817,12 @@ class InitialDatabase:
             # Preparing an array of randomly generated base elem percentages
             # for the new structures
             subst_base_elem_perc = self._gen_base_elem_perc(phase, num_struct)
+            ut.custom_print(
+                f"Random base element % for bulk to gen: {subst_base_elem_perc*100}",
+                "debug",
+            )
+
+            # print('bulk subst_base_elem_perc: ', subst_base_elem_perc*100)
 
             # Choosing the amount of atoms to replace with the base element in the
             # struct which at this point will be completely replaced by atoms
@@ -2043,6 +2053,8 @@ class InitialDatabase:
                 "cluster": bool,
                 "calc_performed": bool,
                 "replacement": bool,
+                "displacement": bool,
+                "vacancy": bool,
             }
         )
 
@@ -2055,6 +2067,8 @@ class InitialDatabase:
                 "cluster": bool,
                 "calc_performed": bool,
                 "replacement": bool,
+                "vacancy": bool,
+                "displacement": bool,
             }
         )
 
@@ -2637,7 +2651,7 @@ def cli_run_gen_initial_database(
         if lim_phas_structs:
             ut.custom_print(
                 (
-                    "Limiting number of structures"
+                    "Limiting number of structures "
                     f"from phase '{phase.name}' to {lim_phas_structs}."
                 ),
                 "info",
@@ -2694,7 +2708,9 @@ def cli_run_gen_initial_database(
             adsorbate_species=adsorb_dict["adsorbate_species"],
         )
 
-    ut.custom_print(structures, "done")
+        ut.custom_print(structures, "info")
+
+    ut.custom_print("Database generation complete!", "done")
     print()
 
     structures.save_database(

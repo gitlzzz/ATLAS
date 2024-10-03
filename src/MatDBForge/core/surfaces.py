@@ -381,6 +381,13 @@ def gen_surfaces_diff_miller(
         # for the new structures
         subst_base_elem_perc = db_obj._gen_base_elem_perc(phase, num_replacements)
 
+        mdb_ut.custom_print(
+            f"Random base element % for surface to gen: {subst_base_elem_perc*100}",
+            "debug",
+        )
+
+        # print("surface subst_base_elem_perc: ", subst_base_elem_perc * 100)
+
         # Choosing the amount of atoms to replace with the base element in the
         # struct which at this point will be completely replaced by atoms
         # of the remaining species of the alloy.
