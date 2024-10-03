@@ -186,6 +186,19 @@ max_number_supercells = 200
 # (bool) Whether to save the structures in the current db
 save_in_db = true
 
+# (int) Number of replacement percentages to generate for each structure
+num_replacements = 20
+
+# (int) Number of repeats for each replacement
+num_repeat_replace = 2
+
+# (float) Fraction of slabs to save after generation.
+# This avoids having too many slab structures with the same composition.
+# frac_slabs_save = 0.1
+
+# (float) Fraction of unreplaced supercells to save after generation.
+# This avoids having too many slab structures with the same composition.
+# frac_supercells_save = 0.1
 
 # Settings related to cluster generation
 # [generation.cluster]
@@ -283,7 +296,6 @@ max_vacancy_percentage = 0.075
 # (float) Min vacancies to generate as a percentage of the total number of atoms
 # The actual number will be selected randomly between the min and max values.
 min_vacancy_percentage = 0.025
-
 
 # (list[str]) List of elements to consider for the vacancies
 element_list = ["O"]

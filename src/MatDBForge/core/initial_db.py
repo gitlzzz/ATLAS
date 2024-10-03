@@ -1822,8 +1822,6 @@ class InitialDatabase:
                 "debug",
             )
 
-            # print('bulk subst_base_elem_perc: ', subst_base_elem_perc*100)
-
             # Choosing the amount of atoms to replace with the base element in the
             # struct which at this point will be completely replaced by atoms
             # of the remaining species of the alloy.
@@ -2581,8 +2579,14 @@ def cli_run_gen_initial_database(
                 min_vacuum_size=float(gen_dict["surface"]["min_vacuum_size_ang"]),
                 get_supercells=gen_dict["surface"]["get_supercells"],
                 fixed_layers=int(gen_dict["surface"]["fixed_layers"]),
+                num_replacements=int(gen_dict["surface"]["num_replacements"]),
+                num_repeat_replace=int(gen_dict["surface"]["num_repeat_replace"]),
                 limit_total_num_struct=int(
                     gen_dict["surface"]["max_number_supercells"]
+                ),
+                frac_slabs_save=gen_dict["surface"].get("frac_slabs_save", 0.1),
+                frac_supercells_save=gen_dict["surface"].get(
+                    "frac_supercells_save", 0.1
                 ),
                 save_in_db=gen_dict["surface"]["save_in_db"],
             )

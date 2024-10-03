@@ -233,7 +233,8 @@ def gen_surfaces_diff_miller(
     min_slab_size: float = 6,
     min_vacuum_size: float = 10,
     get_supercells=False,
-    num_replacements: int = 5,
+    num_replacements: int = 10,
+    num_repeat_replace: int = 3,
     fixed_layers: int = 0,
     min_num_atoms: int = 12,
     overwrite_max_num_atoms: int = None,
@@ -386,7 +387,7 @@ def gen_surfaces_diff_miller(
             "debug",
         )
 
-        # print("surface subst_base_elem_perc: ", subst_base_elem_perc * 100)
+        print("surface subst_base_elem_perc: ", subst_base_elem_perc * 100)
 
         # Choosing the amount of atoms to replace with the base element in the
         # struct which at this point will be completely replaced by atoms
@@ -403,10 +404,10 @@ def gen_surfaces_diff_miller(
             phase, structure, subst_base_elem_perc
         )
 
-        # Replacing the atoms and generate 'num_replacements'
-        # structures for each percentage
+        # Replacing the atoms and generate 'num_repeat_replace' structures
+        # for each percentage
         for str_ind, n_atoms in enumerate(n_at_replacement_upd):
-            for repl in range(num_replacements):
+            for repl in range(num_repeat_replace):
                 # Applying the replacement
                 new_structure = db_obj._apply_replacement(
                     structure, phase, n_atoms, rng
@@ -435,11 +436,12 @@ def gen_surfaces_diff_miller(
                 replacement_list.append(new_struct_symm)
 
         # Getting a random subset of the initial slabs
-        generated_structures = rng.choice(
-            generated_structures,
-            int(len(generated_structures) * frac_slabs_save),
-            replace=False,
-        )
+        if len(generated_structures) > 0:
+            generated_structures = rng.choice(
+                generated_structures,
+                int(len(generated_structures) * frac_slabs_save),
+                replace=False,
+            )
 
         # Getting a random subset of the inital supercells
         supercell_list = rng.choice(
