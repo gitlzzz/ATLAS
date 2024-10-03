@@ -22,10 +22,10 @@ min_cell_size = 5.0
 # (optional, str) Path to a folder containing DFT optimized structures
 relax_struct_path = ""
 
-# (mandatory, str) Path for the final database
+# (str) Path for the final database
 database_path = ""
 
-# (optional, int) RNG seed
+# (optional, int) Value for the RNG seed
 # rng_seed = 420
 
 
@@ -117,9 +117,12 @@ offset = 0.1
 
 # (bool) Whether to replace a series of elements with the base element
 replacements.replace = true
+
 # (list[str]) List of elements to replace with the base element
 replacements.element_list = ["Ti"]
 
+# (optional, int) Maximum number of structures to generate for the phase
+limit_max_num_structures = 100
 
 # To add additional phases, add a new entry to the `phase_diagram` key
 #
@@ -183,6 +186,19 @@ max_number_supercells = 200
 # (bool) Whether to save the structures in the current db
 save_in_db = true
 
+# (int) Number of replacement percentages to generate for each structure
+num_replacements = 20
+
+# (int) Number of repeats for each replacement
+num_repeat_replace = 2
+
+# (float) Fraction of slabs to save after generation.
+# This avoids having too many slab structures with the same composition.
+# frac_slabs_save = 0.1
+
+# (float) Fraction of unreplaced supercells to save after generation.
+# This avoids having too many slab structures with the same composition.
+# frac_supercells_save = 0.1
 
 # Settings related to cluster generation
 # [generation.cluster]
@@ -280,7 +296,6 @@ max_vacancy_percentage = 0.075
 # (float) Min vacancies to generate as a percentage of the total number of atoms
 # The actual number will be selected randomly between the min and max values.
 min_vacancy_percentage = 0.025
-
 
 # (list[str]) List of elements to consider for the vacancies
 element_list = ["O"]

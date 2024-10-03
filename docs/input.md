@@ -4,7 +4,6 @@ The input format of MDB is [TOML](https://toml.io/en/). The syntax from TOML is 
 
 Users are advised to use the `mdb_gen_configuration_file` utility to generate a template file which can be customized.
 
-
 ## Table of Contents
 
 - [Database Generation](#database-generation)
@@ -71,6 +70,7 @@ The key name (`XXXXX`) is used as the reference name for the phase (e.g., 'alpha
 - `replacements.replace`: (bool) Whether to replace specific elements.
 - `replacements.element_list`: (list[str]) List of elements to be replaced.
 - `replacements.replace_with`: (str) Element to replace with.
+- `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for the current phase. This limit is enforced after the initial phase generation, but subsequent operations (e.g., perturbations, vacancy generation) may add new structures, potentially exceeding the specified limit.
 
 ### Structure Generation Settings - `[generation]`
 
@@ -97,6 +97,10 @@ This key describes the settings related to the generation of surface structures.
 - `fixed_layers`: (int) Number of fixed layers in the surface slab.
 - `max_number_supercells`: (int) Maximum number of surface supercells to generate.
 - `save_in_db`: (bool) Whether to save generated surfaces in the database.
+- `num_replacements`: (int) Number of replacement percentages to generate for each structure.
+- `num_repeat_replace`: (int) Number of repeats for each replacement.
+- `frac_slabs_save`: (float) Fraction of slabs to save after generation. This avoids having too many slab structures with the same composition.
+- `frac_supercells_save`: (float) Fraction of unreplaced supercells to save after generation. This avoids having too many slab structures with the same composition.
 
 ### Lattice Deformation Settings - `[displacement]`
 
@@ -123,7 +127,7 @@ This section describes the settings for generating vacancies in structures.
 - `num_repeats`: (int) Number of repeats for each structure with random vacancies.
 - `max_vacancy_percentage`: (float) Maximum vacancy percentage of total atoms.
 - `min_vacancy_percentage`: (float) Minimum vacancy percentage of total atoms.
-
+- `element_list`: (list[str]) List of elements to consider for the vacancies
 
 ## Input Example: Database Generation
 
@@ -387,6 +391,7 @@ min_vacancy_percentage = 0.025
 ```
 
 ## Active Learning Loop
+
 Generate a database generation template file using `mdb_gen_configuration_file -t active_learning`.
 
 > [!NOTE]

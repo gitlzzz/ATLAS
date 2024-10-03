@@ -355,6 +355,7 @@ class Phase:
         base_elem: str = None,
     ):
         self.name = slugify(name)
+        self.original_name = name
         self.phase_diagram = phase_diagram
         self.element_list = [Element(ele) for ele in sorted(element_list)]
 
