@@ -2567,7 +2567,9 @@ def cli_run_gen_initial_database(
                 min_vacuum_size=float(gen_dict["surface"]["min_vacuum_size_ang"]),
                 get_supercells=gen_dict["surface"]["get_supercells"],
                 fixed_layers=int(gen_dict["surface"]["fixed_layers"]),
-                limit_supercell=int(gen_dict["surface"]["max_number_supercells"]),
+                limit_total_num_struct=int(
+                    gen_dict["surface"]["max_number_supercells"]
+                ),
                 save_in_db=gen_dict["surface"]["save_in_db"],
             )
 
