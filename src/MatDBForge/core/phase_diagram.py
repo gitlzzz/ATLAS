@@ -211,6 +211,14 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
         color_list = plt.cm.viridis(np.linspace(0, 1, len(self.phases)))
         ini_zorder = 2.1 + (len(self.phases) * 0.1)
 
+        # Getting list of equidistant heights for phase labels,
+        # in order to avoid overlapping.
+        phase_label_heights = np.linspace(
+            min_temp_K + 0.2 * min_temp_K,
+            max_temp_K - 0.05 * max_temp_K,
+            len(self.phases),
+        )
+
         # Plot the phases
         for idx, phase in enumerate(self.phases):
             comp_min = phase.composition[str(self.base_elem)]["min"] * 100
@@ -228,29 +236,25 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
                 arr[:, 1],
                 ec="k",
                 fc=color_list[idx],
-                alpha=0.3,
+                alpha=0.1,
                 zorder=ini_zorder - (idx * 0.1),
             )
 
             # Write name
             label = phase.name
 
+            # Getting center of phase to place text
             centroid = self._calculate_centroid(patch[0].get_xy())
-            centroid_y_offset = 0
-
-            # Adjust the label position for even indices to avoid
-            # overlaps
-            if idx % 2 == 0:
-                centroid_y_offset = -0.05 * (max_temp_K - min_temp_K)
 
             ax.text(
                 centroid[0],
-                centroid[1] + centroid_y_offset,
+                phase_label_heights[idx],
                 label,
                 ha="center",
                 va="center",
                 transform=ax.transData,
-                rotation=45,
+                rotation=25,
+                weight="bold",
             )
 
         # Update the chart layout
@@ -288,7 +292,7 @@ class TernaryPhaseDiagram(BasePhaseDiagram):
         for idx, curr_phase in enumerate(self.phases):
             tn0, tn1, tn2 = np.array(curr_phase).T
             patch = ax.fill(
-                tn0, tn1, tn2, ec="k", fc=color_list[idx], alpha=0.6, zorder=2.1
+                tn0, tn1, tn2, ec="k", fc=color_list[idx], alpha=0.1, zorder=2.1
             )
             centroid = self._calculate_centroid(patch[0].get_xy())
 
