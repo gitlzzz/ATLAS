@@ -387,8 +387,6 @@ def gen_surfaces_diff_miller(
             "debug",
         )
 
-        print("surface subst_base_elem_perc: ", subst_base_elem_perc * 100)
-
         # Choosing the amount of atoms to replace with the base element in the
         # struct which at this point will be completely replaced by atoms
         # of the remaining species of the alloy.
