@@ -2408,6 +2408,7 @@ class InitialDatabase:
 
             # The y-axis is generated at a fixed T.
             temps_K = np.ones_like(struct_comp_base_elem) + (temperature_K - 1)
+
             # Plotting compositions
             main_plot_ax.scatter(
                 struct_comp_base_elem,
@@ -2419,7 +2420,7 @@ class InitialDatabase:
                 s=55,
                 alpha=0.7,
                 linewidth=0.25,
-                # zorder=10,
+                zorder=10,
             )
 
             # Top histogram
@@ -2435,8 +2436,9 @@ class InitialDatabase:
             hist_t_ax.hist(
                 struct_comp_base_elem,
                 color=type_dict["color"],
-                alpha=0.5,
+                alpha=0.35,
                 bins=bins,
+                label=key,
             )
             hist_t_ax.tick_params(axis="x", labelbottom=False)
 
@@ -2444,7 +2446,7 @@ class InitialDatabase:
         hist_t_ax.spines["top"].set_visible(False)
         hist_t_ax.spines["right"].set_visible(False)
         main_plot_ax.set_title("")
-        main_plot_ax.legend()
+        hist_t_ax.legend()
         fig.tight_layout()
 
         # Saving the figure
