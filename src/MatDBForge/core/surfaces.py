@@ -307,7 +307,7 @@ def gen_surfaces_diff_miller(
             if fixed_layers and fix_layers_warn:
                 mdb_ut.custom_print(
                     "`fixed_layers` specified, but not implemented yet.",
-                    "warn",
+                    "debug",
                 )
                 fix_layers_warn = False
                 # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
