@@ -2514,6 +2514,7 @@ def cli_run_gen_initial_database(
             prototype=phase_d["prototype"],
             offset=float(phase_d.get("offset", 0)),
             replace_dict=phase_d.get("replacements"),
+            allow_modifications=phase_d.get("allow_modifications", True),
             phase_diagram=phase_diagram,
         )
         phases_list.append(curr_phase)
