@@ -595,7 +595,7 @@ class InitialDatabase:
                 cluster=row["cluster"],
             )
 
-            ase_curr_struct.info["aiida_uuid"] = str(row["unique_id"])
+            ase_curr_struct.info["mdb_id"] = str(row["unique_id"])
             ase_curr_struct.info["struct_name"] = row["material_name"]
             ase_curr_struct.info["perturb"] = row["perturb"]
             ase_curr_struct.info["replacement"] = row["replacement"]
@@ -604,9 +604,18 @@ class InitialDatabase:
             ase_curr_struct.info["cluster"] = row["cluster"]
             ase_curr_struct.info["surface"] = row["surface"]
             ase_curr_struct.info["surface_miller"] = row["surface_miller"]
+            ase_curr_struct.info["supercell"] = row["supercell"]
             ase_curr_struct.info["symmetry"] = row["symmetry"]
             ase_curr_struct.info["calc_type"] = row["calc_type"]
             ase_curr_struct.info["calc_performed"] = row["calc_performed"]
+            ase_curr_struct.info["displacement"] = row["displacement"]
+            ase_curr_struct.info["vacancy"] = row["vacancy"]
+            ase_curr_struct.info["targeted_modification"] = row["targeted_modification"]
+            if row.get("phase"):
+                if isinstance(row["phase"], str):
+                    ase_curr_struct.info["phase"] = row["phase"]
+                else:
+                    ase_curr_struct.info["phase"] = row["phase"].name
 
             struct_list.append(ase_curr_struct)
 
@@ -814,18 +823,20 @@ class InitialDatabase:
                         species_mapping=replace_dict, in_place=True
                     )
 
+                print("material.structure: ", material.structure.formula)
                 curr_struct = mdb_struct.Bulk(
                     material_id=str(material.material_id),
+                    material_name=f"base_{material.material_id}",
                     structure=material.structure,
                     temperature=np.nan,
                     perturb=False,
                     bulk=True,
                     vacancy=False,
                     displacement=False,
-                    formula=material.composition_reduced,
+                    formula=material.structure.formula,
                     symmetry=material_symmetry,
                     base=True,
-                    phase=curr_phase,
+                    phase=self.phase_diagram.get_phase(curr_phase),
                     magnetic_properties=material.total_magnetization,
                     energy_per_atom=material.energy_per_atom,
                 )
@@ -1162,7 +1173,9 @@ class InitialDatabase:
         Example
         -------
         >>> initial_db = InitialDatabase()
-        >>> initial_db.perturb_min_displacement(frac_max=0.05, frac_min=0.01, repeat=5)
+        >>> initial_db.perturb_min_displacement(
+        ...     frac_max=0.05, frac_min=0.01, repeat=5
+        ... )
 
         """
         # Instantiating RNG
@@ -1490,7 +1503,7 @@ class InitialDatabase:
                 vacancy=False,
                 calc_performed=False,
                 supercell=idxs,
-                phase=phase.name,
+                phase=phase,
             )
 
             # Saving the bulk to the db.
@@ -2503,6 +2516,7 @@ def cli_run_gen_initial_database(
             prototype=phase_d["prototype"],
             offset=float(phase_d.get("offset", 0)),
             replace_dict=phase_d.get("replacements"),
+            allow_modifications=phase_d.get("allow_modifications", True),
             phase_diagram=phase_diagram,
         )
         phases_list.append(curr_phase)
@@ -2532,6 +2546,25 @@ def cli_run_gen_initial_database(
         structures.gather_base_structures(target_structures=phase_diagram.phases)
         read_from_db = False
 
+    # TODO Move to the top
+    target_mod_dict = config_dict["targeted_modification"]
+
+    # Applying central_atom_octahedral perturbation to specific structures
+    if config_dict.get("targeted_modification", {}).get("central_atom_octahedral"):
+        cen_at_oh_dict = target_mod_dict["central_atom_octahedral"]
+        ut.custom_print("Applying central atom octahedral modifications...", "info")
+        ut.apply_central_atom_octahedral(
+            db_obj=structures,
+            filter_struct_types=cen_at_oh_dict["filter_struct_types"],
+            filter_phase_list=cen_at_oh_dict["filter_phases"],
+            num_repeats=int(cen_at_oh_dict["num_repeats"]),
+            central_element=cen_at_oh_dict["central_element"],
+            limit_num_structures=int(cen_at_oh_dict["limit_max_num_modifications"]),
+            seed=rng_seed,
+            max_perturbation_ang=float(cen_at_oh_dict.get("max_perturbation_ang", 0.2)),
+        )
+        ut.custom_print(structures, "info")
+
     ut.custom_print("Generating structures from initial structures...", "debug")
 
     for phase_idx, phase in enumerate(selected_phases):
@@ -2546,6 +2579,15 @@ def cli_run_gen_initial_database(
 
         # Getting phase object
         phase = phase_diagram.get_phase(phase)
+
+        # If modifications are not allowed, don't do anything for the
+        # current phase.
+        if not phase.allow_modifications:
+            ut.custom_print(
+                f"Modifications are not allowed for phase: '{phase.name}'. Skipping.",
+                "warn",
+            )
+            continue
 
         if "bulk" in gen_dict:
             ut.custom_print("Generating bulk structures...", "info")

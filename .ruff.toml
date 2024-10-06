@@ -34,3 +34,7 @@ convention = "numpy"
 
 [lint.pycodestyle]
 max-line-length = 88
+
+[format]
+docstring-code-format = true
+docstring-code-line-length = 60

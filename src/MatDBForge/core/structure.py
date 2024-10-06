@@ -99,9 +99,14 @@ class Structure:
         calc_type=None,
         calc_output=None,
         surface_miller=None,
+        targeted_modification: str = None,
+        al_loop_step: int = 0,
         unique_id=None,
     ):
-        self.unique_id = uuid.uuid4()
+        if unique_id:
+            self.unique_id = unique_id
+        else:
+            self.unique_id = uuid.uuid4()
         self.material_name = material_name
         self.structure = structure
         self.material_id = material_id
@@ -137,6 +142,8 @@ class Structure:
         self.calc_type = calc_type
         self.calc_output = calc_output
         self.vacancy = vacancy
+        self.targeted_modification = targeted_modification
+        self.al_loop_step = al_loop_step
 
     def to_bulk(self):
         # Create a Bulk instance by passing the current object's attributes
@@ -242,15 +249,6 @@ class Structure:
         repr_str += f"{spc}Status flags: "
         # Gathering if the structure is a base or structure phase
         props = []
-        if self.base:
-            props.append("base")
-        elif self.perturb:
-            props.append("+atom_positions_perturbed")
-        elif self.displacement:
-            props.append("+lattice_displaced")
-        elif self.vacancy:
-            props.append("+vacancies")
-
         # Gathering the type of structure
         if self.bulk:
             props.append("bulk")
@@ -258,6 +256,22 @@ class Structure:
             props.append("surface")
         elif self.cluster:
             props.append("cluster")
+
+        # Gathering extra properties
+        if self.base:
+            props.append("+base")
+        if self.replacement:
+            props.append("+replacements")
+        if self.supercell:
+            props.append("+supercell")
+        if self.perturb:
+            props.append("+atom_positions_perturbed")
+        if self.displacement:
+            props.append("+lattice_displaced")
+        if self.vacancy:
+            props.append("+vacancies")
+        if self.targeted_modification:
+            props.append(f"+{self.targeted_modification}")
 
         repr_str += " ".join(props)
 
@@ -307,7 +321,9 @@ class Structure:
                 "calc_type": self.calc_type,
                 "calc_output": self.calc_output,
                 "vacancy": self.vacancy,
+                "targeted_modification": self.targeted_modification,
                 "displacement": self.displacement,
+                "al_loop_step": self.al_loop_step,
             }
         )
         bool_columns = {
@@ -422,6 +438,11 @@ class Structure:
             self.bulk = False
             self.surface = False
 
+        return self
+
+    def from_db_row(self, row: pd.Series, columns: list):
+        for col_idx, col in enumerate(columns):
+            setattr(self, col, row[col_idx])
         return self
 
 
