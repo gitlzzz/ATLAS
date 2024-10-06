@@ -604,9 +604,18 @@ class InitialDatabase:
             ase_curr_struct.info["cluster"] = row["cluster"]
             ase_curr_struct.info["surface"] = row["surface"]
             ase_curr_struct.info["surface_miller"] = row["surface_miller"]
+            ase_curr_struct.info["supercell"] = row["supercell"]
             ase_curr_struct.info["symmetry"] = row["symmetry"]
             ase_curr_struct.info["calc_type"] = row["calc_type"]
             ase_curr_struct.info["calc_performed"] = row["calc_performed"]
+            ase_curr_struct.info["displacement"] = row["displacement"]
+            ase_curr_struct.info["vacancy"] = row["vacancy"]
+            ase_curr_struct.info["targeted_modification"] = row["targeted_modification"]
+            if row.get("phase"):
+                if isinstance(row["phase"], str):
+                    ase_curr_struct.info["phase"] = row["phase"]
+                else:
+                    ase_curr_struct.info["phase"] = row["phase"].name
 
             struct_list.append(ase_curr_struct)
 
@@ -1162,7 +1171,9 @@ class InitialDatabase:
         Example
         -------
         >>> initial_db = InitialDatabase()
-        >>> initial_db.perturb_min_displacement(frac_max=0.05, frac_min=0.01, repeat=5)
+        >>> initial_db.perturb_min_displacement(
+        ...     frac_max=0.05, frac_min=0.01, repeat=5
+        ... )
 
         """
         # Instantiating RNG
@@ -2532,6 +2543,25 @@ def cli_run_gen_initial_database(
         structures.gather_base_structures(target_structures=phase_diagram.phases)
         read_from_db = False
 
+    # TODO Move to the top
+    target_mod_dict = config_dict["targeted_modification"]
+
+    # Applying central_atom_octahedral perturbation to specific structures
+    if config_dict.get("targeted_modification", {}).get("central_atom_octahedral"):
+        cen_at_oh_dict = target_mod_dict["central_atom_octahedral"]
+        ut.custom_print("Applying central atom octahedral modifications...", "info")
+        ut.apply_central_atom_octahedral(
+            db_obj=structures,
+            filter_struct_types=cen_at_oh_dict["filter_struct_types"],
+            filter_phase_list=cen_at_oh_dict["filter_phases"],
+            num_repeats=int(cen_at_oh_dict["num_repeats"]),
+            central_element=cen_at_oh_dict["central_element"],
+            limit_num_structures=int(cen_at_oh_dict["limit_max_num_modifications"]),
+            seed=rng_seed,
+            max_perturbation_ang=float(cen_at_oh_dict.get("max_perturbation_ang", 0.2)),
+        )
+        ut.custom_print(structures, "info")
+
     ut.custom_print("Generating structures from initial structures...", "debug")
 
     for phase_idx, phase in enumerate(selected_phases):
@@ -2546,6 +2576,15 @@ def cli_run_gen_initial_database(
 
         # Getting phase object
         phase = phase_diagram.get_phase(phase)
+
+        # If modifications are not allowed, don't do anything for the
+        # current phase.
+        if not phase.allow_modifications:
+            ut.custom_print(
+                f"Modifications are not allowed for phase: '{phase.name}'. Skipping.",
+                "warn",
+            )
+            continue
 
         if "bulk" in gen_dict:
             ut.custom_print("Generating bulk structures...", "info")

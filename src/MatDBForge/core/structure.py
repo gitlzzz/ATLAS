@@ -249,15 +249,6 @@ class Structure:
         repr_str += f"{spc}Status flags: "
         # Gathering if the structure is a base or structure phase
         props = []
-        if self.base:
-            props.append("base")
-        elif self.perturb:
-            props.append("+atom_positions_perturbed")
-        elif self.displacement:
-            props.append("+lattice_displaced")
-        elif self.vacancy:
-            props.append("+vacancies")
-
         # Gathering the type of structure
         if self.bulk:
             props.append("bulk")
@@ -265,6 +256,22 @@ class Structure:
             props.append("surface")
         elif self.cluster:
             props.append("cluster")
+
+        # Gathering extra properties
+        if self.base:
+            props.append("+base")
+        if self.replacement:
+            props.append("+replacements")
+        if self.supercell:
+            props.append("+supercell")
+        if self.perturb:
+            props.append("+atom_positions_perturbed")
+        if self.displacement:
+            props.append("+lattice_displaced")
+        if self.vacancy:
+            props.append("+vacancies")
+        if self.targeted_modification:
+            props.append(f"+{self.targeted_modification}")
 
         repr_str += " ".join(props)
 
