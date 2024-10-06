@@ -299,3 +299,35 @@ min_vacancy_percentage = 0.025
 
 # (list[str]) List of elements to consider for the vacancies
 element_list = ["O"]
+
+
+############################################
+# Settings related to targeted generation
+############################################
+
+# Specific types of modifications to apply to the structures.
+[targeted_modification]
+
+
+# Apply a perturbation to the coordinates of the
+# central atom in rutile-like structures.
+# Repeats will apply different perturbations to the central atom.
+# The other atoms will be kept fixed.
+[targeted_modification.central_atom_octahedral]
+
+# list(str) Only apply the modification to the following phases
+filter_phases = ['rutile-sno2', 'rutile-nbo2', 'rutile-tao2']
+
+# list(str) Only apply the modification to the following structure types.
+# valid types: 'bulk', 'surface', 'cluster'.
+filter_struct_types = ['bulk', 'surface']
+
+# (str) Symbol of the central element of the octahedral site.
+central_element = ["Ir"]
+
+# (int) Number of repeats for each structure.
+# Each repeat will get a different perturbation.
+num_repeats = 3
+
+# (int) Maximum number of modified structures to generate.
+limit_max_num_vacancies = 200
