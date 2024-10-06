@@ -595,7 +595,7 @@ class InitialDatabase:
                 cluster=row["cluster"],
             )
 
-            ase_curr_struct.info["aiida_uuid"] = str(row["unique_id"])
+            ase_curr_struct.info["mdb_id"] = str(row["unique_id"])
             ase_curr_struct.info["struct_name"] = row["material_name"]
             ase_curr_struct.info["perturb"] = row["perturb"]
             ase_curr_struct.info["replacement"] = row["replacement"]
@@ -823,18 +823,20 @@ class InitialDatabase:
                         species_mapping=replace_dict, in_place=True
                     )
 
+                print("material.structure: ", material.structure.formula)
                 curr_struct = mdb_struct.Bulk(
                     material_id=str(material.material_id),
+                    material_name=f"base_{material.material_id}",
                     structure=material.structure,
                     temperature=np.nan,
                     perturb=False,
                     bulk=True,
                     vacancy=False,
                     displacement=False,
-                    formula=material.composition_reduced,
+                    formula=material.structure.formula,
                     symmetry=material_symmetry,
                     base=True,
-                    phase=curr_phase,
+                    phase=self.phase_diagram.get_phase(curr_phase),
                     magnetic_properties=material.total_magnetization,
                     energy_per_atom=material.energy_per_atom,
                 )
@@ -1501,7 +1503,7 @@ class InitialDatabase:
                 vacancy=False,
                 calc_performed=False,
                 supercell=idxs,
-                phase=phase.name,
+                phase=phase,
             )
 
             # Saving the bulk to the db.
