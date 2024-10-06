@@ -440,6 +440,11 @@ class Structure:
 
         return self
 
+    def from_db_row(self, row: pd.Series, columns: list):
+        for col_idx, col in enumerate(columns):
+            setattr(self, col, row[col_idx])
+        return self
+
 
 class Bulk(Structure):
     """Class for bulk structures."""
