@@ -106,7 +106,7 @@ class Structure:
         if unique_id:
             self.unique_id = unique_id
         else:
-            self.unique_id = uuid.uuid4()
+            self.unique_id = str(uuid.uuid4())
         self.material_name = material_name
         self.structure = structure
         self.material_id = material_id
@@ -293,6 +293,7 @@ class Structure:
     #     return dict_obj
 
     def save_to_db(self, db_obj):
+        phase = self.phase if isinstance(self.phase, str) else self.phase.name
         new_row = pd.Series(
             {
                 "material_id": str(self.material_id),
@@ -304,7 +305,7 @@ class Structure:
                 "base": self.base,
                 "surface": self.surface,
                 "surface_miller": self.surface_miller,
-                "phase": self.phase,
+                "phase": phase,
                 "magnetic_properties": self.magnetic_properties,
                 "energy_per_atom": None,
                 "unique_id": self.unique_id,
