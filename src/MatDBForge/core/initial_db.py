@@ -1247,6 +1247,7 @@ class InitialDatabase:
                     perturb=False,
                     displacement=True,
                     vacancy=entry.vacancy,
+                    targeted_modification=entry.targeted_modification,
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=entry.formula,
@@ -1430,17 +1431,15 @@ class InitialDatabase:
                 material_id_prefix = query_result.material_id.values[0]
                 structure = query_result.structure.values[0]
             except IndexError:
-                raise mdb_exc.BaseStructureNotFound() from None
+                query_result, material_id_prefix, structure = (
+                    self.query_mp_api_prototype(prototype)
+                )
 
         # Querying alloy prototype structure
         else:
-            ut.custom_print("Querying the MP API...", "info")
-            with MPRester(
-                ut.gather_secrets()["API_KEY"], mute_progress_bars=True
-            ) as mpr:
-                query_result = mpr.summary.search(material_ids=[prototype])[0]
-                structure = query_result.structure
-                material_id_prefix = query_result.material_id
+            query_result, material_id_prefix, structure = self.query_mp_api_prototype(
+                prototype
+            )
 
         # TODO: Add a toggle so that the user can choose to use it.
         # Converting all of the atoms from the prototype cell to
@@ -1497,6 +1496,12 @@ class InitialDatabase:
                 bulk_temp = query_result.temperature.values[0]
             except Exception:
                 bulk_temp = np.nan
+
+            try:
+                targeted_modification = query_result.targeted_modification.values[0]
+            except Exception:
+                targeted_modification = None
+
             # Creating a new bulk from the supercell
             curr_bulk = mdb_struct.Bulk(
                 material_name=f"{material_id_prefix}_{phase.name}_super-{idxs_str}",
@@ -1508,6 +1513,7 @@ class InitialDatabase:
                 base=False,
                 cluster=False,
                 vacancy=False,
+                targeted_modification=targeted_modification,
                 calc_performed=False,
                 supercell=idxs,
                 phase=phase,
@@ -1519,6 +1525,14 @@ class InitialDatabase:
             struct_obj_list.append(curr_bulk)
 
         return struct_obj_list, query_result, idx_list
+
+    def query_mp_api_prototype(self, prototype):
+        ut.custom_print("Querying the MP API...", "info")
+        with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
+            query_result = mpr.summary.search(material_ids=[prototype])[0]
+            structure = query_result.structure
+            material_id_prefix = query_result.material_id
+        return query_result, material_id_prefix, structure
 
     def _create_symmetrical_prototype(
         self,
@@ -1881,6 +1895,7 @@ class InitialDatabase:
                         material_id=prototype,
                         structure=new_structure,
                         temperature=bulk_temp,
+                        targeted_modification=structure_obj.targeted_modification,
                         perturb=False,
                         surface=False,
                         replacement=True,
@@ -1898,15 +1913,11 @@ class InitialDatabase:
         # Getting all of the base structures
         base_structs = self.df.loc[self.df.base]
 
-        if isinstance(phase, str):
-            phase = self.phase_diagram.get_phase(phase=phase)
+        if not isinstance(phase, str):
+            phase = phase.name
 
         # Getting the structures corresponding to the current phase
         phase_mask = base_structs.phase == phase
-
-        # If an old version of the phase object is being used
-        if not phase_mask.any():
-            phase_mask = base_structs.phase == phase.name
 
         base_structs = base_structs.where(phase_mask, other=pd.NA)
         base_structs.dropna(how="all", inplace=True)
@@ -2597,10 +2608,8 @@ def cli_run_gen_initial_database(
         structures.gather_base_structures(target_structures=phase_diagram.phases)
         read_from_db = False
 
-    # TODO Move to the top
-    target_mod_dict = config_dict["targeted_modification"]
-
     # Applying central_atom_octahedral perturbation to specific structures
+    target_mod_dict = config_dict["targeted_modification"]
     if config_dict.get("targeted_modification", {}).get("central_atom_octahedral"):
         cen_at_oh_dict = target_mod_dict["central_atom_octahedral"]
         ut.custom_print("Applying central atom octahedral modifications...", "info")

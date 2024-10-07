@@ -557,6 +557,7 @@ def apply_central_atom_octahedral(
     )
 
     modified_structs = []
+    ids_to_remove = []
     # Iterate over all filtered structures
     for _, row in filtered_df.iterrows():
         for repeat_idx in range(num_repeats):
@@ -580,11 +581,14 @@ def apply_central_atom_octahedral(
             # add structure to db
             mdb_struct_row.structure = new_structure
             mdb_struct_row.targeted_modification = "central_atom_perturbation"
-            mdb_struct_row.unique_id = uuid.uuid4()
+            mdb_struct_row.unique_id = str(uuid.uuid4())
+            mdb_struct_row.base = True
             mdb_struct_row.material_name = (
                 f"{mdb_struct_row.material_name}_perturb_central_{repeat_idx}"
             )
             modified_structs.append(mdb_struct_row)
+
+        ids_to_remove.append(row.unique_id)
 
     # Limit the number of structures
     if limit_num_structures:
@@ -593,6 +597,10 @@ def apply_central_atom_octahedral(
         modified_structs = rng.choice(
             modified_structs, limit_num_structures, replace=False
         )
+
+    # Use uuid to remove original structures from the database
+    for curr_uuid in ids_to_remove:
+        db_obj.df = db_obj.df[db_obj.df["unique_id"] != str(curr_uuid)]
 
     # Add modified structures to the database
     for struc in modified_structs:
@@ -632,7 +640,8 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
                 if isinstance(curr_phase, str):
                     curr_phase = db_obj.phase_diagram.get_phase(curr_phase)
 
-                phase_list.append(curr_phase.name)
+                if curr_phase:
+                    phase_list.append(curr_phase.name)
 
         else:
             if isinstance(phase, str):
@@ -687,6 +696,8 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             material_name=mat_str,
             structure=new_struct_perturb,
             replacement_ind=row.replacement_ind,
+            vacancy=row.vacancy,
+            targeted_modification=row.targeted_modification,
             phase=row.phase,
             perturb=True,
         )
@@ -695,6 +706,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             material_name=mat_str,
             structure=new_struct_perturb,
             replacement_ind=row.replacement_ind,
+            targeted_modification=row.targeted_modification,
             phase=row.phase,
             perturb=True,
         )
@@ -703,6 +715,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             material_name=mat_str,
             structure=new_struct_perturb,
             replacement_ind=row.replacement_ind,
+            targeted_modification=row.targeted_modification,
             phase=row.phase,
             perturb=True,
         )

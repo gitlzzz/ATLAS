@@ -322,6 +322,7 @@ def gen_surfaces_diff_miller(
                 perturb=False,
                 base=False,
                 calc_performed=False,
+                targeted_modification=row.targeted_modification,
                 phase=phase.name,
             )
 
@@ -363,6 +364,7 @@ def gen_surfaces_diff_miller(
                             temperature=np.nan,
                             perturb=False,
                             base=False,
+                            targeted_modification=row.targeted_modification,
                             calc_performed=False,
                             phase=phase.name,
                             supercell=sup_vec,
