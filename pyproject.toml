@@ -85,3 +85,15 @@ version_file = "VERSION"
 count_commits_from_version_file = true
 dev_template = "{tag}.post{ccount}"
 dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
+
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.7.0"
+changelog_incremental = true
+update_changelog_on_bump = true
+version_files = [
+    "src/__version__.py",
+    "pyproject.toml:version",
+    "VERSION"
+]

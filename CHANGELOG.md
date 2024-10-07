@@ -1,3 +1,15 @@
+## 0.7.0 (2024-10-07)
+
+### Feat
+
+- **db_gen**: add parameter for disallowing database overwrite.
+- **db_gen**: added pie charts to composition plots
+
+### Fix
+
+- **db_gen**: increased consistency with uuid and phase label storage.
+- **db_gen**: increased consistency when saving structures with `targeted_modification`.
+
 ## 0.6.11 (2024-10-06)
 
 ### Feat
