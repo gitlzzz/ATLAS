@@ -10,6 +10,7 @@ import pathlib
 import pathlib as pl
 import pickle
 import re
+import time
 import warnings
 from io import BytesIO, TextIOWrapper
 
@@ -2542,6 +2543,29 @@ def cli_run_gen_initial_database(
     selected_phases,
     config_dict,
 ):
+    # Get timestamp for the entire run
+    timestamp = int(time.time())
+
+    # If db_path is not given, the current directory is used.
+    if not db_path:
+        db_dict["database_path"] = pl.Path.cwd()
+
+    overwrite_db = db_dict.get("overwrite_db", True)
+    db_path_exists = pl.Path(db_dict["database_path"]).exists()
+
+    # Avoiding database overwrite
+    if not overwrite_db and db_path_exists:
+        # Get timestamp based on host and current time
+        # db_dict["database_path"] = pl.Path(db_path) / f"gen_db_{timestamp}"
+        db_dict["database_name"] = db_dict["database_name"] + f"_{timestamp}"
+        ut.custom_print(
+            (
+                "Overwriting disabled. Creating new database in"
+                f" {db_dict['database_path']} named '{db_dict['database_name']}'."
+            ),
+            "warn",
+        )
+
     # If db_path is not given, the current directory is used.
     if not db_path:
         db_path = pl.Path.cwd()
