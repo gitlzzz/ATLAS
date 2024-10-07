@@ -286,7 +286,7 @@ class InitialDatabase:
                 if not struct_info_dict["structure_count"].get(mod_type):
                     struct_info_dict["structure_count"][mod_type] = 1
                 else:
-                    struct_info_dict["structure_count"][mod_type] = 1
+                    struct_info_dict["structure_count"][mod_type] += 1
 
             if isinstance(struct[1].phase, str):
                 struct_info_dict["phases"][struct[1].phase] += 1
@@ -2497,15 +2497,41 @@ class InitialDatabase:
 
         db_report: dict = self.gen_report()
 
+        # Removing empty keys from the pie chart
+        keys_to_pop = [
+            key
+            for key in db_report["structure_count"]
+            if db_report["structure_count"][key] == 0
+        ]
+        for key in keys_to_pop:
+            db_report["structure_count"].pop(key)
+
+        def autopct_format(values):
+            def my_format(pct):
+                total = db_report["database_settings"]["total_entries"]
+                val = int(round(pct * total / 100.0))
+                return f"{pct:.1f}%\n({val:d})"
+
+            return my_format
+
+        def autopct_display_value(values):
+            def my_format(pct):
+                total = sum(db_report["structure_count"].values())
+                val = int(round(pct * total / 100.0))
+                return f"{val:d}"
+
+            return my_format
+
         # Pie chart
         pie_chart_ax.pie(
             db_report["structure_count"].values(),
             labels=db_report["structure_count"].keys(),
             colors=[plot_dict[key]["color"] for key in db_report["structure_count"]],
-            autopct="%1.1f%%",
+            autopct=autopct_display_value(db_report),
             startangle=90,
             wedgeprops=dict(width=0.95, alpha=0.6),
-            textprops={"fontsize": 8},
+            radius=1.25,
+            textprops={"size": "smaller"},
         )
         # Pie chart 2
         phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(db_report["phases"])))
@@ -2513,10 +2539,11 @@ class InitialDatabase:
             db_report["phases"].values(),
             labels=db_report["phases"].keys(),
             colors=phase_color_list,
-            autopct="%1.1f%%",
+            autopct=autopct_format(db_report),
             startangle=90,
             wedgeprops=dict(width=0.95, alpha=0.3),
-            textprops={"fontsize": 8},
+            radius=1.25,
+            textprops={"size": "smaller"},
         )
 
         hist_t_ax.set_title("Database composition")
