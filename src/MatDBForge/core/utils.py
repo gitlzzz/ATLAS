@@ -25,12 +25,6 @@ import MatDBForge.core.structure as mdb_struct
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
-MDB_STRUCT_TYPES = (
-    mdb_struct.Structure,
-    mdb_struct.Bulk,
-    mdb_struct.Cluster,
-    mdb_struct.Surface,
-)
 
 
 def get_config_path() -> pl.Path:
@@ -308,6 +302,12 @@ def similarity_check_list(
 
 
 def gauss_perturb(structure: Structure, center: float = 0.04):
+    MDB_STRUCT_TYPES = (
+        mdb_struct.Structure,
+        mdb_struct.Bulk,
+        mdb_struct.Cluster,
+        mdb_struct.Surface,
+    )
     if isinstance(structure, MDB_STRUCT_TYPES):
         structure_obj = structure
         structure = structure.structure
@@ -486,6 +486,13 @@ def apply_replacement_no_db(
     replace_elem: str | Element,
     rng=None,
 ):
+    MDB_STRUCT_TYPES = (
+        mdb_struct.Structure,
+        mdb_struct.Bulk,
+        mdb_struct.Cluster,
+        mdb_struct.Surface,
+    )
+
     if not rng:
         rng = np.random.default_rng()
 
@@ -582,7 +589,7 @@ def apply_central_atom_octahedral(
             mdb_struct_row.structure = new_structure
             mdb_struct_row.targeted_modification = "central_atom_perturbation"
             mdb_struct_row.unique_id = str(uuid.uuid4())
-            mdb_struct_row.base = True
+            mdb_struct_row.base = row.base
             mdb_struct_row.material_name = (
                 f"{mdb_struct_row.material_name}_perturb_central_{repeat_idx}"
             )
