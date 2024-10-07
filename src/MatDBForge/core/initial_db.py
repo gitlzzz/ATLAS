@@ -376,6 +376,7 @@ class InitialDatabase:
                 "calc_output",
                 "replacement",
                 "vacancy",
+                "targeted_modification",
                 "displacement",
             ]
         )
@@ -1427,9 +1428,11 @@ class InitialDatabase:
 
         # Reading structure from database
         if read:
-            ut.custom_print("Using structure from the db as template...", "debug")
+            ut.custom_print("Using structure from the DB as template...", "info")
             try:
-                query_result = self.df.loc[self.df.phase == phase]
+                if isinstance(phase, mdb_pd.Phase):
+                    phase_name = phase.name
+                query_result = self.df.loc[self.df.phase == phase_name]
                 material_id_prefix = query_result.material_id.values[0]
                 structure = query_result.structure.values[0]
             except IndexError:
@@ -1540,7 +1543,7 @@ class InitialDatabase:
         self,
         structure: Structure,
         phase: mdb_pd.Phase,
-        structure_obj: mdb_struct.Structure,
+        structure_obj: "mdb_struct.Structure",
     ):
         phase = structure_obj.phase
 
@@ -1779,6 +1782,7 @@ class InitialDatabase:
         supercell_max_idx: int,
         convert_to_base: bool = True,
         read: bool = True,
+        overwrite_read_from_db_list: list = None,
         seed: int = None,
     ):
         """
@@ -1804,6 +1808,9 @@ class InitialDatabase:
         read: bool
             Whether to read structures from the db or use the MP API to get them, by
             default True.
+        overwrite_read_from_db_list: list
+            List of structures to read from the db instead of the MP API, will
+            ignore the read flag if this is not empty.
         convert_to_base: bool
             Whether to convert all atoms from the structure to the base atom, in order
             to increase randomness when replacing.
@@ -1821,6 +1828,15 @@ class InitialDatabase:
 
         rng = np.random.default_rng(seed=seed)
         ut.custom_print(f"Bulk generation RNG seed: {str(seed)}", "debug")
+
+        # If the current phase is in overwrite_read_from_db_list,
+        # the read flag is set to True
+        if overwrite_read_from_db_list:
+            if not isinstance(phase, str):
+                curr_phase = phase.name
+
+            if curr_phase in overwrite_read_from_db_list:
+                read = True
 
         # Getting the prototype structure
         # First, the structure is either gathered from the MP or the initial database,
@@ -2663,6 +2679,7 @@ def cli_run_gen_initial_database(
         read_from_db = False
 
     # Applying central_atom_octahedral perturbation to specific structures
+    phases_read_from_db = []
     target_mod_dict = config_dict["targeted_modification"]
     if config_dict.get("targeted_modification", {}).get("central_atom_octahedral"):
         cen_at_oh_dict = target_mod_dict["central_atom_octahedral"]
@@ -2677,6 +2694,7 @@ def cli_run_gen_initial_database(
             seed=rng_seed,
             max_perturbation_ang=float(cen_at_oh_dict.get("max_perturbation_ang", 0.2)),
         )
+        phases_read_from_db.extend(cen_at_oh_dict["filter_phases"])
         ut.custom_print(structures, "info")
 
     ut.custom_print("Generating structures from initial structures...", "debug")
@@ -2716,12 +2734,12 @@ def cli_run_gen_initial_database(
                 min_num_atoms=int(db_dict["min_num_atoms"]),
                 supercell_max_idx=int(gen_dict["bulk"]["supercell_max_idx"]),
                 read=read_from_db,
+                overwrite_read_from_db_list=phases_read_from_db,
                 convert_to_base=False,
                 seed=rng_seed,
             )
 
             ut.custom_print(structures, "info")
-
         if "surface" in gen_dict:
             ut.custom_print("Generating surface structures...", "info")
 
@@ -2750,7 +2768,6 @@ def cli_run_gen_initial_database(
             )
 
             ut.custom_print(structures, "info")
-
         if "cluster" in gen_dict:
             raise NotImplementedError("Cluster type not implemented yet")
 
@@ -2788,7 +2805,6 @@ def cli_run_gen_initial_database(
             ut.custom_print(
                 f"Removed {remove_count} structures out of cell size range.", "info"
             )
-
         if "perturbation" in config_dict:
             perturb_dict = config_dict["perturbation"]
             ut.custom_print(
@@ -2805,7 +2821,6 @@ def cli_run_gen_initial_database(
             )
 
             ut.custom_print(structures, "info")
-
         # Limiting structures for current phase
         lim_phas_structs = phase_diagram_dict["phase"][phase.original_name].get(
             "limit_max_num_structures"
@@ -2825,7 +2840,6 @@ def cli_run_gen_initial_database(
                 rng_seed,
             )
             ut.custom_print(structures, "info")
-
     ut.custom_print(
         "Finishing populating structures from every phase...",
         "done",
@@ -2851,8 +2865,6 @@ def cli_run_gen_initial_database(
             seed=rng_seed,
             element_list=vacancies_dict["element_list"],
         )
-
-        ut.custom_print(structures, "info")
 
     if "adsorbates" in config_dict:
         ut.custom_print(

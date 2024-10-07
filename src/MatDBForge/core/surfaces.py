@@ -421,7 +421,8 @@ def gen_surfaces_diff_miller(
                 # Creating a new Bulk object for the structure with replacement
                 new_struct_symm = mdb_struct.Surface(
                     material_name=f"{row.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
-                    material_id=row.material_id,
+                    material_id=structure_obj.material_id,
+                    targeted_modification=structure_obj.targeted_modification,
                     structure=new_structure,
                     temperature=bulk_temp,
                     perturb=False,
