@@ -221,7 +221,7 @@ class InitialDatabase:
         ut.custom_print(f"Loaded '{self.database_name}{suffix}'", "info")
         ut.custom_print(f"Path: {db_path}", "debug")
 
-    def gen_report(self) -> str:
+    def gen_report(self) -> dict:
         """
         Generate a report containing the database information.
 
@@ -256,11 +256,12 @@ class InitialDatabase:
                 "perturb": 0,
                 "vacancy": 0,
                 "displacement": 0,
-            }
+            },
+            "phases": {},
         }
 
         for phase in self.phase_diagram.phases:
-            struct_info_dict["structure_count"][phase.name] = 0
+            struct_info_dict["phases"][phase.name] = 0
 
         for struct in self.df.iterrows():
             if struct[1].base:
@@ -277,11 +278,18 @@ class InitialDatabase:
                 struct_info_dict["structure_count"]["vacancy"] += 1
             if struct[1].displacement:
                 struct_info_dict["structure_count"]["displacement"] += 1
+            if struct[1].targeted_modification:
+                mod_type = struct[1].targeted_modification
+
+                if not struct_info_dict["structure_count"].get(mod_type):
+                    struct_info_dict["structure_count"][mod_type] = 1
+                else:
+                    struct_info_dict["structure_count"][mod_type] = 1
 
             if isinstance(struct[1].phase, str):
-                struct_info_dict["structure_count"][struct[1].phase] += 1
+                struct_info_dict["phases"][struct[1].phase] += 1
             else:
-                struct_info_dict["structure_count"][struct[1].phase.name] += 1
+                struct_info_dict["phases"][struct[1].phase.name] += 1
 
         # Adding database info
         struct_info_dict.update(
@@ -823,7 +831,6 @@ class InitialDatabase:
                         species_mapping=replace_dict, in_place=True
                     )
 
-                print("material.structure: ", material.structure.formula)
                 curr_struct = mdb_struct.Bulk(
                     material_id=str(material.material_id),
                     material_name=f"base_{material.material_id}",
@@ -2374,11 +2381,26 @@ class InitialDatabase:
         fig_path: str | pl.Path = ".",
         fig_name: str = "database_composition",
     ):
-        fig, axs = plt.subplots(
-            ncols=1, nrows=2, gridspec_kw={"height_ratios": [1, 4]}, figsize=(10, 7)
+        inner = [["pie1"], ["pie2"]]
+        outer = [
+            ["histogram", "ignore"],
+            ["main", inner],
+        ]
+
+        gridspec_kw = {"height_ratios": [1, 4], "width_ratios": [6, 1]}
+        fig, axd = plt.subplot_mosaic(
+            outer,
+            gridspec_kw=gridspec_kw,
+            figsize=(10, 7),
+            layout="constrained",
         )
-        hist_t_ax = axs[0]
-        main_plot_ax = axs[1]
+
+        hist_t_ax = axd["histogram"]
+        main_plot_ax = axd["main"]
+        pie_chart_ax = axd["pie1"]
+        pie_chart_ax2 = axd["pie2"]
+        empty_axis = axd["ignore"]
+        empty_axis.set_axis_off()
 
         # Plotting the phase diagram of the database
         main_plot_ax = self.phase_diagram.plot_diagram(
@@ -2390,8 +2412,13 @@ class InitialDatabase:
 
         plot_dict = {
             "bulk": {"structs": [], "color": "#458588"},
+            "base": {"structs": [], "color": "#076678"},
             "surface": {"structs": [], "color": "#fe8019"},
             "cluster": {"structs": [], "color": "#d3869b"},
+            "perturb": {"structs": [], "color": "#d79921"},
+            "vacancy": {"structs": [], "color": "#689d6a"},
+            "displacement": {"structs": [], "color": "#b16286"},
+            "central_atom_perturbation": {"structs": [], "color": "#665c54"},
             "unknown": {"structs": [], "color": "#ee0000"},
         }
 
@@ -2454,6 +2481,30 @@ class InitialDatabase:
                 label=key,
             )
             hist_t_ax.tick_params(axis="x", labelbottom=False)
+
+        db_report: dict = self.gen_report()
+
+        # Pie chart
+        pie_chart_ax.pie(
+            db_report["structure_count"].values(),
+            labels=db_report["structure_count"].keys(),
+            colors=[plot_dict[key]["color"] for key in db_report["structure_count"]],
+            autopct="%1.1f%%",
+            startangle=90,
+            wedgeprops=dict(width=0.95, alpha=0.6),
+            textprops={"fontsize": 8},
+        )
+        # Pie chart 2
+        phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(db_report["phases"])))
+        pie_chart_ax2.pie(
+            db_report["phases"].values(),
+            labels=db_report["phases"].keys(),
+            colors=phase_color_list,
+            autopct="%1.1f%%",
+            startangle=90,
+            wedgeprops=dict(width=0.95, alpha=0.3),
+            textprops={"fontsize": 8},
+        )
 
         hist_t_ax.set_title("Database composition")
         hist_t_ax.spines["top"].set_visible(False)

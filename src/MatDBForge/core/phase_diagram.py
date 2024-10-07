@@ -105,7 +105,7 @@ class BasePhaseDiagram:
             if phase:
                 return phase
             else:
-                raise mdb_exc.PhaseNotFound(self, phase)
+                return None
         else:
             raise TypeError("The given phase object is not a Phase-like object.")
 
