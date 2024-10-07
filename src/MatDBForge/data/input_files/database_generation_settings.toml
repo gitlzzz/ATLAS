@@ -29,9 +29,10 @@ database_path = ""
 # rng_seed = 420
 
 # (optional, bool) Allow database overwrite. Default is true.                                                                                                          ─╯
-# If false, and the database exists,the new database name and
+# If false, and the database exists, the new database name and
 # folder will include a timestamp.
 # overwrite_db = true
+
 
 [database.plot_db]
 # (bool) Display database with phase diagram after creation
@@ -54,7 +55,7 @@ show = true
 export = true
 format = 'extxyz'
 file_path = ""
-file_name = "nispero"
+file_name = "export_db_filename"
 
 
 ############################################
