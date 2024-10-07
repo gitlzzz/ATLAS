@@ -1,3 +1,15 @@
+## 0.8.0 (2024-10-07)
+
+### Feat
+
+- **db_gen**: added function to check for updates ([#b0e73ab](https://github.com/pol-sb/MatDBForge/commit/b0e73abfc50e2755c11b7a1714d09ddb944d3925))
+
+### Fix
+
+- **gen_db**: fixed bug that prevented creation of 'central_atom_perturbation' modified structures ([#f31d6c4](https://github.com/pol-sb/MatDBForge/commit/f31d6c4b3aaafc82649c31c6b7272f01df62abc6))
+- **gen_db**: improved pie charts ([#d9d996d](https://github.com/pol-sb/MatDBForge/commit/d9d996d1c6c48a23c6916f350375c1b856f39b5a))
+- **db_gen**: refactored code to avoid circular imports ([#5c682a1](https://github.com/pol-sb/MatDBForge/commit/5c682a1624459df6f58de3ca5d947baec82a08d6))
+
 ## 0.7.0 (2024-10-07)
 
 ### Feat
