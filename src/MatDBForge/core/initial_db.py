@@ -38,6 +38,7 @@ from slugify import slugify
 
 import MatDBForge as mdb
 import MatDBForge.core.clusters as mdb_clust
+import MatDBForge.core.code_utils as mdb_cud
 import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
@@ -2543,12 +2544,21 @@ def cli_run_gen_initial_database(
     selected_phases,
     config_dict,
 ):
-    # Get timestamp for the entire run
-    timestamp = int(time.time())
-
     # If db_path is not given, the current directory is used.
     if not db_path:
         db_dict["database_path"] = pl.Path.cwd()
+
+    # Start logger
+    log_path = pl.Path(db_path) / "logs"
+    if not log_path.exists():
+        log_path.mkdir(parents=True)
+    ut.init_logger(source=pl.Path(__file__).stem, log_path=f"{db_path}/logs")
+
+    # Checking last version of the library
+    mdb_cud.check_mdb_version()
+
+    # Get timestamp for the entire run
+    timestamp = int(time.time())
 
     overwrite_db = db_dict.get("overwrite_db", True)
     db_path_exists = pl.Path(db_dict["database_path"]).exists()
@@ -2570,13 +2580,6 @@ def cli_run_gen_initial_database(
     if not db_path:
         db_path = pl.Path.cwd()
 
-    # Start logger
-    log_path = pl.Path(db_path) / "logs"
-
-    if not log_path.exists():
-        log_path.mkdir(parents=True)
-
-    ut.init_logger(source=pl.Path(__file__).stem, log_path=f"{db_path}/logs")
     ut.custom_print("Starting generation of initial database...", "info")
     print()
 
