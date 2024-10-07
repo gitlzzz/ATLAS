@@ -28,6 +28,7 @@ This section defines the general settings and file paths for the database.
 - `relax_struct_path`: (str) Path to a folder containing DFT optimized structures (optional).
 - `database_path`: (str) Path where the final database will be saved.
 - `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run.
+- `overwrite_db`:  (optional, bool) Allow database overwrite. Default is true. If false, and the database exists, the new database name will include a timestamp.
 
 #### Display and Export Options - `[database.plot_db]`
 

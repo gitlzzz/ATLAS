@@ -10,6 +10,7 @@ import pathlib
 import pathlib as pl
 import pickle
 import re
+import time
 import warnings
 from io import BytesIO, TextIOWrapper
 
@@ -2467,9 +2468,28 @@ def cli_run_gen_initial_database(
     selected_phases,
     config_dict,
 ):
+    # Get timestamp for the entire run
+    timestamp = int(time.time())
+
     # If db_path is not given, the current directory is used.
     if not db_path:
-        db_path = pl.Path.cwd()
+        db_dict["database_path"] = pl.Path.cwd()
+
+    overwrite_db = db_dict.get("overwrite_db", True)
+    db_path_exists = pl.Path(db_dict["database_path"]).exists()
+
+    # Avoiding database overwrite
+    if not overwrite_db and db_path_exists:
+        # Get timestamp based on host and current time
+        # db_dict["database_path"] = pl.Path(db_path) / f"gen_db_{timestamp}"
+        db_dict["database_name"] = db_dict["database_name"] + f"_{timestamp}"
+        ut.custom_print(
+            (
+                "Overwriting disabled. Creating new database in"
+                f" {db_dict['database_path']} named '{db_dict['database_name']}'."
+            ),
+            "warn",
+        )
 
     # Start logger
     log_path = pl.Path(db_path) / "logs"
@@ -2513,12 +2533,11 @@ def cli_run_gen_initial_database(
     # Initialize the database
     structures = indb.InitialDatabase(
         database_name=db_dict["database_name"],
-        database_path=db_path,
+        database_path=db_dict["database_path"],
         max_num_atoms=int(db_dict["max_num_atoms"]),
         phase_diagram=phase_diagram,
         load_db=True,
     )
-    ut.custom_print(structures, "info")
 
     read_from_db = True
     if db_dict.get("relax_struct_path"):
@@ -2762,7 +2781,7 @@ def cli_run_gen_initial_database(
         structures.export_db(
             out_format=out_format,
             file_path=export_path,
-            file_name=file_name + "_structures",
+            file_name=file_name + f"_structures_{timestamp}",
         )
 
     # Display the database if requested
