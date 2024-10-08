@@ -34,7 +34,7 @@ dependencies = [
     "pymatgen",
     "python-slugify[unidecode]",
     "flask",
-    "tomli >= 1.1.0 ; python_version < '3.11'"
+    "tomli >= 1.1.0 ; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -92,8 +92,16 @@ name = "cz_conventional_commits"
 version = "0.8.0"
 changelog_incremental = true
 update_changelog_on_bump = true
-version_files = [
-    "src/__version__.py",
-    "pyproject.toml:version",
-    "VERSION"
-]
+version_files = ["./src/__version__.py", "pyproject.toml:version", "VERSION"]
+template = "./docs/commit_template.toml"
+
+# [tool.commitizen.conventional_commits]
+# changelog_message_template = "- **{{message.change_type}}**: {{message.subject}} ([#{{message.short_hash}}](https://github.com/pol-sb/MatDBForge/commit/{{message.commit_hash}}))"
+# changelog_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %} ([#{{ change_sha1[:7] }}](https://github.com/pol-sb/MatDBForge/commit/{{ change_sha1 }}))"
+# changelog_template = "- **{{type}}**: {{message}}... ([#{{hash}}](https://github.com/pol-sb/MatDBForge/commit/{{hash}}))"
+# changelog_pattern = "{{commit_type}}: {{message}}... ([#{{hash}}](https://github.com/pol-sb/MatDBForge/commit/{{hash}}))"
+# changelog_message_builder = """
+# - **{{type}}**: {{subject}}... ([#{{revision}}](https://github.com/pol-sb/MatDBForge/commit/{{revision}}))
+# """
+# message_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %}"
+# schema = "O <type>: <body>"
