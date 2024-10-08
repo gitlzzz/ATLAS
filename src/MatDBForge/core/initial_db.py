@@ -2603,7 +2603,7 @@ def cli_run_gen_initial_database(
     # Get timestamp for the entire run
     timestamp = int(time.time())
 
-    overwrite_db = db_dict.get("overwrite_db", True)
+    overwrite_db = db_dict.get("overwrite_db", False)
     db_path_exists = pl.Path(db_dict["database_path"]).exists()
 
     # Avoiding database overwrite

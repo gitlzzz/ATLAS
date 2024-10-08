@@ -28,10 +28,10 @@ database_path = ""
 # (optional, int) Value for the RNG seed
 # rng_seed = 420
 
-# (optional, bool) Allow database overwrite. Default is true.                                                                                                          ─╯
+# (optional, bool) Allow database overwrite. Default is false.                                                                                                          ─╯
 # If false, and the database exists, the new database name and
 # folder will include a timestamp.
-# overwrite_db = true
+# overwrite_db = false
 
 
 [database.plot_db]
