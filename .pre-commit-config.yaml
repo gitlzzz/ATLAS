@@ -19,5 +19,5 @@ repos:
         types_or: [ python, pyi ]
       # Run the formatter.
       - id: ruff-format
-        args: [--diff,  --config, .ruff.toml]
+        args: [--config, .ruff.toml]
         types_or: [ python, pyi ]

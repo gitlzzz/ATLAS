@@ -14,9 +14,9 @@ from aiida_vasp.calcs.vasp import VaspCalculation
 from ase.atoms import Atoms
 from pymatgen.core import Structure as pmg_structure
 
+import MatDBForge.core.code_utils as mdb_cud
 import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.structure as mdb_strc
-import MatDBForge.core.utils as mdb_ut
 
 
 class Units(Enum):
@@ -249,7 +249,7 @@ def _gather_result_nodes_aiida(path, aiida_group_list, filter_dict):
     load_profile()
 
     # Gathering nodes from the given group
-    mdb_ut.custom_print("Getting nodes...")
+    mdb_cud.custom_print("Getting nodes...")
 
     # Preparing a query in the aiida db for every group
     result_nodes_list = []
@@ -271,7 +271,7 @@ def _gather_result_nodes_aiida(path, aiida_group_list, filter_dict):
 
         result_nodes_list.extend(result_nodes)
 
-    mdb_ut.custom_print(f"{len(result_nodes_list)} nodes found.", "info")
+    mdb_cud.custom_print(f"{len(result_nodes_list)} nodes found.", "info")
 
     return result_nodes_list
 
@@ -313,7 +313,7 @@ def gen_mace_train_aiida(
 
         final_size = curr_f.tell() * 1e-06
 
-    mdb_ut.custom_print(
+    mdb_cud.custom_print(
         f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
     )
 
@@ -381,7 +381,7 @@ def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
 
         final_size = curr_f.tell() * 1e-06
 
-    mdb_ut.custom_print(
+    mdb_cud.custom_print(
         f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
     )
 

@@ -213,13 +213,13 @@ def run_active_learning():
 
     from aiida import load_profile
 
-    from MatDBForge.core import utils as mdb_ut
+    from MatDBForge.core import core_utils as mdb_cud
 
     try:
         # Loading default aiida profile
         load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
     except Exception as e:
-        mdb_ut.custom_print(f"Error loading aiida profile: '{e}'", "error")
+        mdb_cud.custom_print(f"Error loading aiida profile: '{e}'", "error")
 
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)
