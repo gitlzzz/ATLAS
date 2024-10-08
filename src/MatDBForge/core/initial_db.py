@@ -642,7 +642,7 @@ class InitialDatabase:
         file_path = file_path.with_suffix(f".{out_format}")
 
         aseio.write(filename=file_path, images=struct_list, format=out_format)
-        ut.custom_print(f"Database exported to {file_path}", "info")
+        ut.custom_print(f"Database exported to {file_path}", "done")
 
     def find_repeat_structures(
         self,
@@ -2416,11 +2416,11 @@ class InitialDatabase:
             ["main", inner],
         ]
 
-        gridspec_kw = {"height_ratios": [1, 4], "width_ratios": [6, 1]}
+        gridspec_kw = {"height_ratios": [1, 4], "width_ratios": [8, 1]}
         fig, axd = plt.subplot_mosaic(
             outer,
             gridspec_kw=gridspec_kw,
-            figsize=(10, 7),
+            figsize=(16, 7),
             layout="constrained",
         )
 
@@ -2447,7 +2447,7 @@ class InitialDatabase:
             "perturb": {"structs": [], "color": "#d79921"},
             "vacancy": {"structs": [], "color": "#689d6a"},
             "displacement": {"structs": [], "color": "#b16286"},
-            "central_atom_perturbation": {"structs": [], "color": "#665c54"},
+            "octh_perturb": {"structs": [], "color": "#665c54"},
             "unknown": {"structs": [], "color": "#ee0000"},
         }
 
@@ -2513,6 +2513,11 @@ class InitialDatabase:
 
         db_report: dict = self.gen_report()
 
+        # Rename key to something shorter
+        db_report["structure_count"]["octh_perturb"] = db_report["structure_count"].pop(
+            "central_atom_perturbation"
+        )
+
         # Removing empty keys from the pie chart
         keys_to_pop = [
             key
@@ -2574,6 +2579,10 @@ class InitialDatabase:
         chart_img_path = pl.Path(fig_path) / fig_name
         chart_img_path.with_suffix(".png")
         plt.savefig(chart_img_path, dpi=300)
+
+        ut.custom_print(
+            f"Database composition plot saved in '{chart_img_path}.png'.", "done"
+        )
 
         # Displaying the plot
         plt.show()
