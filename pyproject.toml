@@ -45,6 +45,7 @@ dev = ["pre-commit", "pytest", "pytest-cov"]
 Homepage = "https://github.com/pol-sb/MatDBForge"
 
 [project.entry-points."aiida.calculations"]
+"mdb-autoencoder-train" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
 "mace-train" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
 "mace-get-descriptors" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
 "mace-eval" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
@@ -59,6 +60,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb-active-learning-base" = "MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain"
 
 [project.entry-points."aiida.parsers"]
+"mdb-autoencoder-train-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
 "mace-training-parser" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
 "mace-descriptors-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
 "mace-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
