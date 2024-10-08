@@ -1,3 +1,11 @@
+# Changelog
+
+## 0.9.1 (2024-10-08)
+
+### Misc
+
+- **core**: improved changelog generation ([#a99c322](https://github.com/pol-sb/MatDBForge/commit/a99c3227a5e70a7c8fee4205a4365ee8907631e4))
+
 ## 0.9.0 (2024-10-08)
 
 ### Feat
