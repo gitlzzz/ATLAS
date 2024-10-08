@@ -28,11 +28,12 @@ This section defines the general settings and file paths for the database.
 - `relax_struct_path`: (str) Path to a folder containing DFT optimized structures (optional).
 - `database_path`: (str) Path where the final database will be saved.
 - `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run.
-- `overwrite_db`:  (optional, bool) Allow database overwrite. Default is true. If false, and the database exists, the new database name will include a timestamp.
+- `overwrite_db`:  (optional, bool) Allow database overwrite. Default is false. If false, and the database exists, the new database name will include a timestamp.
 
 #### Display and Export Options - `[database.plot_db]`
 
 - `show`: (bool) Whether to display the database with a phase diagram after creation.
+- `format`: (str, optional) Format for the figure, such as 'png' or 'svg'. Default is 'png'.
 - `rc_params."font.family"`: (str) Font family for the phase diagram plot.
 - `rc_params."font.size"`: (int) Font size for the phase diagram plot.
 
@@ -72,6 +73,7 @@ The key name (`XXXXX`) is used as the reference name for the phase (e.g., 'alpha
 - `replacements.element_list`: (list[str]) List of elements to be replaced.
 - `replacements.replace_with`: (str) Element to replace with.
 - `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for the current phase. This limit is enforced after the initial phase generation, but subsequent operations (e.g., perturbations, vacancy generation) may add new structures, potentially exceeding the specified limit.
+- `allow_modifications`: (optional, bool) Whether to allow applying modifications (supercells, replacements, perturbations, modifications...) to the base structure, or keep the base structure as the only structure for the phase. Default is true, allowing modifications to the base structure to be applied.
 
 ### Structure Generation Settings - `[generation]`
 

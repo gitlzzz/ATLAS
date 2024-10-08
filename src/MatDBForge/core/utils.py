@@ -6,6 +6,7 @@ import os
 import pathlib
 import pathlib as pl
 import tempfile
+import uuid
 
 import numpy as np
 import pandas as pd
@@ -24,12 +25,6 @@ import MatDBForge.core.structure as mdb_struct
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
-MDB_STRUCT_TYPES = (
-    mdb_struct.Structure,
-    mdb_struct.Bulk,
-    mdb_struct.Cluster,
-    mdb_struct.Surface,
-)
 
 
 def get_config_path() -> pl.Path:
@@ -307,6 +302,12 @@ def similarity_check_list(
 
 
 def gauss_perturb(structure: Structure, center: float = 0.04):
+    MDB_STRUCT_TYPES = (
+        mdb_struct.Structure,
+        mdb_struct.Bulk,
+        mdb_struct.Cluster,
+        mdb_struct.Surface,
+    )
     if isinstance(structure, MDB_STRUCT_TYPES):
         structure_obj = structure
         structure = structure.structure
@@ -485,6 +486,13 @@ def apply_replacement_no_db(
     replace_elem: str | Element,
     rng=None,
 ):
+    MDB_STRUCT_TYPES = (
+        mdb_struct.Structure,
+        mdb_struct.Bulk,
+        mdb_struct.Cluster,
+        mdb_struct.Surface,
+    )
+
     if not rng:
         rng = np.random.default_rng()
 
@@ -537,7 +545,78 @@ def apply_replacement_no_db(
     return new_structure
 
 
-def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
+def apply_central_atom_octahedral(
+    db_obj: "mdb_indb.InitialDatabase",
+    filter_phase_list: list[str],
+    filter_struct_types: list[str],
+    central_element: str | Element,
+    num_repeats: int,
+    max_perturbation_ang: float,
+    limit_num_structures: int,
+    seed: int,
+):
+    # Setting up the RNG
+    rng = np.random.default_rng(seed=seed)
+
+    # Filter phase and structure types
+    filtered_df, _, _ = apply_filters_db(
+        db_obj, phase=filter_phase_list, filters=filter_struct_types
+    )
+
+    modified_structs = []
+    ids_to_remove = []
+    # Iterate over all filtered structures
+    for _, row in filtered_df.iterrows():
+        for repeat_idx in range(num_repeats):
+            # Get mdb Structure
+            mdb_struct_row = mdb_struct.Structure().from_db_row(
+                row=row, columns=filtered_df.columns
+            )
+            new_structure = mdb_struct_row.structure.copy()
+
+            # Identify indices of the central element
+            if isinstance(central_element, Element):
+                central_element = str(central_element)
+            central_element_indices = new_structure.indices_from_symbol(central_element)
+
+            # Perurbate the identified central atoms
+            perturb_vec = rng.normal(loc=0, scale=max_perturbation_ang, size=(1, 3))[0]
+            for site in central_element_indices:
+                new_structure.translate_sites(indices=site, vector=perturb_vec)
+
+            # Update structure attributes (targeted_modification, uuid?) and
+            # add structure to db
+            mdb_struct_row.structure = new_structure
+            mdb_struct_row.targeted_modification = "central_atom_perturbation"
+            mdb_struct_row.unique_id = str(uuid.uuid4())
+            mdb_struct_row.base = row.base
+            mdb_struct_row.material_name = (
+                f"{mdb_struct_row.material_name}_perturb_central_{repeat_idx}"
+            )
+            modified_structs.append(mdb_struct_row)
+
+        ids_to_remove.append(row.unique_id)
+
+    # Limit the number of structures
+    if limit_num_structures:
+        limit_num_structures = min(limit_num_structures, len(modified_structs))
+
+        modified_structs = rng.choice(
+            modified_structs, limit_num_structures, replace=False
+        )
+
+    # Use uuid to remove original structures from the database
+    for curr_uuid in ids_to_remove:
+        db_obj.df = db_obj.df[db_obj.df["unique_id"] != str(curr_uuid)]
+
+    # Add modified structures to the database
+    for struc in modified_structs:
+        struc.save_to_db(db_obj=db_obj)
+
+    return db_obj
+
+
+def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
     filtered_df = db_obj
 
     if isinstance(db_obj, mdb_indb.InitialDatabase):
@@ -563,17 +642,18 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase = None):
     # Getting which phases to check from the user.
     phase_list = []
     if phase:
-        custom_print(f"Using phase: {phase.name}.", "debug")
         if isinstance(phase, list):
             for curr_phase in phase:
-                if isinstance(curr_phase, "str"):
-                    curr_phase = db_obj.phase_diagram.get_phase(phase)
+                if isinstance(curr_phase, str):
+                    curr_phase = db_obj.phase_diagram.get_phase(curr_phase)
 
-                phase_list.append(curr_phase.name)
+                if curr_phase:
+                    phase_list.append(curr_phase.name)
 
         else:
             if isinstance(phase, str):
                 phase = db_obj.phase_diagram.get_phase(phase)
+            custom_print(f"Using phase: {phase.name}.", "debug")
             phase_list = [phase.name]
 
         custom_print(f"phase_list: {phase_list}.", "debug")
@@ -623,6 +703,8 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             material_name=mat_str,
             structure=new_struct_perturb,
             replacement_ind=row.replacement_ind,
+            vacancy=row.vacancy,
+            targeted_modification=row.targeted_modification,
             phase=row.phase,
             perturb=True,
         )
@@ -631,6 +713,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             material_name=mat_str,
             structure=new_struct_perturb,
             replacement_ind=row.replacement_ind,
+            targeted_modification=row.targeted_modification,
             phase=row.phase,
             perturb=True,
         )
@@ -639,6 +722,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
             material_name=mat_str,
             structure=new_struct_perturb,
             replacement_ind=row.replacement_ind,
+            targeted_modification=row.targeted_modification,
             phase=row.phase,
             perturb=True,
         )

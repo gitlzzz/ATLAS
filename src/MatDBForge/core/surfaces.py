@@ -307,7 +307,7 @@ def gen_surfaces_diff_miller(
             if fixed_layers and fix_layers_warn:
                 mdb_ut.custom_print(
                     "`fixed_layers` specified, but not implemented yet.",
-                    "warn",
+                    "debug",
                 )
                 fix_layers_warn = False
                 # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
@@ -322,6 +322,7 @@ def gen_surfaces_diff_miller(
                 perturb=False,
                 base=False,
                 calc_performed=False,
+                targeted_modification=row.targeted_modification,
                 phase=phase.name,
             )
 
@@ -363,6 +364,7 @@ def gen_surfaces_diff_miller(
                             temperature=np.nan,
                             perturb=False,
                             base=False,
+                            targeted_modification=row.targeted_modification,
                             calc_performed=False,
                             phase=phase.name,
                             supercell=sup_vec,
@@ -419,7 +421,8 @@ def gen_surfaces_diff_miller(
                 # Creating a new Bulk object for the structure with replacement
                 new_struct_symm = mdb_struct.Surface(
                     material_name=f"{row.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
-                    material_id=row.material_id,
+                    material_id=structure_obj.material_id,
+                    targeted_modification=structure_obj.targeted_modification,
                     structure=new_structure,
                     temperature=bulk_temp,
                     perturb=False,

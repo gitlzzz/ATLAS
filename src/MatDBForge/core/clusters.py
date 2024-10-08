@@ -281,8 +281,8 @@ def get_center_of_mass(structure: Structure):
 
 def apply_replacement_cluster(
     db_obj: "mdb_indb.InitialDatabase",
-    cluster: mdb_struct.Cluster,
-    phase: mdb_phase.Phase,
+    cluster: "mdb_struct.Cluster",
+    phase: "mdb_phase.Phase",
     num_struct: int,
     num_repeat: int,
 ):

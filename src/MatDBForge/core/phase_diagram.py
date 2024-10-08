@@ -105,7 +105,7 @@ class BasePhaseDiagram:
             if phase:
                 return phase
             else:
-                raise mdb_exc.PhaseNotFound(self, phase)
+                return None
         else:
             raise TypeError("The given phase object is not a Phase-like object.")
 
@@ -357,6 +357,7 @@ class Phase:
         cluster_elem: str = None,
         replace_dict: dict = None,
         base_elem: str = None,
+        allow_modifications: bool = True,
     ):
         self.name = slugify(name)
         self.original_name = name
@@ -390,6 +391,7 @@ class Phase:
         self.prototype = prototype
         self.replace_dict = replace_dict
         self.offset = float(offset)
+        self.allow_modifications = allow_modifications
 
     def __str__(self):
         """Return a string representation of the phase.
