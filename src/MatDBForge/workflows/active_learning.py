@@ -134,6 +134,11 @@ class ActiveLearningWorkChain(WorkChain):
             "check_extrapolation", valid_type=orm.Bool, serializer=orm.to_aiida_type
         )
         spec.input(
+            "dimensionality_reduction_method",
+            valid_type=orm.Str,
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
             "gather_traj_cnt_lattice", valid_type=orm.Bool, serializer=orm.to_aiida_type
         )
         spec.input("use_kokkos", valid_type=orm.Bool, serializer=orm.to_aiida_type)
@@ -144,12 +149,25 @@ class ActiveLearningWorkChain(WorkChain):
             cls.train_mace_model,
             # Gathering results from mace training.
             cls.get_mace_train_output,
+            # This part of the workflow is only executed if the extrapolation
+            # check is enabled.
+            # It will get the descriptors for the entire database and use
+            # the concave hull as the extrapolation mechanism.
             if_(cls.check_extrapolation_enabled)(
                 # Generate MACE descriptors for the current seed.
                 cls.generate_descriptors,
                 # Gather the descriptors from the calcjob and store them
                 # in the workchain context.
                 cls.get_mace_descriptors_output,
+                # Train the autoencoder using the training database.
+                if_(cls.dim_reduct_method_is_autoencoder)(
+                    cls.train_autoencoder,
+                ),
+                # Get latent space using the given dimensionality reduction
+                # method
+                cls.get_latent_space,
+                # Get the concave hull of the training database
+                cls.get_concave_hull,
             ),
             # All of the structures in the seed will be run using the MD
             # code selected, using the main model (M0)
@@ -460,6 +478,16 @@ class ActiveLearningWorkChain(WorkChain):
             )
 
         self.report("Gathered descriptor ranges.")
+
+    def dim_reduct_method_is_autoencoder(self):
+        """Check if the selected dimensionality reduction method is the autoencoder."""
+        return self.inputs.dimensionality_reduction_method == "autoencoder"
+
+    def train_autoencoder(self):
+        # Get descriptors from previous step
+
+        # Prepare AutoencoderCalculation
+        ...
 
     def gen_md_input(
         self,

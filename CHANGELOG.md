@@ -1,5 +1,20 @@
 # Changelog
 
+# Changelog
+
+## 0.10.0 (2024-10-08)
+
+### Feat
+
+- **extrapolation**: add rng seed for autoencoder training ([#5f9df8c](https://github.com/pol-sb/MatDBForge/commit/5f9df8cfd565c6a14d951baa01475f55b20e252a))
+- **extrapolation**: include aiida entry points for autoencoder train and parsing ([#0868684](https://github.com/pol-sb/MatDBForge/commit/0868684f14bbf79b5ee029adac28ae2cc9d29b36))
+- **extrapolation**: added entry point for autoencoder training ([#7cbc062](https://github.com/pol-sb/MatDBForge/commit/7cbc0629a71c9b7c7adef2dbbe27a57e071781bf))
+- **db_gen**: added flag to avoid db overwriting, which adds a timestamp to the db_name ([#a6a61ee](https://github.com/pol-sb/MatDBForge/commit/a6a61ee10c98d87d3f19f0db33bd4fa045d7c724))
+
+### Misc
+
+- **core**: changed logginghandler to `RichHandler` ([#98954f9](https://github.com/pol-sb/MatDBForge/commit/98954f94dbf92ae2fb4d0aea1063557bdb5a9a0d))
+
 ## 0.9.1 (2024-10-08)
 
 ### Misc
