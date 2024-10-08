@@ -38,6 +38,10 @@ database_path = ""
 # (bool) Display database with phase diagram after creation
 show = true
 
+# (str, optional) Format for the figure, such as 'png' or 'svg'.
+# Default is 'png'.
+format = 'png'
+
 # Display options which follow the RCParams of matplotlib
 rc_params."font.family" = "monospace"
 rc_params."font.size" = 14

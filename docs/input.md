@@ -33,6 +33,7 @@ This section defines the general settings and file paths for the database.
 #### Display and Export Options - `[database.plot_db]`
 
 - `show`: (bool) Whether to display the database with a phase diagram after creation.
+- `format`: (str, optional) Format for the figure, such as 'png' or 'svg'. Default is 'png'.
 - `rc_params."font.family"`: (str) Font family for the phase diagram plot.
 - `rc_params."font.size"`: (int) Font size for the phase diagram plot.
 

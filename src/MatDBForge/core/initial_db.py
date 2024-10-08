@@ -2409,6 +2409,7 @@ class InitialDatabase:
         rc_params: dict = None,
         fig_path: str | pl.Path = ".",
         fig_name: str = "database_composition",
+        fig_format: str = "png",
     ):
         inner = [["pie1"], ["pie2"]]
         outer = [
@@ -2577,11 +2578,12 @@ class InitialDatabase:
         # Saving the figure
         fig_name = "comp_plot_" + fig_name
         chart_img_path = pl.Path(fig_path) / fig_name
-        chart_img_path.with_suffix(".png")
-        plt.savefig(chart_img_path, dpi=300)
+        chart_img_path = chart_img_path.with_suffix(f".{fig_format}")
+        plt.savefig(chart_img_path, dpi=300, format=str(fig_format))
 
         ut.custom_print(
-            f"Database composition plot saved in '{chart_img_path}.png'.", "done"
+            f"Database composition plot saved in '{chart_img_path}'.",
+            "done",
         )
 
         # Displaying the plot
@@ -2915,11 +2917,13 @@ def cli_run_gen_initial_database(
         # Selecting plot style settings for the plot
         params = db_dict["plot_db"].get("rc_params")
 
+        # Generating and saving the composition plot
         structures.plot_database_composition(
             temperature_K=400,
             rc_params=params,
             fig_path=db_dict["database_path"],
             fig_name=db_dict["database_name"],
+            fig_format=db_dict["plot_db"].get("format", "png"),
         )
 
     # Export the database if requested
