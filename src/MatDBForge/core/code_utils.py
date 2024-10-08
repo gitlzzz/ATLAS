@@ -19,6 +19,13 @@ def deprecated(reason, since_ver=None):
     ----------
     reason : str
         Reason to print for the deprecation of the old function
+
+    Examples
+    --------
+    Use it as a decorator:
+    >>> @deprecated(reason="Use to_cluster instead.", since_ver="0.6.2")
+        def to_atoms():
+            pass
     """
 
     def decorator(func):
