@@ -71,6 +71,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb_monitor_al_loop" = "MatDBForge.core.command_line.cli_dashboard:monitor_al_loop"
 "mdb_gen_init_db" = "MatDBForge.core.command_line.cli_generate_init_db:run_gen_initial_database"
 "mdb_init_setup" = "MatDBForge.core.command_line.cli_run_initial_config:run_initial_config"
+"mdb_train_autoencoder" = "MatDBForge.core.command_line.cli_train_autoencoder:run_train_autoencoder"
 
 [tool.setuptools]
 include-package-data = true
