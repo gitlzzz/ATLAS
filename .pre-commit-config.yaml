@@ -18,6 +18,6 @@ repos:
         args: [--fix, --config, ./.ruff.toml]
         types_or: [ python, pyi ]
       # Run the formatter.
-      - id: ruff-format
-        args: [--config, ./.ruff.toml]
-        types_or: [ python, pyi ]
+      #- id: ruff-format
+      #  args: [--config, ./.ruff.toml]
+      #  types_or: [ python, pyi ]

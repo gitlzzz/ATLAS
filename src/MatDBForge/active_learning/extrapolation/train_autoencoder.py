@@ -69,14 +69,25 @@ def val_loop(data_loader, model, loss_fn):
     return avg_loss
 
 
-def load_dataset(data_path, train_frac, valid_frac, test_frac, device):
+def load_dataset(
+    data_path,
+    train_frac: float,
+    valid_frac: float,
+    test_frac: float,
+    device,
+    rng_seed: int,
+):
     point_arr = np.load(data_path)
 
     valid_data_size = int(point_arr.shape[0] * valid_frac)
     test_data_size = int(point_arr.shape[0] * test_frac)
 
+    # Set random seed for reproducibility
+    rng = np.random.default_rng(seed=rng_seed)
+    torch.manual_seed(rng_seed)
+
     # Select a fraction of the data for training, validation, and testing
-    valid_arr_idx = np.random.choice(
+    valid_arr_idx = rng.random.choice(
         point_arr.shape[0],
         size=valid_data_size,
         replace=False,
@@ -89,7 +100,7 @@ def load_dataset(data_path, train_frac, valid_frac, test_frac, device):
     point_arr = np.delete(point_arr, obj=valid_arr_idx, axis=0)
 
     # Getting the test data
-    test_arr_idx = np.random.choice(
+    test_arr_idx = rng.random.choice(
         point_arr.shape[0],
         size=test_data_size,
         replace=False,
@@ -122,6 +133,7 @@ def run_training(args):
         train_frac=args.train_frac,
         valid_frac=args.valid_frac,
         test_frac=args.test_frac,
+        rng_seed=args.seed,
     )
 
     # Number of input dimensions

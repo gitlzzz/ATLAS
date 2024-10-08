@@ -32,6 +32,11 @@ def run_train_autoencoder():
         default=False,
         help="Load the model from the model path",
     )
+    parser.add_argument(
+        "--rng_seed",
+        type=int,
+        help="Seed for the random number generator",
+    )
 
     # Dataset path
     parser.add_argument(
