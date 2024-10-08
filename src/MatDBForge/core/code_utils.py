@@ -69,6 +69,8 @@ def check_mdb_version():
     # Check the last tagged version in the repository
     last_tagged_version = Version(get_last_tagged_version())
 
+    print()
+
     if curr_version < last_tagged_version:
         custom_print(
             f"Current version of MatDBForge ({curr_version}) is outdated. "
@@ -78,7 +80,7 @@ def check_mdb_version():
     else:
         custom_print(
             f"Current version of MatDBForge ({curr_version}) is up-to-date.",
-            "info",
+            "done",
         )
 
     print()
