@@ -88,20 +88,50 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 
 [tool.commitizen]
-name = "cz_conventional_commits"
-version = "0.8.0"
+name = "cz_customize"
+version = "0.9.0"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = ["./src/__version__.py", "pyproject.toml:version", "VERSION"]
 template = "./docs/commit_template.toml"
 
-# [tool.commitizen.conventional_commits]
-# changelog_message_template = "- **{{message.change_type}}**: {{message.subject}} ([#{{message.short_hash}}](https://github.com/pol-sb/MatDBForge/commit/{{message.commit_hash}}))"
-# changelog_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %} ([#{{ change_sha1[:7] }}](https://github.com/pol-sb/MatDBForge/commit/{{ change_sha1 }}))"
-# changelog_template = "- **{{type}}**: {{message}}... ([#{{hash}}](https://github.com/pol-sb/MatDBForge/commit/{{hash}}))"
-# changelog_pattern = "{{commit_type}}: {{message}}... ([#{{hash}}](https://github.com/pol-sb/MatDBForge/commit/{{hash}}))"
-# changelog_message_builder = """
-# - **{{type}}**: {{subject}}... ([#{{revision}}](https://github.com/pol-sb/MatDBForge/commit/{{revision}}))
-# """
-# message_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %}"
-# schema = "O <type>: <body>"
+[tool.commitizen.customize]
+message_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %}"
+example = "feature: this feature enable customize through config file"
+schema = "<type>: <body>"
+schema_pattern = "(feat|fix|chore|docs):(\\s.*)"
+bump_pattern = "^(break|new|fix|hotfix|feat|chore|docs)"
+bump_map = { "break" = "MAJOR", "new" = "MINOR", 'feat' = "MINOR", "fix" = "PATCH", "hotfix" = "PATCH", 'chore' = "PATCH", 'docs' = "PATCH" }
+change_type_order = [
+    "BREAKING CHANGE",
+    "feat",
+    "fix",
+    "refactor",
+    "perf",
+    'docs',
+    'style',
+    'test',
+    'chore' ]
+commit_parser = "^(?P<change_type>feat|fix|chore)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
+changelog_pattern = "^(feat|fix|docs|chore)?(!)?"
+change_type_map = { "feat" = "Feat", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs" }
+
+[[tool.commitizen.customize.questions]]
+type = "list"
+name = "change_type"
+choices = [
+    { value = "feature", name = "feature: A new feature." },
+    { value = "bug fix", name = "bug fix: A bug fix." },
+]
+# choices = ["feature", "fix"]  # short version
+message = "Select the type of change you are committing"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "message"
+message = "Body."
+
+[[tool.commitizen.customize.questions]]
+type = "confirm"
+name = "show_message"
+message = "Do you want to add body message in commit?"

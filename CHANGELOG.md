@@ -1,3 +1,21 @@
+## 0.9.0 (2024-10-08)
+
+### Feat
+
+- **db_gen**: add parameter for selecting the composition plot image format. ([#ce24695](https://github.com/pol-sb/MatDBForge/commit/ce246956fae9c3a54541c70e9a98c0728ad3f9ef))
+
+### Fix
+
+- **gen_db**: Changed `overwrite_db` default to false ([#8978885](https://github.com/pol-sb/MatDBForge/commit/89788855edbd0c66b918459ee5b28384a1566a9e))
+- **structure**: Removed deprecated function ([#626001b](https://github.com/pol-sb/MatDBForge/commit/626001b524fdb5b88fd1e729f677f92958f32d86))
+
+### Misc
+
+- **core**: added changelog template ([#d8f3215](https://github.com/pol-sb/MatDBForge/commit/d8f32151e052d1dd6cdfca7e9f34a9b1ebf18a55))
+- **gen_db**: improved database generation plot ([#17df15e](https://github.com/pol-sb/MatDBForge/commit/17df15e91a81f9f4b013a3bb732cf4f8d43a0e5e))
+- **core**: increased clarity of update warning ([#a26f3da](https://github.com/pol-sb/MatDBForge/commit/a26f3da318bd5c039e9ccc38752750de585f22a7))
+- **core**: updated CHANGELOG.md ([#b5f59d4](https://github.com/pol-sb/MatDBForge/commit/b5f59d41f73baa6f6ceec3e5fc255a4295eb16b0))
+
 ## 0.8.0 (2024-10-07)
 
 ### Feat
