@@ -24,7 +24,7 @@ dependencies = [
     "rich==13.7.0",
     "scipy==1.11.2",
     "seaborn==0.13.2",
-    "mace-torch @ git+https://github.com/ACEsuit/mace.git",
+    "mace-torch @ git+https://github.com/ACEsuit/mace.git@v0.3.7",
     "e3nn==0.4.4",
     "aiida-core==2.6.2",
     "aiida-lammps==1.0.1",
