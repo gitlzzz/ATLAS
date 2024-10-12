@@ -820,28 +820,29 @@ class InitialDatabase:
                     material_symmetry = material.symmetry.symbol
 
                 # Replacing elements
-                if phase.replace_dict.get("replace"):
-                    replace_with = phase.replace_dict.get(
-                        "replace_with", phase.base_elem
-                    )
-
-                    replace_dict = {}
-                    for element in phase.replace_dict["element_list"]:
-                        replace_dict[element] = str(replace_with)
-
-                    if report_replacements:
-                        mdb_cud.custom_print(
-                            (
-                                f"Applying substitutions to "
-                                f"base structures: {replace_dict}..."
-                            ),
-                            "info",
+                if phase.replace_dict: #noqa: SIM102
+                    if phase.replace_dict.get("replace"):
+                        replace_with = phase.replace_dict.get(
+                            "replace_with", phase.base_elem
                         )
-                        report_replacements = False
 
-                    material.structure.replace_species(
-                        species_mapping=replace_dict, in_place=True
-                    )
+                        replace_dict = {}
+                        for element in phase.replace_dict["element_list"]:
+                            replace_dict[element] = str(replace_with)
+
+                        if report_replacements:
+                            mdb_cud.custom_print(
+                                (
+                                    f"Applying substitutions to "
+                                    f"base structures: {replace_dict}..."
+                                ),
+                                "info",
+                            )
+                            report_replacements = False
+
+                        material.structure.replace_species(
+                            species_mapping=replace_dict, in_place=True
+                        )
 
                 curr_struct = mdb_struct.Bulk(
                     material_id=str(material.material_id),
@@ -1445,9 +1446,11 @@ class InitialDatabase:
                 material_id_prefix = query_result.material_id.values[0]
                 structure = query_result.structure.values[0]
             except IndexError:
-                query_result, material_id_prefix, structure = (
-                    self.query_mp_api_prototype(prototype)
-                )
+                (
+                    query_result,
+                    material_id_prefix,
+                    structure,
+                ) = self.query_mp_api_prototype(prototype)
 
         # Querying alloy prototype structure
         else:
@@ -1484,24 +1487,29 @@ class InitialDatabase:
                 continue
 
             # Replacing elements
-            if phase.replace_dict.get("replace"):
-                replace_with = phase.replace_dict.get("replace_with", phase.base_elem)
-
-                replace_dict = {}
-                for element in phase.replace_dict["element_list"]:
-                    replace_dict[element] = str(replace_with)
-
-                if report_replacements:
-                    mdb_cud.custom_print(
-                        (
-                            f"Applying substitutions to "
-                            f"base structures: {replace_dict}..."
-                        ),
-                        "info",
+            if phase.replace_dict: #noqa: SIM102
+                if phase.replace_dict.get("replace"):
+                    replace_with = phase.replace_dict.get(
+                        "replace_with", phase.base_elem
                     )
-                    report_replacements = False
 
-                structure.replace_species(species_mapping=replace_dict, in_place=True)
+                    replace_dict = {}
+                    for element in phase.replace_dict["element_list"]:
+                        replace_dict[element] = str(replace_with)
+
+                    if report_replacements:
+                        mdb_cud.custom_print(
+                            (
+                                f"Applying substitutions to "
+                                f"base structures: {replace_dict}..."
+                            ),
+                            "info",
+                        )
+                        report_replacements = False
+
+                    structure.replace_species(
+                        species_mapping=replace_dict, in_place=True
+                    )
 
             # Getting the supercell vector as a string for naming
             idxs_str = "".join(map(str, idxs))
@@ -2524,9 +2532,10 @@ class InitialDatabase:
         db_report: dict = self.gen_report()
 
         # Rename key to something shorter
-        db_report["structure_count"]["octh_perturb"] = db_report["structure_count"].pop(
-            "central_atom_perturbation"
-        )
+        if db_report["structure_count"].get("central_atom_perturbation"):
+            db_report["structure_count"]["octh_perturb"] = db_report[
+                "structure_count"
+            ].pop("central_atom_perturbation")
 
         # Removing empty keys from the pie chart
         keys_to_pop = [
@@ -2702,8 +2711,8 @@ def cli_run_gen_initial_database(
 
     # Applying central_atom_octahedral perturbation to specific structures
     phases_read_from_db = []
-    target_mod_dict = config_dict["targeted_modification"]
-    if config_dict.get("targeted_modification", {}).get("central_atom_octahedral"):
+    target_mod_dict = config_dict.get("targeted_modification", {})
+    if target_mod_dict.get("central_atom_octahedral"):
         cen_at_oh_dict = target_mod_dict["central_atom_octahedral"]
         mdb_cud.custom_print(
             "Applying central atom octahedral modifications...", "info"
