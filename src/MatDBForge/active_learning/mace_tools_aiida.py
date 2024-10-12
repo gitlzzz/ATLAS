@@ -233,7 +233,7 @@ class GetMACEDescriptorsCalculationParser(Parser):
                 descr_min_arr = orm.ArrayData(np.load(child_file))
 
         # Return failed code if output files not found
-        if not descriptor_arr_file or not descr_max_arr or not descr_min_arr:
+        if not all((descriptor_arr_file, descr_max_arr, descr_min_arr)):
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
@@ -689,8 +689,11 @@ def prepare_cli_args_mace(params_list: list, settings_dict: dict):
         if isinstance(val, str):
             curr_key = f"--{key}={val}"
         elif isinstance(val, bool):
-            if val:
-                curr_key = f"--{key}"
+            if key == "multiheads_finetuning":
+                curr_key = f"--{key}={val}"
+            else:
+                if val:
+                    curr_key = f"--{key}"
         else:
             curr_key = f"--{key}={val}"
 
