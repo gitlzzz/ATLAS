@@ -804,6 +804,9 @@ class InitialDatabase:
             )
 
             for material in query_result:
+                mdb_cud.custom_print(
+                    f"Checking material: \n{material.material_id}", "debug"
+                )
                 for phase in self.phase_diagram.phases:
                     if phase.prototype == material.material_id:
                         curr_phase = phase.name
