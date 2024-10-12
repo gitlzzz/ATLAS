@@ -1726,6 +1726,15 @@ class ActiveLearningWorkChain(WorkChain):
                         group = orm.load_group(self.inputs.train_seed_group.value)
                         group.add_nodes(future)
 
+        if self.inputs.check_extrapolation_type.value == "advanced":
+            self.report("Plotting extrapolation check results...")
+            mdb_al_ut.plot_concave_hull(
+                point_inside=np.array(total_point_inside),
+                point_outside=np.array(total_point_outside),
+                concave_hull=self.ctx.concave_hull_array,
+                latent_space=self.ctx.latent_space,
+            )
+
         self.report(
             f"Committee decision: {submitted_dft_cnt} get info / "
             f"{len(delete_indices)} delete."

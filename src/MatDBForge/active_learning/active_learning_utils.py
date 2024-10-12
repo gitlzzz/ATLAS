@@ -2,25 +2,18 @@
 
 import io
 import itertools as it
+import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wonderwords as ww
+from aiida import orm
 from aiida.common.log import LOG_LEVEL_REPORT
 from aiida.engine import (
     calcfunction,
-)
-from aiida.orm import (
-    Bool,
-    Dict,
-    Int,
-    List,
-    SinglefileData,
-    Str,
-    load_code,
-    load_node,
 )
 from aiida.plugins import CalculationFactory
 from ase import Atoms, geometry
@@ -33,6 +26,7 @@ from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
+from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.workflows import aiida_utils as mdb_aut
@@ -169,7 +163,7 @@ def select_dft_structures(struct_arr, frame_interval):
     ----------
     struct_arr : np.array
         Array containing all possible structures to compute.
-    frame_interval : Int
+    frame_interval : orm.Int
         Integer representing the interval between structures to keep.
 
     Returns
@@ -213,7 +207,7 @@ def apply_layer_distance_filter(struct, max_layer_distance_ang):
     Parameters
     ----------
     struct : ase.Atoms
-        Structure to check.
+        structure to check.
     max_layer_distance_ang : float
         Maximum distance between layers
 
@@ -244,7 +238,7 @@ def apply_filter_no_neighbors(struct):
     Parameters
     ----------
     struct : ase.Atoms
-        Structure to check.
+        structure to check.
 
     Returns
     -------
@@ -386,14 +380,14 @@ def get_dft_calc_builder_mace_list(
 
     # Load model from absolute path
     mace_model_path = Path(dft_settings["mace_potential_path"]).absolute()
-    model = SinglefileData(file=mace_model_path)
+    model = orm.SinglefileData(file=mace_model_path)
     mace_builder.model_file = model
 
-    # Load structure as SinglefileData
+    # Load structure as orm.SinglefileData
     mace_builder.configuration_to_evaluate = mace_xyz_file
 
     # Get code and remove from settings dict
-    mace_builder.code = load_code(dft_settings["options"]["code_string"])
+    mace_builder.code = orm.load_code(dft_settings["options"]["code_string"])
     dft_settings["options"].pop("code_string")
 
     # Load scheduler and resources options
@@ -417,7 +411,7 @@ def gen_xyz_file_from_traj(struct_list):
     xyz_string = f.getvalue()
 
     # Generating tmp file
-    mace_xyz_file = SinglefileData(
+    mace_xyz_file = orm.SinglefileData(
         file=io.BytesIO(str.encode(xyz_string)),
         filename="mace_structures.xyz",
     )
@@ -498,7 +492,7 @@ def process_call_root(process):
 def prepare_output_dataframe(md_seed_results_df):
     """Prepare the output dataframe for the active learning workflow."""
     md_seed_results_df.index = md_seed_results_df.index.map(str)
-    training_df = Dict(md_seed_results_df.to_dict(orient="index"))
+    training_df = orm.Dict(md_seed_results_df.to_dict(orient="index"))
     return training_df
 
 
@@ -511,12 +505,12 @@ def update_mace_train_settings_dict(
     db_size: int,
 ):
     """Update the MACE training settings dictionary with the new database path."""
-    if isinstance(settings_dict, Dict):
+    if isinstance(settings_dict, orm.Dict):
         settings_dict: dict = settings_dict.get_dict()
 
     # Update training file path in mace train settings
     # to include the new database.
-    if isinstance(train_data_path, Str):
+    if isinstance(train_data_path, orm.Str):
         train_data_path: Path = Path(train_data_path.value)
     elif isinstance(train_data_path, str):
         train_data_path: Path = Path(train_data_path)
@@ -531,32 +525,32 @@ def update_mace_train_settings_dict(
     if db_size < settings_dict.get("batch_size", 0):
         settings_dict["batch_size"] = db_size // 2
 
-    if isinstance(curr_model, Str):
+    if isinstance(curr_model, orm.Str):
         curr_model = curr_model.value
 
-    if isinstance(curr_iter, Int):
+    if isinstance(curr_iter, orm.Int):
         curr_iter = curr_iter.value
 
     settings_dict["name"] = (
         str(curr_model) + "_" + curr_name + "_al-iteration_" + str(curr_iter)
     )
 
-    return Dict(settings_dict)
+    return orm.Dict(settings_dict)
 
 
 @calcfunction
-def create_mace_lammps_model(model_file: SinglefileData):
+def create_mace_lammps_model(model_file: orm.SinglefileData):
     """
     Create a LAMMPS potential from a MACE model.
 
     Parameters
     ----------
-    model_file : SinglefileData
+    model_file : orm.SinglefileData
         A MACE model file to convert to a LAMMPS potential.
 
     Returns
     -------
-    SinglefileData
+    orm.SinglefileData
         A LAMMPS potential file generated from the MACE model.
     """
     with model_file.as_path() as model_path:
@@ -572,7 +566,92 @@ def create_mace_lammps_model(model_file: SinglefileData):
         # Saving LAMMPS model
         lammps_model_compiled.save(new_model_path)
 
-        return SinglefileData(file=new_model_path)
+        return orm.SinglefileData(file=new_model_path)
+
+
+@calcfunction
+def check_atom_in_domain(
+    concave_hull: orm.ArrayData, descriptors: orm.ArrayData
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    point_inside = []
+    point_outside = []
+    all_points_in_out = []
+
+    # Check if the random points are inside the bounds of the
+    # concave hull by checking if the points are inside the
+    # polygon formed by the concave hull.
+    concave_hull = concave_hull.get_array()
+    descriptors = descriptors.get_array()
+    polygon = Polygon(concave_hull)
+    for point in descriptors:
+        p = Point(point)
+        if polygon.contains(p):
+            point_inside.append(point)
+            all_points_in_out.append(True)
+        else:
+            point_outside.append(point)
+            all_points_in_out.append(False)
+
+    return orm.Dict(
+        {"inside": point_inside, "outside": point_outside, "all": all_points_in_out}
+    )
+
+
+@calcfunction
+def plot_concave_hull(
+    concave_hull: np.ndarray,
+    point_inside: np.ndarray,
+    point_outside: np.ndarray,
+    latent_space: np.ndarray,
+    filename: str = "concave_hull.png",
+):
+    # Getting arrays from ArrayData objects
+    concave_hull = concave_hull.get_array()
+    latent_space = latent_space.get_array()
+    point_inside = point_inside.get_array()
+    point_outside = point_outside.get_array()
+
+    # Plotting the concave hull in 2D space using lines
+    plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
+    plt.plot(
+        latent_space[:, 0],
+        latent_space[:, 1],
+        "o",
+        markersize=2,
+        alpha=0.5,
+        label="Descriptor in database",
+        markeredgewidth=0,
+        color="#b16286",
+    )
+    plt.plot(
+        point_inside[:, 0],
+        point_inside[:, 1],
+        "s",
+        label="structure in domain",
+        color="#8ec07c",
+        markersize=5,
+        markeredgewidth=1.5,
+        markeredgecolor="#282828",
+    )
+    plt.plot(
+        point_outside[:, 0],
+        point_outside[:, 1],
+        "s",
+        label="structure out of domain",
+        color="#fb4934",
+        markersize=5,
+        markeredgewidth=1.5,
+        markeredgecolor="#282828",
+    )
+    plt.title("Concave Hull")
+    plt.xlabel("x")
+    plt.legend()
+
+    # Create tmp file
+    with tempfile.NamedTemporaryFile(suffix=".png") as f:
+        plt.savefig(f.name, dpi=300)
+        plt.close()
+        return {'plot': orm.SinglefileData(file=f.name, filename=filename)}
 
 
 def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
@@ -607,13 +686,13 @@ def serialize_ase(curr_s: dict | Atoms) -> dict:
 
 @calcfunction
 def prepare_output_final_training_db(training_db_path):
-    """Convert the training database to a SinglefileData object."""
-    train_db = SinglefileData(file=training_db_path.value)
+    """Convert the training database to a orm.SinglefileData object."""
+    train_db = orm.SinglefileData(file=training_db_path.value)
     return train_db
 
 
 @calcfunction
-def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
+def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
     """
     Collect and preprocess VASP DFT calculation results for active learning input.
 
@@ -633,10 +712,10 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
 
     Returns
     -------
-    List
-        An AiiDA List object containing serialized ASE Atoms objects, each representing
-        a completed DFT calculation augmented with necessary metadata and calculation
-        results.
+    orm.List
+        An AiiDA orm.List object containing serialized ASE Atoms objects,
+        each representing a completed DFT calculation augmented with necessary
+        metadata and calculation results.
 
     Notes
     -----
@@ -651,7 +730,7 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
 
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
-        finished_dft_calc = load_node(finished_dft_calc)
+        finished_dft_calc = orm.load_node(finished_dft_calc)
 
         try:
             # Gathering the vasprun as an ASE Atoms object. This object won't
@@ -704,23 +783,28 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> List:
         vasprun: dict = serialize_ase(vasprun)
         vasprun_list.append(vasprun)
 
-    return_list = List([val for val in vasprun_list])
+    return_list = orm.List([val for val in vasprun_list])
     return return_list
 
 
 @calcfunction
-def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None) -> Str:
+def gather_dft_calcs_mace(
+    dft_calc_list: list, results_dir: str, workchain=None
+) -> orm.Str:
     """Collect and preprocess MACE DFT calculation results for active learning input."""
     result_list = []
     outlier_list = []
 
     # Adding structures to the initial DB
     for finished_dft_calc in dft_calc_list:
-        calc_node = load_node(finished_dft_calc)
+        calc_node = orm.load_node(finished_dft_calc)
 
         try:
-            # Gathering the calculation data from a extxyz stored as a SinglefileData.
-            struct_file: SinglefileData = calc_node.outputs.configuration_result_file
+            # Gathering the calculation data from a extxyz stored
+            # as a orm.SinglefileData.
+            struct_file: orm.SinglefileData = (
+                calc_node.outputs.configuration_result_file
+            )
             with struct_file.as_path() as struct_file_path:
                 result_structures = ase_read(
                     struct_file_path, format="extxyz", index=":"
@@ -804,7 +888,7 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
                 result_list.append(struct)
 
     if workchain:
-        node = load_node(workchain.value)
+        node = orm.load_node(workchain.value)
         node.logger.log(
             level=LOG_LEVEL_REPORT,
             msg=f"[{node.pk}|{node.process_label}|gather_dft_calcs_mace]:"
@@ -812,7 +896,7 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
         )
 
     # Write the results to a temporary file in the calculation directory
-    if isinstance(results_dir, Str):
+    if isinstance(results_dir, orm.Str):
         results_dir = Path(results_dir.value)
     elif isinstance(results_dir, str):
         results_dir = Path(results_dir)
@@ -826,7 +910,7 @@ def gather_dft_calcs_mace(dft_calc_list: list, results_dir: str, workchain=None)
         ase_write(filename=outliers_file_path, images=outlier_list)
 
     # Return the path to the temporary file
-    return Str(str(results_file_path))
+    return orm.Str(str(results_file_path))
 
 
 def iqr_outlier_check(res_list: list) -> np.ndarray:
@@ -900,7 +984,9 @@ def vasprun_add_info_dict(vasprun_dict: dict, calc_info_dict: dict) -> dict:
 
 
 @calcfunction
-def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) -> List:
+def remove_structs_from_seed_gen_db(
+    seed_gen_path: orm.Str, delete_indices: list
+) -> orm.List:
     """
     Remove specified structures from a seed generation database based on UUIDs.
 
@@ -915,7 +1001,7 @@ def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) ->
 
     Parameters
     ----------
-    seed_gen : Str | str
+    seed_gen : orm.Str | str
         The path to the seed generation database.
     delete_indices : list
         A list of UUIDs (strings) identifying the structures to be removed
@@ -924,7 +1010,7 @@ def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) ->
     """
     if isinstance(seed_gen_path, str):
         seed_gen_db = load_database(seed_gen_path)
-    elif isinstance(seed_gen_path, Str):
+    elif isinstance(seed_gen_path, orm.Str):
         seed_gen_db = load_database(seed_gen_path.value)
 
     if not isinstance(seed_gen_db, list):
@@ -945,24 +1031,24 @@ def remove_structs_from_seed_gen_db(seed_gen_path: Str, delete_indices: list) ->
 
 
 @calcfunction
-def check_md_seed_agreement(return_list_path: str) -> Bool:
+def check_md_seed_agreement(return_list_path: str) -> orm.Bool:
     """
     Check if all predictions agree for current seed.
 
     Parameters
     ----------
     return_list : list
-        List containing all calculations for predictions where the
+        orm.List containing all calculations for predictions where the
         models disagreed.
 
     Returns
     -------
-    Bool
+    orm.Bool
         True if all the predictions have agreed for the current MD seed
         on the current AL iteration. False if there is no agreement on
         on all structures.
     """
     if len(return_list_path.value) > 0:
-        return Bool(False)
+        return orm.Bool(False)
     else:
-        return Bool(True)
+        return orm.Bool(True)
