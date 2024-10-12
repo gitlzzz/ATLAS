@@ -87,7 +87,7 @@ def load_dataset(
     torch.manual_seed(rng_seed)
 
     # Select a fraction of the data for training, validation, and testing
-    valid_arr_idx = rng.random.choice(
+    valid_arr_idx = rng.choice(
         point_arr.shape[0],
         size=valid_data_size,
         replace=False,
@@ -100,7 +100,7 @@ def load_dataset(
     point_arr = np.delete(point_arr, obj=valid_arr_idx, axis=0)
 
     # Getting the test data
-    test_arr_idx = rng.random.choice(
+    test_arr_idx = rng.choice(
         point_arr.shape[0],
         size=test_data_size,
         replace=False,
@@ -122,9 +122,18 @@ def load_dataset(
 
 
 def run_training(args):
-    # Set device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mdb_cud.custom_print(f"Running on device: {device}", "info")
+
+    # Set device if no device is given
+    if not args.device:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        mdb_cud.custom_print(f"Running on device: {device}", "info")
+    else:
+        device = args.device
+
+    # If no seed is given, generate a random seed
+    if not args.rng_seed:
+        args.rng_seed = np.random.randint(1, int(1e15))
+        mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
 
     # Load data
     train_data, valid_data, test_data = load_dataset(
@@ -133,7 +142,7 @@ def run_training(args):
         train_frac=args.train_frac,
         valid_frac=args.valid_frac,
         test_frac=args.test_frac,
-        rng_seed=args.seed,
+        rng_seed=args.rng_seed,
     )
 
     # Number of input dimensions
@@ -284,7 +293,8 @@ def run_training(args):
         scheduler.step(metrics=val_loss)
 
     # Save the model
-    torch.save(model.state_dict(), args.model_path)
+    # torch.save(model.state_dict(), args.model_path)
+    torch.save(model, args.model_path)
 
     mdb_cud.custom_print(
         f"Training complete! Model saved to '{args.model_path}'.", "done"

@@ -18,6 +18,14 @@ def run_train_autoencoder():
         description="Autoencoder for dimensionality reduction"
     )
 
+    # Device
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Device to run the model on",
+    )
+
     # Model name
     parser.add_argument(
         "--model_path",
@@ -100,8 +108,7 @@ def run_train_autoencoder():
     # Bias flag
     parser.add_argument(
         "--bias_flag",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Flag to include bias terms in the layers",
     )
 
@@ -132,7 +139,6 @@ def run_train_autoencoder():
     )
     parser.add_argument(
         "--wandb",
-        default=False,
         action="store_true",
         help="Whether to log metrics to wandb",
     )

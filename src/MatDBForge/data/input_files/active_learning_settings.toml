@@ -174,8 +174,13 @@ computer = "tekla2-new-test"
 
 [descriptors]
 
+# (str, optional) Dimensionality reduction method for MACE descriptors
+# Options: "autoencoder", "pca", "none"
+# If not set, the default is none, which means no dimensionality reduction.
+# dimensionality_reduction_method = ""
+
 # Aiida metadata settings for MACE descriptor calculation
-[metadata]
+[descriptors.metadata]
 
 computer = ''
 account = ''
@@ -187,6 +192,29 @@ options.resources.num_cores_per_mpiproc = ''
 options.resources.tot_num_mpiprocs = ''
 options.resources.num_machines = ''
 options.withmpi = ''
+
+# Autoencoder training settings
+[descriptors.autoencoder.train_settings]
+# model_path = "autoencoder_model.pth" # (REMOVE, str) Path to save the model
+# dataset = "all_descriptors.npy"      # (REMOVE, str) Path to the training dataset
+load_model = false                     # (bool) Load the model from the model path
+rng_seed = ""                          # (int) Random seed for reproducibility
+l1_hidden_dim = 256                    # (int) Number of units in the first hidden layer
+l2_hidden_dim = 32                     # (int) Number of units in the second hidden layer
+bottleneck_dim = 2                     # (int) Dimensionality of the bottleneck (latent space)
+bias_flag = true                       # (bool) Flag to include bias terms in the layers
+num_epochs = 15                        # (int) Number of epochs to train the model
+batch_size = 4096                      # (int) Batch size for training
+patience = 5                           # (int) Patience for early stopping
+lr = 0.001                             # (float) Learning rate for the optimizer
+weight_decay = 1e-5                    # (float) L2 regularization
+loss = "mse"                           # (str) Loss function type (one of: "mse", "weighted_mse")
+train_frac = 0.8                       # (float) Fraction of the data to use for training
+valid_frac = 0.1                       # (float) Fraction of the data to use for validation
+test_frac = 0.1                        # (float) Fraction of the data to use for testing
+wandb = false                          # (bool) Whether to log metrics to wandb
+wandb_name = ""                        # (str) Name of the wandb run
+wandb_project = ""                     # (str) Name of the wandb project
 
 ###############################################
 

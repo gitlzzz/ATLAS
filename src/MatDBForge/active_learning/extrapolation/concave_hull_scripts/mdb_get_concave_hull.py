@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Utilities to compute the concave hull for a point cloud of atomic descriptors."""
 
 import matplotlib.pyplot as plt
@@ -10,6 +11,9 @@ from shapely.geometry import Point, Polygon
 def get_concave_hull_julia(latent_space: np.ndarray) -> np.ndarray:
     # Load the required Julia modules.
     jl.seval("using GMT")
+
+    if len(latent_space.shape) > 2:
+        latent_space = np.vstack(latent_space)
 
     # Convert the latent space to a Julia array.
     # As it is necessary for the concave hull function.
@@ -52,8 +56,6 @@ def check_atom_in_domain(
 
 def plot_concave_hull(
     concave_hull: np.ndarray,
-    point_inside: np.ndarray,
-    point_outside: np.ndarray,
     latent_space: np.ndarray,
     filename: str = "concave_hull.png",
 ):
@@ -69,26 +71,6 @@ def plot_concave_hull(
         markeredgewidth=0,
         color="#b16286",
     )
-    plt.plot(
-        point_inside[:, 0],
-        point_inside[:, 1],
-        "s",
-        label="Structure in domain",
-        color="#8ec07c",
-        markersize=5,
-        markeredgewidth=1.5,
-        markeredgecolor="#282828",
-    )
-    plt.plot(
-        point_outside[:, 0],
-        point_outside[:, 1],
-        "s",
-        label="Structure out of domain",
-        color="#fb4934",
-        markersize=5,
-        markeredgewidth=1.5,
-        markeredgecolor="#282828",
-    )
     plt.title("Concave Hull")
     plt.xlabel("x")
     plt.legend()
@@ -98,34 +80,24 @@ def plot_concave_hull(
 if __name__ == "__main__":
     plot_hull = True
     latent_space_file = "latent_space.npy"
-    descriptors_file = "descriptors.npy"
-
-    # Set the random seed for reproducibility.
-    rng = np.random.default_rng(seed=420)
 
     # Gather the latent space from the autoencoder.
+    print("Reading latent space...")
     latent_space = np.load(latent_space_file)
-
-    # Get descriptors array
-    descriptors = np.load(descriptors_file)
+    print("Latent space read.")
 
     # Compute the concave hull using Julia.
+    print("Computing concave hull...")
     concave_hull = get_concave_hull_julia(latent_space)
+    np.save("concave_hull.npy", concave_hull)
+    print("Concave hull computed, saved to 'concave_hull.npy'.")
 
-    # Check if the random points are inside the concave hull.
-    point_inside, point_outside, all_points = check_atom_in_domain(
-        concave_hull, descriptors
-    )
-
-    np.save("point_inside.npy", point_inside)
-    np.save("point_outside.npy", point_outside)
-    np.save("all_points.npy", all_points)
-
+    print("Plotting concave hull...")
     if plot_hull:
         plot_concave_hull(
             concave_hull=concave_hull,
-            point_inside=point_inside,
-            point_outside=point_outside,
             latent_space=latent_space,
-            filename="/tmp/concave_hull.png",
+            filename="concave_hull.png",
         )
+    print("Concave hull plotted.")
+    print("Calculation done.")

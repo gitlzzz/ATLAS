@@ -46,6 +46,8 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 
 [project.entry-points."aiida.calculations"]
 "mdb-autoencoder-train" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
+"mdb-get-latent-space" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculation"
+"mdb-get-concave-hull" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculation"
 "mace-train" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
 "mace-get-descriptors" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
 "mace-eval" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
@@ -61,6 +63,8 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 
 [project.entry-points."aiida.parsers"]
 "mdb-autoencoder-train-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
+"mdb-get-latent-space-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculationParser"
+"mdb-get-concave-hull-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculationParser"
 "mace-training-parser" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
 "mace-descriptors-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
 "mace-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
