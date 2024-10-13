@@ -286,6 +286,9 @@ class InitialDatabase:
             if struct[1].targeted_modification:
                 mod_type = struct[1].targeted_modification
 
+                if mod_type == "central_atom_perturbation":
+                    mod_type = "oct_perturb"
+
                 if not struct_info_dict["structure_count"].get(mod_type):
                     struct_info_dict["structure_count"][mod_type] = 1
                 else:
@@ -2471,7 +2474,7 @@ class InitialDatabase:
             "perturb": {"structs": [], "color": "#d79921"},
             "vacancy": {"structs": [], "color": "#689d6a"},
             "displacement": {"structs": [], "color": "#b16286"},
-            "octh_perturb": {"structs": [], "color": "#665c54"},
+            "oct_perturb": {"structs": [], "color": "#665c54"},
             "unknown": {"structs": [], "color": "#ee0000"},
         }
 
@@ -2536,12 +2539,6 @@ class InitialDatabase:
             hist_t_ax.tick_params(axis="x", labelbottom=False)
 
         db_report: dict = self.gen_report()
-
-        # Rename key to something shorter
-        if db_report["structure_count"].get("central_atom_perturbation"):
-            db_report["structure_count"]["octh_perturb"] = db_report[
-                "structure_count"
-            ].pop("central_atom_perturbation")
 
         # Removing empty keys from the pie chart
         keys_to_pop = [
