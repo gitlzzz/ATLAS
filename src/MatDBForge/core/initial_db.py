@@ -15,6 +15,7 @@ import warnings
 from io import BytesIO, TextIOWrapper
 
 import ase.io as aseio
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -2428,6 +2429,11 @@ class InitialDatabase:
         fig_name: str = "database_composition",
         fig_format: str = "png",
     ):
+
+        # Updating matplotlib rcParams
+        for key, value in rc_params.items():
+            mpl.rcParams[key] = value
+
         inner = [["pie1"], ["pie2"]]
         outer = [
             ["histogram", "ignore"],
