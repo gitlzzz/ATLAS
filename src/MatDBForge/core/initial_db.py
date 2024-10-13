@@ -1035,14 +1035,14 @@ class InitialDatabase:
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdb_struct.Structure(
                     material_name=mat_str,
-                    structure=new_struct_vac,
                     material_id=entry.material_id,
+                    structure=new_struct_vac,
                     phase=curr_phase.name,
                     base=False,
                     bulk=entry.bulk,
                     surface=entry.surface,
                     cluster=entry.cluster,
-                    perturb=True,
+                    # perturb=True,
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=entry.formula,

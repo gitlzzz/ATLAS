@@ -2,6 +2,28 @@
 
 # Changelog
 
+# Changelog
+
+## 0.11.0 (2024-10-13)
+
+### Feat
+
+- **gen_db**: add bar chart and structure dict sorting. ([#9c7e277](https://github.com/pol-sb/MatDBForge/commit/9c7e2770dfcd4348a502d14a3726b43e5714eea8))
+- **al_loop**: added function to plot concave hull during the active learning loop ([#8948657](https://github.com/pol-sb/MatDBForge/commit/8948657b402c541ed4d834c2b5fc0222d784ea9b))
+- **active_learning**: add implementation of advanced extrapolation with concave hull and autoencoder support: ([#8ef5165](https://github.com/pol-sb/MatDBForge/commit/8ef51659a52ce30952986f7914ad8e94ca0b7a88))
+
+### Fix
+
+- **gen_db**: use rcparams to update matplotlib rcparams globally. ([#675e683](https://github.com/pol-sb/MatDBForge/commit/675e683b2b62616c619ebba2019e5acbf1818139))
+- **gen_db**: allow runs without specifying optional paramaters. ([#6244b23](https://github.com/pol-sb/MatDBForge/commit/6244b23f983957c87997ea9b38260fd6180df52a))
+- **al_loop**: added parsing for `multiheads_finetuning` key for MACE training ([#50fd490](https://github.com/pol-sb/MatDBForge/commit/50fd4902dd4f3e88bf2dd8f2e603a005f7f80a0b))
+
+### Misc
+
+- **gen_db**: rename central perturbation key. ([#b13304a](https://github.com/pol-sb/MatDBForge/commit/b13304ae4069b22fad44db77c88f8eee02db041a))
+- **gen_db**: added debug print ([#c26dd9e](https://github.com/pol-sb/MatDBForge/commit/c26dd9e5da682dec93fc7c88704b263477eb4a24))
+- **core**: pinned `mace-torch` library version ([#e40001e](https://github.com/pol-sb/MatDBForge/commit/e40001ee1dae14db1a76aa2b0c2501f9234d7cae))
+
 ## 0.10.0 (2024-10-08)
 
 ### Feat

@@ -28,6 +28,7 @@ from pymatgen.core import Structure
 from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
+from rich.logging import RichHandler
 
 import MatDBForge.core.exceptions as mdb_excp
 from MatDBForge import MDB_ROOT_DIR
@@ -1892,10 +1893,12 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Getting aiida logger
         aiida_logger = logging.getLogger("aiida")
 
-        # Create a file handler
+        # Create a file handle
+
         file_handler = logging.FileHandler(log_path)
         file_handler.setLevel(logging.INFO)
         aiida_logger.addHandler(file_handler)
+        aiida_logger.addHandler(RichHandler())
 
         self.report(f"Logging in '{log_path}'")
 
