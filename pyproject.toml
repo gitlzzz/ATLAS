@@ -24,7 +24,7 @@ dependencies = [
     "rich==13.7.0",
     "scipy==1.11.2",
     "seaborn==0.13.2",
-    "mace-torch @ git+https://github.com/ACEsuit/mace.git",
+    "mace-torch @ git+https://github.com/ACEsuit/mace.git@v0.3.7",
     "e3nn==0.4.4",
     "aiida-core==2.6.2",
     "aiida-lammps==1.0.1",
@@ -45,6 +45,9 @@ dev = ["pre-commit", "pytest", "pytest-cov"]
 Homepage = "https://github.com/pol-sb/MatDBForge"
 
 [project.entry-points."aiida.calculations"]
+"mdb-autoencoder-train" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
+"mdb-get-latent-space" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculation"
+"mdb-get-concave-hull" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculation"
 "mace-train" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
 "mace-get-descriptors" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
 "mace-eval" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
@@ -59,6 +62,9 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb-active-learning-base" = "MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain"
 
 [project.entry-points."aiida.parsers"]
+"mdb-autoencoder-train-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
+"mdb-get-latent-space-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculationParser"
+"mdb-get-concave-hull-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculationParser"
 "mace-training-parser" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
 "mace-descriptors-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
 "mace-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
@@ -71,6 +77,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb_monitor_al_loop" = "MatDBForge.core.command_line.cli_dashboard:monitor_al_loop"
 "mdb_gen_init_db" = "MatDBForge.core.command_line.cli_generate_init_db:run_gen_initial_database"
 "mdb_init_setup" = "MatDBForge.core.command_line.cli_run_initial_config:run_initial_config"
+"mdb_train_autoencoder" = "MatDBForge.core.command_line.cli_train_autoencoder:run_train_autoencoder"
 
 [tool.setuptools]
 include-package-data = true
@@ -89,7 +96,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.9.1"
+version = "0.11.0"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = ["./src/__version__.py", "pyproject.toml:version", "VERSION"]

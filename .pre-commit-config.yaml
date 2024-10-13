@@ -15,9 +15,9 @@ repos:
       # Run the linter.
       - id: ruff
         exclude: ^src/MatDBForge/data/
-        args: [--fix, --config, .ruff.toml]
+        args: [--fix, --config, ./.ruff.toml, --show-fixes]
         types_or: [ python, pyi ]
       # Run the formatter.
-      - id: ruff-format
-        args: [--diff,  --config, .ruff.toml]
-        types_or: [ python, pyi ]
+      #- id: ruff-format
+      #  args: [--config, ./.ruff.toml]
+      #  types_or: [ python, pyi ]

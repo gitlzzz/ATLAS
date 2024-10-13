@@ -1,5 +1,42 @@
 # Changelog
 
+# Changelog
+
+# Changelog
+
+## 0.11.0 (2024-10-13)
+
+### Feat
+
+- **gen_db**: add bar chart and structure dict sorting. ([#9c7e277](https://github.com/pol-sb/MatDBForge/commit/9c7e2770dfcd4348a502d14a3726b43e5714eea8))
+- **al_loop**: added function to plot concave hull during the active learning loop ([#8948657](https://github.com/pol-sb/MatDBForge/commit/8948657b402c541ed4d834c2b5fc0222d784ea9b))
+- **active_learning**: add implementation of advanced extrapolation with concave hull and autoencoder support: ([#8ef5165](https://github.com/pol-sb/MatDBForge/commit/8ef51659a52ce30952986f7914ad8e94ca0b7a88))
+
+### Fix
+
+- **gen_db**: use rcparams to update matplotlib rcparams globally. ([#675e683](https://github.com/pol-sb/MatDBForge/commit/675e683b2b62616c619ebba2019e5acbf1818139))
+- **gen_db**: allow runs without specifying optional paramaters. ([#6244b23](https://github.com/pol-sb/MatDBForge/commit/6244b23f983957c87997ea9b38260fd6180df52a))
+- **al_loop**: added parsing for `multiheads_finetuning` key for MACE training ([#50fd490](https://github.com/pol-sb/MatDBForge/commit/50fd4902dd4f3e88bf2dd8f2e603a005f7f80a0b))
+
+### Misc
+
+- **gen_db**: rename central perturbation key. ([#b13304a](https://github.com/pol-sb/MatDBForge/commit/b13304ae4069b22fad44db77c88f8eee02db041a))
+- **gen_db**: added debug print ([#c26dd9e](https://github.com/pol-sb/MatDBForge/commit/c26dd9e5da682dec93fc7c88704b263477eb4a24))
+- **core**: pinned `mace-torch` library version ([#e40001e](https://github.com/pol-sb/MatDBForge/commit/e40001ee1dae14db1a76aa2b0c2501f9234d7cae))
+
+## 0.10.0 (2024-10-08)
+
+### Feat
+
+- **extrapolation**: add rng seed for autoencoder training ([#5f9df8c](https://github.com/pol-sb/MatDBForge/commit/5f9df8cfd565c6a14d951baa01475f55b20e252a))
+- **extrapolation**: include aiida entry points for autoencoder train and parsing ([#0868684](https://github.com/pol-sb/MatDBForge/commit/0868684f14bbf79b5ee029adac28ae2cc9d29b36))
+- **extrapolation**: added entry point for autoencoder training ([#7cbc062](https://github.com/pol-sb/MatDBForge/commit/7cbc0629a71c9b7c7adef2dbbe27a57e071781bf))
+- **db_gen**: added flag to avoid db overwriting, which adds a timestamp to the db_name ([#a6a61ee](https://github.com/pol-sb/MatDBForge/commit/a6a61ee10c98d87d3f19f0db33bd4fa045d7c724))
+
+### Misc
+
+- **core**: changed logginghandler to `RichHandler` ([#98954f9](https://github.com/pol-sb/MatDBForge/commit/98954f94dbf92ae2fb4d0aea1063557bdb5a9a0d))
+
 ## 0.9.1 (2024-10-08)
 
 ### Misc

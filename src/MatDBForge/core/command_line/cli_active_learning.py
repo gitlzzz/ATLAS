@@ -60,7 +60,11 @@ def create_active_learning_builder(toml_dict: dict):
 
     builder.active_learning.final_db_name = al_conf["final_db_name"]
     builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
-    builder.active_learning.check_extrapolation = al_conf["check_extrapolation"]
+
+    # Getting extrapolation settings
+    builder.active_learning.check_extrapolation_type = al_conf.get(
+        "extrapolation", {}
+    ).get("check_extrapolation_type", 'advanced')
 
     ## AL seed settings
     builder.active_learning.seed_size_frac = float(
@@ -213,13 +217,13 @@ def run_active_learning():
 
     from aiida import load_profile
 
-    from MatDBForge.core import utils as mdb_ut
-
     try:
         # Loading default aiida profile
         load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
     except Exception as e:
-        mdb_ut.custom_print(f"Error loading aiida profile: '{e}'", "error")
+        from MatDBForge.core.code_utils import custom_print
+
+        custom_print(f"Error loading aiida profile: '{e}'", "error")
 
     # Parsing settings from TOML and creating builder for aiida
     builder = create_active_learning_builder(toml_dict)

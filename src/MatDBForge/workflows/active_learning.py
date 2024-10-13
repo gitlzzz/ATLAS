@@ -28,6 +28,7 @@ from pymatgen.core import Structure
 from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
+from rich.logging import RichHandler
 
 import MatDBForge.core.exceptions as mdb_excp
 from MatDBForge import MDB_ROOT_DIR
@@ -131,7 +132,7 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input("dft_settings", valid_type=orm.Dict)
         spec.input("committee_eval", valid_type=orm.Dict, serializer=orm.to_aiida_type)
         spec.input(
-            "check_extrapolation", valid_type=orm.Bool, serializer=orm.to_aiida_type
+            "check_extrapolation_type", valid_type=orm.Str, serializer=orm.to_aiida_type
         )
         spec.input(
             "gather_traj_cnt_lattice", valid_type=orm.Bool, serializer=orm.to_aiida_type
@@ -144,12 +145,24 @@ class ActiveLearningWorkChain(WorkChain):
             cls.train_mace_model,
             # Gathering results from mace training.
             cls.get_mace_train_output,
+            # This part of the workflow is only executed if the extrapolation
+            # check is enabled.
+            # It will get the descriptors for the entire database and use
+            # the concave hull as the extrapolation mechanism.
             if_(cls.check_extrapolation_enabled)(
                 # Generate MACE descriptors for the current seed.
+                # Dimensionality reduction is used if specified,
+                # returning an embedded/latent space.
                 cls.generate_descriptors,
                 # Gather the descriptors from the calcjob and store them
                 # in the workchain context.
                 cls.get_mace_descriptors_output,
+                if_(cls.is_advanced_extrapolation)(
+                    # Get the concave hull of the training database
+                    cls.get_concave_hull,
+                    # Gather the concave hull results
+                    cls.get_concave_hull_output,
+                ),
             ),
             # All of the structures in the seed will be run using the MD
             # code selected, using the main model (M0)
@@ -167,6 +180,7 @@ class ActiveLearningWorkChain(WorkChain):
             # According to the difference in error between the models either:
             # The original structure will be removed from D0, or
             # The problematic structure will be calcualated using DFT
+            # This uses extrapolation (if enabled), and an energy/force check.
             cls.send_calc_or_remove_structures,
             # Return the generated DFT calculations to the workchain as an output
             cls.return_seed_dft_and_model,
@@ -384,69 +398,134 @@ class ActiveLearningWorkChain(WorkChain):
 
     def check_extrapolation_enabled(self):
         """Check if the extrapolation check is enabled."""
-        return self.inputs.check_extrapolation
+        return bool(self.inputs.check_extrapolation_type.value)
+
+    def is_advanced_extrapolation(self):
+        """Check if the advanced extrapolation check is enabled."""
+        return self.inputs.check_extrapolation_type.value == "advanced"
 
     def generate_descriptors(self):
         """Generate descriptors for the current seed using the best model.
 
-        The descriptors will be obtained with `GetMACEDescriptorsCalculationParser`
-        calculations, that use the MACE code to generate the descriptors.
-        Descriptors will be available in the workchain context as
-        `mace_descriptor_results` for their use in the next steps.
+        According to the value of `dimensionality_reduction_method`, the descriptors
+        will be generated using the autoencoder or directly from MACE.
+        If no dimensionality reduction method is given, the descriptors will be
+        obtained with `GetMACEDescriptorsCalculationParser` calculations, that
+        use the MACE code to generate the descriptors.
+        If the dimensionality reduction method is autoencoder, the descriptors
+        will be obtained using the `GetLatentSpaceAutoencoderCalculationParser`
+        calculations, that use the autoencoder code to generate the latent space
+        of the descriptors.
+        In both cases, descriptors will be available in the workchain context as
+        `descriptor_results` for their use in the next steps.
         """
-        self.report(
-            f"Generating descriptors using model '{self.ctx.best_model_name}'..."
+        dimensionality_reduction_method = self.inputs.descriptor_settings.get(
+            "dimensionality_reduction_method"
         )
+        if dimensionality_reduction_method == "autoencoder":
+            descr_calc = CalculationFactory("mdb-get-latent-space")
+            self.report(
+                f"Generating descriptors using model '{self.ctx.best_model_name}'"
+                f" and latent space using autoencoder..."
+            )
+        else:
+            # Prepare GetMACEDescriptorsCalculation
+            descr_calc = CalculationFactory("mace-get-descriptors")
+            self.report(
+                f"Generating descriptors using model '{self.ctx.best_model_name}'..."
+            )
 
-        # Prepare GetMACEDescriptorsCalculation
-        mace_descr_calc = CalculationFactory("mace-get-descriptors")
-        mace_builder = mace_descr_calc.get_builder()
-        mace_builder.model_file = self.ctx.best_model_file
+        code_builder = descr_calc.get_builder()
+        code_builder.model_file = self.ctx.best_model_file
 
+        # Adding the CWD to the path in the script, so that the script can be
+        # run from aiida.
         mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
             result_dir_path=self.inputs.results_dir.value,
             final_db_name=self.inputs.final_db_name.value,
             node=self.node,
         )
-        mace_builder.mace_train_file_path = str(mace_train_file_path)
-        descriptor_code_path = Path(
-            f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
-        )
+        code_builder.mace_train_file_path = str(mace_train_file_path)
 
         prepend_text = (
-            self.inputs.descriptor_settings["metadata"]["prepend_text"] + "PATH=$PATH:."
+            self.inputs.descriptor_settings["metadata"]["prepend_text"]
+            + "\nPATH=$PATH:."
         )
 
-        # Generate aiida code using the script in the mace_code folder.
-        code = orm.PortableCode(
-            label="mace_get_descriptors",
-            filepath_files=descriptor_code_path,
-            filepath_executable="mdb_mace_get_descriptors.py",
-            prepend_text=prepend_text,
-        )
-        mace_builder.code = code
-        mace_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
+        # Set metadata options
+        code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
             "options"
         ]
-        mace_builder.metadata.options.parser_name = "mace-descriptors-parser"
 
-        mace_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
-        mace_builder.metadata.computer = orm.load_computer(
+        # Set the computer
+        code_builder.metadata.computer = orm.load_computer(
             self.inputs.descriptor_settings["metadata"]["computer"]
         )
 
-        mace_builder.metadata.options.output_filename = (
-            f"descriptors_{self.ctx.best_model_name}_"
-            f"iter-{self.inputs.al_loop_iteration.value}"
-        )
+        # Get latent space of the descriptors using the autoencoder.
+        if dimensionality_reduction_method == "autoencoder":
 
-        future = self.submit(mace_builder)
-        self.to_context(mace_descriptor_results=append_(future))
+            train_settings = self.inputs.descriptor_settings["autoencoder"][
+                "train_settings"
+            ]
+            # Preparing inputs
+            # Add RNG seed if not present
+            if not train_settings.get("rng_seed"):
+                rng_seed = np.random.randint(1, int(1e15))
+                train_settings["rng_seed"] = rng_seed
+
+            # Overwriting `model_path` in the settings dict
+            train_settings["model_path"] = "autoencoder_model.pth"
+            train_settings["dataset"] = "all_descriptors.npy"
+
+            # Set the settings dict
+            code_builder.settings_dict = train_settings
+
+            # Generate aiida code using the script in
+            # the `descriptor_code_path` folder.
+            descriptor_code_path = Path(
+                f"{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts"
+            )
+            code = orm.PortableCode(
+                label="mdb_get_latent_space",
+                filepath_files=descriptor_code_path,
+                filepath_executable="mdb_autoencoder_get_latent_space.py",
+                prepend_text=prepend_text,
+            )
+            code_builder.metadata.options.parser_name = "mdb-get-latent-space-parser"
+            code_builder.metadata.label = self.ctx.best_model_name + "_latent_space"
+
+        # Get descriptors coming directly from MACE.
+        else:
+            self.report(
+                "No dimensionality reduction method specified."
+                " Getting MACE descriptors..."
+            )
+            descriptor_code_path = Path(
+                f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+            )
+            code = orm.PortableCode(
+                label="mace_get_descriptors",
+                filepath_files=descriptor_code_path,
+                filepath_executable="mdb_mace_get_descriptors.py",
+                prepend_text=prepend_text,
+            )
+            code_builder.metadata.options.parser_name = "mace-descriptors-parser"
+            code_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
+            code_builder.metadata.options.output_filename = (
+                f"descriptors_{self.ctx.best_model_name}_"
+                f"iter-{self.inputs.al_loop_iteration.value}"
+            )
+
+        code_builder.code = code
+
+        future = self.submit(code_builder)
+        self.to_context(descriptor_results=append_(future))
 
     def get_mace_descriptors_output(self):
         """Process the descriptors in the workchain context."""
-        mace_descriptor_results = self.ctx.mace_descriptor_results
-        for calc in mace_descriptor_results:
+        descriptor_results = self.ctx.descriptor_results
+        for calc in descriptor_results:
             # Loading calculation node
             curr_calc = orm.load_node(calc.uuid)
 
@@ -459,7 +538,88 @@ class ActiveLearningWorkChain(WorkChain):
                 curr_calc.outputs.descriptors_max_array.get_array()
             )
 
-        self.report("Gathered descriptor ranges.")
+            # Getting latent space and autoencoder model from the
+            # autoencoder calculation
+            dimensionality_reduction_method = self.inputs.descriptor_settings.get(
+                "dimensionality_reduction_method"
+            )
+            if dimensionality_reduction_method == "autoencoder":
+
+                with curr_calc.outputs.descriptors_file.open(mode="rb") as f:
+                    db_descriptor_dict = pickle.load(f)
+
+                db_latent_space = np.vstack(
+                    [strc["latent_space"] for strc in db_descriptor_dict.values()]
+                )
+                self.ctx.latent_space = db_latent_space
+                self.ctx.autoencoder_model_file = (
+                    curr_calc.outputs.autoencoder_model_file
+                )
+                self.report(
+                    "Gathered descriptor ranges, latent space, and autoencoder model"
+                    " for training database."
+                )
+            else:
+                self.report("Gathered descriptor ranges for training database.")
+
+    def get_concave_hull(self):
+        self.report("Getting concave hull...")
+        descr_calc = CalculationFactory("mdb-get-concave-hull")
+
+        code_builder = descr_calc.get_builder()
+
+        # Provide the calculation with the latent space
+        code_builder.latent_space = self.ctx.latent_space
+
+        # Adding the CWD to the path in the script, so that the script can be
+        # run from aiida.
+        prepend_text = (
+            self.inputs.descriptor_settings["metadata"]["prepend_text"]
+            + "\nPATH=$PATH:."
+        )
+
+        # Set metadata options
+        code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
+            "options"
+        ]
+
+        # Set the computer
+        code_builder.metadata.computer = orm.load_computer(
+            self.inputs.descriptor_settings["metadata"]["computer"]
+        )
+
+        # Generate aiida code using the script in the `descriptor_code_path` folder.
+        descriptor_code_path = Path(
+            f"{MDB_ROOT_DIR}/active_learning/extrapolation/concave_hull_scripts"
+        )
+
+        code = orm.PortableCode(
+            label="mdb_get_concave_hull",
+            filepath_files=descriptor_code_path,
+            filepath_executable="mdb_get_concave_hull.py",
+            prepend_text=prepend_text,
+        )
+        code_builder.metadata.options.parser_name = "mdb-get-concave-hull-parser"
+        code_builder.metadata.label = self.ctx.best_model_name + "_concave_hull"
+
+        code_builder.code = code
+
+        future = self.submit(code_builder)
+        self.to_context(concave_hull_results=append_(future))
+
+    def get_concave_hull_output(self):
+        """Process the concave hull in the workchain context."""
+        concave_hull_results = self.ctx.concave_hull_results
+        for calc in concave_hull_results:
+            # Loading calculation node
+            curr_calc = orm.load_node(calc.uuid)
+
+            # Storing results in context
+            self.ctx.concave_hull_array = (
+                curr_calc.outputs.concave_hull_array.get_array()
+            )
+
+            self.report("Gathered concave hull for training database.")
 
     def gen_md_input(
         self,
@@ -1059,7 +1219,7 @@ class ActiveLearningWorkChain(WorkChain):
             )
             prepend_text = (
                 self.inputs.descriptor_settings["metadata"]["prepend_text"]
-                + "PATH=$PATH:."
+                + "\nPATH=$PATH:."
             )
             portable_code = orm.PortableCode(
                 label="mace_get_descriptors",
@@ -1125,9 +1285,9 @@ class ActiveLearningWorkChain(WorkChain):
                 energies = np.array(energies_list)
 
                 # Updating current energy dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "energy"][row_index][model_name] = (
-                    energies
-                )
+                md_seed_results_df.loc[[row_index], "energy"][row_index][
+                    model_name
+                ] = energies
 
             # Collect forces from dict using model name
             forces_collection = curr_calc.outputs.forces_result_dict.get_dict()
@@ -1144,8 +1304,23 @@ class ActiveLearningWorkChain(WorkChain):
 
     def get_descriptors_from_md_results(self):
         """Get descriptors for the MD generated structures using the best model."""
-        # Getting descriptors for generated structures
-        self.report("Getting descriptors for MD generated structures...")
+        # Get the dimensionality reduction method
+        dimensionality_reduction_method = self.inputs.descriptor_settings.get(
+            "dimensionality_reduction_method"
+        )
+
+        if dimensionality_reduction_method == "autoencoder":
+            descr_calc = CalculationFactory("mdb-get-latent-space")
+            self.report(
+                "Getting latent space of descriptors for MD generated structures..."
+            )
+        else:
+            # Prepare GetMACEDescriptorsCalculation
+            descr_calc = CalculationFactory("mace-get-descriptors")
+            self.report("Getting descriptors for MD generated structures...")
+
+        code_builder = descr_calc.get_builder()
+        code_builder.model_file = self.ctx.best_model_file
 
         # Reading md seed results DataFrame
         md_seed_results_df: pd.DataFrame = pd.read_pickle(
@@ -1181,44 +1356,74 @@ class ActiveLearningWorkChain(WorkChain):
                 filename="md_db.xyz",
             )
 
-            # Prepare GetMACEDescriptorsCalculation
-            mace_descr_calc = CalculationFactory("mace-get-descriptors")
-            mace_builder = mace_descr_calc.get_builder()
-            mace_builder.model_file = self.ctx.best_model_file
-            mace_builder.mace_train_file_path = md_xyz_file
-            descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
-            )
             prepend_text = (
                 self.inputs.descriptor_settings["metadata"]["prepend_text"]
-                + "PATH=$PATH:."
+                + "\nPATH=$PATH:."
             )
-            code = orm.PortableCode(
-                label="mace_get_descriptors",
-                filepath_files=descriptor_code_path,
-                filepath_executable="mdb_mace_get_descriptors.py",
-                prepend_text=prepend_text,
-            )
-            mace_builder.code = code
 
-            mace_builder.metadata.computer = orm.load_computer(
-                self.inputs.descriptor_settings["metadata"]["computer"]
-            )
-            mace_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
+            # Set metadata options
+            code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
                 "options"
             ]
-            mace_builder.metadata.options.parser_name = "mace-descriptors-parser"
 
-            mace_builder.metadata.label = (
-                row["unique_id"][:8] + "_md_descriptors_" + f"{row['md_temperature']}_K"
+            # Set the computer
+            code_builder.metadata.computer = orm.load_computer(
+                self.inputs.descriptor_settings["metadata"]["computer"]
             )
 
-            mace_builder.metadata.options.output_filename = (
-                f"descriptors_{self.ctx.best_model_name}_iter"
-                f"-{self.inputs.al_loop_iteration.value}"
-            )
+            code_builder.model_file = self.ctx.best_model_file
+            code_builder.mace_train_file_path = md_xyz_file
 
-            future = self.submit(mace_builder)
+            # Get latent space of the descriptors using the autoencoder.
+            if dimensionality_reduction_method == "autoencoder":
+
+                # Get autoencoder model
+                code_builder.trained_autoencoder_model = self.ctx.autoencoder_model_file
+
+                # Generate aiida code using the script in
+                # the `descriptor_code_path` folder.
+                descriptor_code_path = Path(
+                    f"{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts"
+                )
+                code = orm.PortableCode(
+                    label="mdb_get_latent_space",
+                    filepath_files=descriptor_code_path,
+                    filepath_executable="mdb_autoencoder_get_latent_space.py",
+                    prepend_text=prepend_text,
+                )
+                code_builder.metadata.options.parser_name = (
+                    "mdb-get-latent-space-parser"
+                )
+                code_builder.metadata.label = self.ctx.best_model_name + "_latent_space"
+
+            else:
+                # Prepare GetMACEDescriptorsCalculation
+                descriptor_code_path = Path(
+                    f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+                )
+
+                code = orm.PortableCode(
+                    label="mace_get_descriptors",
+                    filepath_files=descriptor_code_path,
+                    filepath_executable="mdb_mace_get_descriptors.py",
+                    prepend_text=prepend_text,
+                )
+
+                code_builder.metadata.options.parser_name = "mace-descriptors-parser"
+
+                code_builder.metadata.label = (
+                    row["unique_id"][:8]
+                    + "_md_descriptors_"
+                    + f"{row['md_temperature']}_K"
+                )
+
+                code_builder.metadata.options.output_filename = (
+                    f"descriptors_{self.ctx.best_model_name}_iter"
+                    f"-{self.inputs.al_loop_iteration.value}"
+                )
+
+            code_builder.code = code
+            future = self.submit(code_builder)
             future.base.extras.set("unique_id", row["unique_id"])
             future.base.extras.set("md_temperature", row["md_temperature"])
 
@@ -1247,7 +1452,7 @@ class ActiveLearningWorkChain(WorkChain):
         )
 
         # Gathering MD descriptor results and adding them to dataframe
-        if self.inputs.check_extrapolation:
+        if self.inputs.check_extrapolation_type.value:
             for curr_calc in self.ctx.md_descriptor_results:
                 # Ignore failed calculations
                 if not curr_calc.is_finished_ok:
@@ -1255,6 +1460,16 @@ class ActiveLearningWorkChain(WorkChain):
 
                 curr_unique_id = curr_calc.base.extras.all["unique_id"]
                 curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
+
+                dimensionality_reduction_method = self.inputs.descriptor_settings.get(
+                    "dimensionality_reduction_method"
+                )
+
+                # Find row matching the calculation using curr_unique_id and
+                # current_temperature
+                row_index = md_seed_results_df[
+                    md_seed_results_df.unique_id == curr_unique_id
+                ][md_seed_results_df.md_temperature == curr_md_temperature].index[0]
 
                 # Creating context manager to load descriptor result files
                 # descr_file
@@ -1264,20 +1479,30 @@ class ActiveLearningWorkChain(WorkChain):
                 ):
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
 
-                # Find row matching the calculation using curr_unique_id and
-                # current_temperature
-                row_index = md_seed_results_df[
-                    md_seed_results_df.unique_id == curr_unique_id
-                ][md_seed_results_df.md_temperature == curr_md_temperature].index[0]
+                # Gather latent space
+                if dimensionality_reduction_method == "autoencoder":
 
-                # Assign matching descriptors to the extrapolation column
-                desc_f_curr_row: list = md_descr_dict[curr_unique_id]
+                    # Get latent space
+                    desc_f_curr_row: dict = md_descr_dict[curr_unique_id]
+                    latent_space = desc_f_curr_row["latent_space"]
 
-                # Overwrite row in dataframe
-                md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
-                    [desc_f_curr_row],
-                    index=md_seed_results_df.index[[row_index]],
-                )
+                    # Overwrite row in dataframe
+                    md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
+                        [latent_space],
+                        index=md_seed_results_df.index[[row_index]],
+                    )
+
+                # Gather descriptors
+                else:
+                    # Assign matching descriptors to the extrapolation column
+                    desc_f_curr_row: list = md_descr_dict[curr_unique_id]
+
+                    # Assign matching descriptors to the extrapolation column
+                    # Overwrite row in dataframe
+                    md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
+                        [desc_f_curr_row],
+                        index=md_seed_results_df.index[[row_index]],
+                    )
 
         # Updating md seed results DataFrame
         md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
@@ -1288,8 +1513,11 @@ class ActiveLearningWorkChain(WorkChain):
         submitted_dft_cnt = 0
         for _, row in md_seed_results_df.iterrows():
             # Make len(traj) sized array filled with False.
+            total_point_inside, total_point_outside = [], []
             extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
-            if self.inputs.check_extrapolation:
+
+            # Use extrapolation based on descriptor ranges
+            if self.inputs.check_extrapolation_type.value == "basic":
                 curr_struct_descr = row["extrapolation"]
 
                 # TODO: Check if this can be avoided
@@ -1316,8 +1544,38 @@ class ActiveLearningWorkChain(WorkChain):
                         # Change to True the ones that are extrapolating.
                         if is_frame_extrapolating:
                             extrapolating_frames[frame_idx] = 1
-                except TypeError:
+                except TypeError as e:
+                    self.report(e)
                     pass
+
+            # Use advanced extrapolation
+            elif self.inputs.check_extrapolation_type.value == "advanced":
+                curr_struct_descr = row["extrapolation"]
+
+                for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
+                    # print("type frame_descriptors: ", type(frame_descriptors))
+                    in_domain_check_Dict: orm.Dict = mdb_al_ut.check_atom_in_domain(
+                        concave_hull=self.ctx.concave_hull_array,
+                        descriptors=frame_descriptors,
+                    )
+                    point_inside = in_domain_check_Dict.get_dict()["inside"]
+                    point_outside = in_domain_check_Dict.get_dict()["outside"]
+                    total_point_inside.extend(point_inside)
+                    total_point_outside.extend(point_outside)
+
+                    # If there are any points outside the domain, the frame is
+                    # considered extrapolating.
+                    is_frame_extrapolating = len(point_outside) > 0
+
+                    # Change to True the ones that are extrapolating.
+                    if is_frame_extrapolating:
+                        extrapolating_frames[frame_idx] = 1
+
+            self.report(
+                f"Out of {len(extrapolating_frames)} frames, "
+                f"{len(np.nonzero(extrapolating_frames)[0])} were found"
+                "to be extrapolating."
+            )
 
             # Getting all energy predictions
             # TODO - Select std or variance
@@ -1468,6 +1726,15 @@ class ActiveLearningWorkChain(WorkChain):
                     if self.inputs.train_seed_group.value:
                         group = orm.load_group(self.inputs.train_seed_group.value)
                         group.add_nodes(future)
+
+        if self.inputs.check_extrapolation_type.value == "advanced":
+            self.report("Plotting extrapolation check results...")
+            mdb_al_ut.plot_concave_hull(
+                point_inside=np.array(total_point_inside),
+                point_outside=np.array(total_point_outside),
+                concave_hull=self.ctx.concave_hull_array,
+                latent_space=self.ctx.latent_space,
+            )
 
         self.report(
             f"Committee decision: {submitted_dft_cnt} get info / "
@@ -1626,10 +1893,12 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Getting aiida logger
         aiida_logger = logging.getLogger("aiida")
 
-        # Create a file handler
+        # Create a file handle
+
         file_handler = logging.FileHandler(log_path)
         file_handler.setLevel(logging.INFO)
         aiida_logger.addHandler(file_handler)
+        aiida_logger.addHandler(RichHandler())
 
         self.report(f"Logging in '{log_path}'")
 

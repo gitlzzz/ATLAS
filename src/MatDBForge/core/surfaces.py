@@ -7,6 +7,7 @@ import numpy as np
 from pymatgen.core.structure import Lattice, Structure
 from pymatgen.core.surface import Slab, SlabGenerator
 
+import MatDBForge.core.code_utils as mdb_cud
 import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_pd
@@ -305,7 +306,7 @@ def gen_surfaces_diff_miller(
             # Fix the bottom `fixed_layers` number of layers
             # TODO: Implement this feature and remove warning
             if fixed_layers and fix_layers_warn:
-                mdb_ut.custom_print(
+                mdb_cud.custom_print(
                     "`fixed_layers` specified, but not implemented yet.",
                     "debug",
                 )
@@ -384,7 +385,7 @@ def gen_surfaces_diff_miller(
         # for the new structures
         subst_base_elem_perc = db_obj._gen_base_elem_perc(phase, num_replacements)
 
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             f"Random base element % for surface to gen: {subst_base_elem_perc*100}",
             "debug",
         )
@@ -457,13 +458,13 @@ def gen_surfaces_diff_miller(
 
         # Limiting the number of generated supercells to
         # the supercell limit.
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             f"Length of the supercell+replacement list: {len(generated_structures)}",
             "debug",
         )
 
         if len(generated_structures) > limit_total_num_struct:
-            mdb_ut.custom_print(
+            mdb_cud.custom_print(
                 (
                     f"Limiting the number of slabs ({len(generated_structures)})"
                     f" to {limit_total_num_struct}."
@@ -475,14 +476,16 @@ def gen_surfaces_diff_miller(
                 generated_structures, size=limit_total_num_struct, replace=False
             )
 
-    mdb_ut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+    mdb_cud.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
 
     # Saving the structures in the db.
     if save_in_db:
-        mdb_ut.custom_print("Saving replaced structures in dataframe.", "debug")
+        mdb_cud.custom_print("Saving replaced structures in dataframe.", "debug")
         for slab in generated_structures:
             slab.save_to_db(db_obj=db_obj)
-        mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}", "debug")
+        mdb_cud.custom_print(
+            f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+        )
 
     return generated_structures
 
@@ -495,7 +498,7 @@ def apply_replacement_surface(
     num_replacement_repeats: int = 2,
     limit_replacements: int = None,
 ):
-    mdb_ut.custom_print(
+    mdb_cud.custom_print(
         f"Applying replacements to {len(slabs_to_replace)} structures...", "debug"
     )
     rng = np.random.default_rng()
@@ -565,7 +568,7 @@ def apply_replacement_surface(
 
                 replacement_list.append(new_struct_symm)
 
-    mdb_ut.custom_print(
+    mdb_cud.custom_print(
         f"Generated {len(replacement_list)} replaced surfaces.", "debug"
     )
 
@@ -575,14 +578,16 @@ def apply_replacement_surface(
             replacement_list, size=limit_replacements, replace=False
         )
 
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             f"Limited number of replaced surfaces to {len(replacement_list)}.", "debug"
         )
 
     if save_in_db:
-        mdb_ut.custom_print("Saving replaced surfaces in dataframe.", "debug")
+        mdb_cud.custom_print("Saving replaced surfaces in dataframe.", "debug")
         for slab in replacement_list:
             slab.save_to_db(db_obj=db_obj)
-        mdb_ut.custom_print(f"Dataframe shape after saving: {db_obj.df.shape}", "debug")
+        mdb_cud.custom_print(
+            f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+        )
 
     return replacement_list

@@ -23,8 +23,8 @@ from pymatgen.io.vasp import Poscar
 
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import MDB_DATA_DIR
+from MatDBForge.core import code_utils as mdb_cud
 from MatDBForge.core import initial_db as mdb_indb
-from MatDBForge.core import utils as mdb_ut
 from MatDBForge.core.clusters import center_structure
 
 VDW_DATA_PATH = pl.Path(MDB_DATA_DIR / "vdw-data")
@@ -33,7 +33,7 @@ VDW_DATA_PATH = pl.Path(MDB_DATA_DIR / "vdw-data")
 try:
     load_profile()
 except Exception as e:
-    mdb_ut.custom_print(f"Error loading aiida profile: '{e}'", "error")
+    mdb_cud.custom_print(f"Error loading aiida profile: '{e}'", "error")
 
 
 PARSER_DICT = {
@@ -318,7 +318,7 @@ def submit_aiida_vasp_calculation(
     return_builder,
     group,
 ):
-    mdb_ut.custom_print(f"Row {index}.", "debug")
+    mdb_cud.custom_print(f"Row {index}.", "debug")
 
     struct_formula = target_structure.formula.replace(" ", "")
     kspacing = kspacing_dict[phase]
@@ -367,7 +367,7 @@ def submit_aiida_vasp_calculation(
     # Getting structure as an aiida structure from pymatgen.
     structure = StructureData(pymatgen=target_structure)
 
-    mdb_ut.custom_print(f"Calculation type: {calc_type}", "debug")
+    mdb_cud.custom_print(f"Calculation type: {calc_type}", "debug")
 
     # Get kpoints for aiida
     kpoints_data = generate_kpoints_data(
@@ -436,10 +436,10 @@ def submit_aiida_vasp_calculation(
 
     if dry_run:
         # TODO: Generate a fake node and return it
-        mdb_ut.custom_print("Dry run: nothing generated.", "debug")
+        mdb_cud.custom_print("Dry run: nothing generated.", "debug")
 
     if return_builder:
-        mdb_ut.custom_print("Returning builder.", "debug")
+        mdb_cud.custom_print("Returning builder.", "debug")
         return builder
 
     else:
@@ -447,7 +447,7 @@ def submit_aiida_vasp_calculation(
         # Aiida should handle the scheduler, ssh connection and result
         # retrieval if everything is configured correctly
         node = submit(builder)
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             (
                 f"Launched workchain for structure {index}:"
                 f" '{struct_formula}' ({phase}) - node id: {node.id}"
@@ -490,7 +490,7 @@ def run_dataframe_vasp_simulations_aiida(
 
     # Print for dry runs
     if dry_run:
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             (
                 "This is a dry run: calculations will not be submitted. "
                 "No aiida group will be created"
@@ -503,8 +503,8 @@ def run_dataframe_vasp_simulations_aiida(
         group_label = f"{group_name}_{calc_type}_batch_{ctime}"
         group = Group(label=group_label)
         group.store()
-        mdb_ut.custom_print(f'Group identifier: "{group.uuid}"', "info")
-        mdb_ut.custom_print(f"Group label: {group_label}", "info")
+        mdb_cud.custom_print(f'Group identifier: "{group.uuid}"', "info")
+        mdb_cud.custom_print(f"Group label: {group_label}", "info")
 
     # Starting calculation index
 
@@ -514,7 +514,7 @@ def run_dataframe_vasp_simulations_aiida(
     if num_chunks == 0:
         num_chunks = 1
 
-    mdb_ut.custom_print(
+    mdb_cud.custom_print(
         (
             f"Splitting database with {len(sel_struct_df)}"
             f" entries into {num_chunks} chunks."
@@ -528,7 +528,7 @@ def run_dataframe_vasp_simulations_aiida(
         if chunk_id < start_on:
             continue
 
-        mdb_ut.custom_print(f"Working on chunk {chunk_id}...", "info")
+        mdb_cud.custom_print(f"Working on chunk {chunk_id}...", "info")
 
         # Sorting chunk so smallest structures are run first
         sort_chunk_size(chunk)
@@ -578,7 +578,7 @@ def run_dataframe_vasp_simulations_aiida(
             if dry_run:
                 chunk_finished = True
 
-            mdb_ut.custom_print(
+            mdb_cud.custom_print(
                 (
                     f"({time.strftime('%H:%M:%S')})"
                     f" - {np.count_nonzero(node_status_list)}"
@@ -599,7 +599,7 @@ def run_dataframe_vasp_simulations_aiida(
                 chunk_finished = True
 
                 for nod in chunk_node_list:
-                    mdb_ut.custom_print(
+                    mdb_cud.custom_print(
                         (
                             f"VaspCalculation {nod.id} finished: "
                             f"{nod.exit_status} - {nod.exit_message}"
@@ -610,10 +610,10 @@ def run_dataframe_vasp_simulations_aiida(
             else:
                 time.sleep(500)
 
-        mdb_ut.custom_print(f"Chunk {chunk_id} done!", "done")
+        mdb_cud.custom_print(f"Chunk {chunk_id} done!", "done")
 
-    mdb_ut.custom_print("All calculations finished!", "done")
-    mdb_ut.custom_print("Check 'verdi process list' for more information", "info.")
+    mdb_cud.custom_print("All calculations finished!", "done")
+    mdb_cud.custom_print("Check 'verdi process list' for more information", "info.")
 
 
 def gather_calc_data_from_row(target_row, curr_structure=None):
@@ -655,7 +655,7 @@ def run_dataframe_vasp_aiida_queue(
 
     # Print for dry runs
     if dry_run:
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             (
                 "This is a dry run: calculations will not be submitted. "
                 "No aiida group will be created"
@@ -669,13 +669,13 @@ def run_dataframe_vasp_aiida_queue(
         group_label = f"{group_name}_{calc_type}_batch_{ctime}"
         group = Group(label=group_label)
         group.store()
-        mdb_ut.custom_print(f'Group identifier: "{group.uuid}"', "info")
-        mdb_ut.custom_print(f"Group label: {group_label}", "info")
+        mdb_cud.custom_print(f'Group identifier: "{group.uuid}"', "info")
+        mdb_cud.custom_print(f"Group label: {group_label}", "info")
 
     # Starting calculation queue
     # calc_queue = queue.Queue(maxsize=max_batch)
 
-    mdb_ut.custom_print(
+    mdb_cud.custom_print(
         (
             "Starting queue for running database with"
             f" {len(sel_struct_df)} structures..."
@@ -692,7 +692,7 @@ def run_dataframe_vasp_aiida_queue(
 
     # Repeat while there are calculations to finish
     while calcs_remaining:
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             (
                 f"Step {total_loops} - {queue_check_interval*total_loops} s "
                 "- Checking queue..."
@@ -750,7 +750,7 @@ def run_dataframe_vasp_aiida_queue(
 
             current_row_index += 1
             queue.append(node)
-            mdb_ut.custom_print(f"Queue length: {len(queue)}/{max_batch}", "debug")
+            mdb_cud.custom_print(f"Queue length: {len(queue)}/{max_batch}", "debug")
 
         time.sleep(queue_check_interval)
 
@@ -760,8 +760,8 @@ def run_dataframe_vasp_aiida_queue(
         if current_row_index >= len(sel_struct_df) and len(queue) == 0:
             calcs_remaining = False
 
-    mdb_ut.custom_print("All calculations finished!", "done")
-    mdb_ut.custom_print("Check 'verdi process list' for more information", "info.")
+    mdb_cud.custom_print("All calculations finished!", "done")
+    mdb_cud.custom_print("Check 'verdi process list' for more information", "info.")
 
 
 def kpoint_mesh_from_density(structure, kspacing):
@@ -860,10 +860,10 @@ def generate_incar(
         dictionary representation of the INCAR
     """
     if "relax" in calc_type:
-        mdb_ut.custom_print("Selecting relaxation INCAR...", "debug")
+        mdb_cud.custom_print("Selecting relaxation INCAR...", "debug")
         incar = INCAR_RELAX
     elif calc_type in ["surface", "cluster", "bulk"]:
-        mdb_ut.custom_print("Selecting single point INCAR...", "debug")
+        mdb_cud.custom_print("Selecting single point INCAR...", "debug")
         incar = INCAR_SP
 
     kspacing = select_kspacing(structure, incar, phase, kspacing, calc_type)
@@ -902,7 +902,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
     # Bulks
     if "bulk" in calc_type.name:
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             f"Generated kpoints for bulk: {kpoints_data.get_kpoints_mesh()}", "debug"
         )
 
@@ -917,7 +917,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
         kpoint_mesh[2] = 1
         kpoints_data.set_kpoints_mesh(mesh=kpoint_mesh)
 
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             (
                 f"Generated kpoints for surface using kspacing ({kspacing:.4f}): "
                 f"{kpoints_data.get_kpoints_mesh()[0]} (z-axis forced to 1)"
@@ -929,7 +929,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
     elif "cluster" in calc_type.name:
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh([1, 1, 1])
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             f"Generated kpoints for cluster: {kpoints_data.get_kpoints_mesh()}",
             "debug",
         )
@@ -1014,8 +1014,8 @@ def generate_potential_mapping() -> dict:
 
         # Header lines for comments that will be ignored.
         # The lines following the headers should not have any comment marks, i.e. '#'.
-        Ag=Ag_gw
-        Au=Au_gw
+        Ag = Ag_gw
+        Au = Au_gw
 
 
     Returns
@@ -1043,7 +1043,7 @@ def generate_potential_mapping() -> dict:
             atom_dict[sym.title()] = pot
 
     except FileNotFoundError:
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             "No potential mapping file found. Using default potentials.", "warning"
         )
         atom_dict = {}
@@ -1093,16 +1093,18 @@ def get_vdw_params(structure, incar):
         new_incar["incar"]["vdw_c6"] = c6_ele_list
         new_incar["incar"]["vdw_r0"] = r0_ele_list
 
-        mdb_ut.custom_print(f"Gathered vdW info found for element '{element}'.", "info")
+        mdb_cud.custom_print(
+            f"Gathered vdW info found for element '{element}'.", "info"
+        )
 
         return new_incar
 
     except FileNotFoundError:
-        mdb_ut.custom_print(
+        mdb_cud.custom_print(
             f"No vdW info found for element '{element}', ignoring.", "warn"
         )
         return incar
 
 
 if __name__ == "__main__":
-    mdb_ut.custom_print("This file is not intented to be run as a script.", "error")
+    mdb_cud.custom_print("This file is not intented to be run as a script.", "error")
