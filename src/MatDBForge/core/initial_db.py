@@ -311,6 +311,12 @@ class InitialDatabase:
                 },
             }
         )
+
+        # Sorting structure count dictionary by values
+        struct_info_dict["structure_count"] = dict(
+            sorted(struct_info_dict["structure_count"].items(), key=lambda x: x[1])
+        )
+
         return struct_info_dict
 
     def _check_database(self) -> bool:
@@ -824,7 +830,7 @@ class InitialDatabase:
                     material_symmetry = material.symmetry.symbol
 
                 # Replacing elements
-                if phase.replace_dict: #noqa: SIM102
+                if phase.replace_dict:  # noqa: SIM102
                     if phase.replace_dict.get("replace"):
                         replace_with = phase.replace_dict.get(
                             "replace_with", phase.base_elem
@@ -1491,7 +1497,7 @@ class InitialDatabase:
                 continue
 
             # Replacing elements
-            if phase.replace_dict: #noqa: SIM102
+            if phase.replace_dict:  # noqa: SIM102
                 if phase.replace_dict.get("replace"):
                     replace_with = phase.replace_dict.get(
                         "replace_with", phase.base_elem
@@ -2453,8 +2459,8 @@ class InitialDatabase:
 
         hist_t_ax = axd["histogram"]
         main_plot_ax = axd["main"]
-        pie_chart_ax = axd["pie1"]
-        pie_chart_ax2 = axd["pie2"]
+        bar_chart_ax = axd["pie1"]
+        pie_chart_ax = axd["pie2"]
         empty_axis = axd["ignore"]
         empty_axis.set_axis_off()
 
@@ -2565,20 +2571,33 @@ class InitialDatabase:
 
             return my_format
 
-        # Pie chart
-        pie_chart_ax.pie(
-            db_report["structure_count"].values(),
-            labels=db_report["structure_count"].keys(),
-            colors=[plot_dict[key]["color"] for key in db_report["structure_count"]],
-            autopct=autopct_display_value(db_report),
-            startangle=90,
-            wedgeprops=dict(width=0.95, alpha=0.6),
-            radius=1.25,
-            textprops={"size": "smaller"},
+        # Plotting bar chart
+        y_pos_bar = range(len(db_report["structure_count"].keys()))
+        bar_chart_ax.barh(
+            y=y_pos_bar,
+            width=db_report["structure_count"].values(),
+            color=[plot_dict[key]["color"] for key in db_report["structure_count"]],
         )
+        bar_chart_ax.set_yticks(y_pos_bar, labels=db_report["structure_count"].keys())
+
+        # Writing labels in barchart
+        label_x = max(db_report["structure_count"].values()) * 0.10
+        for bar, amount in zip(
+            bar_chart_ax.patches, db_report["structure_count"].values()
+        ):
+            bar_chart_ax.text(
+                x=label_x,
+                y=bar.get_y() + bar.get_height() / 2,
+                s=amount,
+                color="#282828",
+                ha="left",
+                va="center",
+                fontsize=8,
+            )
+
         # Pie chart 2
         phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(db_report["phases"])))
-        pie_chart_ax2.pie(
+        pie_chart_ax.pie(
             db_report["phases"].values(),
             labels=db_report["phases"].keys(),
             colors=phase_color_list,
@@ -2586,7 +2605,7 @@ class InitialDatabase:
             startangle=90,
             wedgeprops=dict(width=0.95, alpha=0.3),
             radius=1.25,
-            textprops={"size": "smaller"},
+            textprops={"size": "8"},
         )
 
         hist_t_ax.set_title("Database composition")
