@@ -630,36 +630,36 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
     # Applying displacement
     new_struct_perturb = gauss_perturb(center=center, structure=row.structure)
 
+    # Getting current row information
+    row_kwargs_dict = {**row}
+    for func_name in [
+        "from_db_row", "material_name", "perturb",
+        "from_bulk", "structure", "vacancy", "base",
+        "from_surface", "targeted_modification",
+        "from_cluster", "displacement"
+    ]:
+        if func_name in row_kwargs_dict:
+            row_kwargs_dict.pop(func_name)
+
     # Creating perturbed cluster object
-    mat_str = f"{row.material_name}_perturb_gauss_{per_idx+1}"
+    mat_str = f"{row.unique_id}_{row.material_id}_perturb_gauss_{per_idx+1}"
+    perturb_struct = mdb_struct.Structure(
+        material_name=mat_str,
+        structure=new_struct_perturb,
+        perturb=True,
+        displacement=False,
+        vacancy=False,
+        targeted_modification=False,
+
+        base=False,
+        **row_kwargs_dict,
+    )
     if row.bulk:
-        perturb_struct = mdb_struct.Bulk(
-            material_name=mat_str,
-            structure=new_struct_perturb,
-            replacement_ind=row.replacement_ind,
-            vacancy=row.vacancy,
-            targeted_modification=row.targeted_modification,
-            phase=row.phase,
-            perturb=True,
-        )
+        perturb_struct.to_bulk()
     elif row.surface:
-        perturb_struct = mdb_struct.Surface(
-            material_name=mat_str,
-            structure=new_struct_perturb,
-            replacement_ind=row.replacement_ind,
-            targeted_modification=row.targeted_modification,
-            phase=row.phase,
-            perturb=True,
-        )
+        perturb_struct.to_surface()
     elif row.cluster:
-        perturb_struct = mdb_struct.Cluster(
-            material_name=mat_str,
-            structure=new_struct_perturb,
-            replacement_ind=row.replacement_ind,
-            targeted_modification=row.targeted_modification,
-            phase=row.phase,
-            perturb=True,
-        )
+        perturb_struct.to_cluster()
     return perturb_struct
 
 
