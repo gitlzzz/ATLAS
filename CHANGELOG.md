@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.2 (2024-10-14)
+
+### Fix
+
+- **core**: added __version__ directly to __init__.py ([#5429dd1](https://github.com/pol-sb/MatDBForge/commit/5429dd163c00b34f8627754a6c7f941a99c47a94))
+
+### Misc
+
+- **docs**: updated formatting on CHANGELOG.md ([#7119a22](https://github.com/pol-sb/MatDBForge/commit/7119a22193eb01716bbe02a1f3cf6ebd9ecc6ccf))
+
 ## 0.11.1 (2024-10-14)
 
 ### Fix
