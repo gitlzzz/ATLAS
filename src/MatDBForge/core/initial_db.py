@@ -825,7 +825,7 @@ class InitialDatabase:
                         curr_phase = np.nan
 
                 try:
-                    material_symmetry = material.get_space_group_info()
+                    material_symmetry = material.get_space_group_info()[0]
                 except Exception:
                     material_symmetry = material.symmetry.symbol
 
@@ -860,7 +860,6 @@ class InitialDatabase:
                     structure=material.structure,
                     temperature=np.nan,
                     perturb=False,
-                    bulk=True,
                     vacancy=False,
                     displacement=False,
                     formula=material.structure.formula,
@@ -1046,7 +1045,7 @@ class InitialDatabase:
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=entry.formula,
-                    symmetry=new_struct_vac.get_space_group_info(),
+                    symmetry=new_struct_vac.get_space_group_info()[0],
                     temperature=entry.temperature,
                     calc_performed=False,
                     vacancy=True,
@@ -1105,7 +1104,9 @@ class InitialDatabase:
                     center=center, structure=curr_str
                 )
 
-                mat_str = f"{entry.material_name}_perturb_gauss_{perturb_repeat_idx+1}"
+                mat_str = (
+                    f"{entry.curr_str.unique_id}_perturb_gauss_{perturb_repeat_idx+1}"
+                )
 
                 # Creating a new Structure from the perturbed structure
                 curr_struct = mdb_struct.Structure(
@@ -1119,7 +1120,7 @@ class InitialDatabase:
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=new_struct_perturb.formula,
-                    symmetry=new_struct_perturb.get_space_group_info(),
+                    symmetry=new_struct_perturb.get_space_group_info()[0],
                     temperature=entry.temperature,
                     calc_performed=False,
                 )
@@ -1241,6 +1242,7 @@ class InitialDatabase:
         for _, entry in target_entries.iterrows():
             # Getting some parameters from the current perturb structure.
             str_matid = entry.material_id
+
             if isinstance(entry.phase, str):
                 str_phase = self.phase_diagram.get_phase(entry.phase)
             else:
@@ -1257,10 +1259,11 @@ class InitialDatabase:
                 )
 
                 mat_str = (
-                    f"{str_matid}_{str_phase.name}_perturb_min_{perturb_repeat_idx+1}"
+                    f"{entry.unique_id}_{str_matid}_{str_phase.name}_"
+                    f"perturb_min_{perturb_repeat_idx+1}"
                 )
 
-                # Creating a new Structure from the perturbed structure structure
+                # Creating a new Structure from the perturbed structure
                 curr_struct = mdb_struct.Structure(
                     material_name=mat_str,
                     structure=new_struct_perturb,
@@ -1274,7 +1277,7 @@ class InitialDatabase:
                     supercell=entry.supercell,
                     replacement=entry.replacement,
                     formula=entry.formula,
-                    symmetry=new_struct_perturb.get_space_group_info(),
+                    symmetry=new_struct_perturb.get_space_group_info()[0],
                     temperature=entry.temperature,
                     calc_performed=False,
                 )
@@ -1541,9 +1544,7 @@ class InitialDatabase:
                 structure=structure,
                 temperature=bulk_temp,
                 perturb=False,
-                surface=False,
                 base=False,
-                cluster=False,
                 vacancy=False,
                 targeted_modification=targeted_modification,
                 calc_performed=False,
@@ -1600,7 +1601,7 @@ class InitialDatabase:
             else:
                 sum_ind += 1
 
-        material_id_prefix = structure_obj.material_id
+        material_id_prefix = str(structure_obj.material_id)
 
         # Generating the symmetrized structure
         new_struct_symm = mdb_struct.Structure(
@@ -1942,11 +1943,9 @@ class InitialDatabase:
                         temperature=bulk_temp,
                         targeted_modification=structure_obj.targeted_modification,
                         perturb=False,
-                        surface=False,
                         replacement=True,
                         replacement_ind=(str_ind + 1, repl + 1),
                         base=False,
-                        cluster=False,
                         calc_performed=False,
                         supercell=structure_obj.supercell,
                         phase=phase.name,
@@ -2090,7 +2089,14 @@ class InitialDatabase:
     ):
         # HACK: This should probably use __dict__ instead of a manually set list...
         # Attributes not to store in a row
-        unwanted_attrs = ["save_to_db", "from_vasprun", "from_mdb_structure"]
+        unwanted_attrs = [
+            "save_to_db",
+            "from_vasprun",
+            "from_mdb_structure",
+            "to_bulk",
+            "to_surface",
+            "to_cluster",
+        ]
 
         # If given structure is a pymatgen Structure
         if isinstance(structure, Structure):
