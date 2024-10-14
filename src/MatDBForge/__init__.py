@@ -2,11 +2,8 @@
 
 import pathlib as pl
 
+# Version of the package (managed with commitizen)
+__version__ = "0.11.1"
+
 # Root of package
 MDB_ROOT_DIR = (pl.Path(__file__).parent).resolve()
-
-try:
-    with open(MDB_ROOT_DIR.parents[1] / "VERSION") as f:
-        __version__ = f.read().strip()
-except FileNotFoundError:
-    __version__ = "unknown"
