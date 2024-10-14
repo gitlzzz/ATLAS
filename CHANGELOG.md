@@ -13,11 +13,11 @@
 
 ## 0.11.0 (2024-10-13)
 
-### Feat
+### Feature
 
 - **gen_db**: add bar chart and structure dict sorting. ([#9c7e277](https://github.com/pol-sb/MatDBForge/commit/9c7e2770dfcd4348a502d14a3726b43e5714eea8))
 - **al_loop**: added function to plot concave hull during the active learning loop ([#8948657](https://github.com/pol-sb/MatDBForge/commit/8948657b402c541ed4d834c2b5fc0222d784ea9b))
-- **active_learning**: add implementation of advanced extrapolation with concave hull and autoencoder support: ([#8ef5165](https://github.com/pol-sb/MatDBForge/commit/8ef51659a52ce30952986f7914ad8e94ca0b7a88))
+- **al_loop**: add implementation of advanced extrapolation with concave hull and autoencoder support: ([#8ef5165](https://github.com/pol-sb/MatDBForge/commit/8ef51659a52ce30952986f7914ad8e94ca0b7a88))
 
 ### Fix
 
@@ -33,7 +33,7 @@
 
 ## 0.10.0 (2024-10-08)
 
-### Feat
+### Feature
 
 - **extrapolation**: add rng seed for autoencoder training ([#5f9df8c](https://github.com/pol-sb/MatDBForge/commit/5f9df8cfd565c6a14d951baa01475f55b20e252a))
 - **extrapolation**: include aiida entry points for autoencoder train and parsing ([#0868684](https://github.com/pol-sb/MatDBForge/commit/0868684f14bbf79b5ee029adac28ae2cc9d29b36))
@@ -52,7 +52,7 @@
 
 ## 0.9.0 (2024-10-08)
 
-### Feat
+### Feature
 
 - **db_gen**: add parameter for selecting the composition plot image format. ([#ce24695](https://github.com/pol-sb/MatDBForge/commit/ce246956fae9c3a54541c70e9a98c0728ad3f9ef))
 
@@ -70,7 +70,7 @@
 
 ## 0.8.0 (2024-10-07)
 
-### Feat
+### Feature
 
 - **db_gen**: added function to check for updates ([#b0e73ab](https://github.com/pol-sb/MatDBForge/commit/b0e73abfc50e2755c11b7a1714d09ddb944d3925))
 
@@ -82,7 +82,7 @@
 
 ## 0.7.0 (2024-10-07)
 
-### Feat
+### Feature
 
 - **db_gen**: add parameter for disallowing database overwrite. ([#3a69386](https://github.com/pol-sb/MatDBForge/commit/3a6938675c184a829a5bab907a86d8bb500d7472))
 - **db_gen**: added pie charts to composition plots ([#594e3c6](https://github.com/pol-sb/MatDBForge/commit/594e3c61831fef6149c1aee2ffc90a028526fa50))
@@ -94,7 +94,7 @@
 
 ## 0.6.11 (2024-10-06)
 
-### Feat
+### Feature
 
 - **structure**: added function to create mdb.Structure from InitialDatabase row. ([#98f6e22](https://github.com/pol-sb/MatDBForge/commit/98f6e224ad47f161dfee8097502a9f8fbf5e4c6c))
 - **gen_db**: added allow_modifications flag to config gile phase entries in order to avoid applying changes to desired base structures. ([#8543078](https://github.com/pol-sb/MatDBForge/commit/85430787fd6111dc2639f6583b2f5e29db747c18))
@@ -113,7 +113,7 @@
 - The `system` key in the input TOML has been renamed to `database`, and users must now specify the path for the database and export options under this new key. ([#fbd88e2](https://github.com/pol-sb/MatDBForge/commit/fbd88e23ee869691428d779da6ccd83da4dc2aed))
 - `phase.name` is now slugified, which may affect downstream usage when accessing phase names. ([#a42ea14](https://github.com/pol-sb/MatDBForge/commit/a42ea145324f855c75cf3a84ebc74435733fcc91))
 
-### Feat
+### Feature
 
 - **core**: improve surface generation with additional replacement and saving options ([#643ec8c](https://github.com/pol-sb/MatDBForge/commit/643ec8c28b33811b60715f43f6e329d3910753f3))
 - **core**: add displacement tracking and enhance structure generation ([#c63745d](https://github.com/pol-sb/MatDBForge/commit/c63745d63f3cc5382c45159350710f90ec40e8c0))
