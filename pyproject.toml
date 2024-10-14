@@ -122,7 +122,7 @@ change_type_order = [
 ]
 commit_parser = "^(?P<change_type>feat|fix|chore)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
 changelog_pattern = "^(feat|fix|docs|chore)?(!)?"
-change_type_map = { "feat" = "Feat", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs" }
+change_type_map = { "feat" = "Feature", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs" }
 
 [[tool.commitizen.customize.questions]]
 type = "list"
