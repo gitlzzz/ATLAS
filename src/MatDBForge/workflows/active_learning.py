@@ -1705,7 +1705,7 @@ class ActiveLearningWorkChain(WorkChain):
 
                     submitted_dft_cnt += 1
 
-                if self.inputs.dft_method == "mace":
+                if self.inputs.dft_method == "mace" and len(mace_calcs_struct_list) > 0:
                     builder = mdb_al_ut.get_dft_calc_builder_mace_list(
                         struct_list=mace_calcs_struct_list,
                         row=row,
