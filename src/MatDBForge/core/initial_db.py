@@ -317,6 +317,11 @@ class InitialDatabase:
             sorted(struct_info_dict["structure_count"].items(), key=lambda x: x[1])
         )
 
+        # Sorting phase dictionary by values
+        struct_info_dict["phases"] = dict(
+            sorted(struct_info_dict["phases"].items(), key=lambda x: x[1])[::-1]
+        )
+
         return struct_info_dict
 
     def _check_database(self) -> bool:
@@ -2447,6 +2452,7 @@ class InitialDatabase:
         fig_path: str | pl.Path = ".",
         fig_name: str = "database_composition",
         fig_format: str = "png",
+        max_phases_pie: int = 5,
     ):
 
         # Updating matplotlib rcParams
@@ -2587,6 +2593,7 @@ class InitialDatabase:
             y=y_pos_bar,
             width=db_report["structure_count"].values(),
             color=[plot_dict[key]["color"] for key in db_report["structure_count"]],
+            alpha=0.3,
         )
         bar_chart_ax.set_yticks(y_pos_bar, labels=db_report["structure_count"].keys())
 
@@ -2602,14 +2609,32 @@ class InitialDatabase:
                 color="#282828",
                 ha="left",
                 va="center",
-                fontsize=8,
+                fontsize="small",
             )
 
-        # Pie chart 2
-        phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(db_report["phases"])))
+        # Creating a shortened version of the dict
+        short_phase_dict = {}
+        print('db_report["phases"]: ', db_report["phases"])
+        if len(db_report["phases"]) > max_phases_pie:
+            phase_count = 0
+            for phase in db_report["phases"]:
+                if phase_count < max_phases_pie:
+                    short_phase_dict[phase] = db_report["phases"][phase]
+                    phase_count += 1
+                else:
+                    short_phase_dict["other"] = (
+                        short_phase_dict.get("other", 0) + db_report["phases"][phase]
+                    )
+        else:
+            short_phase_dict = db_report["phases"]
+
+        print("short_phase_dict: ", short_phase_dict)
+
+        # Pie chart for phases
+        phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(short_phase_dict)))
         pie_chart_ax.pie(
-            db_report["phases"].values(),
-            labels=db_report["phases"].keys(),
+            short_phase_dict.values(),
+            labels=short_phase_dict.keys(),
             colors=phase_color_list,
             autopct=autopct_format(db_report),
             startangle=90,
