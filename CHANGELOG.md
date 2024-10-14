@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.1 (2024-10-14)
+
+### Fix
+
+- **al_loop**: added check when submitting MACE energy evaluation to avoid empty lists being submitted. ([#c5744a7](https://github.com/pol-sb/MatDBForge/commit/c5744a7f4bb275b3fbbde1dfa2b60a71d71769bc))
+- **core**: fixed changelog format. ([#db3a77f](https://github.com/pol-sb/MatDBForge/commit/db3a77f28ca64ab2439bc6d13799d1b0f4dcffe1))
+
+### Misc
+
+- **core**: updated changelog format. ([#4686f22](https://github.com/pol-sb/MatDBForge/commit/4686f22aa43ab09bf62bbadd3f737a1880ca1ad1))
+
 ## 0.11.0 (2024-10-13)
 
 ### Feat
