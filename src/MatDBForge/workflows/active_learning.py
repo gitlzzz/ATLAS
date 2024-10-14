@@ -28,7 +28,10 @@ from pymatgen.core import Structure
 from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.lammps.data import LammpsData
+from rich.console import Console
 from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.pretty import Pretty
 
 import MatDBForge.core.exceptions as mdb_excp
 from MatDBForge import MDB_ROOT_DIR
@@ -1861,6 +1864,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cls.get_database,
             # Create inputs for workchains and initialize iterative counter
             cls.setup,
+            # Get a settings report for the active learning loop.
+            cls.get_input_report,
             # This part will loop to complete the process
             # It will loop `self.ctx.inputs.max_al_iterations` times.
             # while_(cls.should_run_process)(
@@ -1892,13 +1897,27 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Getting aiida logger
         aiida_logger = logging.getLogger("aiida")
+        cli_handler = aiida_logger.handlers[0]
+        aiida_logger.removeHandler(cli_handler)
 
         # Create a file handle
-
         file_handler = logging.FileHandler(log_path)
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(1)
         aiida_logger.addHandler(file_handler)
-        aiida_logger.addHandler(RichHandler())
+
+        # Adding console logger
+        console = Console(color_system="truecolor")
+        ch = RichHandler(
+            markup=True,
+            show_path=False,
+            log_time_format="[%x %X]",
+            omit_repeated_times=False,
+            console=console,
+        )
+        ch.setLevel(23)
+        formatter_con = logging.Formatter("%(message)s")
+        ch.setFormatter(formatter_con)
+        aiida_logger.addHandler(ch)
 
         self.report(f"Logging in '{log_path}'")
 
@@ -2083,6 +2102,43 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
 
         self.report("Workchain setup finished.")
+
+    def get_input_report(self):
+        console = Console(color_system="truecolor")
+
+        input_dict = {}
+        for i in self.ctx.inputs:
+            if i != "metadata":
+                if self.ctx.inputs[i]:
+                    if isinstance(self.ctx.inputs[i], orm.Dict):
+                        input_dict[i] = {}
+                        curr_dict = self.ctx.inputs[i].get_dict()
+                        for key, val in curr_dict.items():
+                            if key not in ["metadata", "options", "prepend_text"]:
+                                input_dict[i][key] = val
+                    elif isinstance(self.ctx.inputs[i], orm.List):
+                        input_dict[i] = self.ctx.inputs[i].get_list()
+                    elif isinstance(
+                        self.ctx.inputs[i], (orm.Int, orm.Bool, orm.Float, orm.Str)
+                    ):
+                        input_dict[i] = self.ctx.inputs[i].value
+                    else:
+                        input_dict[i] = self.ctx.inputs[i]
+                else:
+                    input_dict[i] = None
+
+        # Hacky way of logging the inputs to both the console and the log file
+        # in different formats.
+        aiida_logger = logging.getLogger("aiida")
+        ini_level = aiida_logger.level
+        aiida_logger.level = 20
+        aiida_logger.handlers[-1].setLevel(23)
+        aiida_logger.log(msg=f"Active Learning Inputs: \n{input_dict}", level=20)
+        aiida_logger.level = ini_level
+
+        print()
+        inputs = Panel(Pretty(input_dict), title="Active Learning Inputs")
+        console.print(inputs)
 
     def check_al_loop_conditions(self) -> bool:
         """

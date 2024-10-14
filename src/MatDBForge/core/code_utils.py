@@ -9,12 +9,28 @@ import tempfile
 import warnings
 
 from packaging.version import Version
+from rich.console import Console
 from rich.logging import RichHandler
+from rich.theme import Theme
 
 from MatDBForge import MDB_ROOT_DIR, __version__
 
 
 def init_logger(source, log_path=None):
+
+    # Starting console
+    console = Console(
+        theme=Theme(
+            {
+                "logging.level.[ i ]": "blue",
+                "logging.level.[ ! ]": "yellow",
+                "logging.level.[...]": "white",
+                "logging.level.[ ✔ ]": "green",
+                "logging.level.[ X ]": "red",
+            }
+        )
+    )
+
     logger = logging.getLogger("mdb")
     logger.setLevel(logging.DEBUG)
 
@@ -24,6 +40,7 @@ def init_logger(source, log_path=None):
         show_path=False,
         log_time_format="[%x %X]",
         omit_repeated_times=False,
+        console=console,
     )
     ch.setLevel(logging.INFO)
     formatter_con = logging.Formatter("%(message)s")
@@ -43,8 +60,13 @@ def init_logger(source, log_path=None):
     fh.setFormatter(formatter_fil)
     logger.addHandler(fh)
 
+    logging.addLevelName(10, "[...]")
+    logging.addLevelName(20, "[ i ]")
+    logging.addLevelName(25, "[ ✔ ]")
+    logging.addLevelName(30, "[ ! ]")
+    logging.addLevelName(40, "[ X ]")
+
     custom_print(f"Logging in '{filename}'", print_type="info")
-    logging.addLevelName(25, "DONE")
 
     return logger, filename
 
@@ -72,18 +94,24 @@ def custom_print(string: str, print_type: str = "default", end="\n", extra_tab=F
 
     if print_type in ["info", "default"]:
         # prefix = "\u001b[38;5;33m [ i ]"
-        logging.getLogger("mdb").info(
-            f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
+        logging.getLogger("mdb").log(
+            level=20,
+            msg=f"{prefix}{normal}{extra_tab}{string}",
+            extra={"shortmsg": string},
         )
     elif print_type in ["warn", "warning", "warn-soft", "warning-soft"]:
         # prefix = "\u001b[38;5;220m [ ! ]"
-        logging.getLogger("mdb").warning(
-            f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
+        logging.getLogger("mdb").log(
+            level=30,
+            msg=f"{prefix}{normal}{extra_tab}{string}",
+            extra={"shortmsg": string},
         )
     elif print_type in ["extra", "debug"]:
         # prefix = "\u001b[38;5;8m [···]"
-        logging.getLogger("mdb").debug(
-            f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
+        logging.getLogger("mdb").log(
+            level=10,
+            msg=f"{prefix}{normal}{extra_tab}{string}",
+            extra={"shortmsg": string},
         )
     elif print_type in ["done", "ok"]:
         # prefix = "\u001b[38;5;46m [ ✔ ]"
@@ -97,8 +125,10 @@ def custom_print(string: str, print_type: str = "default", end="\n", extra_tab=F
         )
     if print_type in ["error", "problem"]:
         # prefix = "\u001b[38;5;1m [ X ]"
-        logging.getLogger("mdb").error(
-            f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
+        logging.getLogger("mdb").log(
+            level=40,
+            msg=f"{prefix}{normal}{extra_tab}{string}",
+            extra={"shortmsg": string},
         )
     if print_type in ["none", "clean", "clear"]:
         # prefix = ""
