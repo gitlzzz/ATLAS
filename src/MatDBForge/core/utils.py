@@ -4,6 +4,7 @@ import json as js
 import os
 import pathlib
 import pathlib as pl
+import sys
 import tempfile
 import uuid
 
@@ -25,6 +26,7 @@ from MatDBForge.core.code_utils import custom_print
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
+CONFIG_EXAMPLE = {"API_KEY": "XXXXX..."}
 
 
 def get_config_path() -> pl.Path:
@@ -95,13 +97,18 @@ def gather_secrets():
         secrets = {"API_KEY": os.environ.get("MP_API_KEY")}
 
     else:
-        raise FileNotFoundError(
-            "'secrets.json' not found!\n"
-            "Please, run `mdb_init_setup`, set the `MP_API_KEY`"
-            " environment variable, or add a 'secrets.json' file in the"
-            f" following directory: '{config_path}'. "
+        print()
+        custom_print(
+            "[bold red blink]Materials Project secrets missing: "
+            "'secrets.json' not found![/]\n"
+            "[bold red]Please, either run 'mdb_init_setup', set the 'MP_API_KEY'"
+            " environment variable,\nor add a 'secrets.json' file in the"
+            f" following directory: '{config_path}',\nwith the following format:[/]\n"
+            f"{CONFIG_EXAMPLE}",
+            "error",
         )
         secrets = None
+        sys.exit(420)
 
     return secrets
 
