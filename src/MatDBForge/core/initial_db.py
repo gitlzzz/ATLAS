@@ -654,7 +654,7 @@ class InitialDatabase:
         file_path = file_path.with_suffix(f".{out_format}")
 
         aseio.write(filename=file_path, images=struct_list, format=out_format)
-        mdb_cud.custom_print(f"Database exported to {file_path}", "done")
+        mdb_cud.custom_print(f"Database exported to '{file_path}'", "done")
 
     def find_repeat_structures(
         self,
@@ -1067,6 +1067,9 @@ class InitialDatabase:
                 # Saving the bulk to the db.
                 self.df = curr_struct_conv.save_to_db(self.df)
 
+    @mdb_cud.deprecated(
+        reason="Replaced with _apply_perturbation_mdb_struct", since_ver="0.3.7"
+    )
     def perturb_gauss(
         self, center: float = 0.04, repeat: int = 5, filters: list = None
     ):
@@ -1997,6 +2000,7 @@ class InitialDatabase:
         perc = main_cnt / total_atoms
         return perc
 
+    @mdb_cud.deprecated("Unused method", "0.11.2")
     def generate_surfaces_replacements(
         self,
         phase: mdb_pd.Phase,
@@ -2767,7 +2771,8 @@ def cli_run_gen_initial_database(
         # Creating surfaces from the base structures, generating
         # different supercells and applying replacements.
         mdb_cud.custom_print(
-            f"({phase_idx+1}/{len(selected_phases)}) - Current phase: {phase}", "info"
+            f"[bold][{phase_idx+1}/{len(selected_phases)}] - Current phase: {phase}[/]",
+            "info",
         )
 
         # Getting phase object
@@ -2901,8 +2906,10 @@ def cli_run_gen_initial_database(
                 rng_seed,
             )
             mdb_cud.custom_print(structures, "info")
+
+    print()
     mdb_cud.custom_print(
-        "Finishing populating structures from every phase...",
+        "Finishing populating structures from every phase.",
         "done",
     )
     print()
