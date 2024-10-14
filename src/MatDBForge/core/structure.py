@@ -150,7 +150,9 @@ class Structure:
         attributes = {
             name: value
             for name, value in inspect.getmembers(self)
-            if not inspect.isroutine(value) and not name.startswith("__")
+            if not inspect.isroutine(value)
+            and not name.startswith("__")
+            and name not in ["to_surface", "to_bulk", "to_cluster"]
         }
         return Bulk(**attributes)
 
@@ -159,7 +161,9 @@ class Structure:
         attributes = {
             name: value
             for name, value in inspect.getmembers(self)
-            if not inspect.isroutine(value) and not name.startswith("__")
+            if not inspect.isroutine(value)
+            and not name.startswith("__")
+            and name not in ["to_surface", "to_bulk", "to_cluster"]
         }
         return Surface(**attributes)
 
@@ -168,7 +172,9 @@ class Structure:
         attributes = {
             name: value
             for name, value in inspect.getmembers(self)
-            if not inspect.isroutine(value) and not name.startswith("__")
+            if not inspect.isroutine(value)
+            and not name.startswith("__")
+            and name not in ["to_surface", "to_bulk", "to_cluster"]
         }
         return Cluster(**attributes)
 
@@ -278,10 +284,13 @@ class Structure:
         # Gathering DFT data
         if self.calc_performed:
             repr_str += "\n"
-            repr_str += f"Obtained with DFT {self.calc_type} calculation:\n"
+            repr_str += f"{spc}Obtained with DFT {self.calc_type} calculation:\n"
             repr_str += f"\t - Energy {self.calc_energy}\n"
             repr_str += f"\t - Free energy {self.calc_energy_toten}\n"
             repr_str += f"\t - Energy per atom: {self.calc_energy_per_atom}"
+        else:
+            repr_str += "\n"
+            repr_str += f"{spc}No calc performed. Energy data unavailable."
 
         return repr_str
 
