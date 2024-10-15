@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 (2024-10-15)
+
+### Feature
+
+- **gen_db**: added descriptor concave hull option to db_gen ([#01dbe76](https://github.com/pol-sb/MatDBForge/commit/01dbe76814f3832aee1022647b9ff73f5d0ce7a6))
+
+### Misc
+
+- **core**: added `commitizen` to dev dependencies. ([#a8f2989](https://github.com/pol-sb/MatDBForge/commit/a8f298934972d3b89f0e76b6608cbda927f53da6))
+
 ## 0.11.4 (2024-10-15)
 
 ### Fix
