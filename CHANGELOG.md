@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.4 (2024-10-15)
+
+### Fix
+
+- **al_loop**: fixed `check_extrapolation_type` key being gathered from wrong dictionary ([#6386024](https://github.com/pol-sb/MatDBForge/commit/6386024a1c2c7a496b733bfa475b84b9f2a4b87e))
+
+### Misc
+
+- **docs**: added input description for new extrapolation settings. ([#7794c68](https://github.com/pol-sb/MatDBForge/commit/7794c68f2ab4e90ad4f64904b0bdd26d5a416fa6))
+- **core**: added shapely dep. ([#05894e6](https://github.com/pol-sb/MatDBForge/commit/05894e6d593155ac7b5ee1dcb86f662f295a7623))
+
 ## 0.11.3 (2024-10-14)
 
 ### Fix
