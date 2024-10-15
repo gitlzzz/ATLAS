@@ -60,10 +60,10 @@ This section defines the settings related to the phase diagram of the material.
 
 This key describes the settings for a specific phase within the phase diagram. Several phases can be added to describe the entire phase diagram by adding new keys with different phase names. **Replace XXXXX with a phase name.**
 
-The key name (`XXXXX`) is used as the reference name for the phase (e.g., 'alpha', 'beta', 'gamma', 'liquid', 'amorphous', ...).
+The key name (`XXXXX`) is used as the reference name for the phase (e.g., `alpha`, `beta`, `gamma`, `liquid`, `amorphous`, ...).
 
 - `cluster_element:` (str) Symbol of the element defining the cluster.
-- `prototype`: (str) Materials Project ID of the prototypical structure (e.g., 'mp-30' for Cu alpha).
+- `prototype`: (str) Materials Project ID of the prototypical structure (e.g., `mp-30` for Cu alpha).
 - `composition.X.min`: (float) Minimum composition of element X.
 - `composition.X.max`: (float) Maximum composition of element X.
 - `composition.Y.min`: (float) Minimum composition of element Y.
@@ -400,7 +400,7 @@ Generate a database generation template file using `mdb_gen_configuration_file -
 > [!NOTE]
 > All keys are mandatory unless stated otherwise.
 
-### Key - Active learning - `[al_learning]`
+### Active learning - `[al_learning]`
 
 This key describes the main active learning settings:
 
@@ -412,21 +412,31 @@ It will contain a folder named `run_{uuid}`.
 - `final_db_name`: (str) Name for the final database. The database will be stored in the extxyz format
 - `max_iterations`: (int) Maximum number of AL loop iterations.
 - `model_acc_multiplier`: (float)
-Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
+Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any values that meet: $$RMSE_E\ or\ RMSE_F > chem\_acc \cdot chem\_acc\_multiplier$$ will be considered wrong.
+
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure.
 Influences the total number of energy evaluations and possibly DFT calculations.
-- `check_extrapolation`: (bool) Whether to check for extrapolation using the MACE descriptors
+<!-- - `check_extrapolation`: (bool) Whether to check for extrapolation using the MACE descriptors -->
 - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace"
 - `load_init_models`: (list[int], optional) # Load initial models from several aiida uuids/pk.
 
-### Key - Active learning seed - `[al_seed]`
+### Active Learning Seed Generation - `[al_seed]`
 
 Parameters to configure the AL seed generation
 
 - `seed_size_frac`: (float) Fraction of the training db set to be used to create the AL seed. This influences the amount of MD calculations and E F evaluations.
 - `seed_max_num_structs`: (int) Maximum number of structures in the MD seed.
 
-#### Key - Seed selection settings - `[al_seed.seed_select_settings]`
+
+### Extrapolation Settings - `[extrapolation]`
+This section contains keys which adjust the extrapolation settings.
+
+- `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently two options are allowed:
+    - `basic`: Check for extrapolation using the ranges of the MACE descriptors.
+    - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors, after reducing dimensionality with an autoencoder trained on the current iteration data descriptors.
+
+
+#### Seed selection settings - `[al_seed.seed_select_settings]`
 
 Parameters to tune the structure selection while creating the AL seeds.
 
@@ -434,11 +444,11 @@ Parameters to tune the structure selection while creating the AL seeds.
 - `small_first_max_size`: (int) Maximum size in number of atoms for the structures selected with small_first mode
 - `small_first_max_iter`: (int) Apply small_first mode for the first n iterations
 
-### Key - MD Settings - `[md]`
+### MD Settings - `[md]`
 
 Settings for MD simulations using LAMMPS
 
-#### Key - MD Parameters - `[md.parameters]`
+#### MD Parameters - `[md.parameters]`
 
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: [300, 350, 400]
 - `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
@@ -447,7 +457,7 @@ Settings for MD simulations using LAMMPS
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu
 
-#### Key - MD Filters - `[md.filters]`
+#### MD Filters - `[md.filters]`
 
 Contains settings related to the filtering of structures obtained from MD calculations. Filtering allows the removal of some types of incorrect structures that might pollute the training database
 
@@ -458,7 +468,7 @@ Contains settings related to the filtering of structures obtained from MD calcul
 
 - `layer_distance.max_layer_distance_ang` (float):  Specific setting for the layer distance MD filter.Maximum accepted distance between layers (in Angstrom).
 
-#### Key - MD Queue - `[md.queue]`
+#### MD Queue - `[md.queue]`
 
 Contains settings related to the MD calculation setup and usage of AiiDA. As of now, the only MD code available is LAMMPS-MACE.
 The queue key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options). Below are listed the bare minimum options for running calculations using an SGE scheduler:
@@ -480,7 +490,7 @@ The queue key can take any option from its [matching AiiDA input](https://aiida.
 '''
 ```
 
-### Key - Committee Evaluation Settings - `[committee_eval]`
+### Committee Evaluation Settings - `[committee_eval]`
 
 Contains settings related to the NNP model evaluation (MACE as of now).
 
@@ -488,7 +498,7 @@ Contains settings related to the NNP model evaluation (MACE as of now).
 - `openmp_threads` (int): Number of OpenMP threads to be used for MACE CPU evaluation.
 - `prepend_text`: prepend text for the aiida [PortableCode](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/data_types.html#portablecode). Use triple quoted strings to allow for several options.
 
-#### Key - MACE General Settings - `[committee_eval.mace]`
+#### MACE Evaluation Settings - `[committee_eval.mace]`
 
 Contains settings for the MACE evaluator.
 
@@ -497,7 +507,7 @@ Contains settings for the MACE evaluator.
 - `batch_size`: (int) Size of the training batch
 - `compute_stress`: (bool) Whether or not to compute stress (true/false)
 
-#### Key - MACE General Settings - `[committee_eval.metadata.options]
+#### MACE Evaluation Scheduler - `[committee_eval.metadata.options]
 
 Contains settings related to the scheduler and AiiDA for the MACE Evaluations. This key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options). Below are listed the bare minimum options for running calculations using an SGE scheduler:
 
@@ -517,9 +527,12 @@ $ -l hostname="tekla2189"
 '''
 ```
 
-### Key - Descriptor Settings - `[descriptors]`
+### Descriptor Settings - `[descriptors]`
 
-#### Key - Descriptor Scheduler Optinons - `[descriptors.metadata]`
+
+- `dimensionality_reduction_method`: (str, optional) Dimensionality reduction method for MACE descriptors. Options: `autoencoder`, `pca`, `none`. If not set, the default is none, which means no dimensionality reduction.
+
+#### Descriptor Scheduler Options - `[descriptors.metadata]`
 
 AiiDA metadata settings for MACE descriptor calculation
 
@@ -534,7 +547,34 @@ AiiDA metadata settings for MACE descriptor calculation
 - `options.resources.num_machines` = ''
 - `options.withmpi` = ''
 
-### Key - MACE Scheduler - `[mace_train]`
+
+#### Autoencoder settings - `[descriptors.autoencoder.train_settings]`
+
+This section contains keys related to the Autoencoder training
+
+- `device`: (str) Device to train the model. Either `cpu` or `cuda`.
+- `model_path`: (str): Filename or path to save the model.
+- `load_model`: (bool) Load the model from the model path
+- `dataset`: (str) Path to the training dataset
+- `l1_hidden_dim`: (int) Number of units in the first hidden layer, default `256`.
+- `l2_hidden_dim`: (int) Number of units in the second hidden layer, default `32`.
+- `bottleneck_dim`: (int) Dimensionality of the bottleneck (latent space), default `2`.
+- `bias_flag`: (bool) Flag to include bias terms in the layers
+- `num_epochs`: (int) Number of epochs to train the model
+- `batch_size`: (int) Batch size for training
+- `patience`: (int) Patience for early stopping
+- `lr`: (float) Learning rate for the optimizer
+- `weight_decay`: (float) L2 regularization
+- `loss`: (str) Loss function type (one of: "mse", "mae", "weighted_mse")
+- `train_frac`: (float) Fraction of the data to use for training
+- `valid_frac`: (float) Fraction of the data to use for validation
+- `test_frac`: (float) Fraction of the data to use for testing
+- `wandb`: (bool) Whether to log metrics to wandb
+- `wandb_name`: (str) Name of the wandb run
+- `wandb_project`: (str)  Name of the wandb project
+
+
+### MACE Scheduler - `[mace_train]`
 
 MACE training code and scheduler settings (aiida)
 
@@ -556,7 +596,7 @@ $ -l hostname="tekla2188"
 '''
 ```
 
-#### Key - MACE Train Settings - `[mace_train.train_settings]`
+#### MACE Train Settings - `[mace_train.train_settings]`
 
 MACE Training Settings. Check the [MACE documentation on training](https://mace-docs.readthedocs.io/en/latest/guide/training.html) for more information. Here are some sample values used for training in one of our case studies:
 
@@ -586,9 +626,9 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 - `default_dtype` (str): Either `float32`/`float64`
 - `wandb`(bool): false
 
-### Key - DFT Settings - `[dft]`
+### DFT Settings - `[dft]`
 
-### Key - MACE as DFT calculator - `[dft.mace]`
+### MACE as DFT calculator - `[dft.mace]`
 
 MACE Settings as DFT calculator. Ignored if dft_method = "vasp"
 Options intended for MACE will be passed as arguments during MACE execution. The scheduler options will be used in the builder.metadata.options from AiiDA.
@@ -613,7 +653,7 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 '''
 ```
 
-### Key - VASP as DFT calculator - `[dft.vasp]`
+### VASP as DFT calculator - `[dft.vasp]`
 
 Settings for VASP as DFT calculator using the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin. Ignored if `dft_method = "mace"`.
 
@@ -623,7 +663,7 @@ Settings for VASP as DFT calculator using the [aiida-vasp](https://aiida-vasp.re
 
 See [the potentials section in the aiida-vasp documentation](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html) to setup the potentials for VASP.
 
-### Key - Scheduler settings for aiida-vasp - `[dft.vasp.queue]`
+### Scheduler settings for aiida-vasp - `[dft.vasp.queue]`
 
 - `queue.type` = "sge"
 - `queue.node_cpus` = 12
@@ -632,7 +672,7 @@ See [the potentials section in the aiida-vasp documentation](https://aiida-vasp.
 - `queue.multiple` = 1
 - `queue.custom_scheduler_commands` = '#$ -l hostname="tekla2044"'
 
-### Key - VASP k-spacing - `[dft.vasp.kspacing]`
+### VASP k-spacing - `[dft.vasp.kspacing]`
 
 **WIP**
 
@@ -649,7 +689,7 @@ Description of the phase diagram.
 - `m4` = 0.0948760981384118
 - `delta` = 0.0994491889005363
 
-### Key - VASP INCAR - `[dft.vasp.incar]`
+### VASP INCAR - `[dft.vasp.incar]`
 
 General incar settings to be used as a template for all calculations. Different types of calculations, i.e., relaxations, bulks, clusters and surfaces, can have different options. Type-specific options must be specified in the corresponding key for each type (see below) and will overwrite the keys on the general incar in this section.
 
@@ -675,18 +715,18 @@ General incar settings to be used as a template for all calculations. Different 
 - `lelf`: false
 - `ivdw`: 11      # van der Waals
 
-#### Key - VASP INCAR for relaxations - `[dft.vasp.relax.incar]`
+#### VASP INCAR for relaxations - `[dft.vasp.relax.incar]`
 
 - `ibrion` = 2
 - `nsw` = 350
 - `isif` = 3
 
-#### Key - VASP INCAR for surfaces - `[dft.vasp.surface.incar]`
+#### VASP INCAR for surfaces - `[dft.vasp.surface.incar]`
 
 - `ldipol` = true
 - `idipol` = 3
 
-#### Key - VASP INCAR for clusters - `[dft.vasp.cluster.incar]`
+#### VASP INCAR for clusters - `[dft.vasp.cluster.incar]`
 
 - `ldipol` = true
 - `dipol` = [0.5, 0.5, 0.5]
