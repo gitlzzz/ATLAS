@@ -64,7 +64,7 @@ def create_active_learning_builder(toml_dict: dict):
     # Getting extrapolation settings
     builder.active_learning.check_extrapolation_type = toml_dict.get(
         "extrapolation", {}
-    ).get("check_extrapolation_type", 'advanced')
+    ).get("check_extrapolation_type", "advanced")
 
     ## AL seed settings
     builder.active_learning.seed_size_frac = float(

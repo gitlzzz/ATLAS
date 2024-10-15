@@ -25,7 +25,8 @@ def get_concave_hull_julia(latent_space: np.ndarray) -> np.ndarray:
 
 
 def check_atom_in_domain(
-    concave_hull: np.ndarray, descriptors: np.ndarray
+    concave_hull: np.ndarray,
+    descriptors: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     point_inside = []
     point_outside = []
@@ -52,47 +53,55 @@ def check_atom_in_domain(
 
 def plot_concave_hull(
     concave_hull: np.ndarray,
-    point_inside: np.ndarray,
-    point_outside: np.ndarray,
     latent_space: np.ndarray,
-    filename: str = "concave_hull.png",
+    point_inside: np.ndarray = None,
+    point_outside: np.ndarray = None,
+    filename: str = None,
 ):
+    if not filename:
+        filename = "concave_hull.png"
+
     # Plotting the concave hull in 2D space using lines
     plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
     plt.plot(
         latent_space[:, 0],
         latent_space[:, 1],
         "o",
-        markersize=2,
+        markersize=3.5,
         alpha=0.5,
         label="Descriptor in database",
         markeredgewidth=0,
         color="#b16286",
     )
-    plt.plot(
-        point_inside[:, 0],
-        point_inside[:, 1],
-        "s",
-        label="Structure in domain",
-        color="#8ec07c",
-        markersize=5,
-        markeredgewidth=1.5,
-        markeredgecolor="#282828",
-    )
-    plt.plot(
-        point_outside[:, 0],
-        point_outside[:, 1],
-        "s",
-        label="Structure out of domain",
-        color="#fb4934",
-        markersize=5,
-        markeredgewidth=1.5,
-        markeredgecolor="#282828",
-    )
+    if point_inside:
+        plt.plot(
+            point_inside[:, 0],
+            point_inside[:, 1],
+            "s",
+            label="Structure in domain",
+            color="#8ec07c",
+            markersize=5,
+            markeredgewidth=1.5,
+            markeredgecolor="#282828",
+        )
+    if point_outside:
+        plt.plot(
+            point_outside[:, 0],
+            point_outside[:, 1],
+            "s",
+            label="Structure out of domain",
+            color="#fb4934",
+            markersize=5,
+            markeredgewidth=1.5,
+            markeredgecolor="#282828",
+        )
     plt.title("Concave Hull")
-    plt.xlabel("x")
+    plt.xlabel("Embedded dimension 1")
+    plt.ylabel("Embedded dimension 2")
     plt.legend()
     plt.savefig(filename, dpi=300)
+    plt.show()
+    plt.clf()
 
 
 if __name__ == "__main__":

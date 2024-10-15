@@ -4,6 +4,11 @@ base (unperturbed) structures and a certain number of structures
 with an applied perturbation with respect to the temperature.
 """
 
+# This needs to be here to avoid segfaults when using Julia
+# and pytorch.
+from juliacall import Main as jl  # noqa
+from juliacall import convert as jl_convert  # noqa
+
 import itertools as it
 import lzma
 import pathlib
@@ -13,6 +18,7 @@ import re
 import time
 import warnings
 from io import BytesIO, TextIOWrapper
+from types import SimpleNamespace
 
 import ase.io as aseio
 import matplotlib as mpl
@@ -526,6 +532,7 @@ class InitialDatabase:
             n_max=n_max,
             l_max=l_max,
             sparse=False,
+            average="inner",
         )
 
         for pym_struct in structure_list:
@@ -533,20 +540,22 @@ class InitialDatabase:
 
             # Create output for multiple system in parallel
             struct_soap = soap.create(ase_struct, n_jobs=-1, verbose=False)
-            curr_feat_sum = struct_soap.sum()
-            soap_structs.append(curr_feat_sum)
+            # curr_feat_sum = struct_soap.sum()
+            soap_structs.append(struct_soap)
 
         # TODO: Should this be here twice?
         curr_ase_struct = AseAtomsAdaptor().get_atoms(curr_struct)
         curr_struct_soap = soap.create(curr_ase_struct, n_jobs=-1, verbose=False)
-        curr_soap_sum = curr_struct_soap.sum()
+        # curr_soap_sum = curr_struct_soap.sum()
 
         total_soap_arr = np.array(soap_structs)
 
-        comp_arr = np.isclose(curr_soap_sum, total_soap_arr, rtol=7.5e-04, atol=5e-05)
+        comp_arr = np.isclose(
+            curr_struct_soap, total_soap_arr, rtol=7.5e-04, atol=5e-05
+        )
 
         if np.count_nonzero(comp_arr) > 0:
-            mdb_cud.custom_print("duplicate found!!", "warn")
+            mdb_cud.custom_print("Duplicate structure found!", "warn")
             return True
 
         else:
@@ -2614,7 +2623,6 @@ class InitialDatabase:
 
         # Creating a shortened version of the dict
         short_phase_dict = {}
-        print('db_report["phases"]: ', db_report["phases"])
         if len(db_report["phases"]) > max_phases_pie:
             phase_count = 0
             for phase in db_report["phases"]:
@@ -2627,8 +2635,6 @@ class InitialDatabase:
                     )
         else:
             short_phase_dict = db_report["phases"]
-
-        print("short_phase_dict: ", short_phase_dict)
 
         # Pie chart for phases
         phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(short_phase_dict)))
@@ -2663,6 +2669,146 @@ class InitialDatabase:
 
         # Displaying the plot
         plt.show()
+
+        # Clearing the plot
+        plt.clf()
+
+    def get_soap_descriptors(self, **kwargs) -> np.ndarray:
+        species_list = [Element(el).Z for el in self.phase_diagram.alloy_set]
+
+        r_cut = 6
+        n_max = 8
+        l_max = 6
+
+        soap_structs = {}
+
+        # Average of the inner SOAP vectors
+        # This will return a single feature vector: (1, n_features)
+        soap = SOAP(
+            species=species_list,
+            periodic=True,
+            r_cut=r_cut,
+            n_max=n_max,
+            l_max=l_max,
+            average="inner",
+            sparse=False,
+        )
+
+        for _, row in self.df.iterrows():
+            pym_struct = row.structure
+            unique_id = row.unique_id
+            soap_structs[unique_id] = {}
+            ase_struct = AseAtomsAdaptor().get_atoms(pym_struct)
+
+            # Create output for multiple system in parallel
+            struct_soap = soap.create(ase_struct, n_jobs=-1, verbose=False)
+
+            # Adding structure to dictionary using unique_id as key
+            soap_structs[unique_id]["descriptors"] = struct_soap
+
+        return soap_structs
+
+    def descriptors_concave_hull(
+        self,
+        descriptor_type: str = "soap",
+        dimensionality_reduction_method: str = "autoencoder",
+        descriptor_settings: dict = None,
+        load_autoencoder_path: str = None,
+        rng_seed: int = None,
+        device: str = None,
+        plot_filename: str = None,
+    ):
+        import torch  # noqa
+
+        from MatDBForge.active_learning.extrapolation import concave_hull as mdb_ch
+        from MatDBForge.active_learning.extrapolation import (
+            train_autoencoder as mdb_tr_ae,
+        )
+
+        if not device:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        if not descriptor_settings:
+            descriptor_settings = {}
+
+        # Get the descriptors using the selected descriptor type
+        match descriptor_type:
+            case "soap":
+                mdb_cud.custom_print("Generating descriptors using SOAP...", "info")
+                # Get the SOAP descriptors
+                descriptors: dict = self.get_soap_descriptors(**descriptor_settings)
+            case "mace":
+                # Get the MACE descriptors
+                raise NotImplementedError(
+                    "MACE descriptors are not yet implemented" "in database generation."
+                )
+                mdb_cud.custom_print("Generating descriptors using MACE...", "info")
+            case "acsf":
+                # Get the ACSF descriptors
+                raise NotImplementedError(
+                    "ASCF descriptors are not yet implemented" "in database generation"
+                )
+        mdb_cud.custom_print("Generated descriptors.", "done")
+
+        # Reduce dimensionality of the descriptors
+        match (load_autoencoder_path, dimensionality_reduction_method):
+            case (None, "autoencoder"):
+                descriptor_arr = np.vstack(
+                    [val["descriptors"] for key, val in descriptors.items()]
+                )
+                model = mdb_tr_ae.run_training(
+                    SimpleNamespace(
+                        rng_seed=rng_seed,
+                        device=device,
+                        dataset=descriptor_arr,
+                        test_frac=0.1,
+                        valid_frac=0.1,
+                        train_frac=0.8,
+                        wandb=False,
+                        l1_hidden_dim=256,
+                        l2_hidden_dim=32,
+                        bias_flag=True,
+                        loss="mse",
+                        patience=5,
+                        lr=1e-3,
+                        batch_size=4096,
+                        num_epochs=250,
+                        model_path=False,
+                        weight_decay=1e-5,
+                        verbose=False,
+                    )
+                )
+
+            case (_, "autoencoder"):
+                model = torch.load(load_autoencoder_path, weights_only=False)
+
+        match dimensionality_reduction_method:
+            case "pca":
+                raise NotImplementedError(
+                    "PCA is not yet implemented in database generation."
+                )
+            case "autoencoder":
+                from MatDBForge.active_learning.extrapolation import (
+                    autoencoder as mdb_ae,
+                )
+
+                descriptors = mdb_ae.get_latent_space_autoencoder(
+                    model=model,
+                    descriptor_dict=descriptors,
+                    device=device,
+                )
+
+        # Get the concave hull of the reduced descriptors
+        latent_space = np.vstack(
+            [val["latent_space"] for key, val in descriptors.items()]
+        )
+
+        concave_hull = mdb_ch.get_concave_hull_julia(latent_space)
+        concave_hull = mdb_ch.plot_concave_hull(
+            concave_hull=concave_hull,
+            latent_space=latent_space,
+            filename=plot_filename,
+        )
 
 
 def cli_run_gen_initial_database(
@@ -3007,6 +3153,24 @@ def cli_run_gen_initial_database(
             fig_name=db_dict["database_name"],
             fig_format=db_dict["plot_db"].get("format", "png"),
         )
+
+    # Getting the concave hull if requested
+    if config_dict.get("concave_hull", {}).get("gen_concave_hull", False):
+        concave_dict = config_dict["concave_hull"]
+        print()
+        mdb_cud.custom_print("Generating concave hull...", "info")
+        structures.descriptors_concave_hull(
+            descriptor_type=concave_dict.get("descriptor", "soap").lower(),
+            dimensionality_reduction_method=concave_dict.get(
+                "dim_reduction", "autoencoder"
+            ),
+            plot_filename=concave_dict.get(
+                "plot_filename",
+                f"{pl.Path(db_path)/'descriptors_concave_hull.png'}",
+            ),
+        )
+        mdb_cud.custom_print("Concave hull generated!", "done")
+        print()
 
     # Export the database if requested
     if db_dict.get("export", {}).get("export"):

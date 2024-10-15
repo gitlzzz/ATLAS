@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from MatDBForge.core.code_utils import custom_print
+
 
 class Autoencoder(nn.Module):
     """
@@ -114,6 +116,36 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
             l2_dim=l2_dim,
         )
         model.load_state_dict(state_dict)
-        print("\nModel loaded successfully!")
+        custom_print("Model loaded successfully!", "done")
 
     return model
+
+
+def get_latent_space_autoencoder(model, descriptor_dict: dict, device: str = None):
+
+    # Changing device to available GPU if available, else CPU.
+    if not device:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model.to(device)
+
+    # Remember that you must call model.eval() to set dropout and batch
+    # normalization layers to evaluation mode before running inference.
+    # Failing to do this will yield inconsistent inference results.
+    model.eval()
+
+    # Reduce the dimensionality of the input points to 2D
+    custom_print("Computing latent space for all structures...", "info")
+    with torch.no_grad():  # No need to compute gradients for inference
+        for uuid, descr_dict in descriptor_dict.items():
+
+            # Get latent space
+            latent_space = model.encoder(
+                torch.Tensor(descr_dict["descriptors"]).to(device)
+            )
+
+            # Save latent space
+            descriptor_dict[uuid]["latent_space"] = latent_space.cpu().numpy()
+
+    return descriptor_dict
+    custom_print("Computed latent space!", "done")

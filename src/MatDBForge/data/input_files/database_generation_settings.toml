@@ -349,3 +349,31 @@ limit_max_num_modifications = 200
 
 # (float) Max perturnbation movement of the central atom in Angstrom
 max_perturbation_ang = 0.2
+
+
+############################################
+# Descriptors and concave hull generation
+############################################
+
+[concave_hull]
+
+# (bool, optional) Whether to generate the concave hull of the descriptors
+# for all the structures in the database.
+# false by default, which means the concave hull will not be generated.
+gen_concave_hull = false
+
+
+# (str, optional) Descriptor to use for the concave hull generation
+# Either one of the following: 'SOAP', 'MACE'.
+# Default is 'SOAP'.
+descriptor = "SOAP"
+
+
+# (str, optional) Dimensionality reduction method to use for the concave hull
+# generation. Either one of the following: 'PCA', 'autoencoder'.
+# Default is 'autoencoder'.
+dim_reduction = "autoencoder"
+
+
+# (str, optional) Filename for the figure displaying the concave hull.
+plot_filename = "descriptors_concave_hull.png"
