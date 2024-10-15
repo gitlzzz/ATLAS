@@ -62,7 +62,7 @@ def create_active_learning_builder(toml_dict: dict):
     builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
 
     # Getting extrapolation settings
-    builder.active_learning.check_extrapolation_type = al_conf.get(
+    builder.active_learning.check_extrapolation_type = toml_dict.get(
         "extrapolation", {}
     ).get("check_extrapolation_type", 'advanced')
 
