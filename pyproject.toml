@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "pytest", "pytest-cov"]
+dev = ["pre-commit", "pytest", "pytest-cov", "commitizen"]
 
 
 [project.urls]
