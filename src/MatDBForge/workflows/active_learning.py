@@ -2068,7 +2068,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.seed_gen_db_all_structs_removed = orm.Bool(False)
 
     def setup(self):
-        """Call BaseRestartWorkChain setup and create input dict in self.ctx.inputs.
+        """Call `BaseRestartWorkChain` setup and create input dict in self.ctx.inputs.
 
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.

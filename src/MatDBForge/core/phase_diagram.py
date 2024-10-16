@@ -194,10 +194,10 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
         Examples
         --------
         >>> diagram.plot_diagram(
-            max_temp_K=1200,
-            min_temp_K=400,
-            rc_params={'figure.figsize': (10, 6)}
-        )
+        >>>    max_temp_K=1200,
+        >>>    min_temp_K=400,
+        >>>    rc_params={'figure.figsize': (10, 6)}
+        >>> )
         """
         # Update the rcParams if provided
         if rc_params:

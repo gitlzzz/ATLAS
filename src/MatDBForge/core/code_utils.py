@@ -80,11 +80,11 @@ def custom_print(string: str, print_type: str = "default", end="\n", extra_tab=F
         Text to be printed
     print_type : str, optional, `default=info`
         Style to use when printing. Available styles are:
-        - `info/default`: prefixes [i] before the string.
-        - `warning/warn`: prefixes [!] before the string.
-        - `debug/extra`: prefixes [...] before the string.
-        - `done/ok`: prefixes [ ✔ ] before the string.
-        - `error/problem`: prefixes [ X ] before the string.
+            - `info/default`: prefixes [i] before the string.
+            - `warning/warn`: prefixes [!] before the string.
+            - `debug/extra`: prefixes [...] before the string.
+            - `done/ok`: prefixes [ ✔ ] before the string.
+            - `error/problem`: prefixes [ X ] before the string.
     """
     # normal = "\u001b[0m"
 
@@ -146,12 +146,14 @@ def deprecated(reason, since_ver=None):
     reason : str
         Reason to print for the deprecation of the old function
 
-    Examples
-    --------
+    Example
+    -------
     Use it as a decorator:
+
     >>> @deprecated(reason="Use to_cluster instead.", since_ver="0.6.2")
-        def to_atoms():
-            pass
+    >>> def to_atoms():
+    >>>     pass
+
     """
 
     def decorator(func):

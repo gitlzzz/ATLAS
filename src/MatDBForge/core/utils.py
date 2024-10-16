@@ -71,11 +71,11 @@ def gather_secrets():
 
     Notes
     -----
-        The json file should have the following structure:
+    The json file should have the following structure:
 
-        {
-            "API_KEY": "XXXXXX"
-        }
+    >>> {
+    >>>     "API_KEY": "XXXXXX"
+    >>> }
 
 
     Returns

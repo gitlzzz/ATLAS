@@ -6,7 +6,7 @@ import uuid
 import pandas as pd
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
-from MatDBForge.core.code_utils import deprecated  # noqa
+import pathlib as pl
 
 from MatDBForge.core import initial_db as mdb_indb
 
@@ -146,7 +146,7 @@ class Structure:
         self.al_loop_step = al_loop_step
 
     def to_bulk(self):
-        # Create a Bulk instance by passing the current object's attributes
+        """Create a Bulk instance by passing the current Structure attributes."""
         attributes = {
             name: value
             for name, value in inspect.getmembers(self)
@@ -157,7 +157,7 @@ class Structure:
         return Bulk(**attributes)
 
     def to_surface(self):
-        # Create a surface instance by passing the current object's attributes
+        """Create a surface instance by passing the current Structure attributes."""
         attributes = {
             name: value
             for name, value in inspect.getmembers(self)
@@ -168,7 +168,7 @@ class Structure:
         return Surface(**attributes)
 
     def to_cluster(self):
-        # Create a cluster instance by passing the current object's attributes
+        """Create a cluster instance by passing the current Structure attributes."""
         attributes = {
             name: value
             for name, value in inspect.getmembers(self)
@@ -180,9 +180,29 @@ class Structure:
 
     def from_vasprun(
         self,
-        vasprun: vasp.Vasprun,
+        vasprun: vasp.Vasprun | str | pl.Path,
         **kwargs,
     ):
+        """
+        Create a Structure object by parsing a `vasprun.xml` file.
+
+        The structure will contain the energy information and the structure
+        information from the vasprun fil
+
+        Parameters
+        ----------
+        vasprun : vasp.Vasprun | str | pl.Path
+            The vasprun file containing information for a DFT calculation.
+
+        Returns
+        -------
+        Structure
+            Structure object containing the energy and structure information.
+        """
+        # Load the vasprun file if it is a string or Path object
+        if isinstance(vasprun, (pl.Path, str)):
+            vasprun = vasp.Vasprun(vasprun)
+
         # Getting the structure
         structure = vasprun.structures[-1]
 

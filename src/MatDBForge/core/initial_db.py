@@ -99,11 +99,11 @@ class InitialDatabase:
 
     Notes
     -----
-        The json file containing the secrets should have the following structure:
+    The json file containing the secrets should have the following structure:
 
-        {
-            "API_KEY": "XXXXXX"
-        }
+    >>> {
+    >>>        "API_KEY": "XXXXXX"
+    >>> }
 
     """
 
@@ -1222,8 +1222,8 @@ class InitialDatabase:
         -------
         >>> initial_db = InitialDatabase()
         >>> initial_db.perturb_min_displacement(
-        ...     frac_max=0.05, frac_min=0.01, repeat=5
-        ... )
+        >>>     frac_max=0.05, frac_min=0.01, repeat=5
+        >>> )
 
         """
         # Instantiating RNG
@@ -1344,7 +1344,7 @@ class InitialDatabase:
         return perturb_structure
 
     def display_db_ase(self):
-        """Display the the structures in the database using ase.visualize.view."""
+        """Display the the structures in the database using `ase.visualize.view`."""
         structures = self.df.structure
         ut._display_indb_dataframe(structures)
 
