@@ -46,15 +46,19 @@ class BasePhaseDiagram:
 
     Parameters
     ----------
-        material (str): The name of the material.
-        base_elem (str): The base element of the phase diagram.
-        *phases (Phase): Variable number of Phase objects representing the
-                         phases in the diagram.
+    material : str
+        The name of the material.
+    base_elem : str
+        The base element of the phase diagram.
+    *phases : Phase
+        Variable number of Phase objects representing the phases in the diagram.
 
     Attributes
     ----------
-        phases (list): List of Phase objects representing the phases in the diagram.
-        material (str): The name of the material.
+        phases : list
+            List of Phase objects representing the phases in the diagram.
+        material : str
+            The name of the material.
     """
 
     def __init__(
@@ -97,7 +101,8 @@ class BasePhaseDiagram:
 
         self.phase_dict[phase.name] = phase
 
-    def get_phase(self, phase):
+    def get_phase(self, phase) -> "Phase" | None:
+        """Get a phase object from the phase diagram."""
         if isinstance(phase, Phase):
             return self.phase_dict[phase.name]
         if isinstance(phase, str):
@@ -182,13 +187,13 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
 
         Notes
         -----
-        - The function generates a plot with the x-axis representing the
-            composition (in at. %)
-            of the base element in the material, and the y-axis representing the
-            temperature in Kelvin.
-        - Each phase is represented by a filled patch in the diagram, and the
-            phases are labeled
-            at their centroid positions.
+        - The function generates a plot with the x-axis representing the composition
+          (in at. %) of the base element in the material, and the y-axis representing
+          the temperature in Kelvin.
+
+        - Each phase is represented by a filled patch in the diagram, and the phases
+          are labeled  at their centroid positions.
+
         - The function uses the `viridis` colormap to assign colors to phases.
 
         Examples
@@ -449,6 +454,7 @@ class Phase:
         return hash(self.__key())
 
     def perc_in_phase(self, perc: float, offset: bool = True) -> bool:
+        """Check if a given composition percentage is within the phase."""
         if perc > 1:
             perc /= 100
 
@@ -461,6 +467,7 @@ class Phase:
         return bool(inPhase)
 
     def get_base_elem_perc(self, structure) -> float:
+        """Get the percentage of the base element in a structure."""
         comp_dict = structure.composition.fractional_composition.as_dict()
         comp_base = comp_dict.get(self.base_elem.symbol, 0.0)
         return comp_base
