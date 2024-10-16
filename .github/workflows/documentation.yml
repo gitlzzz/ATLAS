@@ -13,8 +13,9 @@ jobs:
       - uses: actions/setup-python@v5
       - name: Install dependencies
         run: |
+          cat pyproject.toml
           pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser
-          python3 -m pip install '.[dev]'
+          python3 -m pip install .
       - name: Apidoc
         run: |
           sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old  -f
