@@ -100,7 +100,7 @@ $> mdb_gen_configuration_file --help
 
 The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `mdb_gen_configuration_file` to generate a template file which can be customized.
 
-A description of all the possible parameters is available in the documentation for the input files: [Input](./docs/input.md).
+A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/MatDBForge/source/input.html)  or in the local documentation files: [Input](./docs/source/input.md).
 
 ## Example: Training a MACE NNP from scratch
 
@@ -108,7 +108,7 @@ This example will showcase the training of a MACE potential in a pure Cu databas
 
 ### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `mdb_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](./docs/input.md#database-generation)
+In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `mdb_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://pol-sb.github.io/MatDBForge/source/input.html#database-generation)
 
 ```bash
 # Generate a configuration file for the database generation.
@@ -138,7 +138,7 @@ mace_eval_configs  --configs ./unlabelled_db.xyz  --model /model/path cu_model_z
 
 ### 3. Run active learning loop
 
-Generate a settings file, customize it using [the options here](./docs/input.md#active-learning-loop) and run the active learning loop:
+Generate a settings file, customize it using [the options here](https://pol-sb.github.io/MatDBForge/source/input.html#active-learning-loop) and run the active learning loop:
 
 ```bash
 # Generate a template file for active learning
