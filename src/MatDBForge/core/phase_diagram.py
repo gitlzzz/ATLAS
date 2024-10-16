@@ -101,7 +101,7 @@ class BasePhaseDiagram:
 
         self.phase_dict[phase.name] = phase
 
-    def get_phase(self, phase) -> "Phase" | None:
+    def get_phase(self, phase) -> "Phase":
         """Get a phase object from the phase diagram."""
         if isinstance(phase, Phase):
             return self.phase_dict[phase.name]

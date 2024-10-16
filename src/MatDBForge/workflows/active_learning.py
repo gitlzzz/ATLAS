@@ -2051,6 +2051,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         This function checks for specific conditions that might warrant terminating the
         active learning (AL) loop early:
+
         - Gathers `stop_md_seed_no_disagreement` from the outputs of the inner workchain
           and stores it in the workchain's context. If this is True, the workchain will
           stop.
@@ -2147,7 +2148,9 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This method assesses multiple conditions to decide if the active learning (AL)
         loop should continue. It considers whether the maximum number of iterations
         has been reached, and the following two criteria:
+
          - No disagreement among predictions for an entire MD seed. (if True: stop)
+
          - Depletion of the seed generation database. (if True: stop)
 
         The function updates the workchain context with the iteration status and
@@ -2162,7 +2165,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         Notes
         -----
-        - The method uses `self.ctx.is_finished`, `self.ctx.iteration`,
+        The method uses `self.ctx.is_finished`, `self.ctx.iteration`,
         `self.inputs.active_learning.max_iterations.value`,
         `self.ctx.stop_md_seed_no_disagreement.value`,
         and `self.ctx.seed_gen_db_all_structs_removed.value`

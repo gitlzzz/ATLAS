@@ -63,27 +63,22 @@ class InitialDatabase:
     """
     Object that creates an initial database where structures will be
     stored. Materials are downloaded using the materials project API.
-    For it to work, a 'secrets.json' file should be located in the
-    same directory. The database is stored as a pandas dataframe.
     Contains methods related to gathering, preparing, visualizing
     and modifying the initial database.
+    The structures are stored internally as a pandas Dataframe.
 
     Attributes
     ----------
     df : pd.Dataframe
         Dataframe containing the structures for the initial database.
-    secrets : dict
-        Object containing secrets related to the materials project database.
     database_name : str
         Orientative name for the database. Will be used for saving it into a file.
     database_path : str | pl.Path
         Path where the database will be saved.
-    max_num_atoms: int
-        Maximum number of atoms present in any structure generated.
     max_num_atoms : int
         Maximum number of atoms present in any structure generated, by default 64.
     secrets : dict
-        Object containing secrets related to the materials project database.
+        Object containing the API key for the materials project database.
     use_offset : bool, optional
         Use an offset for the phase ratios to allow them to overlap, by default True.
 
@@ -99,6 +94,9 @@ class InitialDatabase:
 
     Notes
     -----
+    In order to be able to gather structures from the MP API, the initial
+    setup of MatDBForge must have been completed, or a 'secrets.json' file
+    should be located in the same directory.
     The json file containing the secrets should have the following structure:
 
     >>> {
@@ -169,6 +167,7 @@ class InitialDatabase:
         return repr_string
 
     def _adapt_old_db(self, database_old):
+        """Adapter for the old version of the database."""
         columns_to_add = {
             "bulk": bool,
             "surface": bool,
@@ -238,8 +237,8 @@ class InitialDatabase:
 
         Returns
         -------
-        str
-            String containing the database information.
+        dict
+            Dictionary containing the database information in different categories.
         """
         mdb_cud.custom_print(f"Generating report for '{self.database_name}'...", "info")
 
@@ -619,6 +618,7 @@ class InitialDatabase:
         file_name: str = None,
         file_path: str | pl.Path = None,
     ):
+        """Export the structures of the database to a file using ASE."""
         struct_list = []
         for _, row in self.df.iterrows():
             # Get ASE structure
@@ -676,6 +676,10 @@ class InitialDatabase:
         filters: list = None,
         phase: mdb_pd.Phase = None,
     ):
+        """Find and delete repeated structures in the database.
+
+        The SOAP descriptor is used to fingerprint structures in the database.
+        """
         # Filtering the dataframe
         # Filters allow to select certain subsets of structures
         # from the database.
@@ -889,6 +893,7 @@ class InitialDatabase:
         self.df.set_index("material_id", inplace=True, drop=False)
 
     def read_base_structures(self, path: str, target_structures=None):
+        """Reads base structures from a given path and stores them in the database."""
         mdb_cud.custom_print("Reading relaxed structures...")
 
         # Getting the path where the calculations will be searched for.
@@ -997,6 +1002,7 @@ class InitialDatabase:
         min_vac_perc: float = 0.25,
         lim_num_struc: int = None,
     ):
+        """Apply random vacancies to the structures in the database."""
         # Instantiating RNG
         rng = np.random.default_rng(seed=seed)
 
@@ -1318,6 +1324,7 @@ class InitialDatabase:
     def _apply_min_perturbation(
         self, structure: Structure, frac_max: float = 0.05, frac_min: float = 0.01
     ):
+        """Apply a small displacement to the lattice matrix of a structure."""
         # Making a copy of the current structure lattice which can be modified
         perturb_structure = structure.copy()
         matrix = np.copy(perturb_structure.lattice.matrix)
@@ -1325,17 +1332,17 @@ class InitialDatabase:
         # Select non-zero indices
         non_zero_mask = np.abs(matrix) > 0.01
 
-        # Compute perturbations for all non-zero values
+        # Compute displacements for all non-zero values
         fraction = (frac_max - frac_min) * np.random.ranf(size=matrix.shape) + frac_min
 
-        # Applying perturbation as a mask
+        # Applying displacement as a mask
         displacements = matrix * fraction
         displacements = np.where(non_zero_mask, displacements, 0)
 
-        # Randomly add or subtract perturbations
+        # Randomly add or subtract displacements
         signs = np.random.choice([1, -1], size=len(non_zero_mask))
 
-        # Apply perturbations
+        # Apply displacements
         matrix += signs * displacements
 
         # Updating perturb_structure with displaced matrix
