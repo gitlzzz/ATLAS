@@ -183,12 +183,12 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
         Notes
         -----
         - The function generates a plot with the x-axis representing the
-        composition (in at. %)
-        of the base element in the material, and the y-axis representing the
-        temperature in Kelvin.
+            composition (in at. %)
+            of the base element in the material, and the y-axis representing the
+            temperature in Kelvin.
         - Each phase is represented by a filled patch in the diagram, and the
-        phases are labeled
-        at their centroid positions.
+            phases are labeled
+            at their centroid positions.
         - The function uses the `viridis` colormap to assign colors to phases.
 
         Examples
