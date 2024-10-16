@@ -7,7 +7,7 @@
     <img alt="MatDBForge: A workflow for materials NNP generation" src="media/logo_light.png">
   </picture>
 
-MatDBForge is a Python library that aids in the generation of chemical structures databases for training NNPs (Neural Network Potential) to be used in heterogeneous catalysis. It provides functionalities to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling.
+MatDBForge is a Python library that aids in the generation of chemical structures databases for training NNPs (Neural Network Potential) to be used in heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling.
 
 ## Table of Contents
 
