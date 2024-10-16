@@ -6,6 +6,7 @@ secrets.json
 .vscode
 .VSCode*
 build
+_build
 src/MatDBForge/benchmarks/
 src/MatDBForge/devel
 src/MatDBForge/display_db
