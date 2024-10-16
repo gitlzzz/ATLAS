@@ -1576,7 +1576,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             self.report(
                 f"Out of {len(extrapolating_frames)} frames, "
-                f"{len(np.nonzero(extrapolating_frames)[0])} were found"
+                f"{len(np.nonzero(extrapolating_frames)[0])} were found "
                 "to be extrapolating."
             )
 
