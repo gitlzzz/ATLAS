@@ -35,6 +35,7 @@ dependencies = [
     "pymatgen",
     "python-slugify[unidecode]",
     "flask",
+    "juliacall",
     "tomli >= 1.1.0 ; python_version < '3.11'",
 ]
 
