@@ -14,8 +14,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser setuptools
-          echo "\n## Done \n"
-          pip install .
+          echo "## Done"
+          pip install ../MatDBForge
       - name: Apidoc
         run: |
           sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old  -f
