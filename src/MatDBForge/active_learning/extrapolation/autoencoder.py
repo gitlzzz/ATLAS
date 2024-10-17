@@ -121,7 +121,9 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
     return model
 
 
-def get_latent_space_autoencoder(model, descriptor_dict: dict, device: str = None):
+def get_latent_space_autoencoder(
+    model, descriptor_dict: dict, device: str = None, dtype=torch.float32
+):
 
     # Changing device to available GPU if available, else CPU.
     if not device:
@@ -141,7 +143,7 @@ def get_latent_space_autoencoder(model, descriptor_dict: dict, device: str = Non
 
             # Get latent space
             latent_space = model.encoder(
-                torch.Tensor(descr_dict["descriptors"]).to(device)
+                torch.Tensor(descr_dict["descriptors"], dtype=dtype).to(device)
             )
 
             # Save latent space

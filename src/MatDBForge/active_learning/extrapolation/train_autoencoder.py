@@ -76,6 +76,7 @@ def load_dataset(
     test_frac: float,
     rng_seed: int = None,
     device: str = None,
+    dtype=torch.float32,
 ):
     if not device:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -118,9 +119,9 @@ def load_dataset(
     test_arr = point_arr[test_arr_idx]
     point_arr = np.delete(point_arr, obj=test_arr_idx, axis=0)
 
-    train_data = torch.Tensor(point_arr).to(device=device)
-    valid_data = torch.Tensor(valid_arr).to(device=device)
-    test_data = torch.Tensor(test_arr).to(device=device)
+    train_data = torch.Tensor(point_arr).to(device=device, dtype=dtype)
+    valid_data = torch.Tensor(valid_arr).to(device=device, dtype=dtype)
+    test_data = torch.Tensor(test_arr).to(device=device, dtype=dtype)
     mdb_cud.custom_print("Data loaded:", "info")
     mdb_cud.custom_print(f"- Training data array shape: {train_data.shape}", "clean")
     mdb_cud.custom_print(f"- Validation data array shape: {valid_data.shape}", "clean")
@@ -131,21 +132,96 @@ def load_dataset(
 
 
 def run_training(args):
+    """
+    Train an autoencoder model for dimensionality reduction.
 
+    Parameters
+    ----------
+    args : Namespace
+        Namespace object containing the following attributes:
+        - dataset : str
+            Path to the dataset file.
+        - device : str
+            Device to run the model on.
+            If not given, the device is set to cuda if available, else cpu.
+        - dtype : str
+            Data type to use for the model. One of float32 or float64.
+            Default is float32.
+        - lr : float
+            Learning rate for the optimizer.
+        - num_epochs : int
+            Number of epochs to train the model.
+        - batch_size : int
+            Batch size for training.
+        - patience : int
+            Number of epochs to wait before reducing the learning rate.
+        - train_frac : float
+            Fraction of the dataset to use for training.
+        - valid_frac : float
+            Fraction of the dataset to use for validation.
+        - test_frac : float
+            Fraction of the dataset to use for testing.
+        - l1_hidden_dim : int
+            Number of hidden units in the first layer of the autoencoder.
+        - l2_hidden_dim : int
+            Number of hidden units in the second layer of the autoencoder.
+        - weight_decay : float
+            Weight decay for the optimizer.
+        - bias_flag : bool
+            Flag to include bias in the linear layers.
+        - verbose : bool
+            Flag to print verbose output.
+        - rng_seed : int
+            Random seed for reproducibility.
+        - model_path : str
+            Path to save the trained model.
+        - wandb : bool
+            Flag to enable logging to wandb.
+        - wandb_project : str
+            Name of the wandb project.
+        - wandb_name : str
+            Name of the wandb run.
+
+
+    Returns
+    -------
+    Autoencoder
+        Autoencoder model trained for dimensionality reduction.
+    """
     # Set device if no device is given
-    if not args.device:
+    if not args.device or args.device == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        mdb_cud.custom_print(f"Running on device: {device}", "info")
     else:
         device = args.device
+    mdb_cud.custom_print(f"Running on device: '{device}'", "info")
 
-    if args.verbose is None:
-        args.verbose = False
+    # Setting verbosity
+    if "verbose" in vars(args):
+        match args.verbose:
+            case True:
+                args.verbose = True
+            case False:
+                args.verbose = False
+    else:
+        args.verbose = True
+
+    # Setting dtype
+    if not args.dtype:
+        args.dtype = torch.float32
+    else:
+        match args.dtype:
+            case "float32":
+                args.dtype = torch.float32
+            case "float64":
+                args.dtype = torch.float64
+            case _:
+                args.dtype = torch.float32
+    mdb_cud.custom_print(f"Using dtype: '{args.dtype}'", "info")
 
     # If no seed is given, generate a random seed
     if not args.rng_seed:
         args.rng_seed = np.random.randint(1, int(1e15))
-        mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
+    mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
 
     # Load data
     train_data, valid_data, test_data = load_dataset(
@@ -155,6 +231,7 @@ def run_training(args):
         valid_frac=args.valid_frac,
         test_frac=args.test_frac,
         rng_seed=args.rng_seed,
+        dtype=args.dtype,
     )
 
     # Number of input dimensions
@@ -192,7 +269,7 @@ def run_training(args):
         l2_dim=args.l2_hidden_dim,
         bias_flag=args.bias_flag,
     )
-    model.to(device=device)
+    model.to(device=device, dtype=args.dtype)
 
     match args.loss:
         # Define loss function as MSE (Mean Squared Error)

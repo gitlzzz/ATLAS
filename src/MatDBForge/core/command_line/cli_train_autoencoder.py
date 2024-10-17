@@ -23,7 +23,12 @@ def run_train_autoencoder():
         "--device",
         type=str,
         default="cpu",
-        help="Device to run the model on",
+        help="Device to run the model on. Either 'cpu', 'cuda' or 'auto'.",
+    )
+
+    # dtype
+    parser.add_argument(
+        "--dtype", type=str, default='float32', help="Data type for the model"
     )
 
     # Model name
