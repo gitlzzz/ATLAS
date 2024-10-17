@@ -143,7 +143,8 @@ class BasePhaseDiagram:
         if len(self.phases) == 0:
             description += "no phases (empty)."
         else:
-            description += f"phases:" f" {[phase.name for phase in self.phases]}"
+            phase_list = [phase.name for phase in self.phases]
+            description += f"{len(phase_list)} phases:" f" {phase_list}"
 
         return description
 

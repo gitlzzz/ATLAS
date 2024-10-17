@@ -158,10 +158,10 @@ class InitialDatabase:
         class_name = self.__class__.__name__
 
         # Getting the amount of entries in the database
-        count = len(self.df.count(axis=1))
+        count = self.df.shape
 
         repr_string = (
-            f"{class_name} named '{self.database_name}' containing {count} structures."
+            f"{class_name} named '{self.database_name}' containing {count} entries."
         )
 
         return repr_string
@@ -833,7 +833,7 @@ class InitialDatabase:
 
             for material in query_result:
                 mdb_cud.custom_print(
-                    f"Checking material: \n{material.material_id}", "debug"
+                    f"Checking material: {material.material_id}", "debug"
                 )
                 for phase in self.phase_diagram.phases:
                     if phase.prototype == material.material_id:
@@ -1563,7 +1563,7 @@ class InitialDatabase:
 
             # Creating a new bulk from the supercell
             curr_bulk = mdb_struct.Bulk(
-                material_name=f"{material_id_prefix}_{phase.name}_super-{idxs_str}",
+                material_name=f"{material_id_prefix}_{phase_name}_super-{idxs_str}",
                 material_id=material_id_prefix,
                 structure=structure,
                 temperature=bulk_temp,
@@ -1573,7 +1573,7 @@ class InitialDatabase:
                 targeted_modification=targeted_modification,
                 calc_performed=False,
                 supercell=idxs,
-                phase=phase,
+                phase=phase_name,
             )
 
             # Saving the bulk to the db.
@@ -1884,8 +1884,7 @@ class InitialDatabase:
         # If the current phase is in overwrite_read_from_db_list,
         # the read flag is set to True
         if overwrite_read_from_db_list:
-            if not isinstance(phase, str):
-                curr_phase = phase.name
+            curr_phase = phase.name if not isinstance(phase, str) else phase
 
             if curr_phase in overwrite_read_from_db_list:
                 read = True
@@ -2984,6 +2983,7 @@ def cli_run_gen_initial_database(
             )
 
             mdb_cud.custom_print(structures, "info")
+
         if "surface" in gen_dict:
             mdb_cud.custom_print("Generating surface structures...", "info")
 
@@ -3012,6 +3012,7 @@ def cli_run_gen_initial_database(
             )
 
             mdb_cud.custom_print(structures, "info")
+
         if "cluster" in gen_dict:
             raise NotImplementedError("Cluster type not implemented yet")
 
@@ -3065,6 +3066,7 @@ def cli_run_gen_initial_database(
             )
 
             mdb_cud.custom_print(structures, "info")
+
         # Limiting structures for current phase
         lim_phas_structs = phase_diagram_dict["phase"][phase.original_name].get(
             "limit_max_num_structures"
