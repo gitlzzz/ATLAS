@@ -1,4 +1,7 @@
-"""Main module for the core package of MatDBForge."""
+"""Main module for the core package of MatDBForge.
+This includes structures, initial database creation,
+and other core functionalities.
+"""
 
 import pathlib as pl
 

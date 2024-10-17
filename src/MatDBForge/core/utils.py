@@ -1,4 +1,4 @@
-"""Module containing general utilities for MatDBForge."""
+"""Module containing general utilities for database creation."""
 
 import json as js
 import os
@@ -30,6 +30,7 @@ CONFIG_EXAMPLE = {"API_KEY": "XXXXX..."}
 
 
 def get_config_path() -> pl.Path:
+    """Get the path to MatDBForge's the configuration directory."""
     # Try to get XDG_CONFIG_HOME, if it doesn't exist, return None
     config_path = os.environ.get("XDG_CONFIG_HOME", None)
 
@@ -43,6 +44,7 @@ def get_config_path() -> pl.Path:
 
 
 def init_config_dir(config_dir):
+    """Create the configuration directory and the secrets file template."""
     # Create a 'mdb' directory inside the config directory
     config_dir = config_dir / "mdb"
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -113,6 +115,7 @@ def gather_secrets():
     return secrets
 
 
+# TODO: Update or remove
 def check_incorrect_ratios(df, curr_phase_diag):
     for _id, row in df.iterrows():
         if not row.base and not row.material_name.endswith("_symm"):
@@ -190,6 +193,11 @@ def _display_indb_dataframe(structures, data=None):
 
 
 def display_dataframe_ase(dataframe):
+    """
+    Display the structures in the given dataframe using the ase gui.
+
+    Wrapper function for `_display_indb_dataframe.`
+    """
     structures = dataframe.structure
 
     data_dict = {"filename": dataframe.material_name}
@@ -197,6 +205,11 @@ def display_dataframe_ase(dataframe):
 
 
 def display_struct_list_ase(struct_list):
+    """
+    Display the structures in a list using the ase gui.
+
+    Wrapper function for `_display_indb_dataframe.`
+    """
     new_struct_list = []
     for strc in struct_list:
         if isinstance(strc, mdb_struct.Structure):
@@ -633,10 +646,17 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
     # Getting current row information
     row_kwargs_dict = {**row}
     for func_name in [
-        "from_db_row", "material_name", "perturb",
-        "from_bulk", "structure", "vacancy", "base",
-        "from_surface", "targeted_modification",
-        "from_cluster", "displacement"
+        "from_db_row",
+        "material_name",
+        "perturb",
+        "from_bulk",
+        "structure",
+        "vacancy",
+        "base",
+        "from_surface",
+        "targeted_modification",
+        "from_cluster",
+        "displacement",
     ]:
         if func_name in row_kwargs_dict:
             row_kwargs_dict.pop(func_name)
@@ -650,7 +670,6 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
         displacement=False,
         vacancy=False,
         targeted_modification=False,
-
         base=False,
         **row_kwargs_dict,
     )
