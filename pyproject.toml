@@ -103,6 +103,7 @@ changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [
     "./src/MatDBForge/__init__.py",
+    "./docs/conf.py:release",
     "pyproject.toml:version",
     "VERSION",
 ]
