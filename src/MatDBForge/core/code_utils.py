@@ -179,13 +179,21 @@ def get_last_tagged_version():
     str
         Last tagged version in the repository
     """
-    # Run the git command to get the last tagged version
+    # Save the current directory path
     cwd = os.getcwd()
+
+    # Change to the MatDBForge root directory
     os.chdir(MDB_ROOT_DIR)
-    sb.call(["git", "fetch"])
+
+    # Run the git fetch to get the last tagged version
+    _ = sb.check_output(["git", "fetch"])
+
+    # Getting the latest tag
     output = (
         sb.check_output(["git", "describe", "--tags", "--abbrev=0"]).decode().strip()
     )
+
+    # Go back to the original directory
     os.chdir(cwd)
     return output
 
