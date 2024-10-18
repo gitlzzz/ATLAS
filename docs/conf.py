@@ -75,3 +75,17 @@ myst_enable_extensions = ["colon_fence", "html_image", "dollarmath"]
 
 
 html_favicon = "./source/favicon.svg"
+html_logo = '../media/logo_dark.png'
+
+html_theme_options = {
+    'logo_only': True,
+    'version_selector': True,
+}
+
+html_context = {
+    "display_github": True, # Integrate GitHub
+    "github_user": "pol-sb", # Username
+    "github_repo": "MatDBForge", # Repo name
+    "github_version": "master", # Version
+    "conf_py_path": "/docs/", # Path in the checkout to the docs root
+}
