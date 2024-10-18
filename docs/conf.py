@@ -74,4 +74,4 @@ html_static_path = ["_static"]
 myst_enable_extensions = ["colon_fence", "html_image", "dollarmath"]
 
 
-html_favicon = "./source/favicon.png"
+html_favicon = "./source/favicon.svg"
