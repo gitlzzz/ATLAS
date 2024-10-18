@@ -58,9 +58,24 @@ This section defines the settings related to the phase diagram of the material.
 
 ### Specific Phase Settings - `[phase_diagram.phase.XXXXX]`
 
-This key describes the settings for a specific phase within the phase diagram. Several phases can be added to describe the entire phase diagram by adding new keys with different phase names. **Replace XXXXX with a phase name.**
+This key describes the settings for a specific phase within the phase diagram. Several phases can be added to describe the entire phase diagram by adding new keys with different phase names. The key name (`XXXXX`) is used as the reference name for the phase (e.g., `alpha`, `beta`, `gamma`, `liquid`, `amorphous`, ...). **Replace XXXXX with a phase name.**. An example for a phase:
 
-The key name (`XXXXX`) is used as the reference name for the phase (e.g., `alpha`, `beta`, `gamma`, `liquid`, `amorphous`, ...).
+```toml
+[phase_diagram.phase.alpha]
+cluster_element = "Cu"
+prototype = "mp-30"
+composition.Cu.min = 0.627
+composition.Zn.max = 0.373
+composition.Zn.min = 0.0
+composition.Cu.max = 1.0
+offset = 0.1
+limit_max_num_structures = 500
+allow_modifications = true
+replacements.replace = true
+replacements.element_list = ["Cu"]
+replacements.replace_with = ["Fe"]
+```
+
 
 - `cluster_element:` (str) Symbol of the element defining the cluster.
 - `prototype`: (str) Materials Project ID of the prototypical structure (e.g., `mp-30` for Cu alpha).
