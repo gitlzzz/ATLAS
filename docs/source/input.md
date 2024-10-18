@@ -72,7 +72,11 @@ This section defines the settings related to the phase diagram of the material.
 
 ### Specific Phase Settings - `[phase_diagram.phase.XXXXX]`
 
-This key describes the settings for a specific phase within the phase diagram. Several phases can be added to describe the entire phase diagram by adding new keys with different phase names. The key name (`XXXXX`) is used as the reference name for the phase (e.g., `alpha`, `beta`, `gamma`, `liquid`, `amorphous`, ...). **Replace XXXXX with a phase name.**. An example for a phase:
+This key describes the settings for a specific phase within the phase diagram. Several phases can be added to describe the entire phase diagram by adding new keys with different phase names.
+
+The key name (`XXXXX`) is used as the reference name for the phase (e.g., `alpha`, `beta`, `gamma`, `liquid`, `amorphous`, ...). **Replace XXXXX with a phase name.**.
+
+An example for a phase:
 
 ```toml
 [phase_diagram.phase.alpha]
@@ -90,7 +94,7 @@ replacements.element_list = ["Cu"]
 replacements.replace_with = ["Fe"]
 ```
 
-Every phase has options to customize it:
+Every phase can be provided with options to customize it:
 
 - `cluster_element:` (str) Symbol of the element defining the cluster.
 - `prototype`: (str) Materials Project ID of the prototypical structure (e.g., `mp-30` for Cu alpha).
