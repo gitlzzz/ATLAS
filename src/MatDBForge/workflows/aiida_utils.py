@@ -635,6 +635,58 @@ def gather_calc_data_from_row(target_row, curr_structure=None):
     return curr_structure, curr_material_name, curr_unique_id, curr_phase
 
 
+def can_submit_calculation(code: str, limit: int) -> bool:
+    """
+    Check if a calculation can be submitted to a given computer's queue.
+
+    This function checks if the number of jobs currently running
+    is smaller than the limit given. If smaller, the calculation
+    can be submitted.
+
+    In some supercomputer clusters there is a limit on the number
+    of jobs that can be submitted at the same time, and going over
+    this limit will result in the job not entering the queue.
+    AiiDA will reattempt to submit after the time given by
+    `exponential_backoff_retry` is elapsed and for `task_maximum_attempts`
+    attempts, and if the number of attempts is exceeded, the calculation
+    will be paused, holding the loop.
+
+    Parameters
+    ----------
+    code : str
+        AiiDA code label.
+    limit : int
+        Maximum number of calculations that can be submitted.
+        The limit will be set by the supercomputer's scheduler,
+        in the case of SLURM, it can be checked with `sacctmgr show qos XXXX`
+        under the `MaxSubmitPU` column.
+    user : str, optional
+        Username for the calculation. If not given, the default user
+        will be used.
+
+    Returns
+    -------
+    bool
+        Whether the calculation can be submitted or not.
+    """
+    # Getting computer
+    computer = orm.load_code(label=code).computer
+
+    # Getting default user if not specified
+    user = orm.User.objects.get_default()
+
+    # Getting the scheduler and transport
+    # Transport must be set in order for the
+    # scheduler to be able to check the jobs.
+    authinfo = computer.get_authinfo(user)
+    scheduler = computer.get_scheduler()
+    transport = authinfo.get_transport()
+    scheduler.set_transport(transport)
+
+    # Checking if the number of jobs is below the limit
+    return len(scheduler.get_jobs()) < limit
+
+
 def run_dataframe_vasp_aiida_queue(
     sel_struct_df,
     group_name: str,

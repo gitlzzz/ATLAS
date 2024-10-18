@@ -38,6 +38,7 @@ from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import MDB_DATA_DIR
+from MatDBForge.workflows.aiida_utils import can_submit_calculation
 
 
 class ActiveLearningWorkChain(WorkChain):
@@ -277,7 +278,10 @@ class ActiveLearningWorkChain(WorkChain):
             )
             mace_builder.mace_train_file_path = str(mace_train_file_path)
 
-            mace_builder.code = orm.load_code(self.inputs.mace_train.get_dict()["code"])
+            code_str = self.inputs.mace_train.get_dict()["code"]
+            code = orm.load_code(code_str)
+            computer = code.computer
+            mace_builder.code = code
             mace_builder.metadata.options.withmpi = True
             mace_builder.metadata.options = self.inputs.mace_train.get_dict()[
                 "metadata"
@@ -286,6 +290,29 @@ class ActiveLearningWorkChain(WorkChain):
                 f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
             )
             mace_builder.metadata.label = model_name
+
+            # Get the calculation limit, from the computer metadata set to 0
+            # if not present.
+            # `mdb_calc_limit` is a custom property set with:
+            # computer.set_property(name='mdb_calc_limit', value=366)
+            calc_limit = computer.metadata.get("mdb_calc_limit", 0)
+
+            # Check if the calculation can be submitted
+            if calc_limit == 0:
+                can_submit = True
+            else:
+                can_submit = can_submit_calculation(
+                    code=code_str,
+                    limit=calc_limit,
+                )
+
+            # If the calculation cannot be submitted, wait for a minute and check again
+            while not can_submit:
+                time.sleep(60)
+                can_submit = can_submit_calculation(
+                    code=code_str,
+                    limit=calc_limit,
+                )
 
             future = self.submit(mace_builder)
             self.to_context(mace_training_results=append_(future))
@@ -522,6 +549,29 @@ class ActiveLearningWorkChain(WorkChain):
 
         code_builder.code = code
 
+        # Get the calculation limit, from the computer metadata set to 0
+        # if not present.
+        # `mdb_calc_limit` is a custom property set with:
+        # computer.set_property(name='mdb_calc_limit', value=366)
+        calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+
+        # Check if the calculation can be submitted
+        if calc_limit == 0:
+            can_submit = True
+        else:
+            can_submit = can_submit_calculation(
+                code=code.label,
+                limit=calc_limit,
+            )
+
+        # If the calculation cannot be submitted, wait for a minute and check again
+        while not can_submit:
+            time.sleep(60)
+            can_submit = can_submit_calculation(
+                code=code.label,
+                limit=calc_limit,
+            )
+
         future = self.submit(code_builder)
         self.to_context(descriptor_results=append_(future))
 
@@ -606,6 +656,29 @@ class ActiveLearningWorkChain(WorkChain):
         code_builder.metadata.label = self.ctx.best_model_name + "_concave_hull"
 
         code_builder.code = code
+
+        # Get the calculation limit, from the computer metadata set to 0
+        # if not present.
+        # `mdb_calc_limit` is a custom property set with:
+        # computer.set_property(name='mdb_calc_limit', value=366)
+        calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+
+        # Check if the calculation can be submitted
+        if calc_limit == 0:
+            can_submit = True
+        else:
+            can_submit = can_submit_calculation(
+                code=code.label,
+                limit=calc_limit,
+            )
+
+        # If the calculation cannot be submitted, wait for a minute and check again
+        while not can_submit:
+            time.sleep(60)
+            can_submit = can_submit_calculation(
+                code=code.label,
+                limit=calc_limit,
+            )
 
         future = self.submit(code_builder)
         self.to_context(concave_hull_results=append_(future))
@@ -840,6 +913,30 @@ class ActiveLearningWorkChain(WorkChain):
                         f"struct_{index_in_db}_mace_lammps_md_{temp_val}_K"
                     )
                     builder.metadata.options.parser_name = "mace-lammps-raw-parser"
+
+                    # Get the calculation limit, from the computer metadata set to 0
+                    # if not present.
+                    # `mdb_calc_limit` is a custom property set with:
+                    # computer.set_property(name='mdb_calc_limit', value=366)
+                    calc_limit = builder.code.computer.metadata.get("mdb_calc_limit", 0)
+
+                    # Check if the calculation can be submitted
+                    if calc_limit == 0:
+                        can_submit = True
+                    else:
+                        can_submit = can_submit_calculation(
+                            code=builder.code.label,
+                            limit=calc_limit,
+                        )
+
+                    # If the calculation cannot be submitted,
+                    # wait for a minute and check again
+                    while not can_submit:
+                        time.sleep(60)
+                        can_submit = can_submit_calculation(
+                            code=builder.code.label,
+                            limit=calc_limit,
+                        )
 
                     # Submitting current calculation
                     future = self.submit(builder)
@@ -1244,6 +1341,31 @@ class ActiveLearningWorkChain(WorkChain):
             # Load scheduler and resources options
             mace_builder.metadata.options = mace_eval_aiida_settings_dict
 
+            # Get the calculation limit, from the computer metadata set to 0
+            # if not present.
+            # `mdb_calc_limit` is a custom property set with:
+            # computer.set_property(name='mdb_calc_limit', value=366)
+            calc_limit = mace_builder.metadata.computer.metadata.get(
+                "mdb_calc_limit", 0
+            )
+
+            # Check if the calculation can be submitted
+            if calc_limit == 0:
+                can_submit = True
+            else:
+                can_submit = can_submit_calculation(
+                    code=mace_builder.code.label,
+                    limit=calc_limit,
+                )
+
+            # If the calculation cannot be submitted, wait for a minute and check again
+            while not can_submit:
+                time.sleep(60)
+                can_submit = can_submit_calculation(
+                    code=mace_builder.code.label,
+                    limit=calc_limit,
+                )
+
             future = self.submit(mace_builder)
             future.base.extras.set("unique_id", row[1]["unique_id"])
             future.base.extras.set("md_temperature", row[1]["md_temperature"])
@@ -1426,6 +1548,30 @@ class ActiveLearningWorkChain(WorkChain):
                 )
 
             code_builder.code = code
+
+            # Get the calculation limit, from the computer metadata set to 0
+            # if not present.
+            # `mdb_calc_limit` is a custom property set with:
+            # computer.set_property(name='mdb_calc_limit', value=366)
+            calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+
+            # Check if the calculation can be submitted
+            if calc_limit == 0:
+                can_submit = True
+            else:
+                can_submit = can_submit_calculation(
+                    code=code.label,
+                    limit=calc_limit,
+                )
+
+            # If the calculation cannot be submitted, wait for a minute and check again
+            while not can_submit:
+                time.sleep(60)
+                can_submit = can_submit_calculation(
+                    code=code.label,
+                    limit=calc_limit,
+                )
+
             future = self.submit(code_builder)
             future.base.extras.set("unique_id", row["unique_id"])
             future.base.extras.set("md_temperature", row["md_temperature"])
@@ -1689,6 +1835,32 @@ class ActiveLearningWorkChain(WorkChain):
                             dft_settings=self.inputs.dft_settings.get_dict(),
                         )
 
+                        # Get the calculation limit, from the computer metadata set to 0
+                        # if not present.
+                        # `mdb_calc_limit` is a custom property set with:
+                        # computer.set_property(name='mdb_calc_limit', value=366)
+                        calc_limit = builder.metadata.computer.metadata.get(
+                            "mdb_calc_limit", 0
+                        )
+
+                        # Check if the calculation can be submitted
+                        if calc_limit == 0:
+                            can_submit = True
+                        else:
+                            can_submit = can_submit_calculation(
+                                code=builder.code.label,
+                                limit=calc_limit,
+                            )
+
+                        # If the calculation cannot be submitted,
+                        # wait for a minute and check again
+                        while not can_submit:
+                            time.sleep(60)
+                            can_submit = can_submit_calculation(
+                                code=builder.code.label,
+                                limit=calc_limit,
+                            )
+
                         # Submitting current calculation
                         future = self.submit(builder)
                         future.base.extras.set("mdb_calc_uuid", row["unique_id"])
@@ -1712,10 +1884,35 @@ class ActiveLearningWorkChain(WorkChain):
                     builder = mdb_al_ut.get_dft_calc_builder_mace_list(
                         struct_list=mace_calcs_struct_list,
                         row=row,
-                        # db_row_idx,
-                        # self.inputs.train_seed_group.value,
                         dft_settings=self.inputs.dft_settings.get_dict(),
                     )
+
+
+                    # Get the calculation limit, from the computer metadata set to 0
+                    # if not present.
+                    # `mdb_calc_limit` is a custom property set with:
+                    # computer.set_property(name='mdb_calc_limit', value=366)
+                    calc_limit = builder.metadata.computer.metadata.get(
+                        "mdb_calc_limit", 0
+                    )
+
+                    # Check if the calculation can be submitted
+                    if calc_limit == 0:
+                        can_submit = True
+                    else:
+                        can_submit = can_submit_calculation(
+                            code=builder.code.label,
+                            limit=calc_limit,
+                        )
+
+                    # If the calculation cannot be submitted,
+                    # wait for a minute and check again
+                    while not can_submit:
+                        time.sleep(60)
+                        can_submit = can_submit_calculation(
+                            code=builder.code.label,
+                            limit=calc_limit,
+                        )
 
                     # Submitting current calculation
                     future = self.submit(builder)
