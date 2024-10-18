@@ -673,7 +673,7 @@ def can_submit_calculation(code: str, limit: int) -> bool:
     computer = orm.load_code(label=code).computer
 
     # Getting default user if not specified
-    user = orm.User.objects.get_default()
+    user = orm.User.collection.get_default()
 
     # Getting the scheduler and transport
     # Transport must be set in order for the
