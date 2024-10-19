@@ -488,9 +488,10 @@ class ActiveLearningWorkChain(WorkChain):
         ]
 
         # Set the computer
-        code_builder.metadata.computer = orm.load_computer(
+        computer = orm.load_computer(
             self.inputs.descriptor_settings["metadata"]["computer"]
         )
+        code_builder.metadata.computer = computer
 
         # Get latent space of the descriptors using the autoencoder.
         if dimensionality_reduction_method == "autoencoder":
@@ -553,7 +554,7 @@ class ActiveLearningWorkChain(WorkChain):
         # if not present.
         # `mdb_calc_limit` is a custom property set with:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = computer.metadata.get("mdb_calc_limit", 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -563,7 +564,6 @@ class ActiveLearningWorkChain(WorkChain):
                 code=code.label,
                 limit=calc_limit,
             )
-
         # If the calculation cannot be submitted, wait for a minute and check again
         while not can_submit:
             time.sleep(60)
