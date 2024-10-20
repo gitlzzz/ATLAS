@@ -635,7 +635,9 @@ def gather_calc_data_from_row(target_row, curr_structure=None):
     return curr_structure, curr_material_name, curr_unique_id, curr_phase
 
 
-def can_submit_calculation(code: str, limit: int) -> bool:
+def can_submit_calculation(
+    code: str, limit: int, computer: orm.Computer = None
+) -> bool:
     """
     Check if a calculation can be submitted to a given computer's queue.
 
@@ -654,7 +656,9 @@ def can_submit_calculation(code: str, limit: int) -> bool:
     Parameters
     ----------
     code : str
-        AiiDA code label.
+        AiiDA code label. Will be used to get the computer.
+    computer : orm.Computer
+        AiiDA computer.
     limit : int
         Maximum number of calculations that can be submitted.
         The limit will be set by the supercomputer's scheduler,
@@ -670,7 +674,8 @@ def can_submit_calculation(code: str, limit: int) -> bool:
         Whether the calculation can be submitted or not.
     """
     # Getting computer
-    computer = orm.load_code(label=code).computer
+    if not computer:
+        computer = orm.load_code(label=code).computer
 
     # Getting default user if not specified
     user = orm.User.collection.get_default()

@@ -561,6 +561,7 @@ class ActiveLearningWorkChain(WorkChain):
             can_submit = True
         else:
             can_submit = can_submit_calculation(
+                computer=computer,
                 code=code.label,
                 limit=calc_limit,
             )
@@ -568,6 +569,7 @@ class ActiveLearningWorkChain(WorkChain):
         while not can_submit:
             time.sleep(60)
             can_submit = can_submit_calculation(
+                computer=computer,
                 code=code.label,
                 limit=calc_limit,
             )
@@ -1333,9 +1335,10 @@ class ActiveLearningWorkChain(WorkChain):
             mace_eval_aiida_settings_dict = self.inputs.committee_eval["metadata"][
                 "options"
             ]
-            mace_builder.metadata.computer = orm.load_computer(
+            computer = orm.load_computer(
                 mace_eval_aiida_settings_dict["computer"]
             )
+            mace_builder.metadata.computer = computer
             mace_eval_aiida_settings_dict.pop("computer", None)
 
             # Load scheduler and resources options
@@ -1354,6 +1357,7 @@ class ActiveLearningWorkChain(WorkChain):
                 can_submit = True
             else:
                 can_submit = can_submit_calculation(
+                    computer=computer,
                     code=mace_builder.code.label,
                     limit=calc_limit,
                 )
@@ -1362,6 +1366,7 @@ class ActiveLearningWorkChain(WorkChain):
             while not can_submit:
                 time.sleep(60)
                 can_submit = can_submit_calculation(
+                    computer=computer,
                     code=mace_builder.code.label,
                     limit=calc_limit,
                 )
@@ -1492,9 +1497,10 @@ class ActiveLearningWorkChain(WorkChain):
             ]
 
             # Set the computer
-            code_builder.metadata.computer = orm.load_computer(
+            computer = orm.load_computer(
                 self.inputs.descriptor_settings["metadata"]["computer"]
             )
+            code_builder.metadata.computer = computer
 
             code_builder.model_file = self.ctx.best_model_file
             code_builder.mace_train_file_path = md_xyz_file
@@ -1553,13 +1559,14 @@ class ActiveLearningWorkChain(WorkChain):
             # if not present.
             # `mdb_calc_limit` is a custom property set with:
             # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+            calc_limit = computer.metadata.get("mdb_calc_limit", 0)
 
             # Check if the calculation can be submitted
             if calc_limit == 0:
                 can_submit = True
             else:
                 can_submit = can_submit_calculation(
+                    computer=computer,
                     code=code.label,
                     limit=calc_limit,
                 )
@@ -1568,6 +1575,7 @@ class ActiveLearningWorkChain(WorkChain):
             while not can_submit:
                 time.sleep(60)
                 can_submit = can_submit_calculation(
+                    computer=computer,
                     code=code.label,
                     limit=calc_limit,
                 )
@@ -1892,7 +1900,7 @@ class ActiveLearningWorkChain(WorkChain):
                     # if not present.
                     # `mdb_calc_limit` is a custom property set with:
                     # computer.set_property(name='mdb_calc_limit', value=366)
-                    calc_limit = builder.metadata.computer.metadata.get(
+                    calc_limit = builder.code.computer.metadata.get(
                         "mdb_calc_limit", 0
                     )
 
@@ -1901,6 +1909,7 @@ class ActiveLearningWorkChain(WorkChain):
                         can_submit = True
                     else:
                         can_submit = can_submit_calculation(
+                            computer=builder.code.computer,
                             code=builder.code.label,
                             limit=calc_limit,
                         )
@@ -1910,6 +1919,7 @@ class ActiveLearningWorkChain(WorkChain):
                     while not can_submit:
                         time.sleep(60)
                         can_submit = can_submit_calculation(
+                            computer=builder.code.computer,
                             code=builder.code.label,
                             limit=calc_limit,
                         )
