@@ -7,6 +7,7 @@ import pandas as pd
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
 import pathlib as pl
+import warnings
 
 from MatDBForge.core import initial_db as mdb_indb
 
@@ -377,10 +378,17 @@ class Structure:
             struct_df = struct_df.fillna(value=False).infer_objects(copy=False)
         struct_df = struct_df.astype(bool_columns)
 
-        if struct_df.shape[0] == 0:
-            struct_df = new_row
-        else:
-            struct_df = pd.concat([struct_df, new_row], ignore_index=True)
+        # Adding a new row to the database results in a FutureWarning
+        # if some columns are empty. This is to be expected in this version
+        # of the code, so we suppress the warning until it is gone.
+        with warnings.catch_warnings(category=FutureWarning):
+            warnings.simplefilter("ignore")
+
+            # Adding the new row to the database
+            if struct_df.shape[0] == 0:
+                struct_df = new_row
+            else:
+                struct_df = pd.concat([struct_df, new_row], ignore_index=True)
 
         if is_InitialDatabase:
             db_obj.df = struct_df
