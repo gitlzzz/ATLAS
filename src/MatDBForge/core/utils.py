@@ -747,6 +747,9 @@ def limit_num_structures_phase(
     # Getting the current phase structures (df_filtered)
     df_filtered = db_obj.df.loc[db_obj.df["phase"] == phase.name]
 
+    # Gathering the base structures incldued in the current phase
+    df_filt_base = df_filtered.loc[df_filtered.base]
+
     # Getting the remaining structures after selecting
     # the phase (df_remaining)
     df_remaining = db_obj.df.loc[db_obj.df["phase"] != phase.name]
@@ -760,7 +763,7 @@ def limit_num_structures_phase(
     df_filt_sampl = df_filtered.iloc[df_filt_sampl_idx]
 
     # Adding df_filt_sample to the df_remaining
-    df_remaining = pd.concat([df_remaining, df_filt_sampl], axis=0)
+    df_remaining = pd.concat([df_remaining, df_filt_sampl, df_filt_base], axis=0)
     db_obj.df = df_remaining
     return db_obj
 
