@@ -25,12 +25,12 @@
 
 ### Fix
 
-- **db_gen**: perturbed structures now save material id ([#e859d7e](https://github.com/pol-sb/MatDBForge/commit/e859d7e99ac0d6c09f1cd333e35e92634d73203c))
+- **gen_db**: perturbed structures now save material id ([#e859d7e](https://github.com/pol-sb/MatDBForge/commit/e859d7e99ac0d6c09f1cd333e35e92634d73203c))
 
 ### Misc
 
-- **db_gen**: added limit to number of phases in pie chart, remaining ones are grouped into `others`. ([#2fed433](https://github.com/pol-sb/MatDBForge/commit/2fed433d60cf11af274bbc511c957d2c126270cd))
-- **db_gen**: improved output and added deprecation warnings ([#2f3b778](https://github.com/pol-sb/MatDBForge/commit/2f3b7786beb044905bb8934bb3f1fb77431e59eb))
+- **gen_db**: added limit to number of phases in pie chart, remaining ones are grouped into `others`. ([#2fed433](https://github.com/pol-sb/MatDBForge/commit/2fed433d60cf11af274bbc511c957d2c126270cd))
+- **gen_db**: improved output and added deprecation warnings ([#2f3b778](https://github.com/pol-sb/MatDBForge/commit/2f3b7786beb044905bb8934bb3f1fb77431e59eb))
 - **structure**: simplified structure conversion ([#1575d91](https://github.com/pol-sb/MatDBForge/commit/1575d9183765b9a9729f71210f43f727f07aa722))
 - **structure**: updated structure representation ([#af9a608](https://github.com/pol-sb/MatDBForge/commit/af9a60822878fc896bf3e87fb1490f50fd12f29c))
 - **al_loop**: updated logger to rich logger ([#74ba05e](https://github.com/pol-sb/MatDBForge/commit/74ba05ef9fc516cddf53e147624679d3e779cc27))
