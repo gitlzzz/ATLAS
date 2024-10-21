@@ -3128,6 +3128,28 @@ def cli_run_gen_initial_database(
 
             mdb_cud.custom_print(structures, "info")
 
+        # Applying vacancies to a random subset of structures
+        if "vacancies" in config_dict:
+            vacancies_dict = config_dict["vacancies"]
+            mdb_cud.custom_print(
+                (
+                    f"Applying vacancies to a random subset of "
+                    f"{vacancies_dict['limit_max_num_vacancies']} structures..."
+                ),
+                "info",
+            )
+
+            structures.apply_vacancies_random(
+                max_vac_perc=vacancies_dict["max_vacancy_percentage"],
+                min_vac_perc=vacancies_dict["min_vacancy_percentage"],
+                filters=vacancies_dict["filter_struct_types"],
+                lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
+                repeat=int(vacancies_dict["num_repeats"]),
+                seed=rng_seed,
+                element_list=vacancies_dict["element_list"],
+                phase=phase,
+            )
+
         # Limiting structures for current phase
         lim_phas_structs = phase_diagram_dict["phase"][phase.original_name].get(
             "limit_max_num_structures"
@@ -3154,26 +3176,6 @@ def cli_run_gen_initial_database(
         "done",
     )
     print()
-
-    if "vacancies" in config_dict:
-        vacancies_dict = config_dict["vacancies"]
-        mdb_cud.custom_print(
-            (
-                f"Applying vacancies to a random subset of "
-                f"{vacancies_dict['limit_max_num_vacancies']} structures..."
-            ),
-            "info",
-        )
-
-        structures.apply_vacancies_random(
-            max_vac_perc=vacancies_dict["max_vacancy_percentage"],
-            min_vac_perc=vacancies_dict["min_vacancy_percentage"],
-            filters=vacancies_dict["filter_struct_types"],
-            lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
-            repeat=int(vacancies_dict["num_repeats"]),
-            seed=rng_seed,
-            element_list=vacancies_dict["element_list"],
-        )
 
     if "adsorbates" in config_dict:
         mdb_cud.custom_print(
