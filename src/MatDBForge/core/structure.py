@@ -39,7 +39,7 @@ class Structure:
         Flag indicating if this is a bulk structure, by default False
     cluster : bool, optional
         Flag indicating if this is a cluster structure, by default False
-    vacancy: bool, optionsl
+    vacancy: bool, optional
         Flag indicating if the structure contains a vacancy, by default False
     formula : str, optional
         The chemical formula of the material, by default None
