@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.0 (2024-10-22)
+
+### Feature
+
+- **gen_db**: added parallel processing to gen_surfaces_diff_miller to speed up db generation ([#1a49a96](https://github.com/pol-sb/MatDBForge/commit/1a49a9661255b4abe45509e123ac030308982954))
+
+### Misc
+
+- **docs**: fixed typo ([#2e408f3](https://github.com/pol-sb/MatDBForge/commit/2e408f3505b2d2ab01793a220f4e7e17e67fc1a9))
+- **core**: moved init_conf to `code_utils.py` ii ([#7e034d7](https://github.com/pol-sb/MatDBForge/commit/7e034d7b4c338c277158b96ff48ba6c26b30d7fa))
+- **core**: moved init_conf to `code_utils.py` ([#0d6894c](https://github.com/pol-sb/MatDBForge/commit/0d6894c46a1359042790f7b8414b217213705566))
+- **core**: fixed dependency versions ([#1b88075](https://github.com/pol-sb/MatDBForge/commit/1b8807548e47d115b6cbf753e01d9078e2e6fc7f))
+
 ## 0.13.0 (2024-10-21)
 
 ### Feature
