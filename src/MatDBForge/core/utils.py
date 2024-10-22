@@ -1,5 +1,6 @@
 """Module containing general utilities for database creation."""
 
+import itertools as it
 import json as js
 import os
 import pathlib
@@ -15,6 +16,7 @@ from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from pymatgen.core import Structure
 from pymatgen.core.periodic_table import Element, Species
+from pymatgen.core.surface import Slab
 from pymatgen.io import ase as pmg_ase
 from pymatgen.io.ase import AseAtomsAdaptor
 
@@ -326,76 +328,6 @@ def _del_structure_list_by_uuid(structure_list, dupl_uuid_list):
     return unique_structure_list
 
 
-def apply_replacement(structure: Structure, phase, n_atoms: int | float, rng=None):
-    if not rng:
-        rng = np.random.default_rng()
-
-    if isinstance(
-        structure, (mdb_struct.Structure, mdb_struct.Surface, mdb_struct.Bulk)
-    ):
-        structure = structure.structure
-
-    structure_len = len(structure.species)
-    curr_comp = structure.composition
-
-    # We assume that if the n_atoms is a fractional number, it must
-    # represent the ratio of atoms in the structure, so we convert
-    # that to a number of atoms.
-    if isinstance(n_atoms, float) and n_atoms < 1:
-        n_atoms = int(n_atoms * structure_len)
-
-    # If no replacements are going to be made, this is probably due to
-    # a low percentage being rounded to 0, thus we attempt to make at
-    # least one replacement.
-    if n_atoms == 0:
-        n_atoms = 1
-
-    # Getting current structure composition information
-    # The current procedure assumes that all of the atom species in the structure
-    # will have been replaced beforehand with the base atom,
-    # although this results in more randomness.
-    base_elem = phase.base_elem
-    (other_elem,) = mdb_indb.CuZnInitialDatabase.ALLOY_SET - {base_elem}
-
-    # If the structure only has one type of Element, and that is not the base
-    # element, this changes with what to replace.
-    if not curr_comp.as_dict().get(base_elem.symbol):
-        base_elem = structure.composition.elements[0]
-        (other_elem,) = mdb_indb.CuZnInitialDatabase.ALLOY_SET - {base_elem}
-        other_atom_change = n_atoms
-
-    else:
-        # Getting how many base atoms must be changed in order for the
-        # structure to meet the current percentage requirements.
-        target_atoms_base = curr_comp[base_elem] - abs(n_atoms)
-
-        # Getting how many atoms of the other element must be changed
-        other_atom_change = int(curr_comp[other_elem] - target_atoms_base)
-        # print('other_atom_change: ', other_atom_change)
-
-    # Choosing which species of the structure to change with the other atom.
-    other_elem_choices = rng.choice(
-        a=structure_len,
-        size=abs(int(other_atom_change)),
-        replace=False,
-        shuffle=True,
-    )
-
-    # Creating a new pymatgen structure using the base one as a template
-    new_structure = structure.copy(sanitize=True)
-    site_props_before = structure.site_properties
-
-    # Replacing atoms in the structures
-    for ind in other_elem_choices:
-        new_structure.replace(ind, other_elem)
-
-    # TODO: Instead of this, create a new structure
-    # Copying site properties
-    new_structure = new_structure.copy(sanitize=True, site_properties=site_props_before)
-
-    return new_structure
-
-
 def apply_replacement_no_db(
     structure: Structure,
     phase,
@@ -607,6 +539,364 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
     )
 
     return filtered_df, remaining_df, phase_list
+
+
+def apply_replacement(
+    structure: Structure,
+    phase,
+    n_target_at: int | float,
+    phase_diagram: mdb_pd.PhaseDiagram,
+    rng=None,
+):
+    if not rng:
+        rng = np.random.default_rng()
+
+    if isinstance(
+        structure,
+        (
+            mdb_struct.Structure,
+            mdb_struct.Surface,
+            mdb_struct.Bulk,
+        ),
+    ):
+        structure = structure.structure
+
+    structure_len = len(structure.species)
+    curr_comp = structure.composition
+
+    # We assume that if the n_atoms is a fractional number, it must
+    # represent the ratio of atoms in the structure, so we convert
+    # that to a number of atoms.
+    if isinstance(n_target_at, float) and n_target_at < 1:
+        n_target_at = int(n_target_at * structure_len)
+
+    # If no replacements are going to be made, this is probably due to
+    # a low percentage being rounded to 0, thus we attempt to make at
+    # least one replacement.
+    if n_target_at == 0:
+        n_target_at = 1
+
+    curr_n_base_atoms = int(curr_comp[phase.base_elem])
+    replacement_type = "add" if n_target_at > curr_n_base_atoms else "sub"
+
+    # Getting current structure composition information
+    # The current procedure assumes that all of the atom species in the structure
+    # will have been replaced beforehand with the base atom,
+    # although this results in more randomness.
+    base_elem = phase.base_elem
+    if len(phase_diagram.alloy_set) > 1:
+        (other_elem,) = phase_diagram.alloy_set - {base_elem.symbol}
+    else:
+        other_elem = list(phase_diagram.alloy_set)[0]
+
+    # If the structure only has one type of Element, and that is not the base
+    # element, this changes with what to replace.
+    # if not curr_comp.as_dict().get(base_elem.symbol):
+    #     base_elem = str(phase.phase_diagram.element_list[0])
+    #     if len(phase_diagram.alloy_set) > 1:
+    #         (other_elem,) = phase_diagram.alloy_set - {base_elem}
+    #     else:
+    #         other_elem = list(phase_diagram.alloy_set)[0]
+
+    # Adding base atoms to match the target percentage
+    if replacement_type == "add":
+        n_at_diff = n_target_at - curr_n_base_atoms
+        spec_to_replace = Element(other_elem)
+        replacing_elem = Element(base_elem)
+    # Removing base atoms to match the target percentage
+    else:
+        n_at_diff = curr_n_base_atoms - n_target_at
+        spec_to_replace = Element(base_elem)
+        replacing_elem = Element(other_elem)
+
+    # Get atoms available to replace in the structure
+    if isinstance(spec_to_replace, Element):
+        repl_sites = structure.indices_from_symbol(spec_to_replace.symbol)
+    else:
+        repl_sites = structure.indices_from_symbol(spec_to_replace)
+
+    try:
+        # Randomly selecting indices to replace out of the available positions.
+        replace_elem_choices = rng.choice(
+            a=repl_sites,
+            size=abs(int(n_at_diff)),
+            replace=False,
+            shuffle=True,
+        )
+    except ValueError:
+        custom_print(
+            (
+                f"No replaceable sites for composition: '{curr_comp}'."
+                "Add one of the formula's elements to the current phase"
+                " 'replacements.element_list'."
+            ),
+            "error",
+        )
+        sys.exit(1)
+
+    if isinstance(structure, (mdb_struct.Surface, Slab)):
+        new_structure = structure.get_sorted_structure()
+    else:
+        new_structure = structure.copy(sanitize=True)
+    site_props_before = structure.site_properties
+
+    # Replacing atoms in the structures
+    for ind in replace_elem_choices:
+        new_structure = new_structure.replace(ind, replacing_elem)
+
+    # Copying site properties
+    if isinstance(structure, (mdb_struct.Surface, Slab)):
+        new_structure = new_structure.get_sorted_structure()
+    else:
+        new_structure = new_structure.copy(
+            sanitize=True, site_properties=site_props_before
+        )
+
+    return new_structure
+
+
+def fit_replacements_phase(
+    phase,
+    structure,
+    subst_base_elem_perc,
+):
+
+    if isinstance(structure, mdb_struct.Structure):
+        structure = structure.structure
+
+    curr_comp = structure.composition
+    base_elem = phase.base_elem
+    # tot_base_at_struct = curr_comp[base_elem]
+    structure_len = len(structure.species)
+    offset_min = phase.base_elem_comp_min - phase.offset
+    offset_max = phase.base_elem_comp_max + phase.offset
+
+    n_at_replacement_upd = []
+    for _, curr_perc in enumerate(subst_base_elem_perc):
+        inPhase = phase.perc_in_phase(curr_perc)
+
+        single_at_perc = 1 / structure_len
+        perc_range = offset_max - offset_min
+
+        # Skip this offset if changing one atom always results
+        # in going over the maximum or minimum.
+        if single_at_perc >= perc_range:
+            inPhase = True
+
+        while not inPhase:
+            perc = curr_comp.get_atomic_fraction(base_elem)
+            # perc = (tot_base_at_struct + abs(curr_perc)) / structure_len
+
+            if perc >= offset_max:
+                curr_perc -= single_at_perc
+            elif perc <= offset_min:
+                curr_perc += single_at_perc
+            else:
+                inPhase = phase.perc_in_phase(curr_perc)
+
+        new_n_at = int(round(curr_perc * structure_len, 0))
+        n_at_replacement_upd.append(new_n_at)
+
+    return n_at_replacement_upd
+
+
+def gen_base_elem_perc(phase, num_struct):
+    # Computing base_elem percentages using offset
+    if phase.offset and phase.offset > 0:
+        # Getting offset. If not found set to 0.
+        offset = phase.offset
+
+        # Randomly generating base_elem percentages for the new structures
+        max_base_elem = min((phase.base_elem_comp_max + offset), 1)
+        min_base_elem = max(phase.base_elem_comp_min - offset, 0)
+
+        subst_base_elem_perc = (min_base_elem - max_base_elem) * np.random.ranf(
+            size=num_struct
+        ) + max_base_elem
+
+    # Computing base element percentages without offset.
+    else:
+        max_base_elem = phase.base_elem_comp_min
+        min_base_elem = phase.base_elem_comp_max
+        subst_base_elem_perc = (min_base_elem - max_base_elem) * np.random.ranf(
+            size=num_struct
+        ) + max_base_elem
+
+    return subst_base_elem_perc
+
+
+def create_symmetrical_prototype(
+    structure: Structure,
+    phase_diagram: mdb_pd.PhaseDiagram,
+    phase: mdb_pd.Phase,
+    structure_obj: "mdb_struct.Structure",
+):
+    phase = structure_obj.phase
+
+    if isinstance(phase, str):
+        phase = phase_diagram.get_phase(phase)
+
+    # curr_phase_atom = self.phase_diagram.get_phase(phase).base_elem
+    # base_atom_set = list(self.phase_diagram.alloy_set - {curr_phase_atom})
+
+    if isinstance(structure, (mdb_struct.Surface, Slab)):
+        new_structure = structure.get_sorted_structure()
+    else:
+        new_structure = structure.copy(sanitize=True)
+
+    # Replacing atoms in the structures
+    ind = 2
+    sum_ind = 0
+    sum_list = (2, 1, 2, 3)
+
+    while ind < structure.num_sites:
+        # new_structure.replace(ind - 1, Species(base_atom_set[0]))
+        new_structure.replace(ind - 1, Element(phase.base_elem))
+        ind = ind + sum_list[sum_ind]
+
+        if sum_ind == 3:
+            sum_ind = 0
+        else:
+            sum_ind += 1
+
+    material_id_prefix = str(structure_obj.material_id)
+
+    # Generating the symmetrized structure
+    new_struct_symm = mdb_struct.Structure(
+        material_name=f"{material_id_prefix}_{phase.name}_symm",
+        material_id=material_id_prefix,
+        structure=new_structure,
+        temperature=structure_obj.temperature,
+        bulk=structure_obj.bulk,
+        surface=structure_obj.surface,
+        surface_miller=structure_obj.surface_miller,
+        cluster=structure_obj.cluster,
+        perturb=structure_obj.perturb,
+        base=structure_obj.base,
+        calc_performed=structure_obj.calc_performed,
+        supercell=structure_obj.supercell,
+        phase=phase.name,
+    )
+
+    if structure_obj.bulk:
+        final_struct = new_struct_symm.to_bulk()
+    elif structure_obj.surface:
+        final_struct = new_struct_symm.to_surface()
+    elif structure_obj.cluster:
+        final_struct = new_struct_symm.to_cluster()
+    else:
+        raise NotImplementedError(
+            "Symmetrical prototype not implemented for"
+            "implemented for current structure type."
+        )
+
+    # self.df = final_struct.save_to_db(self.df)
+
+    return final_struct
+
+
+def find_supercell_indices(
+    structure,
+    get_different_supercells,
+    min_atoms,
+    max_atoms,
+    initial_supercell_size=5,
+    verbose=True,
+):
+
+    # Initial supercell size
+    idx = initial_supercell_size
+
+    # Copying structure
+    try:
+        new_structure = structure.copy(sanitize=True)
+    except TypeError:
+        new_structure = structure.copy()
+
+    # Setting different supercell geometry for slabs and bulks.
+    supercell_vec = [idx, idx, 1] if isinstance(structure, Slab) else [idx, idx, idx]
+
+    new_structure.make_supercell(supercell_vec, to_unit_cell=False)
+
+    # Number of atoms of the supercell
+    struct_size = len(new_structure.species)
+    while (struct_size > max_atoms or struct_size < min_atoms) and supercell_vec != [
+        1,
+        1,
+        1,
+    ]:
+        try:
+            new_structure = structure.copy(sanitize=True)
+        except TypeError:
+            new_structure = structure.copy()
+
+        if isinstance(structure, Slab):
+            supercell_vec = [idx, idx, 1]
+        else:
+            supercell_vec = [idx, idx, idx]
+
+        new_structure.make_supercell(supercell_vec, to_unit_cell=False)
+        struct_size = len(new_structure.species)
+        idx -= 1
+
+    structure_list = []
+    idx_list = []
+    supercell_vec_list = []
+    structure_list.append(new_structure)
+    idx_list.append(idx)
+    supercell_vec_list.append(supercell_vec)
+
+    if verbose:
+        custom_print(
+            f"Supercell generated {supercell_vec}"
+            f" - total atoms: {len(new_structure.species)}",
+            "debug",
+        )
+
+    if get_different_supercells:
+        # Generating all possible combinations of supercells up to a given size
+        possible_supercells = it.combinations_with_replacement(
+            range(2, initial_supercell_size + 1), r=3
+        )
+
+        for idx_smaller in possible_supercells:
+            try:
+                new_structure = structure.copy(sanitize=True)
+            except TypeError:
+                new_structure = structure.copy()
+
+            # Slabs must not be repeated on z axis
+            if isinstance(structure, Slab):
+                supercell_vec = [idx_smaller[0], idx_smaller[1], 1]
+
+                # Removing slabs if already on the list
+                if supercell_vec in supercell_vec_list:
+                    continue
+
+            # Bulks and clusters can be repeated on all axis
+            else:
+                supercell_vec = idx_smaller
+
+            # Creating and adding the supercell if it is within
+            # the desired size range
+            if supercell_vec != [1, 1, 1]:
+                new_structure.make_supercell(supercell_vec, to_unit_cell=False)
+                struct_size = len(new_structure.species)
+                if struct_size < max_atoms and struct_size > min_atoms:
+                    structure_list.append(new_structure)
+                    idx_list.append(idx_smaller)
+                    supercell_vec_list.append(supercell_vec)
+
+                    if verbose:
+                        custom_print(
+                            (
+                                f"Supercell generated (diff.) {supercell_vec} "
+                                f"- total atoms: {struct_size}"
+                            ),
+                            "debug",
+                        )
+
+    return structure_list, idx_list, supercell_vec_list
 
 
 def _apply_perturbation_mdb_struct(center, row, per_idx):

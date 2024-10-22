@@ -4,19 +4,18 @@ import pathlib as pl
 import warnings
 
 from MatDBForge.core import code_utils as mdb_cud
-from MatDBForge.core import utils as mdb_ut
 
 warnings.filterwarnings("ignore")
 
 
 def run_initial_config():
-    mdb_ut.init_logger(source=pl.Path(__file__).stem, log_path="/tmp")
+    mdb_cud.init_logger(source=pl.Path(__file__).stem, log_path="/tmp")
 
     # Get config directory
-    config_path = mdb_ut.get_config_path()
+    config_path = mdb_cud.get_config_path()
 
     # Create a mdb folder
-    config_dir = mdb_ut.init_config_dir(config_path)
+    config_dir = mdb_cud.init_config_dir(config_path)
 
     if config_dir:
         mdb_cud.custom_print(
