@@ -170,6 +170,43 @@ def deprecated(reason, since_ver=None):
     return decorator
 
 
+def get_config_path() -> pathlib.Path:
+    """Get the path to MatDBForge's the configuration directory."""
+    # Try to get XDG_CONFIG_HOME, if it doesn't exist, return None
+    config_path = os.environ.get("XDG_CONFIG_HOME", None)
+
+    # Check if $HOME/.config exists and if it does, return the path
+    if not config_path:
+        config_folder = pathlib.Path().home() / ".config"
+        if config_folder.exists():
+            config_path = config_folder
+
+    return pathlib.Path(config_path)
+
+
+def init_config_dir(config_dir):
+    """Create the configuration directory and the secrets file template."""
+    # Create a 'mdb' directory inside the config directory
+    config_dir = config_dir / "mdb"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a 'secrets.json' file inside the 'mdb' directory
+    try:
+        file_path = config_dir / "secrets.json"
+
+        with open(file_path, "x") as f:
+            f.write("{\n" '"API_KEY": ""\n' "}")
+
+        # Limiting the permissions of the secrets file
+        # to the owner only
+        os.chmod(file_path, 0o700)
+
+        return config_dir
+
+    except FileExistsError:
+        return None
+
+
 def get_last_tagged_version():
     """
     Get the last tagged version from the repository.

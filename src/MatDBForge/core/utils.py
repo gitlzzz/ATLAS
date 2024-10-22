@@ -3,7 +3,6 @@
 import json as js
 import os
 import pathlib
-import pathlib as pl
 import sys
 import tempfile
 import uuid
@@ -22,40 +21,11 @@ from pymatgen.io.ase import AseAtomsAdaptor
 import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
-from MatDBForge.core.code_utils import custom_print
+from MatDBForge.core.code_utils import custom_print, get_config_path
 
 LINE_UP = "\033[1A"
 LINE_CLEAR = "\x1b[2K"
 CONFIG_EXAMPLE = {"API_KEY": "XXXXX..."}
-
-
-def get_config_path() -> pl.Path:
-    """Get the path to MatDBForge's the configuration directory."""
-    # Try to get XDG_CONFIG_HOME, if it doesn't exist, return None
-    config_path = os.environ.get("XDG_CONFIG_HOME", None)
-
-    # Check if $HOME/.config exists and if it does, return the path
-    if not config_path:
-        config_folder = pl.Path().home() / ".config"
-        if config_folder.exists():
-            config_path = config_folder
-
-    return pl.Path(config_path)
-
-
-def init_config_dir(config_dir):
-    """Create the configuration directory and the secrets file template."""
-    # Create a 'mdb' directory inside the config directory
-    config_dir = config_dir / "mdb"
-    config_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create a 'secrets.json' file inside the 'mdb' directory
-    try:
-        with open(config_dir / "secrets.json", "x") as f:
-            f.write("{\n" '"API_KEY": ""\n' "}")
-        return config_dir
-    except FileExistsError:
-        return None
 
 
 def clear_previous_print():
