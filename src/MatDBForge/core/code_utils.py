@@ -207,6 +207,32 @@ def init_config_dir(config_dir):
         return None
 
 
+def get_cache_path() -> pathlib.Path:
+    """Get the path to MatDBForge's the cacheuration directory."""
+    # Try to get XDG_cache_HOME, if it doesn't exist, return None
+    cache_path = os.environ.get("$XDG_CACHE_HOME", None)
+
+    # Check if $HOME/.cache exists and if it does, return the path
+    if not cache_path:
+        cache_folder = pathlib.Path().home() / ".cache"
+        if cache_folder.exists():
+            cache_path = cache_folder
+
+    return pathlib.Path(cache_path)
+
+
+def init_cache_dir(cache_dir):
+    """Create the mdb cache directory."""
+    # Create an mdb folder inside the ~/.cache directory
+    cache_dir = cache_dir / "mdb"
+
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=False)
+        return cache_dir
+    except FileExistsError:
+        return None
+
+
 def get_last_tagged_version():
     """
     Get the last tagged version from the repository.
