@@ -1,13 +1,22 @@
 # Changelog
 
-## 0.14.0 (2024-10-22)
+## 0.14.0 (2024-10-23)
 
 ### Feature
 
+- **code**: add utilities for cache dir generation ([#2f5f9cb](https://github.com/pol-sb/MatDBForge/commit/2f5f9cbf0d6c735b2887cd5ca5a4813a0f78c343))
+- **gen_db**: use cache in surface generation ([#2279ae0](https://github.com/pol-sb/MatDBForge/commit/2279ae00b4142bd70ceb450be10e85d899b4f47e))
+- **phase**: introduce cache to structure generation ([#fe25d80](https://github.com/pol-sb/MatDBForge/commit/fe25d80ea869b43a72ee0e9801ddf32c3dca87eb))
 - **gen_db**: added parallel processing to gen_surfaces_diff_miller to speed up db generation ([#1a49a96](https://github.com/pol-sb/MatDBForge/commit/1a49a9661255b4abe45509e123ac030308982954))
+
+### Fix
+
+- **autoencoder**: correctly assign device and dtype to tensors ([#2469f2d](https://github.com/pol-sb/MatDBForge/commit/2469f2d3f346134705c1b228b12a0b58f6b98e4c))
 
 ### Misc
 
+- **code**: update `cli_run_initial_config` to create cache folder ([#e6dc73d](https://github.com/pol-sb/MatDBForge/commit/e6dc73d3af7c86ada7f149f699f1e8f2dab73e5f))
+- **docs**: update cache docs ([#1ae899a](https://github.com/pol-sb/MatDBForge/commit/1ae899a023dd80af290f868d74a2dd940814255f))
 - **docs**: fixed typo ([#2e408f3](https://github.com/pol-sb/MatDBForge/commit/2e408f3505b2d2ab01793a220f4e7e17e67fc1a9))
 - **core**: moved init_conf to `code_utils.py` ii ([#7e034d7](https://github.com/pol-sb/MatDBForge/commit/7e034d7b4c338c277158b96ff48ba6c26b30d7fa))
 - **core**: moved init_conf to `code_utils.py` ([#0d6894c](https://github.com/pol-sb/MatDBForge/commit/0d6894c46a1359042790f7b8414b217213705566))
