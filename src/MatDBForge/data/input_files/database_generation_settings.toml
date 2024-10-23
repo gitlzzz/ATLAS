@@ -140,6 +140,10 @@ limit_max_num_structures = 100
 # Default is true, allowing modifications to the base structure to be applied.
 allow_modifications = true
 
+# (optional, bool) Whether to save files in cache directory for repeated usage.
+# Speeds up some parts of database generation. Can consume a lot of disk space.
+use_cache = false
+
 # To add additional phases, add a new entry to the `phase_diagram` key
 #
 # [phase_diagram.phase.XXXXX]

@@ -366,6 +366,7 @@ class Phase:
         replace_dict: dict = None,
         base_elem: str = None,
         allow_modifications: bool = True,
+        use_cache: bool = False,
     ):
         self.name = slugify(name)
         self.original_name = name
@@ -405,6 +406,8 @@ class Phase:
 
         self.offset = float(offset)
         self.allow_modifications = allow_modifications
+
+        self.use_cache = use_cache
 
     def __str__(self):
         """Return a string representation of the phase.
