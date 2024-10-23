@@ -810,7 +810,7 @@ class InitialDatabase:
                 "info",
             )
 
-    def gather_base_structures(self, target_structures):
+    def gather_base_structures(self, phase_diag_phases):
 
         # Querying materials project database.
         mdb_cud.custom_print(
@@ -820,33 +820,12 @@ class InitialDatabase:
         report_replacements = True
         with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
 
-            for phase in target_structures:
+            for phase in phase_diag_phases:
 
                 query_materials = phase.prototype
 
                 if isinstance(query_materials, str):
                     query_materials = [query_materials]
-
-                is_material_in_db = (
-                    len(
-                        [
-                            mat
-                            for mat in query_materials
-                            if mat in self.df["material_id"].values
-                        ]
-                    )
-                    > 0
-                )
-
-                if is_material_in_db:
-                    ut.custom_print(
-                        (
-                            f"Phase '{phase.name}' is already in the database."
-                            " Skipping..."
-                        ),
-                        "info",
-                    )
-                    continue
 
                 query_result = mpr.summary.search(material_ids=query_materials)
 
@@ -861,51 +840,26 @@ class InitialDatabase:
 
                 for material in query_result:
 
-                    for phase in self.phase_diagram.phases:
-                        if (
-                            isinstance(phase.prototype, str)
-                            and phase.prototype == material.material_id
-                        ):
+                    # for phase in self.phase_diagram.phases:
+                    if (
+                        isinstance(phase.prototype, str)
+                        and phase.prototype == material.material_id
+                    ):
+                        curr_phase = phase.name
+                        # break
+                    elif isinstance(phase.prototype, list):
+                        if material.material_id in phase.prototype:
                             curr_phase = phase.name
-                            break
-                        elif isinstance(phase.prototype, list):
-                            if material.material_id in phase.prototype:
-                                curr_phase = phase.name
-                                break
-                            else:
-                                curr_phase = np.nan
+                            # break
                         else:
                             curr_phase = np.nan
+                    else:
+                        curr_phase = np.nan
 
                     try:
                         material_symmetry = material.get_space_group_info()
                     except Exception:
                         material_symmetry = material.symmetry.symbol
-
-                    # REMOVE
-                    # # Replacing elements
-                    # if phase.replace_dict.get("replace"):
-                    #     replace_with = phase.replace_dict.get(
-                    #         "replace_with", phase.base_elem
-                    #     )
-
-                    #     replace_dict = {}
-                    #     for element in phase.replace_dict["element_list"]:
-                    #         replace_dict[element] = str(replace_with)
-
-                    #     if report_replacements:
-                    #         mdb_cud.custom_print(
-                    #             (
-                    #                 f"Applying substitutions to "
-                    #                 f"base structures: {replace_dict}..."
-                    #             ),
-                    #             "info",
-                    #         )
-                    #         report_replacements = False
-
-                    #     material.structure.replace_species(
-                    #         species_mapping=replace_dict, in_place=True
-                    #     )
 
                     # Replacing elements
                     if phase.replace_dict:  # noqa: SIM102
@@ -968,7 +922,7 @@ class InitialDatabase:
                         formula=material.structure.formula,
                         symmetry=material_symmetry,
                         base=True,
-                        phase=self.phase_diagram.get_phase(curr_phase),
+                        phase=curr_phase,
                         magnetic_properties=material.total_magnetization,
                         energy_per_atom=material.energy_per_atom,
                     )
@@ -1958,7 +1912,6 @@ class InitialDatabase:
                 ),
                 "error",
             )
-            quit()
 
         if isinstance(structure, (mdb_struct.Surface, Slab)):
             new_structure = structure.get_sorted_structure()
@@ -2492,9 +2445,16 @@ class InitialDatabase:
                 continue
 
             if isinstance(structure_obj, Structure):
-                structure_obj = AseAtomsAdaptor().get_atoms(
-                    structure_obj, msonable=False
-                )
+                try:
+                    structure_obj = AseAtomsAdaptor().get_atoms(
+                        structure_obj, msonable=False
+                    )
+                except TypeError as e:
+                    mdb_cud.custom_print(
+                        f"Row {row} resulted in TypeError: '{e}'. Removing.", "warning"
+                    )
+                    self.df.drop(row, inplace=True)
+                    continue
 
             if any(structure_obj.cell.cellpar()[:3] < min_cell_size):
                 self.df.drop(row, inplace=True)
@@ -2922,6 +2882,7 @@ class InitialDatabase:
                     SimpleNamespace(
                         rng_seed=rng_seed,
                         device=device,
+                        dtype=torch.float32,
                         dataset=descriptor_arr,
                         test_frac=0.1,
                         valid_frac=0.1,
@@ -3047,6 +3008,7 @@ def cli_run_gen_initial_database(
             replace_dict=phase_d.get("replacements"),
             allow_modifications=phase_d.get("allow_modifications", True),
             phase_diagram=phase_diagram,
+            use_cache=phase_d.get("use_cache", False),
         )
         phases_list.append(curr_phase)
 
@@ -3071,7 +3033,7 @@ def cli_run_gen_initial_database(
         )
     else:
         # Obtain structures from Materials Project
-        structures.gather_base_structures(target_structures=phase_diagram.phases)
+        structures.gather_base_structures(phase_diag_phases=phase_diagram.phases)
         read_from_db = False
 
     # Applying central_atom_octahedral perturbation to specific structures
@@ -3337,6 +3299,8 @@ def cli_run_gen_initial_database(
                 "plot_filename",
                 f"{pl.Path(db_path)/'descriptors_concave_hull.png'}",
             ),
+            device=concave_dict.get("device", "cpu"),
+            rng_seed=rng_seed,
         )
         mdb_cud.custom_print("Concave hull generated!", "done")
         print()

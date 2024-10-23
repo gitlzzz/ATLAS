@@ -2,6 +2,7 @@
 
 import itertools as it
 import multiprocessing as mp
+import pathlib as pl
 import pickle
 import tempfile
 import time
@@ -557,97 +558,104 @@ def gen_surfaces_diff_miller_parallel(
         n_workers = min(n_workers, mp.cpu_count() - 1)
         n_workers = min(n_workers, len(base_structs))
 
-    temp_dir = tempfile.mkdtemp(
-        prefix="mdb_gen_init_db_",
-    )
-    mdb_cud.custom_print(
-        f"Storing surfaces on temporary directory: '{temp_dir}'.", "debug"
-    )
-
-    with progress.Progress(
-        "[progress.description]{task.description}",
-        progress.BarColumn(),
-        "[progress.percentage]{task.percentage:>3.0f}%",
-        progress.MofNCompleteColumn(),
-        progress.TimeRemainingColumn(),
-        progress.TimeElapsedColumn(),
-        refresh_per_second=1,
-        transient=transient,
-        disable=disable,
-    ) as progress:
-
-        # keep track of the jobs
-        futures = []
-        generated_structures = []
-        # with multiprocessing.Manager() as manager:
-        # this is the key - we share some state between our
-        # main process and our worker functions
-        # _progress = manager.dict()
-
-        overall_progress_task = progress.add_task(
-            "[green]Generating structures:", total=len(base_structs)
+    if phase.use_cache:
+        temp_dir = mdb_cud.get_cache_path() / "mdb"
+        temp_dir = temp_dir / f"mdb_gen_init_db_surface_{phase.name}"
+        temp_dir.mkdir(parents=False, exist_ok=True)
+    else:
+        temp_dir = tempfile.mkdtemp(
+            prefix="mdb_gen_init_db_",
         )
+    mdb_cud.custom_print(
+        f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", "debug"
+    )
 
-        mdb_cud.custom_print(f"Using '{n_workers}' workers.", "debug")
+    generated_structures = []
+    if len(list(pl.Path(temp_dir).glob("*"))) == 0:
+        with progress.Progress(
+            "[progress.description]{task.description}",
+            progress.BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            progress.MofNCompleteColumn(),
+            progress.TimeRemainingColumn(),
+            progress.TimeElapsedColumn(),
+            refresh_per_second=1,
+            transient=transient,
+            disable=disable,
+        ) as progress:
 
-        # iterate over the jobs we need to run
-        with ProcessPoolExecutor(
-            max_workers=n_workers,
-            # max_tasks_per_child=1,
-        ) as executor:
-            for (
-                idx,
-                row,
-            ) in base_structs.iterrows():
+            futures = []
+            overall_progress_task = progress.add_task(
+                "[green]Generating structures:", total=len(base_structs)
+            )
 
-                # Prepare arguments for function call
-                args = (
-                    row,
-                    phase,
-                    db_obj.phase_diagram,
-                    max_miller_index,
-                    min_miller_index,
-                    min_slab_size,
-                    min_vacuum_size,
-                    get_supercells,
-                    num_replacements,
-                    num_repeat_replace,
-                    fixed_layers,
-                    min_num_atoms,
-                    overwrite_max_num_atoms,
-                    frac_slabs_save,
-                    frac_supercells_save,
-                    limit_total_num_struct,
-                    rng_seed,
-                    max_slab_num,
+            mdb_cud.custom_print(f"Using '{n_workers}' workers.", "debug")
+
+            # TODO: Reenable this
+            # iterate over the jobs we need to run
+            with ProcessPoolExecutor(
+                max_workers=n_workers,
+                # max_tasks_per_child=1,
+            ) as executor:
+                for (
                     idx,
-                    temp_dir,
-                )
+                    row,
+                ) in base_structs.iterrows():
 
-                futures.append(executor.submit(process_row_parallel, *args))
+                    # Prepare arguments for function call
+                    args = (
+                        row,
+                        phase,
+                        db_obj.phase_diagram,
+                        max_miller_index,
+                        min_miller_index,
+                        min_slab_size,
+                        min_vacuum_size,
+                        get_supercells,
+                        num_replacements,
+                        num_repeat_replace,
+                        fixed_layers,
+                        min_num_atoms,
+                        overwrite_max_num_atoms,
+                        frac_slabs_save,
+                        frac_supercells_save,
+                        limit_total_num_struct,
+                        rng_seed,
+                        max_slab_num,
+                        idx,
+                        temp_dir,
+                    )
 
-            # monitor the progress
-            while (n_finished := sum([future.done() for future in futures])) < len(
-                futures
-            ):
+                    futures.append(executor.submit(process_row_parallel, *args))
+
+                # monitor the progress
+                while (n_finished := sum([future.done() for future in futures])) < len(
+                    futures
+                ):
+                    progress.update(
+                        overall_progress_task,
+                        completed=n_finished,
+                        total=len(base_structs),
+                    )
+                    time.sleep(0.5)
+
+                # Final update
                 progress.update(
                     overall_progress_task,
                     completed=n_finished,
                     total=len(base_structs),
                 )
-                time.sleep(0.5)
-
-            # Final update
-            progress.update(
-                overall_progress_task,
-                completed=n_finished,
-                total=len(base_structs),
-            )
-
+    else:
+        mdb_cud.custom_print(
+            f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", "info"
+        )
     # Reading stored temporary files
     for idx, _ in base_structs.iterrows():
 
         # Load the generated structures
+        # with open(
+        # f"/tmp/mdb_gen_init_db_sgem6zp2/generated_structures_{idx}.pkl", "rb"
+        # ) as f:
         with open(f"{temp_dir}/generated_structures_{idx}.pkl", "rb") as f:
             generated_structures.append(pickle.load(f))
 
@@ -664,6 +672,18 @@ def gen_surfaces_diff_miller_parallel(
         mdb_cud.custom_print(
             f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
         )
+
+    # Removing temporary directory
+    if not phase.use_cache:
+        mdb_cud.custom_print(f"Removing temporary directory: '{temp_dir}'.", "debug")
+
+        # Removing contents
+        for file in pl.Path(temp_dir).glob("*"):
+            file.unlink()
+
+        # Removing directory
+        pl.Path(temp_dir).rmdir()
+
 
     return generated_structures
 
