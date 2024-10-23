@@ -108,7 +108,7 @@ Every phase can be provided with options to customize it:
 - `replacements.replace_with`: (str) Element to replace with.
 - `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for the current phase. This limit is enforced after the initial phase generation, but subsequent operations (e.g., perturbations, vacancy generation) may add new structures, potentially exceeding the specified limit.
 - `allow_modifications`: (optional, bool) Whether to allow applying modifications (supercells, replacements, perturbations, modifications...) to the base structure, or keep the base structure as the only structure for the phase. Default is true, allowing modifications to the base structure to be applied.
-- `use_cache` (optional, bool) Whether to store structures in the `~/.cache/mdb` directory. Will speed up some parts of the initial database generation, such as the surface creation.
+- `use_cache` (optional, bool) Whether to store structures in the `$XDG_CACHE_HOME` directory. Will speed up some parts of the initial database generation, such as the surface creation. Can consume a lot of disk space.
 
 ### Structure Generation Settings - `[generation]`
 
