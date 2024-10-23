@@ -88,3 +88,7 @@ def run_gen_initial_database():
 
     # Calling the function to generate the initial database
     gen_initial_database(config_dict=toml_dict)
+
+
+if __name__ == "__main__":
+    run_gen_initial_database()

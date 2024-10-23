@@ -1,6 +1,12 @@
 """Module containing functions to generate surfaces from structures."""
 
 import itertools as it
+import multiprocessing as mp
+import pathlib as pl
+import pickle
+import tempfile
+import time
+from concurrent.futures import ProcessPoolExecutor
 from typing import Union
 
 import numpy as np
@@ -226,182 +232,175 @@ def get_miller_index_str(miller_source):
     return curr_miller
 
 
-def gen_surfaces_diff_miller(
-    db_obj: "mdb_indb.InitialDatabase",
-    phase: mdb_pd.Phase,
-    max_miller_index: int,
-    min_miller_index: int = 2,
-    min_slab_size: float = 6,
-    min_vacuum_size: float = 10,
-    get_supercells=False,
-    num_replacements: int = 10,
-    num_repeat_replace: int = 3,
-    fixed_layers: int = 0,
-    min_num_atoms: int = 12,
-    overwrite_max_num_atoms: int = None,
-    save_in_db=False,
-    rng_seed: int = 42,
-    frac_slabs_save: float = 1.0,
-    frac_supercells_save: float = 1.0,
-    limit_total_num_struct: int = 0,
+def process_row_parallel(
+    row,
+    phase,
+    phase_diagram,
+    max_miller_index,
+    min_miller_index,
+    min_slab_size,
+    min_vacuum_size,
+    get_supercells,
+    num_replacements,
+    num_repeat_replace,
+    fixed_layers,
+    min_num_atoms,
+    overwrite_max_num_atoms,
+    frac_slabs_save,
+    frac_supercells_save,
+    limit_total_num_struct,
+    rng_seed,
+    max_slab_num,
+    row_idx,
+    temp_folder,
 ):
-    # Instantiating RNG
     rng = np.random.default_rng(seed=rng_seed)
 
-    # Getting the current phase from the phase name.
-    if isinstance(phase, str):
-        phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+    total_slabs = []
+    miller_indices = list(
+        it.combinations_with_replacement(
+            range(min_miller_index, max_miller_index + 1), 3
+        )
+    )[1:]
 
-    base_structs = db_obj.get_base_structs_current_phase(phase)
+    for miller in miller_indices:
+        slabgen = SlabGenerator(
+            row.structure,
+            miller_index=miller,
+            min_slab_size=min_slab_size,
+            min_vacuum_size=min_vacuum_size,
+            center_slab=True,
+            lll_reduce=True,
+        )
+        slabs = slabgen.get_slabs(filter_out_sym_slabs=True)
+        for slab in slabs:
+            total_slabs.append((slab_to_bottom(slab=slab), miller))
 
-    if not overwrite_max_num_atoms:
-        overwrite_max_num_atoms = db_obj.max_num_atoms
+    # Removing slabs from memory
+    del slabs
 
-    # Checking if there are any base structures for the current
-    # phase.
-    if len(base_structs) == 0:
-        err_msg = (
-            f"No base structure could be found for phase {phase.name}."
-            "\nThe database must contain base structures before "
-            "running this function."
+    # Randomly choosing a subset of the slabs
+    max_slab_num = min(max_slab_num, len(total_slabs))
+    mdb_cud.custom_print(
+        (
+            f"Generated {len(total_slabs)} slabs for {row.material_id}."
+            f" Limited to {max_slab_num} slabs."
+        ),
+        "debug",
+    )
+    total_slabs_idx = rng.choice(range(len(total_slabs)), max_slab_num, replace=False)
+    total_slabs = [total_slabs[idx] for idx in total_slabs_idx]
+
+    generated_structures = []
+    fix_layers_warn = True
+
+    # Storing the remaining slabs.
+    for idx, (slab, mill) in enumerate(total_slabs):
+        # Getting the current slab's miller index
+        mill_str = get_miller_index_str(mill)
+
+        # Preparing the structure name
+        surf_name = (
+            f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
+            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
         )
 
-        raise mdb_exc.BaseStructureNotFound(err_msg)
-
-    for idx, row in base_structs.iterrows():
-        total_slabs = []
-        miller_indices = list(
-            it.combinations_with_replacement(
-                range(min_miller_index, max_miller_index + 1), 3
+        # Fix the bottom `fixed_layers` number of layers
+        # TODO: Implement this feature and remove warning
+        if fixed_layers and fix_layers_warn:
+            mdb_cud.custom_print(
+                "`fixed_layers` specified, but not implemented yet.",
+                "debug",
             )
-        )[1:]
+            fix_layers_warn = False
+            # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
 
-        for miller in miller_indices:
-            slabgen = SlabGenerator(
-                row.structure,
-                miller_index=miller,
-                min_slab_size=min_slab_size,
-                min_vacuum_size=min_vacuum_size,
-                center_slab=True,
-                lll_reduce=True,
-            )
-            slabs = slabgen.get_slabs()
-            for slab in slabs:
-                total_slabs.append((slab_to_bottom(slab=slab), miller))
+        # Creating a new surface from the supercell
+        curr_strct = mdb_struct.Surface(
+            material_name=surf_name,
+            material_id=row.material_id,
+            surface_miller=mill_str,
+            structure=slab,
+            temperature=np.nan,
+            perturb=False,
+            base=False,
+            calc_performed=False,
+            targeted_modification=row.targeted_modification,
+            phase=phase.name,
+        )
 
-        generated_structures = []
-        fix_layers_warn = True
+        # Saving the surface to the db.
+        # db_obj.df = curr_strct.save_to_db(db_obj.df)
+        generated_structures.append(curr_strct)
 
-        # Storing the remaining slabs.
-        for idx, (slab, mill) in enumerate(total_slabs):
-            # Getting the current slab's miller index
-            mill_str = get_miller_index_str(mill)
-
-            # Preparing the structure name
-            surf_name = (
-                f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
-                f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
-            )
-
-            # Fix the bottom `fixed_layers` number of layers
-            # TODO: Implement this feature and remove warning
-            if fixed_layers and fix_layers_warn:
-                mdb_cud.custom_print(
-                    "`fixed_layers` specified, but not implemented yet.",
-                    "debug",
-                )
-                fix_layers_warn = False
-                # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
-
-            # Creating a new surface from the supercell
-            curr_strct = mdb_struct.Surface(
-                material_name=surf_name,
-                material_id=row.material_id,
-                surface_miller=mill_str,
+    # Getting supercells
+    supercell_list = []
+    if get_supercells:
+        for _, (slab, mill) in enumerate(total_slabs):
+            super_list, idx_list, supercells = mdb_ut.find_supercell_indices(
                 structure=slab,
-                temperature=np.nan,
-                perturb=False,
-                base=False,
-                calc_performed=False,
-                targeted_modification=row.targeted_modification,
-                phase=phase.name,
+                min_atoms=min_num_atoms,
+                max_atoms=overwrite_max_num_atoms,
+                get_different_supercells=True,
+                initial_supercell_size=5,
+                verbose=True,
             )
 
-            # Saving the surface to the db.
-            # db_obj.df = curr_strct.save_to_db(db_obj.df)
-            generated_structures.append(curr_strct)
+            # Storing the supercells.
+            for supercell, _, sup_vec in zip(super_list, idx_list, supercells):
+                sup_len = len(supercell.sites)
+                if sup_len <= overwrite_max_num_atoms and sup_len >= min_num_atoms:
+                    # Dragging the slab to the bottom
+                    supercell_bottom = slab_to_bottom(slab=supercell)
 
-        # Getting supercells
-        supercell_list = []
-        if get_supercells:
-            for _, (slab, mill) in enumerate(total_slabs):
-                super_list, idx_list, supercells = db_obj._find_supercell_indices(
-                    structure=slab,
-                    min_atoms=min_num_atoms,
-                    max_atoms=overwrite_max_num_atoms,
-                    get_different_supercells=True,
-                    initial_supercell_size=5,
-                    verbose=True,
-                )
+                    # Preparing the structure name
+                    surf_name = (
+                        f"{row.material_id}_{phase.name}_pure_surface-"
+                        f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{sup_vec}"
+                    )
 
-                # Storing the supercells.
-                for supercell, _, sup_vec in zip(super_list, idx_list, supercells):
-                    sup_len = len(supercell.sites)
-                    if sup_len <= overwrite_max_num_atoms and sup_len >= min_num_atoms:
-                        # Dragging the slab to the bottom
-                        supercell_bottom = slab_to_bottom(slab=supercell)
+                    # Creating a new surface from the supercell
+                    curr_strct = mdb_struct.Surface(
+                        material_name=surf_name,
+                        material_id=row.material_id,
+                        structure=supercell_bottom,
+                        temperature=np.nan,
+                        perturb=False,
+                        base=False,
+                        targeted_modification=row.targeted_modification,
+                        calc_performed=False,
+                        phase=phase.name,
+                        supercell=sup_vec,
+                    )
 
-                        # Preparing the structure name
-                        surf_name = (
-                            f"{row.material_id}_{phase.name}_pure_surface-"
-                            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{sup_vec}"
-                        )
+                    supercell_list.append(curr_strct)
 
-                        # Creating a new surface from the supercell
-                        curr_strct = mdb_struct.Surface(
-                            material_name=surf_name,
-                            material_id=row.material_id,
-                            structure=supercell_bottom,
-                            temperature=np.nan,
-                            perturb=False,
-                            base=False,
-                            targeted_modification=row.targeted_modification,
-                            calc_performed=False,
-                            phase=phase.name,
-                            supercell=sup_vec,
-                        )
-
-                        supercell_list.append(curr_strct)
-
+    # Get replacements
     replacement_list = []
     for structure_obj, supr_idx in zip(supercell_list, idx_list):
         structure = structure_obj.structure
 
         # Replacing some atoms using symmetry
-        structure = db_obj._create_symmetrical_prototype(
-            structure=structure, phase=phase, structure_obj=structure_obj
+        structure = mdb_ut.create_symmetrical_prototype(
+            structure=structure,
+            phase_diagram=phase_diagram,
+            phase=phase,
+            structure_obj=structure_obj,
         )
         # Preparing an array of randomly generated base elem percentages
         # for the new structures
-        subst_base_elem_perc = db_obj._gen_base_elem_perc(phase, num_replacements)
+        subst_base_elem_perc = mdb_ut.gen_base_elem_perc(phase, num_replacements)
 
         mdb_cud.custom_print(
             f"Random base element % for surface to gen: {subst_base_elem_perc*100}",
             "debug",
         )
 
-        # Choosing the amount of atoms to replace with the base element in the
-        # struct which at this point will be completely replaced by atoms
-        # of the remaining species of the alloy.
-        # n_at_replacement = [
-        #     int(round(structure_len * stct, 0)) for stct in subst_base_elem_perc
-        # ]
-
         # Attempting to fix any percentages outside of the
         # current phase ratios.
         # n_at_replacement_upd is a list which contains the
         # target number of base atoms in the new structure.
-        n_at_replacement_upd = db_obj._fit_replacements_phase(
+        n_at_replacement_upd = mdb_ut.fit_replacements_phase(
             phase, structure, subst_base_elem_perc
         )
 
@@ -409,9 +408,14 @@ def gen_surfaces_diff_miller(
         # for each percentage
         for str_ind, n_atoms in enumerate(n_at_replacement_upd):
             for repl in range(num_repeat_replace):
+
                 # Applying the replacement
-                new_structure = db_obj._apply_replacement(
-                    structure, phase, n_atoms, rng
+                new_structure = mdb_ut.apply_replacement(
+                    structure=structure,
+                    phase=phase,
+                    n_target_at=n_atoms,
+                    phase_diagram=phase_diagram,
+                    rng=rng,
                 )
 
                 # Getting the supercell vector
@@ -437,44 +441,226 @@ def gen_surfaces_diff_miller(
                 )
                 replacement_list.append(new_struct_symm)
 
-        # Getting a random subset of the initial slabs
-        if len(generated_structures) > 0:
-            generated_structures = rng.choice(
-                generated_structures,
-                int(len(generated_structures) * frac_slabs_save),
-                replace=False,
-            )
-
-        # Getting a random subset of the inital supercells
-        supercell_list = rng.choice(
-            supercell_list,
-            int(len(supercell_list) * frac_supercells_save),
+    # Getting a random subset of the initial slabs
+    if len(generated_structures) > 0:
+        generated_structures = rng.choice(
+            generated_structures,
+            int(len(generated_structures) * frac_slabs_save),
             replace=False,
         )
 
-        generated_structures = np.concatenate(
-            (generated_structures, supercell_list, replacement_list)
-        )
+    # Getting a random subset of the inital supercells
+    supercell_list = rng.choice(
+        supercell_list,
+        int(len(supercell_list) * frac_supercells_save),
+        replace=False,
+    )
 
-        # Limiting the number of generated supercells to
-        # the supercell limit.
+    generated_structures = np.concatenate(
+        (generated_structures, supercell_list, replacement_list)
+    )
+
+    # Limiting the number of generated supercells to
+    # the supercell limit.
+    mdb_cud.custom_print(
+        f"Length of the supercell+replacement list: {len(generated_structures)}",
+        "debug",
+    )
+
+    if len(generated_structures) > limit_total_num_struct:
         mdb_cud.custom_print(
-            f"Length of the supercell+replacement list: {len(generated_structures)}",
+            (
+                f"Limiting the number of slabs ({len(generated_structures)})"
+                f" to {limit_total_num_struct}."
+            ),
             "debug",
         )
 
-        if len(generated_structures) > limit_total_num_struct:
-            mdb_cud.custom_print(
-                (
-                    f"Limiting the number of slabs ({len(generated_structures)})"
-                    f" to {limit_total_num_struct}."
-                ),
-                "debug",
+        generated_structures = np.random.choice(
+            generated_structures, size=limit_total_num_struct, replace=False
+        )
+
+    with open(f"{temp_folder}/generated_structures_{row_idx}.pkl", "wb") as f:
+        pickle.dump(
+            generated_structures,
+            file=f,
+        )
+
+    del total_slabs
+    del supercell_list
+    del replacement_list
+    del generated_structures
+
+
+def gen_surfaces_diff_miller_parallel(
+    db_obj: "mdb_indb.InitialDatabase",
+    phase: mdb_pd.Phase,
+    max_miller_index: int,
+    min_miller_index: int = 2,
+    min_slab_size: float = 6,
+    min_vacuum_size: float = 10,
+    get_supercells=False,
+    num_replacements: int = 10,
+    num_repeat_replace: int = 3,
+    fixed_layers: int = 0,
+    min_num_atoms: int = 12,
+    overwrite_max_num_atoms: int = None,
+    save_in_db=False,
+    rng_seed: int = 42,
+    frac_slabs_save: float = 1.0,
+    frac_supercells_save: float = 1.0,
+    limit_total_num_struct: int = 0,
+    max_slab_num: int = 15,
+    n_workers=None,
+):
+    # Instantiating RNG
+    # rng = np.random.default_rng(seed=rng_seed)
+
+    # Getting the current phase from the phase name.
+    if isinstance(phase, str):
+        phase = mdb_indb.CuZnInitialDatabase.DB_PHASE_DIAGRAM.get_phase(phase)
+
+    base_structs = db_obj.get_base_structs_current_phase(phase)
+
+    if not overwrite_max_num_atoms:
+        overwrite_max_num_atoms = db_obj.max_num_atoms
+
+    # Checking if there are any base structures for the current
+    # phase.
+    if len(base_structs) == 0:
+        err_msg = (
+            f"No base structure could be found for phase {phase.name}."
+            "\nThe database must contain base structures before "
+            "running this function."
+        )
+
+        raise mdb_exc.BaseStructureNotFound(err_msg)
+
+    # Adding a progress bar if the number of structures
+    # is greater than 100
+    if len(base_structs) > 10:
+        transient = True
+        disable = False
+    else:
+        transient = False
+        disable = True
+
+    from rich import progress
+
+    # Limit n_workers to the number of structures to process
+    # if below the number of available cpus.
+    # Additionally, limit the user given n_workers to the number
+    # of available cpus.
+    if not n_workers:
+        n_workers = mp.cpu_count() - 1
+        n_workers = min(n_workers, len(base_structs))
+    else:
+        n_workers = min(n_workers, mp.cpu_count() - 1)
+        n_workers = min(n_workers, len(base_structs))
+
+    if phase.use_cache:
+        temp_dir = mdb_cud.get_cache_path() / "mdb"
+        temp_dir = temp_dir / f"mdb_gen_init_db_surface_{phase.name}"
+        temp_dir.mkdir(parents=False, exist_ok=True)
+    else:
+        temp_dir = tempfile.mkdtemp(
+            prefix="mdb_gen_init_db_",
+        )
+    mdb_cud.custom_print(
+        f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", "debug"
+    )
+
+    generated_structures = []
+    if len(list(pl.Path(temp_dir).glob("*"))) == 0:
+        with progress.Progress(
+            "[progress.description]{task.description}",
+            progress.BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            progress.MofNCompleteColumn(),
+            progress.TimeRemainingColumn(),
+            progress.TimeElapsedColumn(),
+            refresh_per_second=1,
+            transient=transient,
+            disable=disable,
+        ) as progress:
+
+            futures = []
+            overall_progress_task = progress.add_task(
+                "[green]Generating structures:", total=len(base_structs)
             )
 
-            generated_structures = np.random.choice(
-                generated_structures, size=limit_total_num_struct, replace=False
-            )
+            mdb_cud.custom_print(f"Using '{n_workers}' workers.", "debug")
+
+            # TODO: Reenable this
+            # iterate over the jobs we need to run
+            with ProcessPoolExecutor(
+                max_workers=n_workers,
+                # max_tasks_per_child=1,
+            ) as executor:
+                for (
+                    idx,
+                    row,
+                ) in base_structs.iterrows():
+
+                    # Prepare arguments for function call
+                    args = (
+                        row,
+                        phase,
+                        db_obj.phase_diagram,
+                        max_miller_index,
+                        min_miller_index,
+                        min_slab_size,
+                        min_vacuum_size,
+                        get_supercells,
+                        num_replacements,
+                        num_repeat_replace,
+                        fixed_layers,
+                        min_num_atoms,
+                        overwrite_max_num_atoms,
+                        frac_slabs_save,
+                        frac_supercells_save,
+                        limit_total_num_struct,
+                        rng_seed,
+                        max_slab_num,
+                        idx,
+                        temp_dir,
+                    )
+
+                    futures.append(executor.submit(process_row_parallel, *args))
+
+                # monitor the progress
+                while (n_finished := sum([future.done() for future in futures])) < len(
+                    futures
+                ):
+                    progress.update(
+                        overall_progress_task,
+                        completed=n_finished,
+                        total=len(base_structs),
+                    )
+                    time.sleep(0.5)
+
+                # Final update
+                progress.update(
+                    overall_progress_task,
+                    completed=n_finished,
+                    total=len(base_structs),
+                )
+    else:
+        mdb_cud.custom_print(
+            f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", "info"
+        )
+    # Reading stored temporary files
+    for idx, _ in base_structs.iterrows():
+
+        # Load the generated structures
+        # with open(
+        # f"/tmp/mdb_gen_init_db_sgem6zp2/generated_structures_{idx}.pkl", "rb"
+        # ) as f:
+        with open(f"{temp_dir}/generated_structures_{idx}.pkl", "rb") as f:
+            generated_structures.append(pickle.load(f))
+
+    # Concatenating lists
+    generated_structures = np.concatenate(generated_structures)
 
     mdb_cud.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
 
@@ -486,6 +672,18 @@ def gen_surfaces_diff_miller(
         mdb_cud.custom_print(
             f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
         )
+
+    # Removing temporary directory
+    if not phase.use_cache:
+        mdb_cud.custom_print(f"Removing temporary directory: '{temp_dir}'.", "debug")
+
+        # Removing contents
+        for file in pl.Path(temp_dir).glob("*"):
+            file.unlink()
+
+        # Removing directory
+        pl.Path(temp_dir).rmdir()
+
 
     return generated_structures
 

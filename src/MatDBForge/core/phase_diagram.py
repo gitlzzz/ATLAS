@@ -341,8 +341,10 @@ class Phase:
         The name of the phase.
     base_elem:
         The base element of the phase.
-    prototype: str
-        The prototype of the phase.
+    prototype: str | list
+        The prototype(s) for the current phase. Either a string
+        representing an ID from the Materials Project database
+        or a list of IDs.
     offset: float
         The offset value of the phase.
     phase_diagram: PhaseDiagram
@@ -357,13 +359,14 @@ class Phase:
         name: str,
         element_list: list,
         composition: dict,
-        prototype: str,
+        prototype: str | list,
         offset: float = 0,
         phase_diagram: PhaseDiagram = None,
         cluster_elem: str = None,
         replace_dict: dict = None,
         base_elem: str = None,
         allow_modifications: bool = True,
+        use_cache: bool = False,
     ):
         self.name = slugify(name)
         self.original_name = name
@@ -395,9 +398,16 @@ class Phase:
         self.base_elem_comp_min = float(self.composition[str(self.base_elem)]["min"])
 
         self.prototype = prototype
-        self.replace_dict = replace_dict
+
+        if replace_dict:
+            self.replace_dict = replace_dict
+        else:
+            self.replace_dict = {}
+
         self.offset = float(offset)
         self.allow_modifications = allow_modifications
+
+        self.use_cache = use_cache
 
     def __str__(self):
         """Return a string representation of the phase.

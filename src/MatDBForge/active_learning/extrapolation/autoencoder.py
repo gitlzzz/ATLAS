@@ -143,11 +143,11 @@ def get_latent_space_autoencoder(
 
             # Get latent space
             latent_space = model.encoder(
-                torch.Tensor(descr_dict["descriptors"], dtype=dtype).to(device)
+                torch.Tensor(descr_dict["descriptors"]).to(device=device, dtype=dtype)
             )
 
             # Save latent space
             descriptor_dict[uuid]["latent_space"] = latent_space.cpu().numpy()
 
-    return descriptor_dict
     custom_print("Computed latent space!", "done")
+    return descriptor_dict

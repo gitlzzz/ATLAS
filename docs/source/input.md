@@ -22,7 +22,6 @@ generate_type = ['bulk', 'surface', 'cluster']
 
 Please, check the tool's corresponding section to learn more about all the available options.
 
-
 ## Database Generation
 
 Generate a database generation template file using `mdb_gen_configuration_file -t initial_db`.
@@ -92,6 +91,7 @@ allow_modifications = true
 replacements.replace = true
 replacements.element_list = ["Cu"]
 replacements.replace_with = ["Fe"]
+use_cache = true
 ```
 
 Every phase can be provided with options to customize it:
@@ -108,6 +108,7 @@ Every phase can be provided with options to customize it:
 - `replacements.replace_with`: (str) Element to replace with.
 - `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for the current phase. This limit is enforced after the initial phase generation, but subsequent operations (e.g., perturbations, vacancy generation) may add new structures, potentially exceeding the specified limit.
 - `allow_modifications`: (optional, bool) Whether to allow applying modifications (supercells, replacements, perturbations, modifications...) to the base structure, or keep the base structure as the only structure for the phase. Default is true, allowing modifications to the base structure to be applied.
+- `use_cache` (optional, bool) Whether to store structures in the `$XDG_CACHE_HOME` directory. Will speed up some parts of the initial database generation, such as the surface creation. Can consume a lot of disk space.
 
 ### Structure Generation Settings - `[generation]`
 
@@ -138,6 +139,8 @@ This key describes the settings related to the generation of surface structures.
 - `num_repeat_replace`: (int) Number of repeats for each replacement.
 - `frac_slabs_save`: (float) Fraction of slabs to save after generation. This avoids having too many slab structures with the same composition.
 - `frac_supercells_save`: (float) Fraction of unreplaced supercells to save after generation. This avoids having too many slab structures with the same composition.
+- `max_slab_num`: (int) Maximum number of slabs to gather from the slab generation. If a larger number of slabs is generated, a random subset of `max_slab_num` slabs will be selected.
+- `n_workers`: (int) Maximum number of workers to use for the ThreadPoolExecutor. Will be set to the total number of CPUs-1 if not specified. If the number of jobs to run is lower than the given value, `n_workers` will be decreased to match the total number of jobs.
 
 ### Lattice Deformation Settings - `[displacement]`
 
@@ -206,14 +209,13 @@ Parameters to configure the AL seed generation
 - `seed_size_frac`: (float) Fraction of the training db set to be used to create the AL seed. This influences the amount of MD calculations and E F evaluations.
 - `seed_max_num_structs`: (int) Maximum number of structures in the MD seed.
 
-
 ### Extrapolation Settings - `[extrapolation]`
+
 This section contains keys which adjust the extrapolation settings.
 
 - `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently two options are allowed:
-    - `basic`: Check for extrapolation using the ranges of the MACE descriptors.
-    - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors, after reducing dimensionality with an autoencoder trained on the current iteration data descriptors.
-
+  - `basic`: Check for extrapolation using the ranges of the MACE descriptors.
+  - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors, after reducing dimensionality with an autoencoder trained on the current iteration data descriptors.
 
 #### Seed selection settings - `[al_seed.seed_select_settings]`
 
@@ -309,7 +311,6 @@ $ -l hostname="tekla2189"
 
 ### Descriptor Settings - `[descriptors]`
 
-
 - `dimensionality_reduction_method`: (str, optional) Dimensionality reduction method for MACE descriptors. Options: `autoencoder`, `pca`, `none`. If not set, the default is none, which means no dimensionality reduction.
 
 #### Descriptor Scheduler Options - `[descriptors.metadata]`
@@ -326,7 +327,6 @@ AiiDA metadata settings for MACE descriptor calculation
 - `options.resources.tot_num_mpiprocs` = ''
 - `options.resources.num_machines` = ''
 - `options.withmpi` = ''
-
 
 #### Autoencoder settings - `[descriptors.autoencoder.train_settings]`
 
@@ -352,7 +352,6 @@ This section contains keys related to the Autoencoder training
 - `wandb`: (bool) Whether to log metrics to wandb
 - `wandb_name`: (str) Name of the wandb run
 - `wandb_project`: (str)  Name of the wandb project
-
 
 ### MACE Scheduler - `[mace_train]`
 
@@ -513,5 +512,6 @@ General incar settings to be used as a template for all calculations. Different 
 - `idipol` = 4
 
 ## Input Example: Active Learning
+
 ```{literalinclude} ../../src/MatDBForge/data/input_files/active_learning_settings.toml
 ```

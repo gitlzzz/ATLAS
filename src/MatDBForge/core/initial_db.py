@@ -408,6 +408,7 @@ class InitialDatabase:
 
         return df
 
+    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
     def _find_supercell_indices(
         self,
         structure,
@@ -809,86 +810,124 @@ class InitialDatabase:
                 "info",
             )
 
-    def gather_base_structures(self, target_structures):
-        prototypes = [phase.prototype for phase in target_structures]
-
-        # Checking which materials are already on the database
-        missing_mat = set(prototypes) - set(self.df["material_id"].values)
-
-        if not missing_mat:
-            mdb_cud.custom_print(
-                "All base structures are already in the database.", "info"
-            )
-            return
+    def gather_base_structures(self, phase_diag_phases):
 
         # Querying materials project database.
-        mdb_cud.custom_print("Querying the MP API...", "info")
+        mdb_cud.custom_print(
+            "Gathering base structures by querying the MP API...", "info"
+        )
+
         report_replacements = True
         with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
-            query_result = mpr.summary.search(material_ids=missing_mat)
 
-            mdb_cud.custom_print(
-                f"Gathered {len(query_result)} structures from the MP.", "info"
-            )
+            for phase in phase_diag_phases:
 
-            for material in query_result:
-                mdb_cud.custom_print(
-                    f"Checking material: {material.material_id}", "debug"
+                query_materials = phase.prototype
+
+                if isinstance(query_materials, str):
+                    query_materials = [query_materials]
+
+                query_result = mpr.summary.search(material_ids=query_materials)
+
+                ut.custom_print(
+                    (
+                        f"Gathered {len(query_result)} structures for phase"
+                        f" '{phase.name}' from the MP,"
+                        f" using {len(query_materials)} MP ids."
+                    ),
+                    "info",
                 )
-                for phase in self.phase_diagram.phases:
-                    if phase.prototype == material.material_id:
+
+                for material in query_result:
+
+                    # for phase in self.phase_diagram.phases:
+                    if (
+                        isinstance(phase.prototype, str)
+                        and phase.prototype == material.material_id
+                    ):
                         curr_phase = phase.name
-                        break
+                        # break
+                    elif isinstance(phase.prototype, list):
+                        if material.material_id in phase.prototype:
+                            curr_phase = phase.name
+                            # break
+                        else:
+                            curr_phase = np.nan
                     else:
                         curr_phase = np.nan
 
-                try:
-                    material_symmetry = material.get_space_group_info()[0]
-                except Exception:
-                    material_symmetry = material.symmetry.symbol
+                    try:
+                        material_symmetry = material.get_space_group_info()
+                    except Exception:
+                        material_symmetry = material.symmetry.symbol
 
-                # Replacing elements
-                if phase.replace_dict:  # noqa: SIM102
-                    if phase.replace_dict.get("replace"):
-                        replace_with = phase.replace_dict.get(
-                            "replace_with", phase.base_elem
-                        )
-
-                        replace_dict = {}
-                        for element in phase.replace_dict["element_list"]:
-                            replace_dict[element] = str(replace_with)
-
-                        if report_replacements:
-                            mdb_cud.custom_print(
-                                (
-                                    f"Applying substitutions to "
-                                    f"base structures: {replace_dict}..."
-                                ),
-                                "info",
+                    # Replacing elements
+                    if phase.replace_dict:  # noqa: SIM102
+                        if phase.replace_dict.get("replace"):
+                            replace_with = phase.replace_dict.get(
+                                "replace_with", phase.base_elem
                             )
-                            report_replacements = False
 
-                        material.structure.replace_species(
-                            species_mapping=replace_dict, in_place=True
-                        )
+                            replace_dict = {}
+                            for element in phase.replace_dict["element_list"]:
+                                # If "M", all metals should be replaced.
+                                # Thus, any metals found in the structure willl
+                                # be added in phase.replace_dict["element_list"]
+                                if element == "M":
+                                    for spec in material.structure.species:
+                                        if spec.is_metal:
+                                            phase.replace_dict["element_list"].append(
+                                                spec.symbol
+                                            )
+                                            # Removing repeated keys
+                                            phase.replace_dict["element_list"] = list(
+                                                set(phase.replace_dict["element_list"])
+                                            )
 
-                curr_struct = mdb_struct.Bulk(
-                    material_id=str(material.material_id),
-                    material_name=f"base_{material.material_id}",
-                    structure=material.structure,
-                    temperature=np.nan,
-                    perturb=False,
-                    vacancy=False,
-                    displacement=False,
-                    formula=material.structure.formula,
-                    symmetry=material_symmetry,
-                    base=True,
-                    phase=self.phase_diagram.get_phase(curr_phase),
-                    magnetic_properties=material.total_magnetization,
-                    energy_per_atom=material.energy_per_atom,
-                )
+                                else:
+                                    # Do not replace element with itself
+                                    if element == replace_with:
+                                        continue
 
-                self.df = curr_struct.save_to_db(self.df)
+                                    # Add element to replace_dict
+                                    replace_dict[element] = str(replace_with)
+
+                            # Removing M key from dict
+                            if "M" in replace_dict:
+                                replace_dict.pop("M")
+
+                            if report_replacements:
+                                mdb_cud.custom_print(
+                                    (
+                                        f"Applying substitution to "
+                                        f"base structures: {replace_dict}..."
+                                    ),
+                                    "debug",
+                                )
+                                report_replacements = False
+
+                            material.structure.replace_species(
+                                species_mapping=replace_dict, in_place=True
+                            )
+
+                    curr_struct = mdb_struct.Bulk(
+                        material_id=str(material.material_id),
+                        material_name=f"base_{material.material_id}",
+                        structure=material.structure,
+                        temperature=np.nan,
+                        perturb=False,
+                        bulk=True,
+                        vacancy=False,
+                        displacement=False,
+                        formula=material.structure.formula,
+                        symmetry=material_symmetry,
+                        base=True,
+                        phase=curr_phase,
+                        magnetic_properties=material.total_magnetization,
+                        energy_per_atom=material.energy_per_atom,
+                    )
+
+                    self.df = curr_struct.save_to_db(self.df)
 
         self.df.set_index("material_id", inplace=True, drop=False)
 
@@ -1001,13 +1040,23 @@ class InitialDatabase:
         max_vac_perc: float = 0.75,
         min_vac_perc: float = 0.25,
         lim_num_struc: int = None,
+        phase: mdb_pd.Phase = None,
     ):
         """Apply random vacancies to the structures in the database."""
         # Instantiating RNG
         rng = np.random.default_rng(seed=seed)
 
         # Apply filters to the database
-        filtered_df, _, _ = ut.apply_filters_db(db_obj=self, filters=filters)
+        filtered_df, _, _ = ut.apply_filters_db(
+            db_obj=self, filters=filters, phase=phase
+        )
+
+        # Filtering by phase if requested
+        if phase:
+            if isinstance(phase, str):
+                filtered_df = filtered_df.loc[filtered_df.phase == phase]
+            elif isinstance(phase, mdb_pd.Phase):
+                filtered_df = filtered_df.loc[filtered_df.phase == phase.name]
 
         # Check if the number of structures is less than the limit
         lim_num_struc = min(filtered_df.shape[0], lim_num_struc)
@@ -1500,97 +1549,145 @@ class InitialDatabase:
         # the base atom type if necessary
         # structure = self._convert_prototype_structure(structure=structure, phase=ph)
 
-        # Getting conventional cell for the replaced structure
-        sga = SpacegroupAnalyzer(structure)
-        structure = sga.get_conventional_standard_structure()
+        if not isinstance(structure, list):
+            structure = [structure]
 
-        # Create supercells for the replaced structure
-        # This can return either 1 or more supercells of the
-        # same structure, depending on the 'get_different_supercells' flag.
-        structure_list, idx_list, supercells = self._find_supercell_indices(
-            structure,
-            get_different_supercells,
-            max_atoms=self.max_num_atoms,
-            min_atoms=num_min_atoms,
-            initial_supercell_size=supercell_max_idx,
-        )
-
-        struct_obj_list = []
         report_replacements = True
-        # Saving all the generated supercells as separate bulk structures
-        for structure, idxs in zip(structure_list, supercells):
-            # Ignore small structures
-            if len(structure) < num_min_atoms:
-                continue
 
-            # Replacing elements
-            if phase.replace_dict:  # noqa: SIM102
-                if phase.replace_dict.get("replace"):
-                    replace_with = phase.replace_dict.get(
-                        "replace_with", phase.base_elem
-                    )
+        for struct_idx, current_struct in enumerate(structure):
 
-                    replace_dict = {}
-                    for element in phase.replace_dict["element_list"]:
-                        replace_dict[element] = str(replace_with)
+            # Getting conventional cell for the replaced structure
+            sga = SpacegroupAnalyzer(current_struct)
 
-                    if report_replacements:
-                        mdb_cud.custom_print(
-                            (
-                                f"Applying substitutions to "
-                                f"base structures: {replace_dict}..."
-                            ),
-                            "info",
-                        )
-                        report_replacements = False
+            current_struct = sga.get_conventional_standard_structure()
 
-                    structure.replace_species(
-                        species_mapping=replace_dict, in_place=True
-                    )
-
-            # Getting the supercell vector as a string for naming
-            idxs_str = "".join(map(str, idxs))
-
-            try:
-                bulk_temp = query_result.temperature.values[0]
-            except Exception:
-                bulk_temp = np.nan
-
-            try:
-                targeted_modification = query_result.targeted_modification.values[0]
-            except Exception:
-                targeted_modification = None
-
-            # Creating a new bulk from the supercell
-            curr_bulk = mdb_struct.Bulk(
-                material_name=f"{material_id_prefix}_{phase_name}_super-{idxs_str}",
-                material_id=material_id_prefix,
-                structure=structure,
-                temperature=bulk_temp,
-                perturb=False,
-                base=False,
-                vacancy=False,
-                targeted_modification=targeted_modification,
-                calc_performed=False,
-                supercell=idxs,
-                phase=phase_name,
+            # Create supercells for the replaced structure
+            # This can return either 1 or more supercells of the
+            # same structure, depending on the 'get_different_supercells' flag.
+            structure_list, idx_list, supercells = self._find_supercell_indices(
+                current_struct,
+                get_different_supercells,
+                max_atoms=self.max_num_atoms,
+                min_atoms=num_min_atoms,
+                initial_supercell_size=supercell_max_idx,
             )
 
-            # Saving the bulk to the db.
-            self.df = curr_bulk.save_to_db(self.df)
+            struct_obj_list = []
+            # Saving all the generated supercells as separate bulk structures
+            for structure, idxs in zip(structure_list, supercells):
+                # Ignore small structures
+                if len(structure) < num_min_atoms:
+                    continue
 
-            struct_obj_list.append(curr_bulk)
+                # Replacing elements
+                if phase.replace_dict:  # noqa: SIM102
+                    if phase.replace_dict.get("replace"):
+                        replace_with = phase.replace_dict.get(
+                            "replace_with", phase.base_elem
+                        )
+
+                        replace_dict = {}
+                        for element in phase.replace_dict["element_list"]:
+                            # If "M", all metals should be replaced.
+                            # Thus, any metals found in the structure willl
+                            # be added in phase.replace_dict["element_list"]
+                            if element == "M":
+                                for spec in structure.species:
+                                    if spec.is_metal:
+                                        phase.replace_dict["element_list"].append(
+                                            spec.symbol
+                                        )
+                                        # Removing repeated keys
+                                        phase.replace_dict["element_list"] = list(
+                                            set(phase.replace_dict["element_list"])
+                                        )
+
+                            else:
+                                # Do not replace element with itself
+                                if element == replace_with:
+                                    continue
+
+                                # Add element to replace_dict
+                                replace_dict[element] = str(replace_with)
+
+                        # Removing M key from dict
+                        if "M" in replace_dict:
+                            replace_dict.pop("M")
+
+                        if report_replacements:
+                            mdb_cud.custom_print(
+                                (
+                                    "Applying substitution to"
+                                    " all base structures from phase."
+                                    f" Using dict: {replace_dict}..."
+                                ),
+                                "debug",
+                            )
+                            report_replacements = False
+
+                        structure.replace_species(
+                            species_mapping=replace_dict, in_place=True
+                        )
+
+                # Getting the supercell vector as a string for naming
+                idxs_str = "".join(map(str, idxs))
+
+                try:
+                    bulk_temp = query_result.temperature.values[0]
+                except Exception:
+                    bulk_temp = np.nan
+
+                try:
+                    targeted_modification = query_result.targeted_modification.values[0]
+                except Exception:
+                    targeted_modification = None
+
+                if isinstance(material_id_prefix, list):
+                    curr_mat_id = material_id_prefix[struct_idx]
+                else:
+                    curr_mat_id = material_id_prefix
+
+                # Creating a new bulk from the supercell
+                curr_bulk = mdb_struct.Bulk(
+                    material_name=f"{curr_mat_id}_{phase_name}_super-{idxs_str}",
+                    material_id=curr_mat_id,
+                    structure=structure,
+                    temperature=bulk_temp,
+                    perturb=False,
+                    base=False,
+                    vacancy=False,
+                    targeted_modification=targeted_modification,
+                    calc_performed=False,
+                    supercell=idxs,
+                    phase=phase_name,
+                )
+
+                # Saving the bulk to the db.
+                self.df = curr_bulk.save_to_db(self.df)
+
+                struct_obj_list.append(curr_bulk)
 
         return struct_obj_list, query_result, idx_list
 
     def query_mp_api_prototype(self, prototype):
-        mdb_cud.custom_print("Querying the MP API...", "info")
+        mdb_cud.custom_print("Querying the MP API...", "debug")
         with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
-            query_result = mpr.summary.search(material_ids=[prototype])[0]
-            structure = query_result.structure
-            material_id_prefix = query_result.material_id
+
+            if isinstance(prototype, list):
+                query_result = mpr.summary.search(material_ids=prototype)
+            elif isinstance(prototype, str):
+                query_result = mpr.summary.search(material_ids=[prototype])[0]
+
+            if isinstance(query_result, list):
+                structure = [res.structure for res in query_result]
+                material_id_prefix = [res.material_id for res in query_result]
+            else:
+                structure = query_result.structure
+                material_id_prefix = query_result.material_id
+
         return query_result, material_id_prefix, structure
 
+    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
     def _create_symmetrical_prototype(
         self,
         structure: Structure,
@@ -1660,6 +1757,7 @@ class InitialDatabase:
 
         return structure
 
+    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
     def _gen_base_elem_perc(self, phase, num_struct):
         # Computing base_elem percentages using offset
         if self.use_offset:
@@ -1684,6 +1782,7 @@ class InitialDatabase:
 
         return subst_base_elem_perc
 
+    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
     def _fit_replacements_phase(
         self,
         phase,
@@ -1725,6 +1824,7 @@ class InitialDatabase:
 
         return n_at_replacement_upd
 
+    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
     def _apply_replacement(
         self, structure: Structure, phase, n_target_at: int | float, rng=None
     ):
@@ -1791,17 +1891,27 @@ class InitialDatabase:
 
         # Get atoms available to replace in the structure
         if isinstance(spec_to_replace, Element):
-            replacable_sites = structure.indices_from_symbol(spec_to_replace.symbol)
+            repl_sites = structure.indices_from_symbol(spec_to_replace.symbol)
         else:
-            replacable_sites = structure.indices_from_symbol(spec_to_replace)
+            repl_sites = structure.indices_from_symbol(spec_to_replace)
 
-        # Randomly selecting indices to replace out of the available positions.
-        replace_elem_choices = rng.choice(
-            a=replacable_sites,
-            size=abs(int(n_at_diff)),
-            replace=False,
-            shuffle=True,
-        )
+        try:
+            # Randomly selecting indices to replace out of the available positions.
+            replace_elem_choices = rng.choice(
+                a=repl_sites,
+                size=abs(int(n_at_diff)),
+                replace=False,
+                shuffle=True,
+            )
+        except ValueError:
+            mdb_cud.custom_print(
+                (
+                    f"No replaceable sites for composition: '{curr_comp}'."
+                    "Add one of the formula's elements to the current phase"
+                    " 'replacements.element_list'."
+                ),
+                "error",
+            )
 
         if isinstance(structure, (mdb_struct.Surface, Slab)):
             new_structure = structure.get_sorted_structure()
@@ -1960,8 +2070,8 @@ class InitialDatabase:
 
                     # Creating a new Bulk object for the structure with replacement
                     new_struct_symm = mdb_struct.Bulk(
-                        material_name=f"{prototype}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
-                        material_id=prototype,
+                        material_name=f"{structure_obj.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
+                        material_id=structure_obj.material_id,
                         structure=new_structure,
                         temperature=bulk_temp,
                         targeted_modification=structure_obj.targeted_modification,
@@ -2335,9 +2445,16 @@ class InitialDatabase:
                 continue
 
             if isinstance(structure_obj, Structure):
-                structure_obj = AseAtomsAdaptor().get_atoms(
-                    structure_obj, msonable=False
-                )
+                try:
+                    structure_obj = AseAtomsAdaptor().get_atoms(
+                        structure_obj, msonable=False
+                    )
+                except TypeError as e:
+                    mdb_cud.custom_print(
+                        f"Row {row} resulted in TypeError: '{e}'. Removing.", "warning"
+                    )
+                    self.df.drop(row, inplace=True)
+                    continue
 
             if any(structure_obj.cell.cellpar()[:3] < min_cell_size):
                 self.df.drop(row, inplace=True)
@@ -2485,7 +2602,6 @@ class InitialDatabase:
             outer,
             gridspec_kw=gridspec_kw,
             figsize=(16, 7),
-            layout="constrained",
         )
 
         hist_t_ax = axd["histogram"]
@@ -2766,6 +2882,7 @@ class InitialDatabase:
                     SimpleNamespace(
                         rng_seed=rng_seed,
                         device=device,
+                        dtype=torch.float32,
                         dataset=descriptor_arr,
                         test_frac=0.1,
                         valid_frac=0.1,
@@ -2818,12 +2935,12 @@ class InitialDatabase:
 
 
 def cli_run_gen_initial_database(
-    db_path,
-    db_dict,
-    phase_diagram_dict,
-    gen_dict,
+    db_path: str | pl.Path,
+    db_dict: dict,
+    phase_diagram_dict: dict,
+    gen_dict: dict,
     selected_phases,
-    config_dict,
+    config_dict: dict,
 ):
     # Get timestamp for the entire run
     timestamp = int(time.time())
@@ -2891,6 +3008,7 @@ def cli_run_gen_initial_database(
             replace_dict=phase_d.get("replacements"),
             allow_modifications=phase_d.get("allow_modifications", True),
             phase_diagram=phase_diagram,
+            use_cache=phase_d.get("use_cache", False),
         )
         phases_list.append(curr_phase)
 
@@ -2915,7 +3033,7 @@ def cli_run_gen_initial_database(
         )
     else:
         # Obtain structures from Materials Project
-        structures.gather_base_structures(target_structures=phase_diagram.phases)
+        structures.gather_base_structures(phase_diag_phases=phase_diagram.phases)
         read_from_db = False
 
     # Applying central_atom_octahedral perturbation to specific structures
@@ -2988,7 +3106,7 @@ def cli_run_gen_initial_database(
             mdb_cud.custom_print("Generating surface structures...", "info")
 
             # Generating surface structures.
-            mdb_surf.gen_surfaces_diff_miller(
+            mdb_surf.gen_surfaces_diff_miller_parallel(
                 db_obj=structures,
                 phase=phase,
                 min_num_atoms=int(db_dict["min_num_atoms"]),
@@ -3009,6 +3127,8 @@ def cli_run_gen_initial_database(
                     "frac_supercells_save", 0.1
                 ),
                 save_in_db=gen_dict["surface"]["save_in_db"],
+                max_slab_num=int(gen_dict["surface"]["max_slab_num"]),
+                n_workers=int(gen_dict["surface"].get("n_workers", None)),
             )
 
             mdb_cud.custom_print(structures, "info")
@@ -3067,6 +3187,28 @@ def cli_run_gen_initial_database(
 
             mdb_cud.custom_print(structures, "info")
 
+        # Applying vacancies to a random subset of structures
+        if "vacancies" in config_dict:
+            vacancies_dict = config_dict["vacancies"]
+            mdb_cud.custom_print(
+                (
+                    f"Applying vacancies to a random subset of "
+                    f"{vacancies_dict['limit_max_num_vacancies']} structures..."
+                ),
+                "info",
+            )
+
+            structures.apply_vacancies_random(
+                max_vac_perc=vacancies_dict["max_vacancy_percentage"],
+                min_vac_perc=vacancies_dict["min_vacancy_percentage"],
+                filters=vacancies_dict["filter_struct_types"],
+                lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
+                repeat=int(vacancies_dict["num_repeats"]),
+                seed=rng_seed,
+                element_list=vacancies_dict["element_list"],
+                phase=phase,
+            )
+
         # Limiting structures for current phase
         lim_phas_structs = phase_diagram_dict["phase"][phase.original_name].get(
             "limit_max_num_structures"
@@ -3093,26 +3235,6 @@ def cli_run_gen_initial_database(
         "done",
     )
     print()
-
-    if "vacancies" in config_dict:
-        vacancies_dict = config_dict["vacancies"]
-        mdb_cud.custom_print(
-            (
-                f"Applying vacancies to a random subset of "
-                f"{vacancies_dict['limit_max_num_vacancies']} structures..."
-            ),
-            "info",
-        )
-
-        structures.apply_vacancies_random(
-            max_vac_perc=vacancies_dict["max_vacancy_percentage"],
-            min_vac_perc=vacancies_dict["min_vacancy_percentage"],
-            filters=vacancies_dict["filter_struct_types"],
-            lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
-            repeat=int(vacancies_dict["num_repeats"]),
-            seed=rng_seed,
-            element_list=vacancies_dict["element_list"],
-        )
 
     if "adsorbates" in config_dict:
         mdb_cud.custom_print(
@@ -3177,6 +3299,8 @@ def cli_run_gen_initial_database(
                 "plot_filename",
                 f"{pl.Path(db_path)/'descriptors_concave_hull.png'}",
             ),
+            device=concave_dict.get("device", "cpu"),
+            rng_seed=rng_seed,
         )
         mdb_cud.custom_print("Concave hull generated!", "done")
         print()

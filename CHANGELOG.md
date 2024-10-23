@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.14.0 (2024-10-23)
+
+### Feature
+
+- **code**: add utilities for cache dir generation ([#2f5f9cb](https://github.com/pol-sb/MatDBForge/commit/2f5f9cbf0d6c735b2887cd5ca5a4813a0f78c343))
+- **gen_db**: use cache in surface generation ([#2279ae0](https://github.com/pol-sb/MatDBForge/commit/2279ae00b4142bd70ceb450be10e85d899b4f47e))
+- **phase**: introduce cache to structure generation ([#fe25d80](https://github.com/pol-sb/MatDBForge/commit/fe25d80ea869b43a72ee0e9801ddf32c3dca87eb))
+- **gen_db**: added parallel processing to gen_surfaces_diff_miller to speed up db generation ([#1a49a96](https://github.com/pol-sb/MatDBForge/commit/1a49a9661255b4abe45509e123ac030308982954))
+
+### Fix
+
+- **autoencoder**: correctly assign device and dtype to tensors ([#2469f2d](https://github.com/pol-sb/MatDBForge/commit/2469f2d3f346134705c1b228b12a0b58f6b98e4c))
+
+### Misc
+
+- **code**: update `cli_run_initial_config` to create cache folder ([#e6dc73d](https://github.com/pol-sb/MatDBForge/commit/e6dc73d3af7c86ada7f149f699f1e8f2dab73e5f))
+- **docs**: update cache docs ([#1ae899a](https://github.com/pol-sb/MatDBForge/commit/1ae899a023dd80af290f868d74a2dd940814255f))
+- **docs**: fixed typo ([#2e408f3](https://github.com/pol-sb/MatDBForge/commit/2e408f3505b2d2ab01793a220f4e7e17e67fc1a9))
+- **core**: moved init_conf to `code_utils.py` ii ([#7e034d7](https://github.com/pol-sb/MatDBForge/commit/7e034d7b4c338c277158b96ff48ba6c26b30d7fa))
+- **core**: moved init_conf to `code_utils.py` ([#0d6894c](https://github.com/pol-sb/MatDBForge/commit/0d6894c46a1359042790f7b8414b217213705566))
+- **core**: fixed dependency versions ([#1b88075](https://github.com/pol-sb/MatDBForge/commit/1b8807548e47d115b6cbf753e01d9078e2e6fc7f))
+
+## 0.13.0 (2024-10-21)
+
+### Feature
+
+- **gen_db**: improve handling of material prototypes and phase replacements ([#299ed8a](https://github.com/pol-sb/MatDBForge/commit/299ed8a5b894606c62ec4f55a2db49ce2e13dea8))
+- **autoencoder**: added option for dtype to autoencoder ([#0669b82](https://github.com/pol-sb/MatDBForge/commit/0669b826aceeae28a658c96daaf1b960158d5b0c))
+
+### Fix
+
+- **gen_db**: keep base structures when limiting number of structures per phase ([#bc556db](https://github.com/pol-sb/MatDBForge/commit/bc556db487143c389933a673bd6dcfc75c4ef7f8))
+- **gen_db**: moved vacancy generation so it is applied to each phase ([#6271e8e](https://github.com/pol-sb/MatDBForge/commit/6271e8e04c9a0cef04867b6523c5c9ca47b127ac))
+- **al_loop**: updated inputs for  during loop ([#dbebeed](https://github.com/pol-sb/MatDBForge/commit/dbebeed13ab7692387ea59038fdadef4825bcf97))
+- **al_loop**: correctly gather computer in `generate_descriptors()` ([#410e94f](https://github.com/pol-sb/MatDBForge/commit/410e94fe179065ecd5f2044407f0c0cb5bbe4e1c))
+- **al_loop**: replaced deprecated `User.objects` with `User.collection` ([#e721d93](https://github.com/pol-sb/MatDBForge/commit/e721d937a1e03051fbb0d45cd0d69452765eedc4))
+- **al_loop**: added `mdb_calc_limit` check before calcjob submission ([#e1f5017](https://github.com/pol-sb/MatDBForge/commit/e1f501799614bb231c86d1ba74c0fb37f6a2afaa))
+- **core**: removed git output from `get_last_tagged_version` ([#d74ff10](https://github.com/pol-sb/MatDBForge/commit/d74ff10cbef1079f25b2fb8f8e3d498618d42384))
+
+### Misc
+
+- **core**: fix typo in `CHANGELOG.md` ([#0ee378e](https://github.com/pol-sb/MatDBForge/commit/0ee378e1a3cb4dd678957a273ae7abcdc76b9726))
+- **structure**: catch FutureWarning for new structure dataframe concatenation ([#b5796c6](https://github.com/pol-sb/MatDBForge/commit/b5796c64af47d9e7f42f476bdcd1003dcb49e39d))
+- **docs**: updated docs to include `mdb_calc_limit` and improved phase explanation. ([#77121dc](https://github.com/pol-sb/MatDBForge/commit/77121dc141389f9cbc9f5995b44d339386b13368))
+- **docs**: updated docs ([#b2e4a73](https://github.com/pol-sb/MatDBForge/commit/b2e4a73230c1da08df93e8c712a92d2f029c2286))
+- **docs**: updated docs ([#cb5304f](https://github.com/pol-sb/MatDBForge/commit/cb5304ff6f83c0aaff7ae147e404bc35e382b021))
+- **docs**: updated docs ([#b0b2e7c](https://github.com/pol-sb/MatDBForge/commit/b0b2e7c25a18cd46bada965e32553c2c471b7bd0))
+- **docs**: added favicon ([#f865d30](https://github.com/pol-sb/MatDBForge/commit/f865d30592ef32becc4e4343f46a5ad26621e117))
+- **docs**: added favicon ([#83c015e](https://github.com/pol-sb/MatDBForge/commit/83c015e5d193f6747186192d8a68d2cf300b6841))
+- **core**: updated `InitialDatabase` and `Phase` __repr__ methods ([#593cd76](https://github.com/pol-sb/MatDBForge/commit/593cd76c916767187fe9dac72a9ee8f6b81444f4))
+- **core**: marked conf.py as a version file ([#78c8b63](https://github.com/pol-sb/MatDBForge/commit/78c8b6367cf670fd70f1d350c95a84e5aaeb7a5f))
+- **docs**: updated documentation ([#2e300ba](https://github.com/pol-sb/MatDBForge/commit/2e300ba157b6988620e3cafe502b150f158810fe))
+- **docs**: updated docs ([#95760e1](https://github.com/pol-sb/MatDBForge/commit/95760e1757a05a8484c6f2da876fc9f1c321b76a))
+- **docs**: updated docs ([#ae57904](https://github.com/pol-sb/MatDBForge/commit/ae57904e0f3fd6a3c0043a7a95a0ca475fbb265d))
+- **docs**: updated docs ([#4b7c4e9](https://github.com/pol-sb/MatDBForge/commit/4b7c4e93d703608936e1a3887e657eb1b895cbce))
+- **docs**: updated docs ([#7284302](https://github.com/pol-sb/MatDBForge/commit/728430279879fd5407cf056c6e988850903c4657))
+- **docs**: updated `index.rst` ([#e29248f](https://github.com/pol-sb/MatDBForge/commit/e29248fa94bdb2d32e5039390ed2a60dcd0fa2a6))
+- **docs**: updated `README.md` ([#8513aa1](https://github.com/pol-sb/MatDBForge/commit/8513aa1da2048079c06a85986a487edaccd76bad))
+- **docs**: updated documentation ([#f2e2707](https://github.com/pol-sb/MatDBForge/commit/f2e27071afb75983d00bb112698a594fd0cd65ca))
+- **core**: added pip cache to github workflows ([#9082035](https://github.com/pol-sb/MatDBForge/commit/9082035dfa88a919a912796f8fc62f2ea7c1ef2d))
+- **core**: updated dependencies ([#c4ec121](https://github.com/pol-sb/MatDBForge/commit/c4ec121064862109169595643e993c073ead4f3d))
+- **docs**: updated workflows ([#37557f5](https://github.com/pol-sb/MatDBForge/commit/37557f5903d35a5983eded5080333bdc753f54e4))
+- **docs**: updated workflows ([#d7813a4](https://github.com/pol-sb/MatDBForge/commit/d7813a411f756361b11384a225a8835ca4066253))
+- **docs**: updated workflows ([#9fa22b3](https://github.com/pol-sb/MatDBForge/commit/9fa22b373d74e869b1614e0d6f94f33b63fd4f10))
+- **docs**: updated `README.md` ([#32f5e58](https://github.com/pol-sb/MatDBForge/commit/32f5e588aa44794cf9472b1a2e4f8cc87c75e2e2))
+- **docs**: added doc files ([#b47aca1](https://github.com/pol-sb/MatDBForge/commit/b47aca140841c91cc9dd7fb4bed74168498f1cff))
+- **docs**: added workflow file ([#bd052e4](https://github.com/pol-sb/MatDBForge/commit/bd052e4f1547f3c924d5e62ae5de4601f469afe8))
+- **docs**: added `.nojekyll` file ([#24ac3cc](https://github.com/pol-sb/MatDBForge/commit/24ac3ccfef7e5efefa3ff62ddeed753cbfe29f87))
+- **docs**: updated docs ([#97066e2](https://github.com/pol-sb/MatDBForge/commit/97066e2ec2fd92c44fd8e308f50d6a8fccbbc438))
+- **docs**: updated docs ([#9b5f688](https://github.com/pol-sb/MatDBForge/commit/9b5f688055800271a3191f6c244209c729ed4749))
+- **al_loop**: fixed logger output ([#d7e70af](https://github.com/pol-sb/MatDBForge/commit/d7e70afbb26fbf9d68029ff9733e91d60ab2c497))
+- **docs**: updated documentation ([#77c720e](https://github.com/pol-sb/MatDBForge/commit/77c720ecf32dd7085269e00fa356dc1012c9c734))
+
 ## 0.12.0 (2024-10-15)
 
 ### Feature
@@ -25,12 +98,12 @@
 
 ### Fix
 
-- **db_gen**: perturbed structures now save material id ([#e859d7e](https://github.com/pol-sb/MatDBForge/commit/e859d7e99ac0d6c09f1cd333e35e92634d73203c))
+- **gen_db**: perturbed structures now save material id ([#e859d7e](https://github.com/pol-sb/MatDBForge/commit/e859d7e99ac0d6c09f1cd333e35e92634d73203c))
 
 ### Misc
 
-- **db_gen**: added limit to number of phases in pie chart, remaining ones are grouped into `others`. ([#2fed433](https://github.com/pol-sb/MatDBForge/commit/2fed433d60cf11af274bbc511c957d2c126270cd))
-- **db_gen**: improved output and added deprecation warnings ([#2f3b778](https://github.com/pol-sb/MatDBForge/commit/2f3b7786beb044905bb8934bb3f1fb77431e59eb))
+- **gen_db**: added limit to number of phases in pie chart, remaining ones are grouped into `others`. ([#2fed433](https://github.com/pol-sb/MatDBForge/commit/2fed433d60cf11af274bbc511c957d2c126270cd))
+- **gen_db**: improved output and added deprecation warnings ([#2f3b778](https://github.com/pol-sb/MatDBForge/commit/2f3b7786beb044905bb8934bb3f1fb77431e59eb))
 - **structure**: simplified structure conversion ([#1575d91](https://github.com/pol-sb/MatDBForge/commit/1575d9183765b9a9729f71210f43f727f07aa722))
 - **structure**: updated structure representation ([#af9a608](https://github.com/pol-sb/MatDBForge/commit/af9a60822878fc896bf3e87fb1490f50fd12f29c))
 - **al_loop**: updated logger to rich logger ([#74ba05e](https://github.com/pol-sb/MatDBForge/commit/74ba05ef9fc516cddf53e147624679d3e779cc27))

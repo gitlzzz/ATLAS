@@ -128,6 +128,7 @@ offset = 0.1
 replacements.replace = true
 
 # (list[str]) List of elements to replace with the base element
+# The string "M" can be used to represent any metallic element.
 replacements.element_list = ["Ti"]
 
 # (optional, int) Maximum number of structures to generate for the phase
@@ -138,6 +139,10 @@ limit_max_num_structures = 100
 # or keep the base structure as the only structure for the phase.
 # Default is true, allowing modifications to the base structure to be applied.
 allow_modifications = true
+
+# (optional, bool) Whether to save files in cache directory for repeated usage.
+# Speeds up some parts of database generation. Can consume a lot of disk space.
+use_cache = false
 
 # To add additional phases, add a new entry to the `phase_diagram` key
 #
@@ -214,6 +219,14 @@ num_repeat_replace = 2
 # (float) Fraction of unreplaced supercells to save after generation.
 # This avoids having too many slab structures with the same composition.
 # frac_supercells_save = 0.1
+
+# (int) Maximum number of slabs to gather from the slab generation.
+# If a larger number of slabs is generated, a random subset of
+# `max_slab_num` slabs will be selected.
+max_slab_num = 15
+
+# (int) Maximum number of workers to use for the ThreadPoolExecutor
+n_workers = 12
 
 # Settings related to cluster generation
 # [generation.cluster]
