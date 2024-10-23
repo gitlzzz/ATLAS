@@ -28,3 +28,19 @@ def run_initial_config():
         mdb_cud.custom_print(
             "Initial configuration already done: 'secrets.json' already exists.", "done"
         )
+
+    # Get cache directory
+    cache_path = mdb_cud.get_cache_path()
+
+    # Create an mdb folder inside the ~/.cache directory
+    cache_dir = mdb_cud.init_cache_dir(cache_path)
+
+    if cache_dir:
+        mdb_cud.custom_print(
+            f"Cache directory created at '{cache_dir}'",
+            print_type="info",
+        )
+    else:
+        mdb_cud.custom_print(
+            "Cache directory already exists. Nothing done.", "done"
+        )
