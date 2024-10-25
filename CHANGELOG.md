@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.0 (2024-10-25)
+
+### Feature
+
+- **al_loop**: first iteration of the ASE-MD+descriptor+extrapolation PortableCode ([#28b4430](https://github.com/pol-sb/MatDBForge/commit/28b4430208d62c6fa0013b3a161bd88335aeb9a1))
+
+### Fix
+
+- **al_loop**: slugify model names to remove unsupported characters ([#4fd825b](https://github.com/pol-sb/MatDBForge/commit/4fd825bcfb4f06c1fd6d0a3e7519b1db17d393cb))
+
 ## 0.14.0 (2024-10-23)
 
 ### Feature
