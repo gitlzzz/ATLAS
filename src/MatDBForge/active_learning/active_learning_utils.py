@@ -8,6 +8,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import slugify
 import torch
 import wonderwords as ww
 from aiida import orm
@@ -435,11 +436,12 @@ def generate_model_name():
         and a random number between 1 and 99, forming a unique model name.
     """
     r = ww.RandomWord()
-    randint = np.random.randint(low=1, high=100)
+    randint = np.random.randint(low=1, high=10000)
+
     adj = r.word(include_parts_of_speech=["adjective"])
     noun = r.word(include_parts_of_speech=["noun"])
     verb = r.word(include_parts_of_speech=["verb"])
-    model_name = f"{adj}_{noun}_{verb}-{randint}".replace(" ", "_")
+    model_name = slugify.slugify(f"{adj}-{noun}-{verb}-{randint}".replace(" ", "_"))
 
     return model_name
 
