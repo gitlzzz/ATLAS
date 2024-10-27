@@ -3,6 +3,7 @@
 import io
 import itertools as it
 import tempfile
+import time
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -17,20 +18,279 @@ from aiida.engine import (
     calcfunction,
 )
 from aiida.plugins import CalculationFactory
-from ase import Atoms, geometry
+from ase import Atoms, geometry, units
 from ase.data import atomic_numbers, covalent_radii
 from ase.geometry.analysis import Analysis
 from ase.io import read as ase_read
 from ase.io import write as ase_write
+from ase.md.langevin import Langevin
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
-from mace.calculators import LAMMPS_MACE
+from mace.calculators import LAMMPS_MACE, MACECalculator
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
+from MatDBForge.core.code_utils import custom_print, init_logger
 from MatDBForge.workflows import aiida_utils as mdb_aut
+
+
+def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
+    """
+    Function to compute the temperature ramp during ASE MD simulations.
+
+    Parameters
+    ----------
+    step : int
+        Current step in the MD simulation.
+    total_steps : int
+        Total number of steps in the MD simulation.
+    T_start : float
+        Initial temperature of the MD simulation.
+    T_end : _type_
+        Final temperature of the MD simulation.
+
+    Returns
+    -------
+    float
+        Temperature to set for the current step in the MD simulation.
+    """
+    # Update the temperature using the ramp function
+    current_temperature = T_start + (T_end - T_start) * dyn.nsteps / total_steps
+
+    # Set the temperature in units of energy
+    dyn.set_temperature(temperature_K=current_temperature)
+
+
+def generate_descriptors_mace(model_path: str, database):
+    calculator = MACECalculator(
+        model_paths=model_path, device="cuda", default_dtype="float64"
+    )
+    descriptor_dict = {}
+    descriptor_list = []
+    for struct in database:
+        descriptor_dict[struct.info["aiida_uuid"]] = {
+            "descriptors": [],
+            "latent_space": [],
+        }
+
+    for struct in database:
+        curr_struct_descriptors = calculator.get_descriptors(struct)
+        descriptor_list.append(curr_struct_descriptors)
+        descriptor_dict[struct.info["aiida_uuid"]]["descriptors"].append(
+            curr_struct_descriptors
+        )
+
+    descriptor_arr = np.vstack(descriptor_list)
+    return descriptor_dict, descriptor_arr
+
+
+def generate_descriptors_soap(database): ...
+
+
+def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
+    """
+    Run MD simulations using ASE and MACE.
+
+    Parameters
+    ----------
+    init_conf : Atoms
+        Initial structure to use for the MD simulation.
+    md_params : dict
+        Dictionary containing the MD parameters.
+    T_start : float
+        Initial temperature of the MD simulation.
+    traj_obj :
+        _description_
+    """
+    T_multiplier = md_params["max_temp_multiplier"]
+    T_end = T_start * T_multiplier
+
+    # Reading structure
+    # init_conf = ase_read("curr_structure.xyz", format="extxyz")
+
+    # Load the trained model as an ASE calculator and attach it to the atoms object
+    calculator = MACECalculator(
+        model_paths="curr_model.model",
+        device=md_params["device"],
+        default_dtype=md_params["dtype"],
+    )
+    init_conf.calc = calculator
+
+    # Define the Langevin dynamics
+    dyn = Langevin(
+        atoms=init_conf,
+        timestep=md_params["timestep_duration_ps"]
+        * (units.s * 1e-12),  # convert ase fs to ps
+        temperature_K=T_start,
+        friction=md_params["timestep_duration_ps"] * 100,
+        trajectory=traj_obj,
+        # logfile=res_folder / f"md-{T_start}.log",
+    )
+
+    # Attach the thermostat function to increase the temperature
+    # linearly from T_start to T_end
+    dyn.attach(
+        interval=1,
+        function=md_apply_temperature_ramp,
+        dyn=dyn,
+        total_steps=md_params["num_steps"],
+        T_start=T_start,
+        T_end=T_end,
+    )
+
+    # Run the MD simulation
+    dyn.run(md_params["num_steps"])
+
+
+def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
+    # Get unix timestamp for filename
+    timestamp = int(time.time())
+    filename = Path(f"seed_train_db_sizes_{timestamp}.png").resolve()
+
+    # Define colors from the gruvbox palette
+    colors = [
+        "#83a598",
+        "#b16286",
+        "#98971a",
+        "#fb4934",
+    ]
+
+    # Create a 2x2 figure
+    fig, ax = plt.subplots(2, 2, figsize=(12, 12))
+
+    # Plot seed and train db sizes as a stacked bar chart over every iteration
+    width = 0.3
+    ind = np.arange(len(seed_gen_db_sizes)) + 1
+    ax[0, 0].bar(ind, train_db_sizes, width=width, label="train_db", color=colors[0])
+    ax[0, 0].bar(
+        ind + width,
+        seed_gen_db_sizes,
+        width=width,
+        label="seed_gen_db",
+        color=colors[1],
+    )
+    ax[0, 0].set_xticks(ind + width / 2, ind)
+    ax[0, 0].set_xlabel("AL Loop Step")
+    ax[0, 0].set_ylabel("Number of structures")
+    ax[0, 0].legend()
+    ax[0, 0].set_title("Seed and Train Database Evolution")
+
+    # Add text labels to bars
+    for idx, (seed, train) in enumerate(zip(seed_gen_db_sizes, train_db_sizes)):
+        ax[0, 0].text(idx + 1, train / 2, train, ha="center", va="bottom", rotation=90)
+        ax[0, 0].text(
+            idx + width + 1, seed / 2, seed, ha="center", va="bottom", rotation=90
+        )
+
+    # Plot seed size delta as a bar chart over every iteration
+    seed_gen_db_diff, train_db_diff = [], []
+    for idx, (seed, train) in enumerate(zip(seed_gen_db_sizes, train_db_sizes)):
+        if idx == 0:
+            seed_gen_db_diff.append(0)
+            train_db_diff.append(0)
+        else:
+            seed_gen_db_diff.append(seed - seed_gen_db_sizes[idx - 1])
+            train_db_diff.append(train - train_db_sizes[idx - 1])
+
+    # Add text labels to bars
+    for idx, (seed, train) in enumerate(zip(seed_gen_db_diff, train_db_diff)):
+        if idx == 0:
+            continue
+
+        # Add sign
+        seed_txt = f"{seed}" if seed < 0 else f"+{seed}"
+        train_txt = f"{train}" if train < 0 else f"+{train}"
+
+        ax[0, 1].text(
+            idx + 1, train / 2, train_txt, ha="center", va="bottom", rotation=90
+        )
+        ax[0, 1].text(
+            idx + width + 1, seed / 2, seed_txt, ha="center", va="bottom", rotation=90
+        )
+
+    ax[0, 1].bar(ind, train_db_diff, width=width, label="train_db", color=colors[0])
+    ax[0, 1].bar(
+        ind + width,
+        seed_gen_db_diff,
+        width=width,
+        label="seed_gen_db",
+        color=colors[1],
+    )
+    ax[0, 1].set_xticks(ind + width / 2, ind)
+    ax[0, 1].set_xlabel("AL Loop Step")
+    ax[0, 1].set_ylabel(r"$\Delta$ Number of structures")
+    ax[0, 1].set_title("Structure count change over iteration")
+    ax[0, 1].legend()
+
+    # Plot MACE model energy performance
+    ax[1, 0].plot(ind, mace_e, label="MACE Energy", color=colors[2], marker="o")
+    ax[1, 0].set_xticks(ind, ind)
+    ax[1, 0].set_xlabel("AL Loop Step")
+    ax[1, 0].set_ylabel("RMSE E per atom [meV]")
+    ax[1, 0].set_title("Evolution of best MACE Model Energy RMSE")
+
+    # Plot MACE model force performance
+    ax[1, 1].plot(ind, mace_f, label="MACE Forces", color=colors[3], marker="o")
+    ax[1, 1].set_xticks(ind, ind)
+    ax[1, 1].set_xlabel("AL Loop Step")
+    ax[1, 1].set_ylabel("RMSE F [meV / A]")
+
+    # Add a horizontal line to mark chemical accuracy for energy and forces
+    chem_acc_E = 2  # meV
+    chem_acc_F = 43.37  # meV/atom
+    line_color = "#28282855"
+    ax[1, 0].axhline(y=chem_acc_E, color=line_color, linestyle="--")
+    ax[1, 0].text(x=1.5, y=chem_acc_E, s="Chem. Acc.", color=line_color)
+    ax[1, 1].axhline(y=chem_acc_F, color=line_color, linestyle="--")
+    ax[1, 1].text(x=1.5, y=chem_acc_F, s="Chem. Acc.", color=line_color)
+    ax[1, 1].set_title("Evolution of best MACE Model Force RMSE")
+
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300)
+    custom_print(f"Saved report to '{filename}'.", "info")
+    plt.clf()
+
+
+def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
+    import re
+
+    from aiida.cmdline.utils.common import get_workchain_report
+
+    # Init logger
+    init_logger(source="al_loop_report_gen")
+
+    if loop_id:
+        al_loop_node = orm.load_node(loop_id)
+        report = get_workchain_report(al_loop_node, levelname="REPORT")
+    if log_path:
+        with open(log_path) as f:
+            report = f.read()
+
+    # ini_db_line = re.compile(r"initial database containing.*").findall(report)
+    # ini_db_size = int(ini_db_line[0].split()[3])
+
+    # Match all lines containing the seed_gen_db and train_db sizes
+    seed_gen_db_sizes, train_db_sizes = [], []
+    db_lines_re = re.compile(r"Iteration \d\d?: seed_gen_db.*").findall(report)
+
+    # Prepare a list of all seed_gen_db and train_db sizes from db_lines
+    for line in db_lines_re:
+        seed_gen_db_sizes.append(int(line.split()[3].replace(",", "")))
+        train_db_sizes.append(int(line.split()[5].replace(",", "")))
+
+    # Match all lines containing the M0 model performance
+    mace_e, mace_f = [], []
+    lammps_lines = re.compile(r"Generated LAMMPS potential using.*").findall(report)
+
+    # Prepare a list of all mace models generated from lammps_lines
+    for line in lammps_lines:
+        mace_e.append(float(line.split()[10]))
+        mace_f.append(float(line.split()[14]))
+
+    plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f)
+    custom_print("Report generation complete.", "done")
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
@@ -653,7 +913,7 @@ def plot_concave_hull(
     with tempfile.NamedTemporaryFile(suffix=".png") as f:
         plt.savefig(f.name, dpi=300)
         plt.close()
-        return {'plot': orm.SinglefileData(file=f.name, filename=filename)}
+        return {"plot": orm.SinglefileData(file=f.name, filename=filename)}
 
 
 def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
