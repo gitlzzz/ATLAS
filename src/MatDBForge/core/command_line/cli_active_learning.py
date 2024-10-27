@@ -146,7 +146,11 @@ def create_active_learning_builder(toml_dict: dict):
 def run_active_learning():
     parser = argparse.ArgumentParser(
         prog="run_active_learning",
-        description="Launch a MDB active learning loop.",
+        description=(
+            "Launch a MDB active learning loop.\n"
+            "Provide a TOML settings file to start the active learning loop, "
+            "or use any of the available commands."
+        ),
         formatter_class=RawTextHelpFormatter,
     )
     parser.add_argument(
@@ -163,7 +167,37 @@ def run_active_learning():
     )
 
     # Create a subparsers object
-    subparsers = parser.add_subparsers(dest="command", help="Sub-command help")
+    subparsers = parser.add_subparsers(
+        dest="command", help="List of available commands"
+    )
+
+    # Create the subparser for the 'report' command
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate a report for an active learning loop.",
+        usage=(
+            "run_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)\n"
+            "Generate a report for an active learning loop by providing an AiiDA "
+            "PK/UUID or a log file path."
+        ),
+    )
+
+    # Add mutually exclusive group for the 'report' command
+    report_group = report_parser.add_mutually_exclusive_group(required=True)
+
+    # Add arguments specific to the 'report' subcommand
+    report_group.add_argument(
+        "--loop_id",
+        "-i",
+        help=("AiiDA PK/UUID of the active learning loop."),
+        metavar="<ID>",
+    )
+    report_group.add_argument(
+        "--log_path",
+        "-log",
+        help=("MatDBForge log of the active learning loop."),
+        metavar="<PATH>",
+    )
 
     # Create the subparser for the 'gui' command
     gui_parser = subparsers.add_parser(
@@ -204,44 +238,50 @@ def run_active_learning():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    # Loading TOML config file
-    try:
-        with open(args.config_file, "rb") as f:
-            toml_dict = tomllib.load(f)
-    except FileNotFoundError as e:
-        error_message = (
-            f"The config file '{args.config_file}' does not exist. "
-            "Please make sure that is the correct name or input a different path."
-        )
-        raise FileNotFoundError(error_message) from e
+    if args.command == "report":
+        from MatDBForge.active_learning.active_learning_utils import gen_al_loop_report
 
-    from aiida import load_profile
+        gen_al_loop_report(args.loop_id, args.log_path)
 
-    try:
-        # Loading default aiida profile
-        load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
-    except Exception as e:
-        from MatDBForge.core.code_utils import custom_print
-
-        custom_print(f"Error loading aiida profile: '{e}'", "error")
-
-    # Parsing settings from TOML and creating builder for aiida
-    builder = create_active_learning_builder(toml_dict)
-
-    from aiida.engine import run, submit
-
-    if args.command != "gui":
-        node = run(builder)
     else:
-        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+        # Loading TOML config file
+        try:
+            with open(args.config_file, "rb") as f:
+                toml_dict = tomllib.load(f)
+        except FileNotFoundError as e:
+            error_message = (
+                f"The config file '{args.config_file}' does not exist. "
+                "Please make sure that is the correct name or input a different path."
+            )
+            raise FileNotFoundError(error_message) from e
 
-        node = submit(builder)
-        time.sleep(1)
+        from aiida import load_profile
 
-        run_dashboard_app(
-            process_id=str(node.pk),
-            port=args.port,
-            update_interval=args.update_interval,
-            debug=args.debug,
-            online=args.online,
-        )
+        try:
+            # Loading default aiida profile
+            load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
+        except Exception as e:
+            from MatDBForge.core.code_utils import custom_print
+
+            custom_print(f"Error loading aiida profile: '{e}'", "error")
+
+        # Parsing settings from TOML and creating builder for aiida
+        builder = create_active_learning_builder(toml_dict)
+
+        from aiida.engine import run, submit
+
+        if args.command != "gui":
+            node = run(builder)
+        else:
+            from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+
+            node = submit(builder)
+            time.sleep(1)
+
+            run_dashboard_app(
+                process_id=str(node.pk),
+                port=args.port,
+                update_interval=args.update_interval,
+                debug=args.debug,
+                online=args.online,
+            )
