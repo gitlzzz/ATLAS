@@ -15,7 +15,7 @@ else:
 warnings.filterwarnings("ignore")
 
 
-def create_active_learning_builder(toml_dict: dict):
+def create_active_learning_builder(toml_dict: dict, toml_dict_path: pl.Path = None):
     """
     Create builder object for the ActiveLearningWorkChain.
 
@@ -39,6 +39,10 @@ def create_active_learning_builder(toml_dict: dict):
 
     ## General AL settings
     al_conf = toml_dict["active_learning"]
+
+    if toml_dict_path:
+        builder.active_learning.toml_file = str(toml_dict_path)
+
     builder.active_learning.run_name = al_conf["run_name"]
     builder.active_learning.load_init_models = al_conf.get("load_init_models")
     builder.active_learning.init_db_path = str(
@@ -266,7 +270,9 @@ def run_active_learning():
             custom_print(f"Error loading aiida profile: '{e}'", "error")
 
         # Parsing settings from TOML and creating builder for aiida
-        builder = create_active_learning_builder(toml_dict)
+        builder = create_active_learning_builder(
+            toml_dict, toml_dict_path=pl.Path(args.config_file).resolve()
+        )
 
         from aiida.engine import run, submit
 

@@ -53,6 +53,7 @@ class ActiveLearningWorkChain(WorkChain):
         super().define(spec)
 
         spec.input("init_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input("toml_file", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input("final_db_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input("run_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
@@ -2069,6 +2070,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # Additionally, create a copy of the database (seed_gen_db, Ds),
             # this will be used to generate the MD seeds.
             cls.get_database,
+            # Copy toml file to results directory
+            cls.copy_input_toml_file,
             # Create inputs for workchains and initialize iterative counter
             cls.setup,
             # Get a settings report for the active learning loop.
@@ -2171,6 +2174,14 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.report(
             f"Loaded initial database containing {len(database_training)} structures."
         )
+
+    def copy_input_toml_file(self):
+        """Copy the input toml file to the results directory."""
+        toml_file_path = Path(self.inputs.active_learning.toml_file.value)
+        toml_file_name = toml_file_path.name
+        toml_file_dest = self.ctx.curr_run_results_dir / toml_file_name
+
+        shutil.copy(toml_file_path, toml_file_dest)
 
     def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
