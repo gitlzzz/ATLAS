@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.16.0 (2024-10-31)
+
+### Feature
+
+- **al_loop**: add resume function to al_loop ([#bc92d44](https://github.com/pol-sb/MatDBForge/commit/bc92d44c77c58f1c5d75c54ca9242a569579a8e9))
+- **al_loop**: add `copy_input_toml_file` function to al_loop ([#a4309e5](https://github.com/pol-sb/MatDBForge/commit/a4309e5f723eeabe3686c185f7f9c8ffaaa45745))
+- **al_loop**: add al_loop report subcommand ([#26d1a49](https://github.com/pol-sb/MatDBForge/commit/26d1a49d62f82753d594176fbb94102dffc14da5))
+- **al_loop**: add al_loop report subcommand ([#7def029](https://github.com/pol-sb/MatDBForge/commit/7def02977922bd0c30ff02008a81254868a6b628))
+
+### Fix
+
+- **al_loop**: improved al_loop report representation ([#47fb827](https://github.com/pol-sb/MatDBForge/commit/47fb827df14125434bafba7b4c9f4d9c895b1e2c))
+- **core**: silenced git output when checking for updates ([#73548db](https://github.com/pol-sb/MatDBForge/commit/73548db650c2537d23bd1084133061a17b613eac))
+
 ## 0.15.0 (2024-10-25)
 
 ### Feature
