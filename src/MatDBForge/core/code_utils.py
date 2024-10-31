@@ -17,7 +17,6 @@ from MatDBForge import MDB_ROOT_DIR, __version__
 
 
 def init_logger(source, log_path=None):
-
     # Starting console
     console = Console(
         theme=Theme(
@@ -34,11 +33,14 @@ def init_logger(source, log_path=None):
     logger = logging.getLogger("mdb")
     logger.setLevel(logging.DEBUG)
 
+    # TODO: Check if this is compatible with the rest of the code
+    logger.propagate = False
+
     # Console logger
     ch = RichHandler(
         markup=True,
         show_path=False,
-        log_time_format="[%x %X]",
+        log_time_format="[%m/%d/%y %H:%M:%S]",
         omit_repeated_times=False,
         console=console,
     )
@@ -92,49 +94,49 @@ def custom_print(string: str, print_type: str = "default", end="\n", extra_tab=F
     prefix = ""
     extra_tab = "\t" if extra_tab else ""
 
+    logger = logging.getLogger("mdb")
+
     if print_type in ["info", "default"]:
         # prefix = "\u001b[38;5;33m [ i ]"
-        logging.getLogger("mdb").log(
+        logger.log(
             level=20,
             msg=f"{prefix}{normal}{extra_tab}{string}",
             extra={"shortmsg": string},
         )
     elif print_type in ["warn", "warning", "warn-soft", "warning-soft"]:
         # prefix = "\u001b[38;5;220m [ ! ]"
-        logging.getLogger("mdb").log(
+        logger.log(
             level=30,
             msg=f"{prefix}{normal}{extra_tab}{string}",
             extra={"shortmsg": string},
         )
     elif print_type in ["extra", "debug"]:
         # prefix = "\u001b[38;5;8m [···]"
-        logging.getLogger("mdb").log(
+        logger.log(
             level=10,
             msg=f"{prefix}{normal}{extra_tab}{string}",
             extra={"shortmsg": string},
         )
     elif print_type in ["done", "ok"]:
         # prefix = "\u001b[38;5;46m [ ✔ ]"
-        # logging.getLogger("mdb").info(
+        # logger.info(
         #     f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
         # )
-        logging.getLogger("mdb").log(
+        logger.log(
             level=25,
             msg=f"{prefix}{normal}{extra_tab}{string}",
             extra={"shortmsg": string},
         )
     if print_type in ["error", "problem"]:
         # prefix = "\u001b[38;5;1m [ X ]"
-        logging.getLogger("mdb").log(
+        logger.log(
             level=40,
             msg=f"{prefix}{normal}{extra_tab}{string}",
             extra={"shortmsg": string},
         )
     if print_type in ["none", "clean", "clear"]:
         # prefix = ""
-        logging.getLogger("mdb").info(
-            f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
-        )
+        logger.info(f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string})
 
 
 def deprecated(reason, since_ver=None):
@@ -249,7 +251,7 @@ def get_last_tagged_version():
     os.chdir(MDB_ROOT_DIR)
 
     # Run the git fetch to get the last tagged version
-    _ = sb.check_output(["git", "fetch"])
+    _ = sb.check_output(["git", "fetch", "--quiet"])
 
     # Getting the latest tag
     output = (

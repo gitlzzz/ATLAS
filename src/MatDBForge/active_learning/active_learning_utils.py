@@ -32,7 +32,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.core.code_utils import custom_print, init_logger
+from MatDBForge.core.code_utils import check_mdb_version, custom_print, init_logger
 from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
@@ -156,6 +156,7 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
         "#98971a",
         "#fb4934",
     ]
+    line_color = "#28282855"
 
     # Create a 2x2 figure
     fig, ax = plt.subplots(2, 2, figsize=(12, 12))
@@ -218,6 +219,7 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
         label="seed_gen_db",
         color=colors[1],
     )
+    ax[0, 1].axhline(y=0, color=line_color, linestyle="--")
     ax[0, 1].set_xticks(ind + width / 2, ind)
     ax[0, 1].set_xlabel("AL Loop Step")
     ax[0, 1].set_ylabel(r"$\Delta$ Number of structures")
@@ -225,6 +227,7 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
     ax[0, 1].legend()
 
     # Plot MACE model energy performance
+    ind = np.arange(len(mace_e)) + 1
     ax[1, 0].plot(ind, mace_e, label="MACE Energy", color=colors[2], marker="o")
     ax[1, 0].set_xticks(ind, ind)
     ax[1, 0].set_xlabel("AL Loop Step")
@@ -238,13 +241,10 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
     ax[1, 1].set_ylabel("RMSE F [meV / A]")
 
     # Add a horizontal line to mark chemical accuracy for energy and forces
-    chem_acc_E = 2  # meV
-    chem_acc_F = 43.37  # meV/atom
-    line_color = "#28282855"
-    ax[1, 0].axhline(y=chem_acc_E, color=line_color, linestyle="--")
-    ax[1, 0].text(x=1.5, y=chem_acc_E, s="Chem. Acc.", color=line_color)
-    ax[1, 1].axhline(y=chem_acc_F, color=line_color, linestyle="--")
-    ax[1, 1].text(x=1.5, y=chem_acc_F, s="Chem. Acc.", color=line_color)
+    chem_acc = 43.37  # meV
+
+    ax[1, 0].axhline(y=chem_acc, color=line_color, linestyle="--")
+    ax[1, 0].text(x=1.5, y=chem_acc, s="Chem. Acc.", color=line_color)
     ax[1, 1].set_title("Evolution of best MACE Model Force RMSE")
 
     plt.tight_layout()
@@ -260,6 +260,9 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
 
     # Init logger
     init_logger(source="al_loop_report_gen")
+
+    # Checking version
+    check_mdb_version()
 
     if loop_id:
         al_loop_node = orm.load_node(loop_id)
@@ -715,7 +718,9 @@ def get_final_db_path(result_dir_path, final_db_name, node):
     if not curr_run_dir.exists():
         curr_run_dir.mkdir()
 
-    final_db_path = curr_run_dir / f"{final_db_name}.xyz"
+    # Adding the final database path and the 'mdb_train_db_' prefix
+    # used to identifd the final database.
+    final_db_path = curr_run_dir / f"mdb_train_db_{final_db_name}.xyz"
     return final_db_path, curr_run_dir
 
 
