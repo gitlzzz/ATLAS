@@ -1,6 +1,7 @@
 """Run active learning loop from a TOML configuration file."""
 
 import argparse
+import contextlib
 import pathlib as pl
 import sys
 import time
@@ -147,6 +148,97 @@ def create_active_learning_builder(toml_dict: dict, toml_dict_path: pl.Path = No
     return builder
 
 
+def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None):
+
+    # Resume dictionary. This will be used to pass the last iteration and
+    # the paths to the train_db and seed_db files to the base workchain
+    # to resume the active learning loop from the beginning of the last iteration.
+    resume_dict = {"last_iteration": None, "train_db_path": None, "seed_db_path": None}
+
+    # Get pk/uuid of the base workchain using one of two approaches:
+    wk_uuid = None
+    wk_node = None
+
+    # 1. Get the pk/uuid from the prev_run_dir folder name
+    with contextlib.suppress(Exception):
+        wk_uuid = prev_run_dir.stem.split("_")[-1]
+
+    # 2. Get the pk/uuid from the log file in the prev_run_dir folder
+    if not wk_uuid:
+        with contextlib.suppress(Exception):
+            for log in prev_run_dir.glob("*.log"):
+                with open(log) as f:
+                    log_file = f.readlines()
+            wk_uuid = log_file[0].split("|")[0].strip("[")
+
+    # Load aiida node if found
+    with contextlib.suppress(Exception):
+        from aiida.orm import load_node
+
+        wk_node = load_node(wk_uuid)
+
+    # Node found, reading settings from aiida node
+    if wk_node:
+        ...
+    # Node not found, using file-based approach
+    else:
+        # Checking that the previous run directory exists
+        if not prev_run_dir.exists():
+            raise FileNotFoundError(
+                f"The directory '{prev_run_dir}' does not exist. "
+                "Please make sure that is the correct path."
+            )
+
+        # Read toml settings file
+        for toml in prev_run_dir.glob("*.toml"):
+            toml_dict_path = toml
+        toml_dict = read_toml_config(toml_dict_path)
+
+        # Populating resume dictionary with last iteration
+        for it_file in (prev_run_dir / "run_tmp_data").glob("*.pkl"):
+            last_iteration = int(it_file.stem.split("-")[-1])
+        resume_dict["last_iteration"] = last_iteration
+
+        # Getting train_db and seed_db paths
+        for it_file in prev_run_dir.glob("*.xyz"):
+            if "mdb_train_db" in it_file.stem:
+                resume_dict["train_db_path"] = str(it_file)
+            elif "mdb_seed_db" in it_file.stem:
+                resume_dict["seed_db_path"] = str(it_file)
+
+    # Getting builder for workchain
+    builder = create_active_learning_builder(
+        toml_dict=toml_dict,
+        toml_dict_path=toml_dict_path,
+    )
+
+    # Setting resume dictionary and updating builder inputs
+    builder.resume_dict = resume_dict
+    builder.active_learning.run_name = (
+        builder.active_learning.run_name.value + "_resumed"
+    )
+    builder.active_learning.init_db_path = resume_dict["train_db_path"]
+
+    # Store resume dictionary and run name
+    # TODO: Check if necessary to store manually in this case
+    builder.resume_dict.store()
+    builder.active_learning.run_name.store()
+    builder.active_learning.init_db_path.store()
+
+    # Check for any model files in the folder and return an error if not found
+    # builder.dft_settings["mace_potential_path"]
+    mace_model_path = pl.Path(
+        builder.active_learning.dft_settings["mace_potential_path"]
+    )
+    if not mace_model_path.exists():
+        raise FileNotFoundError(
+            "No model files found in the run directory "
+            f"Check that '{mace_model_path}' exists."
+        )
+
+    return builder
+
+
 def run_active_learning():
     parser = argparse.ArgumentParser(
         prog="run_active_learning",
@@ -203,6 +295,38 @@ def run_active_learning():
         metavar="<PATH>",
     )
 
+    # Create the subparser for the 'resume' command
+    resume_parser = subparsers.add_parser(
+        "resume",
+        help="Resume an active learning loop using a results folder.",
+        usage=(
+            "run_active_learning resume [-h] --dir_resume <PATH> "
+            "[--config_file <PATH>]\n\n"
+            "Resume an active learning loop using a results folder."
+        ),
+    )
+
+    resume_parser.add_argument(
+        "--dir_resume",
+        "-d",
+        help=("Path to the results directory of a previous active learning loop run."),
+        metavar="<PATH>",
+        required=True,
+    )
+
+    resume_parser.add_argument(
+        "--config_file",
+        "-c",
+        help=(
+            "Path pointing to a TOML settings file.\n"
+            "Optional, as all calculation folders should contain A TOML file."
+        ),
+        type=pl.Path,
+        metavar="<PATH>",
+        required=False,
+        default=None,
+    )
+
     # Create the subparser for the 'gui' command
     gui_parser = subparsers.add_parser(
         "gui", help="Launch a dashboard to keep track of the active learning loop"
@@ -247,17 +371,20 @@ def run_active_learning():
 
         gen_al_loop_report(args.loop_id, args.log_path)
 
+    # Resume a previous calculation
+    elif args.command == "resume":
+        # Getting path for config file if provided
+        config_file = pl.Path(args.config_file).resolve() if args.config_file else None
+
+        builder = resume_al_loop_builder(
+            prev_run_dir=pl.Path(args.dir_resume).resolve(),
+            toml_dict_path=config_file,
+        )
+
+    # Start a new al loop
     else:
         # Loading TOML config file
-        try:
-            with open(args.config_file, "rb") as f:
-                toml_dict = tomllib.load(f)
-        except FileNotFoundError as e:
-            error_message = (
-                f"The config file '{args.config_file}' does not exist. "
-                "Please make sure that is the correct name or input a different path."
-            )
-            raise FileNotFoundError(error_message) from e
+        toml_dict = read_toml_config(args.config_file)
 
         from aiida import load_profile
 
@@ -271,23 +398,38 @@ def run_active_learning():
 
         # Parsing settings from TOML and creating builder for aiida
         builder = create_active_learning_builder(
-            toml_dict, toml_dict_path=pl.Path(args.config_file).resolve()
+            toml_dict,
+            toml_dict_path=pl.Path(args.config_file).resolve(),
+            resume_dict=None,
         )
 
-        from aiida.engine import run, submit
+    from aiida.engine import run, submit
 
-        if args.command != "gui":
-            node = run(builder)
-        else:
-            from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+    if args.command != "gui":
+        node = run(builder)
+    else:
+        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
-            node = submit(builder)
-            time.sleep(1)
+        node = submit(builder)
+        time.sleep(1)
 
-            run_dashboard_app(
-                process_id=str(node.pk),
-                port=args.port,
-                update_interval=args.update_interval,
-                debug=args.debug,
-                online=args.online,
-            )
+        run_dashboard_app(
+            process_id=str(node.pk),
+            port=args.port,
+            update_interval=args.update_interval,
+            debug=args.debug,
+            online=args.online,
+        )
+
+
+def read_toml_config(config_file: pl.Path | str):
+    try:
+        with open(config_file, "rb") as f:
+            toml_dict = tomllib.load(f)
+    except FileNotFoundError as e:
+        error_message = (
+            f"The config file '{config_file}' does not exist. "
+            "Please make sure that is the correct name or input a different path."
+        )
+        raise FileNotFoundError(error_message) from e
+    return toml_dict

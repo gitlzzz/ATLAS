@@ -278,7 +278,6 @@ class ActiveLearningWorkChain(WorkChain):
                 node=self.node,
             )
             mace_builder.mace_train_file_path = str(mace_train_file_path)
-
             code_str = self.inputs.mace_train.get_dict()["code"]
             code = orm.load_code(code_str)
             computer = code.computer
@@ -477,6 +476,9 @@ class ActiveLearningWorkChain(WorkChain):
             node=self.node,
         )
         code_builder.mace_train_file_path = str(mace_train_file_path)
+
+        if not code_builder.mace_train_file_path.is_stored:
+            code_builder.mace_train_file_path.store()
 
         prepend_text = (
             self.inputs.descriptor_settings["metadata"]["prepend_text"]
@@ -1336,9 +1338,7 @@ class ActiveLearningWorkChain(WorkChain):
             mace_eval_aiida_settings_dict = self.inputs.committee_eval["metadata"][
                 "options"
             ]
-            computer = orm.load_computer(
-                mace_eval_aiida_settings_dict["computer"]
-            )
+            computer = orm.load_computer(mace_eval_aiida_settings_dict["computer"])
             mace_builder.metadata.computer = computer
             mace_eval_aiida_settings_dict.pop("computer", None)
 
@@ -1505,6 +1505,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             code_builder.model_file = self.ctx.best_model_file
             code_builder.mace_train_file_path = md_xyz_file
+            code_builder.mace_train_file_path.store()
 
             # Get latent space of the descriptors using the autoencoder.
             if dimensionality_reduction_method == "autoencoder":
@@ -1896,14 +1897,11 @@ class ActiveLearningWorkChain(WorkChain):
                         dft_settings=self.inputs.dft_settings.get_dict(),
                     )
 
-
                     # Get the calculation limit, from the computer metadata set to 0
                     # if not present.
                     # `mdb_calc_limit` is a custom property set with:
                     # computer.set_property(name='mdb_calc_limit', value=366)
-                    calc_limit = builder.code.computer.metadata.get(
-                        "mdb_calc_limit", 0
-                    )
+                    calc_limit = builder.code.computer.metadata.get("mdb_calc_limit", 0)
 
                     # Check if the calculation can be submitted
                     if calc_limit == 0:
@@ -2027,13 +2025,29 @@ class ActiveLearningWorkChain(WorkChain):
 
 
 class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
-    """Base workchain for active learning workflows.
+    """Base workchain for MDB active learning workflows.
 
     This workchain is used as a base for the `ActiveLearningWorkChain` workchain.
     It handles setup of the workchain and the main loop, where the active learning
     steps are launched. After every step, the results are checked and added to the
     database, and the next step is prepared. The workchain will loop until the
     stopping conditions are met.
+
+    It takes all the inputs of the `ActiveLearningWorkChain` workchain, except for
+    the inputs that are specific to the active learning loop.
+    Additionally, the mandatory `log_path` and optional `resume_dict` can be provided.
+    See the `define` method for more information on the inputs and outputs.
+
+    Note
+    ----
+    This workchain can be restarted from a previous running workchain if its
+    files are recovered. The optional `resume_dict` input is used for this.
+    `resume_dict` must be a dictionary that contains the following keys:
+     - `last_iteration`: The current iteration of the active learning loop.
+     - `train_db_path`: The path to the last training database.
+     - `seed_db_path`: The path to the last seed generation database.
+
+    The loop will only be restarted from the beginning of the last step.
 
     Check `ActiveLearningWorkChain` for information on what is done in each step.
     """
@@ -2061,6 +2075,15 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             ],
         )
         spec.input("log_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+
+        # Optional input to resume the workchain from a previous state.
+        spec.input(
+            "resume_dict",
+            valid_type=orm.Dict,
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=None,
+        )
 
         spec.outline(
             # Add a filehandler to aiida logger
@@ -2137,11 +2160,18 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # The training database (Dt) from which copies are made
         # for further processing. New structures will be added here.
-        database_training = ase_read(
-            filename=self.inputs.active_learning.init_db_path.value,
-            format="extxyz",
-            index=":",
-        )
+        if self.inputs.resume_dict:
+            database_training = ase_read(
+                filename=self.inputs.resume_dict["train_db_path"],
+                format="extxyz",
+                index=":",
+            )
+        else:
+            database_training = ase_read(
+                filename=self.inputs.active_learning.init_db_path.value,
+                format="extxyz",
+                index=":",
+            )
 
         # Create files for database_training and seed_gen_db
         results_dir_path = Path(self.inputs.active_learning.results_dir.value)
@@ -2158,22 +2188,41 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # A copy of the initial database, (Ds)
         # used specifically for generating MD seeds and running the MDs.
         # New structures will be added and well represented configs removed from here.
-        self.ctx.seed_db_path = curr_run_results_dir / "seed_db.xyz"
-        shutil.copy(
-            self.inputs.active_learning.init_db_path.value, self.ctx.seed_db_path
-        )
+        self.ctx.seed_db_path = curr_run_results_dir / "mdb_seed_db.xyz"
+
+        # Copying the seed database from the initial database if new run,
+        # otherwise copy from the previous run.
+        if self.inputs.resume_dict:
+            shutil.copy(self.inputs.resume_dict["seed_db_path"], self.ctx.seed_db_path)
+        else:
+            shutil.copy(
+                self.inputs.active_learning.init_db_path.value, self.ctx.seed_db_path
+            )
 
         self.ctx.seed_size = int(
             self.inputs.active_learning.seed_size_frac.value * len(database_training)
         )
-        self.ctx.training_db_path = final_db_path
-        shutil.copy(
-            self.inputs.active_learning.init_db_path.value, self.ctx.training_db_path
-        )
 
-        self.report(
-            f"Loaded initial database containing {len(database_training)} structures."
-        )
+        # Create a copy of the training database for the current run.
+        # If reading from a previous run, copy the database from the previous run.
+        self.ctx.training_db_path = final_db_path
+        if self.inputs.resume_dict:
+            shutil.copy(
+                self.inputs.resume_dict["train_db_path"], self.ctx.training_db_path
+            )
+            self.report(
+                "Loaded initial database from previous run containing "
+                f"'{len(database_training)}' structures."
+            )
+        else:
+            shutil.copy(
+                self.inputs.active_learning.init_db_path.value,
+                self.ctx.training_db_path,
+            )
+            self.report(
+                "Loaded initial database containing "
+                f"'{len(database_training)}' structures."
+            )
 
     def copy_input_toml_file(self):
         """Copy the input toml file to the results directory."""
@@ -2185,7 +2234,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
-        node = self.ctx.children[self.ctx.iteration - 1]
+        if self.inputs.resume_dict:
+            last_iteration = self.inputs.resume_dict["last_iteration"]
+            node = self.ctx.children[self.ctx.iteration - (last_iteration - 1) - 2]
+        else:
+            node = self.ctx.children[self.ctx.iteration - 1]
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
         # outputs = self._attach_outputs(node)
@@ -2294,6 +2347,14 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """
         self.report("Starting Workchain setup.")
         super().setup()
+
+        # Update the iteration counter if resuming from a previous run
+        if self.inputs.resume_dict:
+            self.report(
+                "Resuming from previous run, stopped at iteration: "
+                f"'{self.inputs.resume_dict['last_iteration']}'."
+            )
+            self.ctx.iteration = self.inputs.resume_dict["last_iteration"]
 
         self.ctx.inputs = self.exposed_inputs(
             ActiveLearningWorkChain, "active_learning"

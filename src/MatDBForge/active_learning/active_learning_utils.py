@@ -718,7 +718,9 @@ def get_final_db_path(result_dir_path, final_db_name, node):
     if not curr_run_dir.exists():
         curr_run_dir.mkdir()
 
-    final_db_path = curr_run_dir / f"{final_db_name}.xyz"
+    # Adding the final database path and the 'mdb_train_db_' prefix
+    # used to identifd the final database.
+    final_db_path = curr_run_dir / f"mdb_train_db_{final_db_name}.xyz"
     return final_db_path, curr_run_dir
 
 
