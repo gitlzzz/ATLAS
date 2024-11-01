@@ -127,6 +127,7 @@ Generates an initial database for MatDBForge. A `.toml` configuration is require
 ## Autoencoder for Dimensionality Reduction - `mdb_train_autoencoder`
 
 Train an autoencoder model for dimensionality reduction using the generated descriptors.
+The model is trained on descriptors (either `SOAP` or `MACE`) which are provided through a numpy array in the `.npy` format that holds vstacked arrays of atomic descriptors.
 
 **Usage:** `mdb_train_autoencoder [-h] [--device DEVICE] [--dtype DTYPE] [--model_path MODEL_PATH] [--load_model LOAD_MODEL] [--rng_seed RNG_SEED] [--dataset DATASET] [--l1_hidden_dim L1_HIDDEN_DIM] [--l2_hidden_dim L2_HIDDEN_DIM] [--bottleneck_dim BOTTLENECK_DIM] [--num_epochs NUM_EPOCHS] [--batch_size BATCH_SIZE] [--patience PATIENCE] [--lr LR] [--weight_decay WEIGHT_DECAY] [--bias_flag] [--loss LOSS] [--train_frac TRAIN_FRAC] [--valid_frac VALID_FRAC] [--test_frac TEST_FRAC] [--wandb] [--wandb_name WANDB_NAME] [--wandb_project WANDB_PROJECT]`
 
