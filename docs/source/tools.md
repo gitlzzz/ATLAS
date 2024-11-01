@@ -1,14 +1,16 @@
-# Command Line Arguments for MatDBForge
+# CLI Arguments
 
 This section describes the command line arguments for various scripts provided by the MatDBForge library. These arguments allow users to control the behavior and configuration of active learning loops, database generation, and other features. Each argument is explained along with its usage and default value (if applicable).
 
-## `run_active_learning`
+## Run Active Learning - `mdb_active_learning`
 
-Handles MatDBForge active learning loop runs. Running the `run_active_learning` command without any subcommand or the gui subcommand will start a new run.
+
+Handles MatDBForge active learning loop runs. Running the `mdb_active_learning` command without any subcommand or the gui subcommand will start a new run.
 In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](input.md#active-learning-loop).
 
 Other available subcommands allow to generate reports or resume loops using files generated from previous runs.
 
+**Usage:** `mdb_active_learning <SUBCOMMAND> <OPTIONS>`
 
 ### General Arguments
 
@@ -22,7 +24,7 @@ Other available subcommands allow to generate reports or resume loops using file
 #### `report`
 Generates a report for a MatDBForge running/finished active learning loop. This produce a plot containing information about the training and seed databases sizes, the NNP performance and the number of added and removed structures.
 
-**Usage**: `run_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)`
+**Usage**: `mdb_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)`
 
 - `--loop_id, -i` (`<ID>`)
   - **Description**: AiiDA PK/UUID of the active learning loop.
@@ -32,7 +34,7 @@ Generates a report for a MatDBForge running/finished active learning loop. This 
 #### `resume`
 Resumes an active learning loop using a results folder. A resumed run will use the settings from the `.toml` file contained in the results folder.
 
-**Usage**: `run_active_learning resume [-h] --dir_resume <PATH> [--config_file <PATH>]`
+**Usage**: `mdb_active_learning resume [-h] --dir_resume <PATH> [--config_file <PATH>]`
 
 - `--dir_resume, -d` (`<PATH>`)
   - **Description**: Path to the results directory of a previous active learning loop run.
@@ -44,6 +46,8 @@ Resumes an active learning loop using a results folder. A resumed run will use t
 #### `gui`
 Launches a dashboard to track the active learning loop.
 
+**Usage:** `run_active_learning gui [-h] [--update_interval n_sec] [--port port] [--debug] [--online]`
+
 - `--update_interval` (`n_sec`)
   - **Description**: Refresh time interval in seconds.
   - **Type**: `int`
@@ -54,17 +58,17 @@ Launches a dashboard to track the active learning loop.
   - **Default**: `8000`
 - `--debug`
   - **Description**: Enable Flask debug mode.
-  - **Action**: `store_const`
   - **Default**: `False`
 - `--online`
   - **Description**: Enable online mode.
-  - **Action**: `store_const`
   - **Default**: `False`
 
 
-## `monitor_al_loop`
+## Active Learning Dashboard - `monitor_al_loop`
 
 Monitor a MatDBForge active learning loop using a dashboard.
+
+**Usage:** `monitor_al_loop [-h] [--process_id UUID/PK] [--update_interval n_sec] [--port port] [--debug] [--online]`
 
 - `--process_id` (`UUID/PK`)
   - **Description**: Process id (pk/uuid) of the WorkChain to monitor.
@@ -83,13 +87,14 @@ Monitor a MatDBForge active learning loop using a dashboard.
   - **Default**: `False`
 - `--online`
   - **Description**: Enable online mode.
-  - **Action**: `store_const`
   - **Default**: `False`
 
 
-## `mdb_gen_configuration_file`
+## Generate Configuration File - `mdb_gen_configuration_file`
 
 Generates default configuration files for MatDBForge in the TOML format. The generated `.toml` files can be used as a template for active learning runs and initial database generation.
+
+**Usage:** `mdb_gen_configuration_file [-h] -t TYPE [-p PATH] [-o]`
 
 - `-t, --config_type` (`TYPE`)
   - **Description**: Type of the configuration file to be generated. Available types:
@@ -104,13 +109,14 @@ Generates default configuration files for MatDBForge in the TOML format. The gen
   - **Default**: `.`
 - `-o, --overwrite`
   - **Description**: Whether to overwrite the destination file if it already exists.
-  - **Action**: `store_const`
   - **Default**: `False`
 
 
-## `mdb_gen_init_db`
+## Generate Initial Database - `mdb_gen_init_db`
 
 Generates an initial database for MatDBForge. A `.toml` configuration is required, which is described in the [corresponding inputs section](input.md#database-generation)
+
+**Usage:** `mdb_gen_init_db [-h] [-c PATH]`
 
 - `-c, --config_file` (`PATH`)
   - **Description**: Path to a TOML settings file. By default, `database_generation_settings.toml` will be searched in the CWD.
@@ -118,9 +124,11 @@ Generates an initial database for MatDBForge. A `.toml` configuration is require
   - **Default**: `./database_generation_settings.toml`
 
 
-## `Autoencoder for Dimensionality Reduction`
+## Autoencoder for Dimensionality Reduction - `mdb_train_autoencoder`
 
 Train an autoencoder model for dimensionality reduction using the generated descriptors.
+
+**Usage:** `mdb_train_autoencoder [-h] [--device DEVICE] [--dtype DTYPE] [--model_path MODEL_PATH] [--load_model LOAD_MODEL] [--rng_seed RNG_SEED] [--dataset DATASET] [--l1_hidden_dim L1_HIDDEN_DIM] [--l2_hidden_dim L2_HIDDEN_DIM] [--bottleneck_dim BOTTLENECK_DIM] [--num_epochs NUM_EPOCHS] [--batch_size BATCH_SIZE] [--patience PATIENCE] [--lr LR] [--weight_decay WEIGHT_DECAY] [--bias_flag] [--loss LOSS] [--train_frac TRAIN_FRAC] [--valid_frac VALID_FRAC] [--test_frac TEST_FRAC] [--wandb] [--wandb_name WANDB_NAME] [--wandb_project WANDB_PROJECT]`
 
 ### Arguments
 
@@ -180,7 +188,7 @@ Train an autoencoder model for dimensionality reduction using the generated desc
   - **Type**: `float`
   - **Default**: `1e-5`
 - `--bias_flag`
-  - **Description**: Include bias terms in the layers.
+  - **Description**: Add this argument to unclude bias terms in the layers.
   - **Action**: `store_true`
 - `--loss`
   - **Description**: Loss function type. Options: `mse`, `weighted_mse`.
@@ -199,7 +207,7 @@ Train an autoencoder model for dimensionality reduction using the generated desc
   - **Type**: `float`
   - **Default**: `0.1`
 - `--wandb`
-  - **Description**: Log metrics to Weights & Biases.
+  - **Description**: Add this argument to log metrics to Weights & Biases.
   - **Action**: `store_true`
 - `--wandb_name`
   - **Description**: Name of the Weights & Biases run.
