@@ -6,7 +6,7 @@
 Intro to MatDBForge
 ====================
 
-.. image:: ../media/logo_light.png
+.. image:: ../media/logo_dark.png
    :width: 400 px
    :alt: MatDBForge: A workflow for materials NNP generation"
    :align: center
