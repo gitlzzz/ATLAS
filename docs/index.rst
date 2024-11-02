@@ -23,6 +23,7 @@ MatDBForge is a Python library that aids in the generation of chemical structure
    source/install.md
    source/tools.md
    source/input.md
+   source/customization.md
 
 .. toctree::
    :maxdepth: 1
