@@ -237,6 +237,11 @@ Settings for MD simulations using LAMMPS
 - `timestep_duration_ps`: (float) Duration of each timestep. In LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu
+- `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure.. Influences the total number of energy evaluations and therefore DFT calculations.
+- `log_save_interval`: (int) Every how many MD steps log energy and force information.
+- `device`: (str) Device for the MACE model to be used in the MD simulations.
+- `dtype`: (str) Default data type for the MACE model to be used in the MD simulations.
+
 
 #### MD Filters - `[md.filters]`
 
@@ -311,6 +316,7 @@ $ -l hostname="tekla2189"
 
 ### Descriptor Settings - `[descriptors]`
 
+- `descriptor_type`: (str) Which descriptor type to use. Options: "mace", "soap". Default: "mace"
 - `dimensionality_reduction_method`: (str, optional) Dimensionality reduction method for MACE descriptors. Options: `autoencoder`, `pca`, `none`. If not set, the default is none, which means no dimensionality reduction.
 
 #### Descriptor Scheduler Options - `[descriptors.metadata]`
