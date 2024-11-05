@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.2 (2024-11-05)
+
+### Fix
+
+- **al_loop**: added minimum md seed size ([#2464cf2](https://github.com/pol-sb/MatDBForge/commit/2464cf28a082440421f83690f7c31a39ad5112a8))
+- **al_loop**: added `can_do_advanced_extrapolation` check on iteration outline to allow for basic runs with no latent space computation ([#a9d4070](https://github.com/pol-sb/MatDBForge/commit/a9d4070e3e9087ed17691f90efe42f8a26213c1a))
+
 ## 0.16.1 (2024-11-05)
 
 ### Fix
