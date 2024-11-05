@@ -253,14 +253,22 @@ def get_last_tagged_version():
     # Run the git fetch to get the last tagged version
     _ = sb.check_output(["git", "fetch", "--quiet"])
 
-    # Getting the latest tag
+    # Getting a sorted tag list
     output = (
-        sb.check_output(["git", "describe", "--tags", "--abbrev=0"]).decode().strip()
+        sb.check_output(["git", "tag", "--merged", "master", "--sort=-creatordate"])
+        .decode()
+        .strip()
     )
+
+    # Split the output into a list of tags
+    tags = output.split("\n") if output else []
+
+    # Get the newest tag (first in the sorted list)
+    newest_tag = tags[0] if tags else None
 
     # Go back to the original directory
     os.chdir(cwd)
-    return output
+    return newest_tag
 
 
 def check_mdb_version():
