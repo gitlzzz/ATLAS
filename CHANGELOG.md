@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.3 (2024-11-05)
+
+### Fix
+
+- **al_loop**: mdb version now logged at the start of al_loop ([#d4cea8c](https://github.com/pol-sb/MatDBForge/commit/d4cea8cd67a6d51c59a61d8716badad66966a536))
+- **al_loop**: mdb version now logged at the start of al_loop ([#ec030db](https://github.com/pol-sb/MatDBForge/commit/ec030dbb1b92346e6027206b0658d2c7734902c8))
+
 ## 0.16.2 (2024-11-05)
 
 ### Fix
