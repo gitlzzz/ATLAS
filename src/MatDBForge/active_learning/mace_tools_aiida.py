@@ -262,6 +262,7 @@ class GetMACEDescriptorsCalculation(CalcJob):
                 "in the extxyz format."
             ),
             serializer=orm.to_aiida_type,
+            non_db=True,
         )
 
         spec.output(

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.4 (2024-11-05)
+
+### Fix
+
+- **al_loop**: replaced `min_seed_frac` with `seed_min_num_structs` for md seeds ([#eda71f8](https://github.com/pol-sb/MatDBForge/commit/eda71f87622179f34ad1f3fe1d2775d8b9d60e55))
+
 ## 0.16.3 (2024-11-05)
 
 ### Fix
