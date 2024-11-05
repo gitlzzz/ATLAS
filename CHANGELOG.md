@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.16.1 (2024-11-05)
+
+### Fix
+
+- **core**: changed git tag gathering strategy ([#bbe48bb](https://github.com/pol-sb/MatDBForge/commit/bbe48bba58ec918a887c1e67715fe15b704ada4e))
+- **al_loop**: add initial database size to al_report ([#b04f2c3](https://github.com/pol-sb/MatDBForge/commit/b04f2c38d59dbc08bcb345c8a821e9e3513f24f2))
+- **al_loop**: fixed conditional block preventing al_loop report generation ([#53373f2](https://github.com/pol-sb/MatDBForge/commit/53373f29a3b4932560d8cd49987095c289844e98))
+
+### Misc
+
+- **docs**: update theme + add params for simple md ([#1c82597](https://github.com/pol-sb/MatDBForge/commit/1c825973417502bfa1be175ddfbb9765511f3ce7))
+- **docs**: add params for simple md ([#0667eb1](https://github.com/pol-sb/MatDBForge/commit/0667eb1475f311cb60f70e58ab4984f34ee78d02))
+- **docs**: modified `custom.css` ([#82ed9e8](https://github.com/pol-sb/MatDBForge/commit/82ed9e879d70e5406084c9ab98197ab3dde94378))
+- **docs**: modified `custom.css` ([#d80f6c1](https://github.com/pol-sb/MatDBForge/commit/d80f6c1605d74996a8077f5eb43ebbfb741b2a5d))
+- **docs**: update docs ([#2fe7908](https://github.com/pol-sb/MatDBForge/commit/2fe7908cbd608e481648931d66c200e026e027bb))
+- **docs**: update docs ([#78dc954](https://github.com/pol-sb/MatDBForge/commit/78dc954d9400cec07a60f01a086d127f38591633))
+- **docs**: moved calculation limiting info to `customization.md` ([#8682d2c](https://github.com/pol-sb/MatDBForge/commit/8682d2cdf1dfcd31b7589dc471bbdc4396c49e4e))
+- **docs**: updated CLI usage documentation ([#8594113](https://github.com/pol-sb/MatDBForge/commit/859411335e3ad3cd8ec93e063e1e2b30271a0bab))
+- **docs**: updated CLI usage documentation ([#3c5202d](https://github.com/pol-sb/MatDBForge/commit/3c5202d2767e457a72e58fa7e636d772922e38f1))
+- **docs**: updated CLI usage documentation ([#d04766b](https://github.com/pol-sb/MatDBForge/commit/d04766b6e3479447b19520006982d7f8e680ea30))
+- **docs**: add documentation for CLI usage ([#f626608](https://github.com/pol-sb/MatDBForge/commit/f6266088046bd36e329d682c3fba52e6ebbc4d0e))
+
 ## 0.16.0 (2024-10-31)
 
 ### Feature
