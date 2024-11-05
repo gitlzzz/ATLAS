@@ -49,11 +49,27 @@ load_init_models = []
 ###############################################
 
 # AL seed generation settings
+# The MD seed is used to generate structures for MD simulations.
+# The seed is updated at every iteration, choosing randomly from the
+# seed database until the database is emptied.
+# Seed size can be limited, and it will never be smaller than 1 or larger
+# than the total number of structures in the database.
 [al_seed]
 
-# (float) Sets total structures in AL seed as a function of the training db size.
+
+# (float) Sets total structures in an MD seed as a function of the training db size.
+# This percentage is applied at every iteration, thus, the seed size will change
+# according to the seed database size.
 # This influences the amount of MD calculations and E F evaluations.
 seed_size_frac = 0.01
+
+# (float, optional) Percentage used to set the minimum number of structures in an MD seed
+# as a function of the initial seed db size.
+# This percentage is applied at the start of the active learning loop and will
+# remain unchanged for all iterations.
+# If not specified, it will be set to seed_size_frac.
+# This influences the amount of MD calculations and E F evaluations.
+min_seed_frac = 0.05
 
 # (int) Maximum number of structures in the MD seed.
 seed_max_num_structs = 500
