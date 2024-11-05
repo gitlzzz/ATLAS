@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.5 (2024-11-05)
+
+### Fix
+
+- **al_loop**: added run call to resume cli command ([#29da12d](https://github.com/pol-sb/MatDBForge/commit/29da12d6792e3e0ae04d05c83b47e4550efe9e43))
+- **al_loop**: changed default value for `seed_min_num_structs` ([#5d270ae](https://github.com/pol-sb/MatDBForge/commit/5d270aea21718b7b68dac1ac625ca2b2e70dcba4))
+
 ## 0.16.4 (2024-11-05)
 
 ### Fix
