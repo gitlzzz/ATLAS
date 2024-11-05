@@ -63,13 +63,12 @@ load_init_models = []
 # This influences the amount of MD calculations and E F evaluations.
 seed_size_frac = 0.01
 
-# (float, optional) Percentage used to set the minimum number of structures in an MD seed
-# as a function of the initial seed db size.
-# This percentage is applied at the start of the active learning loop and will
-# remain unchanged for all iterations.
-# If not specified, it will be set to seed_size_frac.
+# (int, optional) Value used to set the minimum number of structures in an MD seed.
+# If not specified, it will be set to take seed_size_frac percent of the 
+# the initial seed db size. This percentage will be applied at the start of
+# the active learning loop and will remain unchanged for all iterations.
 # This influences the amount of MD calculations and E F evaluations.
-min_seed_frac = 0.05
+seed_min_num_structs = 50
 
 # (int) Maximum number of structures in the MD seed.
 seed_max_num_structs = 500

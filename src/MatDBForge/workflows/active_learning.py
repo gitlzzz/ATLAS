@@ -68,8 +68,8 @@ class ActiveLearningWorkChain(WorkChain):
             "al_loop_iteration", valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "min_seed_frac",
-            valid_type=orm.Float,
+            "seed_min_num_structs",
+            valid_type=orm.Int,
             serializer=orm.to_aiida_type,
             required=False,
         )
@@ -513,7 +513,6 @@ class ActiveLearningWorkChain(WorkChain):
 
         # Get latent space of the descriptors using the autoencoder.
         if dimensionality_reduction_method == "autoencoder":
-
             train_settings = self.inputs.descriptor_settings["autoencoder"][
                 "train_settings"
             ]
@@ -617,7 +616,6 @@ class ActiveLearningWorkChain(WorkChain):
                 "dimensionality_reduction_method"
             )
             if dimensionality_reduction_method == "autoencoder":
-
                 with curr_calc.outputs.descriptors_file.open(mode="rb") as f:
                     db_descriptor_dict = pickle.load(f)
 
@@ -1431,9 +1429,9 @@ class ActiveLearningWorkChain(WorkChain):
                 energies = np.array(energies_list)
 
                 # Updating current energy dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "energy"][row_index][
-                    model_name
-                ] = energies
+                md_seed_results_df.loc[[row_index], "energy"][row_index][model_name] = (
+                    energies
+                )
 
             # Collect forces from dict using model name
             forces_collection = curr_calc.outputs.forces_result_dict.get_dict()
@@ -1524,7 +1522,6 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Get latent space of the descriptors using the autoencoder.
             if dimensionality_reduction_method == "autoencoder":
-
                 # Get autoencoder model
                 code_builder.trained_autoencoder_model = self.ctx.autoencoder_model_file
 
@@ -1655,7 +1652,6 @@ class ActiveLearningWorkChain(WorkChain):
 
                 # Gather latent space
                 if dimensionality_reduction_method == "autoencoder":
-
                     # Get latent space
                     desc_f_curr_row: dict = md_descr_dict[curr_unique_id]
                     latent_space = desc_f_curr_row["latent_space"]
@@ -2224,7 +2220,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # seed size fraction if not set.
         if self.inputs.active_learning.seed_size_frac.value:
             self.ctx.min_seed_size = int(
-                self.inputs.active_learning.min_seed_frac.value * len(database_training)
+                self.inputs.active_learning.seed_min_num_structs.value
             )
         else:
             self.ctx.min_seed_size = int(
@@ -2592,8 +2588,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # This should avoid tring to select more structures than available
         if seed_size > db_length:
             seed_size = db_length
-            self.report("MD seed size larger than seed generation database."
-                        f"Limited size to '{db_length}'.")
+            self.report(
+                "MD seed size larger than seed generation database."
+                f"Limited size to '{db_length}'."
+            )
 
         # For small databases or percentages, the number of structures might be 0
         # if this happens, make it 1.
