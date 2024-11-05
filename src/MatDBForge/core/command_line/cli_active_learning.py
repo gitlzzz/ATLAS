@@ -77,8 +77,8 @@ def create_active_learning_builder(toml_dict: dict, toml_dict_path: pl.Path = No
     builder.active_learning.seed_size_frac = float(
         toml_dict["al_seed"]["seed_size_frac"]
     )
-    builder.active_learning.min_seed_frac = float(
-        toml_dict["al_seed"]["min_seed_frac"]
+    builder.active_learning.min_seed_frac = int(
+        toml_dict["al_seed"]["seed_min_num_structs"]
     )
     builder.active_learning.seed_max_num_structs = int(
         toml_dict["al_seed"]["seed_max_num_structs"]

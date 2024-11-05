@@ -212,16 +212,9 @@ The size of the MD seed influences the amount of MD calculations to be performed
 Use the parameters below to customize the seed size:
 
 - `seed_size_frac`: (float) Percentage that sets the total structures in an MD seed as a function of the training db size. This percentage is applied at every iteration, thus, the seed size will change according to the seed database size.
-- `min_seed_frac`: (float, optional) Percentage used to set the minimum number of structures in an MD seed as a function of the initial seed db size. This percentage is applied at the start of the active learning loop and will remain unchanged for all iterations. If not specified, it will be set to seed_size_frac.
-- `seed_max_num_structs`: (int) Maximum number of structures in the MD seed.
-
-### Extrapolation Settings - `[extrapolation]`
-
-This section contains keys which adjust the extrapolation settings.
-
-- `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently two options are allowed:
-  - `basic`: Check for extrapolation using the ranges of the MACE descriptors.
-  - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors, after reducing dimensionality with an autoencoder trained on the current iteration data descriptors.
+- `seed_min_num_structs`: (int, optional) Value used to set the minimum number of structures in all MD seeds. If not specified, it will be set to take `seed_size_frac` percent of the initial seed db size. This percentage will be applied at the start of the active learning loop and will remain unchanged for all iterations.
+- `seed_max_num_structs`: (int) Maximum number of structures in the MD seed. This number will be limited to the the total number of structures in the database.
+- `delete_seed_structs`: (optional, bool) Whether to delete structures from the seed database even if they are in domain. Default: `true`
 
 #### Seed selection settings - `[al_seed.seed_select_settings]`
 
@@ -230,6 +223,14 @@ Parameters to tune the structure selection while creating the AL seeds.
 - `seed_select_type`: MD seed selection mode. `random` selects random structures from the seed pool `small_first` selects random structures smaller than small_first_max_size for the first small_first_max_iter iters. random (default) / small_first
 - `small_first_max_size`: (int) Maximum size in number of atoms for the structures selected with small_first mode
 - `small_first_max_iter`: (int) Apply small_first mode for the first n iterations
+
+### Extrapolation Settings - `[extrapolation]`
+
+This section contains keys which adjust the extrapolation settings.
+
+- `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently two options are allowed:
+  - `basic`: Check for extrapolation using the ranges of the MACE descriptors.
+  - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors, after reducing dimensionality with an autoencoder trained on the current iteration data descriptors.
 
 ### MD Settings - `[md]`
 
@@ -247,7 +248,6 @@ Settings for MD simulations using LAMMPS
 - `log_save_interval`: (int) Every how many MD steps log energy and force information.
 - `device`: (str) Device for the MACE model to be used in the MD simulations.
 - `dtype`: (str) Default data type for the MACE model to be used in the MD simulations.
-
 
 #### MD Filters - `[md.filters]`
 
