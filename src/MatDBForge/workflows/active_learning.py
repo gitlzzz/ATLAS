@@ -162,7 +162,7 @@ class ActiveLearningWorkChain(WorkChain):
                 # Gather the descriptors from the calcjob and store them
                 # in the workchain context.
                 cls.get_mace_descriptors_output,
-                if_(cls.is_advanced_extrapolation)(
+                if_(cls.can_do_advanced_extrapolation)(
                     # Get the concave hull of the training database
                     cls.get_concave_hull,
                     # Gather the concave hull results
@@ -433,6 +433,14 @@ class ActiveLearningWorkChain(WorkChain):
     def is_advanced_extrapolation(self):
         """Check if the advanced extrapolation check is enabled."""
         return self.inputs.check_extrapolation_type.value == "advanced"
+
+    def has_latent_space(self):
+        """Check if the latent space was computed for the current iteration."""
+        return hasattr(self.ctx, "latent_space")
+
+    def can_do_advanced_extrapolation(self):
+        """Check if the advanced extrapolation can be done."""
+        return self.has_latent_space() and self.is_advanced_extrapolation()
 
     def generate_descriptors(self):
         """Generate descriptors for the current seed using the best model.
