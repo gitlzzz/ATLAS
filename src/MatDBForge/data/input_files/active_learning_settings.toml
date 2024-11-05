@@ -68,7 +68,7 @@ seed_size_frac = 0.01
 # the initial seed db size. This percentage will be applied at the start of
 # the active learning loop and will remain unchanged for all iterations.
 # This influences the amount of MD calculations and E F evaluations.
-seed_min_num_structs = 50
+seed_min_num_structs = 25
 
 # (int) Maximum number of structures in the MD seed.
 seed_max_num_structs = 500
