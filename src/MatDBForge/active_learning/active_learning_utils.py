@@ -144,7 +144,9 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
     dyn.run(md_params["num_steps"])
 
 
-def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_idx):
+def plot_al_loop_report(
+    ini_db_size, seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_idx
+):
     # Get unix timestamp for filename
     timestamp = int(time.time())
     filename = Path(f"seed_train_db_sizes_{timestamp}.png").resolve()
@@ -163,7 +165,14 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_id
 
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     width = 0.3
+
+    # Adding inital database size as iteration 0
+    it_idx = [0] + it_idx
     ind = np.array(it_idx)
+    train_db_sizes = [ini_db_size] + train_db_sizes
+    seed_gen_db_sizes = [ini_db_size] + seed_gen_db_sizes
+
+    # Plotting seed and train db sizes
     ax[0, 0].bar(ind, train_db_sizes, width=width, label="train_db", color=colors[0])
     ax[0, 0].bar(
         ind + width,
@@ -271,8 +280,8 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
         with open(log_path) as f:
             report = f.read()
 
-    # ini_db_line = re.compile(r"initial database containing.*").findall(report)
-    # ini_db_size = int(ini_db_line[0].split()[3])
+    ini_db_line = re.compile(r"initial database containing.*").findall(report)
+    ini_db_size = int(ini_db_line[0].split()[3])
 
     # Match all lines containing the seed_gen_db and train_db sizes
     seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
@@ -283,7 +292,6 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
         it_idx.append(int(line.split()[1].replace(":", "")))
         seed_gen_db_sizes.append(int(line.split()[3].replace(",", "")))
         train_db_sizes.append(int(line.split()[5].replace(",", "")))
-    print("#@# it_idx: ", it_idx)
 
     # Match all lines containing the M0 model performance
     mace_e, mace_f = [], []
@@ -295,6 +303,7 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
         mace_f.append(float(line.split()[14]))
 
     plot_al_loop_report(
+        ini_db_size=ini_db_size,
         seed_gen_db_sizes=seed_gen_db_sizes,
         train_db_sizes=train_db_sizes,
         mace_e=mace_e,
