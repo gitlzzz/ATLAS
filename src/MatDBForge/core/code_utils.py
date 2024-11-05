@@ -271,14 +271,29 @@ def get_last_tagged_version():
     return newest_tag
 
 
-def check_mdb_version():
+def get_mdb_version_info():
     # Check the current version of MatDBForge
     curr_version = Version(__version__)
 
     # Check the last tagged version in the repository
     last_tagged_version = Version(get_last_tagged_version())
 
+    return curr_version, last_tagged_version
+
+
+def check_mdb_version():
+    """
+    Check and print if the current version of MatDBForge is up-to-date.
+
+    Returns
+    -------
+    tuple[Version, Version]
+        Current version of MatDBForge and the last tagged version in the repository.
+    """
+    curr_version, last_tagged_version = get_mdb_version_info()
+
     print()
+    init_logger("mdb")
 
     if curr_version < last_tagged_version:
         custom_print(
@@ -293,3 +308,4 @@ def check_mdb_version():
         )
 
     print()
+    return curr_version, last_tagged_version

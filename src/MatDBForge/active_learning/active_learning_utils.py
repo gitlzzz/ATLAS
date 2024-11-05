@@ -32,7 +32,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.core.code_utils import check_mdb_version, custom_print, init_logger
+from MatDBForge.core.code_utils import custom_print, init_logger
 from MatDBForge.workflows import aiida_utils as mdb_aut
 
 
@@ -269,9 +269,6 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
 
     # Init logger
     init_logger(source="al_loop_report_gen")
-
-    # Checking version
-    check_mdb_version()
 
     if loop_id:
         al_loop_node = orm.load_node(loop_id)

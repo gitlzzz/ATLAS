@@ -8,6 +8,8 @@ import time
 import warnings
 from argparse import RawTextHelpFormatter
 
+from MatDBForge.core.code_utils import check_mdb_version
+
 if sys.version_info >= (3, 11):
     import tomllib
 else:
@@ -368,6 +370,9 @@ def run_active_learning():
 
     # Getting CLI arguments
     args = parser.parse_args()
+
+    # Checking version
+    check_mdb_version()
 
     if args.command == "report":
         from MatDBForge.active_learning.active_learning_utils import gen_al_loop_report
