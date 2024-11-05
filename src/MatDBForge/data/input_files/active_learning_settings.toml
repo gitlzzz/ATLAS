@@ -104,6 +104,18 @@ gather_traj_cnt_lattice = true
 # (bool) Whether to use kokkos to run the MD
 use_kokkos = true
 
+# (str) Device for the MACE model to be used in the MD simulations.
+device = "cuda"
+# (str) Default data type for the MACE model to be used in the MD simulations.
+dtype = "float32"
+
+# (float) Every how many ps of MD simulation keep a structure.
+# Influences the total number of energy evaluations and therefore DFT calculations.
+al_keep_struct_every_n_ps = 0.5
+
+# (int) Every how many MD steps log energy and force information.
+log_save_interval = 10
+
 
 # Specific settings for the neighbor check MD filter.
 [md.filters]
@@ -173,6 +185,10 @@ computer = "tekla2-new-test"
 ###############################################
 
 [descriptors]
+
+# (str) Which descriptor type to use. Options: "mace", "soap".
+# Default: "mace"
+descriptor_type = "mace"
 
 # (str, optional) Dimensionality reduction method for MACE descriptors
 # Options: "autoencoder", "pca", "none"

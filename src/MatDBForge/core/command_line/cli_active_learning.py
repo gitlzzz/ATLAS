@@ -403,23 +403,23 @@ def run_active_learning():
             resume_dict=None,
         )
 
-    from aiida.engine import run, submit
+        from aiida.engine import run, submit
 
-    if args.command != "gui":
-        node = run(builder)
-    else:
-        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+        if args.command != "gui":
+            node = run(builder)
+        else:
+            from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
-        node = submit(builder)
-        time.sleep(1)
+            node = submit(builder)
+            time.sleep(1)
 
-        run_dashboard_app(
-            process_id=str(node.pk),
-            port=args.port,
-            update_interval=args.update_interval,
-            debug=args.debug,
-            online=args.online,
-        )
+            run_dashboard_app(
+                process_id=str(node.pk),
+                port=args.port,
+                update_interval=args.update_interval,
+                debug=args.debug,
+                online=args.online,
+            )
 
 
 def read_toml_config(config_file: pl.Path | str):

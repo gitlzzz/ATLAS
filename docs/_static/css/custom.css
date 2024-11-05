@@ -159,6 +159,8 @@ hr {
     color: var(--bg);
 }
 
+
+
 .wy-nav-side {
     background: var(--bg);
 }
@@ -166,7 +168,6 @@ hr {
 .toctree-l1.current {
     background: var(--blue);
 }
-
 
 a.reference.internal.current {
     color: var(--blue);
@@ -183,16 +184,20 @@ li.toctree-l3 current {
 
 .wy-menu-vertical li.toctree-l2.current>a,
 .wy-menu-vertical li.toctree-l2.current li.toctree-l3>a {
-    background: var(--light-blue);
+    background: var(--blue);
 }
 
-
+.wy-menu-vertical li.toctree-l3.current>a,
+.wy-menu-vertical li.toctree-l3.current li.toctree-l4>a {
+    background: var(--light-blue);
+}
 /* li.toctree-l3 {
     background: var(--bg2);
 } */
 
 .wy-menu-vertical li.current a {
     background: var(--bg2);
+    border-right: 0px solid var(--bg2)
 }
 
 
