@@ -144,7 +144,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
     dyn.run(md_params["num_steps"])
 
 
-def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
+def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_idx):
     # Get unix timestamp for filename
     timestamp = int(time.time())
     filename = Path(f"seed_train_db_sizes_{timestamp}.png").resolve()
@@ -163,7 +163,7 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
 
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     width = 0.3
-    ind = np.arange(len(seed_gen_db_sizes)) + 1
+    ind = np.array(it_idx)
     ax[0, 0].bar(ind, train_db_sizes, width=width, label="train_db", color=colors[0])
     ax[0, 0].bar(
         ind + width,
@@ -178,16 +178,18 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
     ax[0, 0].legend()
     ax[0, 0].set_title("Seed and Train Database Evolution")
 
-    # Add text labels to bars
-    for idx, (seed, train) in enumerate(zip(seed_gen_db_sizes, train_db_sizes)):
-        ax[0, 0].text(idx + 1, train / 2, train, ha="center", va="bottom", rotation=90)
+    # Add text labels to top left figure bars
+    for idx, seed, train in zip(it_idx, seed_gen_db_sizes, train_db_sizes):
+        ax[0, 0].text(idx, train / 2, train, ha="center", va="bottom", rotation=90)
         ax[0, 0].text(
-            idx + width + 1, seed / 2, seed, ha="center", va="bottom", rotation=90
+            idx + width, seed / 2, seed, ha="center", va="bottom", rotation=90
         )
 
     # Plot seed size delta as a bar chart over every iteration
     seed_gen_db_diff, train_db_diff = [], []
-    for idx, (seed, train) in enumerate(zip(seed_gen_db_sizes, train_db_sizes)):
+    for idx, seed, train in zip(it_idx, seed_gen_db_sizes, train_db_sizes):
+        idx = it_idx.index(idx)
+
         if idx == 0:
             seed_gen_db_diff.append(0)
             train_db_diff.append(0)
@@ -196,7 +198,7 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
             train_db_diff.append(train - train_db_sizes[idx - 1])
 
     # Add text labels to bars
-    for idx, (seed, train) in enumerate(zip(seed_gen_db_diff, train_db_diff)):
+    for idx, seed, train in zip(it_idx, seed_gen_db_diff, train_db_diff):
         if idx == 0:
             continue
 
@@ -204,11 +206,9 @@ def plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f):
         seed_txt = f"{seed}" if seed < 0 else f"+{seed}"
         train_txt = f"{train}" if train < 0 else f"+{train}"
 
+        ax[0, 1].text(idx, train / 2, train_txt, ha="center", va="bottom", rotation=90)
         ax[0, 1].text(
-            idx + 1, train / 2, train_txt, ha="center", va="bottom", rotation=90
-        )
-        ax[0, 1].text(
-            idx + width + 1, seed / 2, seed_txt, ha="center", va="bottom", rotation=90
+            idx + width, seed / 2, seed_txt, ha="center", va="bottom", rotation=90
         )
 
     ax[0, 1].bar(ind, train_db_diff, width=width, label="train_db", color=colors[0])
@@ -275,13 +275,15 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
     # ini_db_size = int(ini_db_line[0].split()[3])
 
     # Match all lines containing the seed_gen_db and train_db sizes
-    seed_gen_db_sizes, train_db_sizes = [], []
+    seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
     db_lines_re = re.compile(r"Iteration \d\d?: seed_gen_db.*").findall(report)
 
     # Prepare a list of all seed_gen_db and train_db sizes from db_lines
     for line in db_lines_re:
+        it_idx.append(int(line.split()[1].replace(":", "")))
         seed_gen_db_sizes.append(int(line.split()[3].replace(",", "")))
         train_db_sizes.append(int(line.split()[5].replace(",", "")))
+    print("#@# it_idx: ", it_idx)
 
     # Match all lines containing the M0 model performance
     mace_e, mace_f = [], []
@@ -292,7 +294,13 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
         mace_e.append(float(line.split()[10]))
         mace_f.append(float(line.split()[14]))
 
-    plot_al_loop_report(seed_gen_db_sizes, train_db_sizes, mace_e, mace_f)
+    plot_al_loop_report(
+        seed_gen_db_sizes=seed_gen_db_sizes,
+        train_db_sizes=train_db_sizes,
+        mace_e=mace_e,
+        mace_f=mace_f,
+        it_idx=it_idx,
+    )
     custom_print("Report generation complete.", "done")
 
 
