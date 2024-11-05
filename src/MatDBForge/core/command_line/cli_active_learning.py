@@ -160,10 +160,10 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     # to resume the active learning loop from the beginning of the last iteration.
     resume_dict = {"last_iteration": None, "train_db_path": None, "seed_db_path": None}
 
-    # Get pk/uuid of the base workchain using one of two approaches:
     wk_uuid = None
     wk_node = None
 
+    # Get pk/uuid of the base workchain using one of two approaches:
     # 1. Get the pk/uuid from the prev_run_dir folder name
     with contextlib.suppress(Exception):
         wk_uuid = prev_run_dir.stem.split("_")[-1]
@@ -237,7 +237,7 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     )
     if not mace_model_path.exists():
         raise FileNotFoundError(
-            "No model files found in the run directory "
+            "No model files found in the run directory.\n"
             f"Check that '{mace_model_path}' exists."
         )
 
@@ -381,6 +381,7 @@ def run_active_learning():
 
     # Resume a previous calculation
     elif args.command == "resume":
+        from aiida.engine import run
         # Getting path for config file if provided
         config_file = pl.Path(args.config_file).resolve() if args.config_file else None
 
@@ -389,8 +390,13 @@ def run_active_learning():
             toml_dict_path=config_file,
         )
 
+        # Running the workchain
+        node = run(builder)
+
     # Start a new al loop
     else:
+        from aiida.engine import run, submit
+
         # Loading TOML config file
         toml_dict = read_toml_config(args.config_file)
 
@@ -410,7 +416,6 @@ def run_active_learning():
             toml_dict_path=pl.Path(args.config_file).resolve(),
         )
 
-        from aiida.engine import run, submit
 
         if args.command != "gui":
             node = run(builder)
