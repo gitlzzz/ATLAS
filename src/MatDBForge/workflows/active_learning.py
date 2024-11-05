@@ -66,6 +66,12 @@ class ActiveLearningWorkChain(WorkChain):
         spec.input(
             "al_loop_iteration", valid_type=orm.Int, serializer=orm.to_aiida_type
         )
+        spec.input(
+            "min_seed_frac",
+            valid_type=orm.Float,
+            serializer=orm.to_aiida_type,
+            required=False,
+        )
         spec.input("seed_size_frac", valid_type=orm.Float, serializer=orm.to_aiida_type)
         spec.input(
             "seed_max_num_structs", valid_type=orm.Int, serializer=orm.to_aiida_type
@@ -2112,7 +2118,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # while_(cls.should_run_process)(
             while_(cls.check_al_loop_conditions)(
                 # Get random structures from Ds to generate the MD seed.
-                cls.get_training_seed,
+                cls.get_md_seed,
                 # Run training seed
                 cls.run_process,
                 # Check for correct results
@@ -2205,6 +2211,18 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         else:
             shutil.copy(
                 self.inputs.active_learning.init_db_path.value, self.ctx.seed_db_path
+            )
+
+        # Setting the minimum seed size for the md seed. Min size defaults to the
+        # seed size fraction if not set.
+        if self.inputs.active_learning.seed_size_frac.value:
+            self.ctx.min_seed_size = int(
+                self.inputs.active_learning.min_seed_frac.value * len(database_training)
+            )
+        else:
+            self.ctx.min_seed_size = int(
+                self.inputs.active_learning.seed_size_frac.value
+                * len(database_training)
             )
 
         self.ctx.seed_size = int(
@@ -2491,7 +2509,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         return continue_cond
 
-    def get_training_seed(self):
+    def get_md_seed(self):
         """
         Selects a random subset of structures from the seed generation database to
         create a MD seed for the active learning loop.
@@ -2547,22 +2565,34 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Getting length of the seed generating database
         db_length = len(seed_gen_db)
 
-        # Defining the current seed size as a function of the amount of structures
+        # Defining the current md seed size as a function of the amount of structures
         # in the seed generation database
         seed_size = int(self.ctx.inputs.seed_size_frac.value * db_length)
+
+        # Increasing the seed size if it is below the minimum seed size
+        if seed_size < self.ctx.min_seed_size:
+            seed_size = self.ctx.min_seed_size
+            self.report(
+                "Set MD seed size to minimum seed size as the calculated seed size was "
+                f"below the minimum seed size: {self.ctx.min_seed_size}."
+            )
 
         # Limit the maximum number of structures to the seed size limit set on the input
         if seed_size > self.ctx.inputs.seed_max_num_structs.value:
             seed_size = int(self.ctx.inputs.seed_max_num_structs.value)
+            self.report(f"MD seed size too large: limited to '{seed_size}'.")
 
         # This should avoid tring to select more structures than available
         if seed_size > db_length:
             seed_size = db_length
+            self.report("MD seed size larger than seed generation database."
+                        f"Limited size to '{db_length}'.")
 
         # For small databases or percentages, the number of structures might be 0
         # if this happens, make it 1.
-        if seed_size == 0:
+        if seed_size < 1:
             seed_size = 1
+            self.report("MD seed size is 0. Set to 1.")
 
         # Choosing structures at random to create the training seed
         selected_structs = np.random.choice(
@@ -2583,7 +2613,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.report(
             f"Created MD seed with {seed_size}"
-            f" structures ({self.ctx.inputs.seed_size_frac.value*100}% of init. size)."
+            f" structures ({(seed_size/db_length)*100:.1f}% of current database size)."
         )
 
         # Adding current train seed to the context

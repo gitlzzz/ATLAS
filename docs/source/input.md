@@ -204,9 +204,15 @@ Influences the total number of energy evaluations and possibly DFT calculations.
 
 ### Active Learning Seed Generation - `[al_seed]`
 
-Parameters to configure the AL seed generation
+Parameters to configure the MD seed generation. The MD seed is used to generate structures for MD simulations. The MD seed is updated at every iteration, choosing randomly from the seed database until the database is emptied.
+Seed size can be limited, and it will never be smaller than 1 or larger than the total number of structures in the database.
 
-- `seed_size_frac`: (float) Fraction of the training db set to be used to create the AL seed. This influences the amount of MD calculations and E F evaluations.
+The size of the MD seed influences the amount of MD calculations to be performed, and therefore the number of and E F evaluations.
+
+Use the parameters below to customize the seed size:
+
+- `seed_size_frac`: (float) Percentage that sets the total structures in an MD seed as a function of the training db size. This percentage is applied at every iteration, thus, the seed size will change according to the seed database size.
+- `min_seed_frac`: (float, optional) Percentage used to set the minimum number of structures in an MD seed as a function of the initial seed db size. This percentage is applied at the start of the active learning loop and will remain unchanged for all iterations. If not specified, it will be set to seed_size_frac.
 - `seed_max_num_structs`: (int) Maximum number of structures in the MD seed.
 
 ### Extrapolation Settings - `[extrapolation]`
