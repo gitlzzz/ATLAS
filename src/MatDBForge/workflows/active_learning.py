@@ -38,6 +38,7 @@ from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import MDB_DATA_DIR
+from MatDBForge.core.code_utils import get_mdb_version_info
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
 
 
@@ -2102,6 +2103,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         spec.outline(
             # Add a filehandler to aiida logger
             cls.setup_textfile_logging,
+            # Run version check,
+            cls.log_mdb_version,
             # Load the initial database (D_ini), that will be used as the
             # training database (Dt) without changing the original database.
             # Additionally, create a copy of the database (seed_gen_db, Ds),
@@ -2157,7 +2160,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         ch = RichHandler(
             markup=True,
             show_path=False,
-            log_time_format="[%x %X]",
+            log_time_format="[%m/%d/%y %H:%M:%S]",
             omit_repeated_times=False,
             console=console,
         )
@@ -2167,6 +2170,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         aiida_logger.addHandler(ch)
 
         self.report(f"Logging in '{log_path}'")
+
+    def log_mdb_version(self):
+        curr_version, _ = get_mdb_version_info()
+        self.report(f"Using MatDBForge version: '{curr_version}'.")
 
     def get_database(self):
         """Loading initial database."""
