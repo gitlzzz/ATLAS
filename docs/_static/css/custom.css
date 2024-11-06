@@ -17,6 +17,8 @@
     --purple-lighter: #cca1ad;
     --gray: #928374;
     --orange-light: #fe8019;
+    --yellow: #fabd2f;
+    --yellow-light: #ffe6ac;
 }
 
 body {
@@ -124,7 +126,7 @@ hr {
 .rst-content .wy-alert.wy-alert-warning .admonition-title,
 .wy-alert.wy-alert-warning .rst-content .admonition-title,
 .wy-alert.wy-alert-warning .wy-alert-title {
-    background: var(--purple);
+    background: var(--yellow);
 }
 
 .rst-content .admonition-todo,
@@ -140,7 +142,7 @@ hr {
 .rst-content .wy-alert-warning.seealso,
 .rst-content .wy-alert-warning.tip,
 .wy-alert.wy-alert-warning {
-    background: var(--purple-lighter);
+    background: var(--yellow-light);
 }
 
 .rst-content .admonition-todo p:last-child,
