@@ -253,7 +253,7 @@ def plot_al_loop_report(
     chem_acc = 43.37  # meV
 
     ax[1, 0].axhline(y=chem_acc, color=line_color, linestyle="--")
-    ax[1, 0].text(x=1.5, y=chem_acc, s="Chem. Acc.", color=line_color)
+    ax[1, 0].text(x=1.5, y=chem_acc+0.5, s="Chem. Acc.", color=line_color)
     ax[1, 1].set_title("Evolution of best MACE Model Force RMSE")
 
     plt.tight_layout()
