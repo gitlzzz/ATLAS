@@ -121,6 +121,7 @@ use_kokkos = true
 
 # (str) Device for the MACE model to be used in the MD simulations.
 device = "cuda"
+
 # (str) Default data type for the MACE model to be used in the MD simulations.
 dtype = "float32"
 
@@ -152,6 +153,13 @@ max_layer_distance_ang = 3.5
 
 # (str) AiiDA code name for MD software to be used
 code = "mace-lammps-gpu@tekla2-updated-2024"
+
+# (int) Number of atoms in a structure for it to be considered 'large'.
+num_at_large_struct = 48
+
+# (int) Number of CPUs to be used for large structures. This will override the
+# number of CPUs set in the scheduler options.
+num_cpus_large_struct = 12
 
 # AiiDA scheduler options for MD
 metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"

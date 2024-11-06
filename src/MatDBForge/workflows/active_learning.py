@@ -844,6 +844,9 @@ class ActiveLearningWorkChain(WorkChain):
         # Creating a orm.List in the context to store the nodes
         self.ctx.current_train_seed = []
 
+        # Getting atom count cutoff value for structures to be considered large
+        n_at_large = self.inputs.lammps_mace.get("num_at_large_struct")
+
         # this string with the label used in the code setup.
         code_str = self.inputs.lammps_mace.get("code")
         if self.inputs.use_kokkos:
@@ -890,7 +893,12 @@ class ActiveLearningWorkChain(WorkChain):
                     if curr_structure.get(key):
                         curr_structure[key] = np.array(curr_structure[key])
 
+                is_structure_large = False
                 curr_structure = Atoms.fromdict(curr_structure)
+
+                # Checking if the structure is considered 'large'
+                if n_at_large and len(curr_structure) > n_at_large:
+                    is_structure_large = True
 
                 # Converting structure to pymatgen
                 curr_structure = pmg_ase.AseAtomsAdaptor.get_structure(curr_structure)
@@ -931,6 +939,15 @@ class ActiveLearningWorkChain(WorkChain):
                         f"struct_{index_in_db}_mace_lammps_md_{temp_val}_K"
                     )
                     builder.metadata.options.parser_name = "mace-lammps-raw-parser"
+
+                    # Changing the number of cores used for large structures
+                    if is_structure_large:
+                        n_cpus_large = self.inputs.lammps_mace.get(
+                            "num_cpus_large_struct"
+                        )
+                        builder.metadata.options.resources["num_cores_per_mpiproc"] = (
+                            int(n_cpus_large)
+                        )
 
                     # Get the calculation limit, from the computer metadata set to 0
                     # if not present.
@@ -2329,10 +2346,20 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             self.report("Database files updated.")
 
-            # Removing teporary files from the AL loop step.
             tmp_folder_path: Path = self.ctx.results_dir / "run_tmp_data"
 
-            # Can't use Path.walk() here as it's not available in Python 3.9
+            # Saving current step database
+            curr_it_db_path = (
+                tmp_folder_path / f"train_db_it_{self.ctx.iteration}.xyz.xz"
+            )
+            ase_write(
+                filename=curr_it_db_path,
+                images=seed_gen_db,
+                format="extxyz",
+            )
+
+            # Removing teporary files from the AL loop step.
+            # TODO: Can't use Path.walk() here as it's not available in Python 3.9
             # this will be added if the library is updated to Python 3.12
             for _, _, files in os.walk(top=tmp_folder_path):
                 for file in files:

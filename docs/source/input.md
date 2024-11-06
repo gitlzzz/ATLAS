@@ -264,10 +264,15 @@ In version 0.6, only use the `check_atoms_no_neighbor` when generating bulks, su
 #### MD Queue - `[md.queue]`
 
 Contains settings related to the MD calculation setup and usage of AiiDA. As of now, the only MD code available is LAMMPS-MACE.
-The queue key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options). Below are listed the bare minimum options for running calculations using an SGE scheduler:
+The queue key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options).
 
 - `code` (str): AiiDA code name for MD software to be used
  AiiDA scheduler options for MD
+- `num_at_large_struct`: (int) Number of atoms in a structure for it to be considered 'large'.
+- `num_cpus_large_struct`: (int) Number of CPUs to be used for large structures. This will override the number of CPUs set in the scheduler options.
+
+The following are the bare minimum options for running calculations using an SGE scheduler. These can be changed for use with SLURM or other queue managers.
+
 - `metadata.options.resources.parallel_env` (str):  name for the parallel environment
 - `metadata.options.resources.tot_num_mpiprocs` (int): Total number of mpi processors
 - `metadata.options.queue_name` (str):  Name of the SGE queue
