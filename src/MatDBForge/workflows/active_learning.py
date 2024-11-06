@@ -1429,9 +1429,9 @@ class ActiveLearningWorkChain(WorkChain):
                 energies = np.array(energies_list)
 
                 # Updating current energy dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "energy"][row_index][model_name] = (
-                    energies
-                )
+                md_seed_results_df.loc[[row_index], "energy"][row_index][
+                    model_name
+                ] = energies
 
             # Collect forces from dict using model name
             forces_collection = curr_calc.outputs.forces_result_dict.get_dict()
