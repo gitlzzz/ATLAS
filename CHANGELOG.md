@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.16.6 (2024-11-06)
+
+### Fix
+
+- **al_loop**: fixed report logger printing double text ([#19859ab](https://github.com/pol-sb/MatDBForge/commit/19859abaac8dbb5a8f610aa845afa1b49effa3ff))
+- **al_loop**: improved report plot ([#cc28601](https://github.com/pol-sb/MatDBForge/commit/cc286010823e38bda6ea72283dd48516a5c2737c))
+- **al_loop**: define `num_cpus_large_struct` to use with large structures in md ([#429d79f](https://github.com/pol-sb/MatDBForge/commit/429d79fa14964730266b890f91b8f758c32fb708))
+- **al_loop**: fixed input ([#2211e2c](https://github.com/pol-sb/MatDBForge/commit/2211e2cd86012fbbf914f8ac7e4403b0ab6329c4))
+- **al_loop**: fixed input ([#b92194c](https://github.com/pol-sb/MatDBForge/commit/b92194ce5cd68b190c9aec9ccd11493bc512af9b))
+
+### Misc
+
+- **docs**: updated admonition css ([#bf24ee2](https://github.com/pol-sb/MatDBForge/commit/bf24ee26ab08c0cca0cbfe3a5043a164032392f1))
+- **al_loop**: refactored code ([#bf4058d](https://github.com/pol-sb/MatDBForge/commit/bf4058d37dfa0e61265749070a1e3d91dd4dd720))
+
 ## 0.16.5 (2024-11-05)
 
 ### Fix
