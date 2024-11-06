@@ -293,7 +293,7 @@ def check_mdb_version():
     curr_version, last_tagged_version = get_mdb_version_info()
 
     print()
-    init_logger("mdb")
+    logger, _ = init_logger("mdb_version_check")
 
     if curr_version < last_tagged_version:
         custom_print(
@@ -308,4 +308,8 @@ def check_mdb_version():
         )
 
     print()
+
+    # Clearing version check logger
+    logger.handlers.clear()
+
     return curr_version, last_tagged_version
