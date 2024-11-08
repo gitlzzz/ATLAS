@@ -3,12 +3,13 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from juliacall import Main as jl
-from juliacall import convert as jl_convert
 from shapely.geometry import Point, Polygon
 
 
 def get_concave_hull_julia(latent_space: np.ndarray) -> np.ndarray:
+    from juliacall import Main as jl
+    from juliacall import convert as jl_convert
+
     # Load the required Julia modules.
     jl.seval("using GMT")
 
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     # Compute the concave hull using Julia.
     print("Computing concave hull...")
     concave_hull = get_concave_hull_julia(latent_space)
-    np.save("concave_hull.npy", concave_hull)
+    np.save("concave_hull", concave_hull)
     print("Concave hull computed, saved to 'concave_hull.npy'.")
 
     print("Plotting concave hull...")

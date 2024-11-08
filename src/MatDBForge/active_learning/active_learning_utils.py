@@ -113,8 +113,8 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
     # Load the trained model as an ASE calculator and attach it to the atoms object
     calculator = MACECalculator(
         model_paths="curr_model.model",
-        device=md_params["device"],
-        default_dtype=md_params["dtype"],
+        device=md_params.get("device", 'cpu'),
+        default_dtype=md_params.get("dtype", "float64"),
     )
     init_conf.calc = calculator
 
@@ -126,7 +126,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
         temperature_K=T_start,
         friction=md_params["timestep_duration_ps"] * 100,
         trajectory=traj_obj,
-        # logfile=res_folder / f"md-{T_start}.log",
+        logfile=f'logs/md_info-{T_start}K.log',
     )
 
     # Attach the thermostat function to increase the temperature

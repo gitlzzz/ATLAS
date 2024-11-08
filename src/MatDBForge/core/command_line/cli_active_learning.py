@@ -18,7 +18,9 @@ else:
 warnings.filterwarnings("ignore")
 
 
-def create_active_learning_builder(toml_dict: dict, toml_dict_path: pl.Path = None):
+def create_active_learning_builder(
+    toml_dict: dict, toml_dict_path: pl.Path = None, simple=False
+):
     """
     Create builder object for the ActiveLearningWorkChain.
 
@@ -37,7 +39,10 @@ def create_active_learning_builder(toml_dict: dict, toml_dict_path: pl.Path = No
     from aiida.plugins import WorkflowFactory
 
     # Getting builder for workchain
-    al_calculation = WorkflowFactory("mdb-active-learning-base")
+    if simple:
+        al_calculation = WorkflowFactory("mdb-simple-active-learning-base")
+    else:
+        al_calculation = WorkflowFactory("mdb-active-learning-base")
     builder = al_calculation.get_builder()
 
     ## General AL settings
@@ -100,12 +105,12 @@ def create_active_learning_builder(toml_dict: dict, toml_dict_path: pl.Path = No
     builder.active_learning.model_acc_multiplier = float(
         al_conf["model_acc_multiplier"]
     )
-    builder.active_learning.al_keep_struct_every_n_ps = float(
-        al_conf["al_keep_struct_every_n_ps"]
-    )
 
     ## MD settings
     md_params = toml_dict["md"]["parameters"]
+    builder.active_learning.al_keep_struct_every_n_ps = float(
+        md_params["al_keep_struct_every_n_ps"]
+    )
     builder.active_learning.md_temperature_list_K = md_params["temperature_list_K"]
     builder.active_learning.md_max_temp_multiplier = md_params["max_temp_multiplier"]
     builder.active_learning.md_num_steps = int(md_params["num_steps"])
@@ -267,6 +272,13 @@ def run_active_learning():
         metavar="PATH",
     )
 
+    parser.add_argument(
+        "--simple",
+        help="Use the simple active learning workchain.",
+        action="store_const",
+        const=True,
+    )
+
     # Create a subparsers object
     subparsers = parser.add_subparsers(
         dest="command", help="List of available commands"
@@ -382,6 +394,7 @@ def run_active_learning():
     # Resume a previous calculation
     elif args.command == "resume":
         from aiida.engine import run
+
         # Getting path for config file if provided
         config_file = pl.Path(args.config_file).resolve() if args.config_file else None
 
@@ -414,8 +427,8 @@ def run_active_learning():
         builder = create_active_learning_builder(
             toml_dict,
             toml_dict_path=pl.Path(args.config_file).resolve(),
+            simple=args.simple,
         )
-
 
         if args.command != "gui":
             node = run(builder)

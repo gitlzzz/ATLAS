@@ -53,7 +53,7 @@ def check_atom_in_domain(
 
 def plot_concave_hull(
     concave_hull: np.ndarray,
-    latent_space: np.ndarray,
+    latent_space: np.ndarray = None,
     point_inside: np.ndarray = None,
     point_outside: np.ndarray = None,
     filename: str = None,
@@ -63,17 +63,19 @@ def plot_concave_hull(
 
     # Plotting the concave hull in 2D space using lines
     plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
-    plt.plot(
-        latent_space[:, 0],
-        latent_space[:, 1],
-        "o",
-        markersize=3.5,
-        alpha=0.5,
-        label="Descriptor in database",
-        markeredgewidth=0,
-        color="#b16286",
-    )
-    if point_inside:
+    if latent_space is not None and latent_space.size != 0:
+        plt.plot(
+            latent_space[:, 0],
+            latent_space[:, 1],
+            "o",
+            markersize=3.5,
+            alpha=0.5,
+            label="Descriptor in database",
+            markeredgewidth=0,
+            color="#b16286",
+        )
+
+    if point_inside is not None and point_inside.size != 0:
         plt.plot(
             point_inside[:, 0],
             point_inside[:, 1],
@@ -84,7 +86,7 @@ def plot_concave_hull(
             markeredgewidth=1.5,
             markeredgecolor="#282828",
         )
-    if point_outside:
+    if point_outside is not None and point_outside.size != 0:
         plt.plot(
             point_outside[:, 0],
             point_outside[:, 1],
@@ -95,12 +97,13 @@ def plot_concave_hull(
             markeredgewidth=1.5,
             markeredgecolor="#282828",
         )
+
     plt.title("Concave Hull")
     plt.xlabel("Embedded dimension 1")
     plt.ylabel("Embedded dimension 2")
     plt.legend()
     plt.savefig(filename, dpi=300)
-    plt.show()
+    plt.show(block=False)
     plt.clf()
 
 
