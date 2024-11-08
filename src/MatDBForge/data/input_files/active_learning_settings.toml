@@ -33,10 +33,6 @@ max_iterations = 3
 # Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
 model_acc_multiplier = 10
 
-# (int) Every how many ps of MD simulation keep a structure. 
-# Influences the total number of energy evaluations and possibly DFT calculations.
-al_keep_struct_every_n_ps = 1
-
 # (bool) Whether to check for extrapolation using the MACE descriptors
 check_extrapolation = true
 

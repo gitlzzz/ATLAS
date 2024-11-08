@@ -57,12 +57,18 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mace-lammps-gpu-md" = "MatDBForge.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE"
 "mace-committee-eval" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommitteeResultsCalculation"
 
+"mdb-process-md-seed-struct" = "MatDBForge.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculation"
+
 [project.entry-points."aiida.calculations.monitors"]
 "monitor.davwarning" = "MatDBForge.workflows.monitors:output_monitor"
 
 [project.entry-points."aiida.workflows"]
 "mdb-active-learning" = "MatDBForge.workflows.active_learning:ActiveLearningWorkChain"
 "mdb-active-learning-base" = "MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain"
+
+"mdb-simple-active-learning" = "MatDBForge.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
+"mdb-simple-active-learning-base" = "MatDBForge.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
+
 
 [project.entry-points."aiida.parsers"]
 "mdb-autoencoder-train-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
@@ -73,6 +79,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mace-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
 "mace-committee-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
 "mace-lammps-raw-parser" = "MatDBForge.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
+"mdb-process-md-seed-struct-parser" = "MatDBForge.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculationParser"
 
 [project.scripts]
 "mdb_active_learning" = "MatDBForge.core.command_line.cli_active_learning:run_active_learning"

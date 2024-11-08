@@ -3,6 +3,7 @@
 
 import json
 import shutil
+import tempfile
 import time
 from pathlib import Path
 
@@ -19,8 +20,221 @@ from ase.io import read as ase_read
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
 
-class TrainMACEModelCalculationParser(Parser):
-    """Parser for the retrieved files from a MACE training calculation job."""
+# mdb-process-md-seed-struct
+class ProcessMDSeedStructCalculation(CalcJob):
+    """
+    Launch a calculation to process a structure in an AL Loop step.
+
+    This CalcJob will process the output of a structure calculation
+    by doing a MD simulation using the user provided settings, followed
+    by checking all frames for extrapolation using several possible methods.
+
+    Parameters
+    ----------
+    md_structure : orm.SinglefileData
+        File containing the structure to be used for the MD, in the extxyz format.
+    model_file : orm.SinglefileData
+        Best MACE model from the current iteration.
+    m_rmse_e : orm.Float
+        Validation RMSE of the best model for the energy, in meV / atom.
+    m_rmse_f : orm.Float
+        Validation RMSE of the best model for the forces, in meV / Å.
+    concave_hull : orm.ArrayData, optional
+        Array containing the concave hull to be used for the extrapolation check.
+    desc_max_arr : orm.ArrayData
+        Array containing the maximum values for the descriptors.
+    desc_min_arr : orm.ArrayData
+        Array containing the minimum values for the descriptors.
+    settings_file_pth : orm.Str
+        Path to the MDB settings file in the .toml format.
+
+    Outputs
+    -------
+    extrapolating_structures : orm.SinglefileData
+        File containing all structures that were found to be extrapolating.
+        Uses the extxyz format.
+
+    Exit Codes
+    ----------
+    420 : ERROR_INVALID_OUTPUT
+        Structure could not be processed.
+    """
+
+    @classmethod
+    def define(cls, spec):
+        """Define the input and output specifications for the CalcJob."""
+        super().define(spec)
+        spec.input(
+            "md_structure",
+            valid_type=orm.SinglefileData,
+            help=(
+                "File containing the structure to be used for the MD,"
+                "in the extxyz format."
+            ),
+            required=True,
+            non_db=True,
+        )
+        spec.input(
+            "model_file",
+            valid_type=orm.SinglefileData,
+            help="Best MACE model from the current iteration.",
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "m_rmse_e",
+            valid_type=orm.Float,
+            help="Validation RMSE of the best model for the energy, in meV / atom.",
+        )
+        spec.input(
+            "m_rmse_f",
+            valid_type=orm.Float,
+            help="Validation RMSE of the best model for the forces, in meV / Å.",
+            serializer=orm.to_aiida_type,
+        )
+
+        spec.input(
+            "concave_hull",
+            valid_type=orm.ArrayData,
+            help=(
+                "Array containing the concave hull to be used for the "
+                "extrapolation check."
+            ),
+            required=False,
+            non_db=True,
+            default=None,
+        )
+        spec.input(
+            "desc_max_arr",
+            valid_type=orm.ArrayData,
+            help=("Array containing the maximum values for the descriptors,"),
+            required=True,
+            non_db=True,
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "desc_min_arr",
+            valid_type=orm.ArrayData,
+            help=("Array containing the minimum values for the descriptors."),
+            required=True,
+            non_db=True,
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "settings_file_pth",
+            valid_type=orm.Str,
+            help="Path to the MDB settings file in the .toml format.",
+            serializer=orm.to_aiida_type,
+        )
+        spec.output(
+            "extrapolating_structures",
+            valid_type=orm.SinglefileData,
+            help=(
+                "File containing all structures that were found to be extrapolating. "
+                "Uses the the extxyz format."
+            ),
+        )
+        spec.exit_code(420, "ERROR_INVALID_OUTPUT", "structure could not be processed")
+
+    def prepare_for_submission(self, folder):
+        """Write the input files that are required for the code to run.
+
+        :param folder: an `Folder` to temporarily write files on disk
+        :return: `CalcInfo` instance
+        """
+        # Create E and F RMSE array
+        rmse_arr = np.array([self.inputs.m_rmse_e.value, self.inputs.m_rmse_f.value])
+        # Create a named temporary file using tmpfile
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".npy", prefix="mdb_process_md-"
+        ) as f:
+            np.save(f.name, rmse_arr)
+            folder.insert_path(
+                src=f.name,
+                dest_name="rmse_arr.npy",
+            )
+
+        # Copying structure to use for the MD
+        md_structure: orm.SinglefileData = self.inputs.md_structure
+        with md_structure.as_path() as md_struct_path:
+
+            folder.insert_path(
+                src=md_struct_path,
+                dest_name="curr_structure.xyz",
+            )
+
+        # Copying settings file
+        toml_settings = self.inputs.settings_file_pth.value
+        folder.insert_path(
+            src=toml_settings,
+            dest_name="settings.toml",
+        )
+
+        # Copying concave hull for extrapolation
+        if self.inputs.concave_hull:
+            concave_hull = self.inputs.concave_hull.get_array()
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".npy", prefix="mdb_process_md-"
+            ) as f:
+                np.save(f.name, concave_hull)
+                folder.insert_path(
+                    src=f.name,
+                    dest_name="concave_hull.npy",
+                )
+
+        # Copying descriptors max and min
+        desc_max_arr: orm.ArrayData = self.inputs.desc_max_arr.get_array()
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".npy", prefix="mdb_process_md-"
+        ) as f:
+            np.save(f.name, desc_max_arr)
+            folder.insert_path(
+                src=f.name,
+                dest_name="curr_it_db_max.npy",
+            )
+        desc_min_arr = self.inputs.desc_min_arr.get_array()
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".npy", prefix="mdb_process_md-"
+        ) as f:
+            np.save(f.name, desc_min_arr)
+            folder.insert_path(
+                src=f.name,
+                dest_name="curr_it_db_min.npy",
+            )
+
+        model_file = self.inputs.model_file
+        with model_file.as_path() as model_file_path:
+            folder.insert_path(
+                src=model_file_path,
+                dest_name="curr_model.model",
+            )
+
+        codeinfo = CodeInfo()
+        codeinfo.code_uuid = self.inputs.code.uuid
+        # codeinfo.stdout_name = self.options.output_filename
+
+        calcinfo = CalcInfo()
+        calcinfo.codes_info = [codeinfo]
+        calcinfo.local_copy_list = []
+        # calcinfo.provenance_exclude_list = [
+        #     self.inputs.mace_settings_dict["train_file"]
+        # ]
+        calcinfo.remote_copy_list = []
+
+        # Gathering files. They won't be added to the repository,
+        # and instead kept into a temporary folder.
+        # They can later be processed during the parse function
+        # by accessing the temporary folder.
+        calcinfo.retrieve_temporary_list = [
+            # self.metadata.options.output_filename,
+            "./results/*.xyz",
+            "./logs/*",
+        ]
+
+        return calcinfo
+
+
+class ProcessMDSeedStructCalculationParser(Parser):
+    """Parser for the retrieved files from a AL step structure calcjob."""
 
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
@@ -65,6 +279,32 @@ class TrainMACEModelCalculationParser(Parser):
         self.out("model_file", model_file)
         self.out("m_rmse_e", orm.Float(rmse_e))
         self.out("m_rmse_f", orm.Float(rmse_f))
+
+
+class TrainMACEModelCalculationParser(Parser):
+    """Parser for the retrieved files from a MACE training calculation job."""
+
+    def parse(self, **kwargs):
+        """Parse the retrieved files of the calculation job."""
+        # str that represents the absolute filepath to the temporary folder
+        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+
+        extrapolating_structures = None
+
+        for child_file in retrieved_temporary_folder.rglob("*"):
+            # Create singlefile data for the model
+
+            # If swa was used, get the swa model preferentially
+            if "extrapolating_frames.xyz" in child_file.name:
+                extrapolating_structures = orm.SinglefileData(file=child_file)
+                continue
+
+        # Return failed code
+        if not extrapolating_structures:
+            return self.exit_codes.ERROR_INVALID_OUTPUT
+
+        # Return CalcJob outputs
+        self.out("extrapolating_structures", extrapolating_structures)
 
 
 class TrainMACEModelCalculation(CalcJob):

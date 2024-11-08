@@ -196,8 +196,8 @@ It will contain a folder named `run_{uuid}`.
 - `model_acc_multiplier`: (float)
 Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any values that meet: $$RMSE_E\ or\ RMSE_F > chem\_acc \cdot chem\_acc\_multiplier$$ will be considered wrong.
 
-- `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure.
-Influences the total number of energy evaluations and possibly DFT calculations.
+<!-- - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. -->
+<!-- Influences the total number of energy evaluations and possibly DFT calculations. -->
 <!-- - `check_extrapolation`: (bool) Whether to check for extrapolation using the MACE descriptors -->
 - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace"
 - `load_init_models`: (list[int], optional) # Load initial models from several aiida uuids/pk.
@@ -246,8 +246,8 @@ Settings for MD simulations using LAMMPS
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure.. Influences the total number of energy evaluations and therefore DFT calculations.
 - `log_save_interval`: (int) Every how many MD steps log energy and force information.
-- `device`: (str) Device for the MACE model to be used in the MD simulations.
-- `dtype`: (str) Default data type for the MACE model to be used in the MD simulations.
+- `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`.
+- `dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`.
 
 #### MD Filters - `[md.filters]`
 
@@ -305,7 +305,7 @@ Contains settings for the MACE evaluator.
 - `batch_size`: (int) Size of the training batch
 - `compute_stress`: (bool) Whether or not to compute stress (true/false)
 
-#### MACE Evaluation Scheduler - `[committee_eval.metadata.options]
+#### MACE Evaluation Scheduler - `[committee_eval.metadata.options]`
 
 Contains settings related to the scheduler and AiiDA for the MACE Evaluations. This key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options). Below are listed the bare minimum options for running calculations using an SGE scheduler:
 
@@ -384,11 +384,12 @@ The lowest weighted_sum will be considered as the most performant model.
 - `metadata.options.max_wallclock_seconds` = 117280000
 - `metadata.options.max_memory_kb` = 102400000
 - `metadata.options.withmpi` = true
-- `metadata.options.custom_scheduler_commands`: (str)
+- `metadata.options.custom_scheduler_commands`: (str) Multiline string containing commands for the scheduler not included in the other options above, such as the number of gpus to use, or to reserve a specific computer. Refer to your scheduler manual to see available options.
 
-```
-'''#$ -l gpu=1
-$ -l hostname="tekla2188"
+```python
+'''
+#$ -l gpu=2
+$ -l hostname="node1234"
 '''
 ```
 
