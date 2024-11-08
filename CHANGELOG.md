@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0 (2024-11-08)
+
+### Feature
+
+- **al_loop**: introduce first version of simplified active learning workchain ([#14e4332](https://github.com/pol-sb/MatDBForge/commit/14e4332cb612715f102a8d7cd44a76fa1c7152c5))
+
 ## 0.16.6 (2024-11-06)
 
 ### Fix
