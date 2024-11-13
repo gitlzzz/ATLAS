@@ -152,8 +152,8 @@ class Structure:
             name: value
             for name, value in inspect.getmembers(self)
             if not inspect.isroutine(value)
-            and not name.startswith("__")
-            and name not in ["to_surface", "to_bulk", "to_cluster"]
+            and not name.startswith('__')
+            and name not in ['to_surface', 'to_bulk', 'to_cluster']
         }
         return Bulk(**attributes)
 
@@ -163,8 +163,8 @@ class Structure:
             name: value
             for name, value in inspect.getmembers(self)
             if not inspect.isroutine(value)
-            and not name.startswith("__")
-            and name not in ["to_surface", "to_bulk", "to_cluster"]
+            and not name.startswith('__')
+            and name not in ['to_surface', 'to_bulk', 'to_cluster']
         }
         return Surface(**attributes)
 
@@ -174,8 +174,8 @@ class Structure:
             name: value
             for name, value in inspect.getmembers(self)
             if not inspect.isroutine(value)
-            and not name.startswith("__")
-            and name not in ["to_surface", "to_bulk", "to_cluster"]
+            and not name.startswith('__')
+            and name not in ['to_surface', 'to_bulk', 'to_cluster']
         }
         return Cluster(**attributes)
 
@@ -210,32 +210,32 @@ class Structure:
         # Getting energy information
         energy = vasprun.final_energy
         energy_toten = Energy(
-            float(vasprun.ionic_steps[-1]["e_fr_energy"]),
-            "eV",
+            float(vasprun.ionic_steps[-1]['e_fr_energy']),
+            'eV',
         )
         energy_per_atom = energy / len(structure.species)
 
         # Getting the temperature from the vasp parameters
         # If the temperature is not set, the vasprun shows 0.0001K as T.
         # I round to the third decimal place so this value then equals to 0.
-        if float(vasprun.parameters["TEBEG"]) <= 1e-4:
+        if float(vasprun.parameters['TEBEG']) <= 1e-4:
             temperature = 0
         else:
-            temperature = float(vasprun.parameters["TEBEG"])
+            temperature = float(vasprun.parameters['TEBEG'])
 
         generated_structure = Structure(
             energy_per_atom=None,
-            material_name=kwargs.get("material_name"),
+            material_name=kwargs.get('material_name'),
             structure=structure,
-            material_id=kwargs.get("material_id"),
-            phase=kwargs.get("phase"),
-            base=kwargs.get("base"),
-            perturb=kwargs.get("perturb"),
-            supercell=kwargs.get("supercell"),
-            surface=kwargs.get("surface"),
-            bulk=kwargs.get("bulk"),
-            cluster=kwargs.get("cluster"),
-            replacement=kwargs.get("replacement"),
+            material_id=kwargs.get('material_id'),
+            phase=kwargs.get('phase'),
+            base=kwargs.get('base'),
+            perturb=kwargs.get('perturb'),
+            supercell=kwargs.get('supercell'),
+            surface=kwargs.get('surface'),
+            bulk=kwargs.get('bulk'),
+            cluster=kwargs.get('cluster'),
+            replacement=kwargs.get('replacement'),
             formula=structure.formula,
             symmetry=structure.get_space_group_info(),
             temperature=temperature,
@@ -254,64 +254,64 @@ class Structure:
         return generated_structure
 
     def __repr__(self):
-        repr_str = ""
-        spc = " " * 2
+        repr_str = ''
+        spc = ' ' * 2
 
         # Gathering name information
         if self.material_name:
-            repr_str += f"MatDBForge {self.__class__.__name__}: {self.material_name}\n"
+            repr_str += f'MatDBForge {self.__class__.__name__}: {self.material_name}\n'
         else:
-            repr_str += f"MatDBForge {self.__class__.__name__}: (no name)\n"
+            repr_str += f'MatDBForge {self.__class__.__name__}: (no name)\n'
 
-        repr_str += f"{spc}ID: {self.unique_id}\n"
+        repr_str += f'{spc}ID: {self.unique_id}\n'
 
         # Gathing formula and phase
         if self.formula:
-            repr_str += f"{spc}Formula: {self.formula}\n"
+            repr_str += f'{spc}Formula: {self.formula}\n'
         if self.phase:
-            repr_str += f"{spc}{self.phase}\n"
+            repr_str += f'{spc}{self.phase}\n'
         else:
-            repr_str += f"{spc}Phase: unknown phase\n"
+            repr_str += f'{spc}Phase: unknown phase\n'
 
-        repr_str += f"{spc}Status flags: "
+        repr_str += f'{spc}Status flags: '
         # Gathering if the structure is a base or structure phase
         props = []
         # Gathering the type of structure
         if self.bulk:
-            props.append("bulk")
+            props.append('bulk')
         elif self.surface:
-            props.append("surface")
+            props.append('surface')
         elif self.cluster:
-            props.append("cluster")
+            props.append('cluster')
 
         # Gathering extra properties
         if self.base:
-            props.append("+base")
+            props.append('+base')
         if self.replacement:
-            props.append("+replacements")
+            props.append('+replacements')
         if self.supercell:
-            props.append("+supercell")
+            props.append('+supercell')
         if self.perturb:
-            props.append("+atom_positions_perturbed")
+            props.append('+atom_positions_perturbed')
         if self.displacement:
-            props.append("+lattice_displaced")
+            props.append('+lattice_displaced')
         if self.vacancy:
-            props.append("+vacancies")
+            props.append('+vacancies')
         if self.targeted_modification:
-            props.append(f"+{self.targeted_modification}")
+            props.append(f'+{self.targeted_modification}')
 
-        repr_str += " ".join(props)
+        repr_str += ' '.join(props)
 
         # Gathering DFT data
         if self.calc_performed:
-            repr_str += "\n"
-            repr_str += f"{spc}Obtained with DFT {self.calc_type} calculation:\n"
-            repr_str += f"\t - Energy {self.calc_energy}\n"
-            repr_str += f"\t - Free energy {self.calc_energy_toten}\n"
-            repr_str += f"\t - Energy per atom: {self.calc_energy_per_atom}"
+            repr_str += '\n'
+            repr_str += f'{spc}Obtained with DFT {self.calc_type} calculation:\n'
+            repr_str += f'\t - Energy {self.calc_energy}\n'
+            repr_str += f'\t - Free energy {self.calc_energy_toten}\n'
+            repr_str += f'\t - Energy per atom: {self.calc_energy_per_atom}'
         else:
-            repr_str += "\n"
-            repr_str += f"{spc}No calc performed. Energy data unavailable."
+            repr_str += '\n'
+            repr_str += f'{spc}No calc performed. Energy data unavailable.'
 
         return repr_str
 
@@ -326,47 +326,47 @@ class Structure:
         phase = self.phase if isinstance(self.phase, str) else self.phase.name
         new_row = pd.Series(
             {
-                "material_id": str(self.material_id),
-                "structure": self.structure,
-                "temperature": self.temperature,
-                "perturb": self.perturb,
-                "formula": self.formula,
-                "symmetry": self.symmetry,
-                "base": self.base,
-                "surface": self.surface,
-                "surface_miller": self.surface_miller,
-                "phase": phase,
-                "magnetic_properties": self.magnetic_properties,
-                "energy_per_atom": None,
-                "unique_id": self.unique_id,
-                "material_name": self.material_name,
-                "replacement": self.replacement,
-                "replacement_ind": self.replacement_ind,
-                "supercell": self.supercell,
-                "bulk": self.bulk,
-                "cluster": self.cluster,
-                "calc_energy": self.calc_energy,
-                "calc_energy_per_atom": self.calc_energy_per_atom,
-                "calc_energy_toten": self.calc_energy_toten,
-                "calc_performed": self.calc_performed,
-                "calc_type": self.calc_type,
-                "calc_output": self.calc_output,
-                "vacancy": self.vacancy,
-                "targeted_modification": self.targeted_modification,
-                "displacement": self.displacement,
-                "al_loop_step": self.al_loop_step,
+                'material_id': str(self.material_id),
+                'structure': self.structure,
+                'temperature': self.temperature,
+                'perturb': self.perturb,
+                'formula': self.formula,
+                'symmetry': self.symmetry,
+                'base': self.base,
+                'surface': self.surface,
+                'surface_miller': self.surface_miller,
+                'phase': phase,
+                'magnetic_properties': self.magnetic_properties,
+                'energy_per_atom': None,
+                'unique_id': self.unique_id,
+                'material_name': self.material_name,
+                'replacement': self.replacement,
+                'replacement_ind': self.replacement_ind,
+                'supercell': self.supercell,
+                'bulk': self.bulk,
+                'cluster': self.cluster,
+                'calc_energy': self.calc_energy,
+                'calc_energy_per_atom': self.calc_energy_per_atom,
+                'calc_energy_toten': self.calc_energy_toten,
+                'calc_performed': self.calc_performed,
+                'calc_type': self.calc_type,
+                'calc_output': self.calc_output,
+                'vacancy': self.vacancy,
+                'targeted_modification': self.targeted_modification,
+                'displacement': self.displacement,
+                'al_loop_step': self.al_loop_step,
             }
         )
         bool_columns = {
-            "perturb": bool,
-            "displacement": bool,
-            "base": bool,
-            "bulk": bool,
-            "surface": bool,
-            "cluster": bool,
-            "calc_performed": bool,
-            "replacement": bool,
-            "vacancy": bool,
+            'perturb': bool,
+            'displacement': bool,
+            'base': bool,
+            'bulk': bool,
+            'surface': bool,
+            'cluster': bool,
+            'calc_performed': bool,
+            'replacement': bool,
+            'vacancy': bool,
         }
         new_row = new_row.to_frame().T.astype(bool_columns)
 
@@ -374,7 +374,7 @@ class Structure:
 
         struct_df = db_obj.df if is_InitialDatabase else db_obj
 
-        with pd.option_context("future.no_silent_downcasting", True):
+        with pd.option_context('future.no_silent_downcasting', True):
             struct_df = struct_df.fillna(value=False).infer_objects(copy=False)
         struct_df = struct_df.astype(bool_columns)
 
@@ -382,7 +382,7 @@ class Structure:
         # if some columns are empty. This is to be expected in this version
         # of the code, so we suppress the warning until it is gone.
         with warnings.catch_warnings(category=FutureWarning):
-            warnings.simplefilter("ignore")
+            warnings.simplefilter('ignore')
 
             # Adding the new row to the database
             if struct_df.shape[0] == 0:

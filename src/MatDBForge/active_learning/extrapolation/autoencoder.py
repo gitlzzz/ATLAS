@@ -104,8 +104,8 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
     state_dict = torch.load(model_path)
 
     input_dim = data_arr.shape[1]
-    l1_dim = state_dict["encoder.0.weight"].shape[0]
-    l2_dim = state_dict["encoder.2.weight"].shape[0]
+    l1_dim = state_dict['encoder.0.weight'].shape[0]
+    l2_dim = state_dict['encoder.2.weight'].shape[0]
 
     # Check if the model already exists
     if pl.Path(model_path).exists():
@@ -116,7 +116,7 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
             l2_dim=l2_dim,
         )
         model.load_state_dict(state_dict)
-        custom_print("Model loaded successfully!", "done")
+        custom_print('Model loaded successfully!', 'done')
 
     return model
 
@@ -124,10 +124,9 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
 def get_latent_space_autoencoder(
     model, descriptor_dict: dict, device: str = None, dtype=torch.float32
 ):
-
     # Changing device to available GPU if available, else CPU.
     if not device:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model.to(device)
 
@@ -137,17 +136,16 @@ def get_latent_space_autoencoder(
     model.eval()
 
     # Reduce the dimensionality of the input points to 2D
-    custom_print("Computing latent space for all structures...", "info")
+    custom_print('Computing latent space for all structures...', 'info')
     with torch.no_grad():  # No need to compute gradients for inference
         for uuid, descr_dict in descriptor_dict.items():
-
             # Get latent space
             latent_space = model.encoder(
-                torch.Tensor(descr_dict["descriptors"]).to(device=device, dtype=dtype)
+                torch.Tensor(descr_dict['descriptors']).to(device=device, dtype=dtype)
             )
 
             # Save latent space
-            descriptor_dict[uuid]["latent_space"] = latent_space.cpu().numpy()
+            descriptor_dict[uuid]['latent_space'] = latent_space.cpu().numpy()
 
-    custom_print("Computed latent space!", "done")
+    custom_print('Computed latent space!', 'done')
     return descriptor_dict

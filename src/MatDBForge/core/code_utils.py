@@ -21,16 +21,16 @@ def init_logger(source, log_path=None):
     console = Console(
         theme=Theme(
             {
-                "logging.level.[ i ]": "blue",
-                "logging.level.[ ! ]": "yellow",
-                "logging.level.[...]": "white",
-                "logging.level.[ ✔ ]": "green",
-                "logging.level.[ X ]": "red",
+                'logging.level.[ i ]': 'blue',
+                'logging.level.[ ! ]': 'yellow',
+                'logging.level.[...]': 'white',
+                'logging.level.[ ✔ ]': 'green',
+                'logging.level.[ X ]': 'red',
             }
         )
     )
 
-    logger = logging.getLogger("mdb")
+    logger = logging.getLogger('mdb')
     logger.setLevel(logging.DEBUG)
 
     # TODO: Check if this is compatible with the rest of the code
@@ -40,40 +40,40 @@ def init_logger(source, log_path=None):
     ch = RichHandler(
         markup=True,
         show_path=False,
-        log_time_format="[%m/%d/%y %H:%M:%S]",
+        log_time_format='[%m/%d/%y %H:%M:%S]',
         omit_repeated_times=False,
         console=console,
     )
     ch.setLevel(logging.INFO)
-    formatter_con = logging.Formatter("%(message)s")
+    formatter_con = logging.Formatter('%(message)s')
     ch.setFormatter(formatter_con)
     logger.addHandler(ch)
 
-    filename = tempfile.NamedTemporaryFile(prefix=f"mdb_{source}_", suffix=".log").name
+    filename = tempfile.NamedTemporaryFile(prefix=f'mdb_{source}_', suffix='.log').name
 
     if log_path:
         log_path_dir = pathlib.Path(log_path)
-        log_filename = pathlib.Path(filename + ".log").stem
+        log_filename = pathlib.Path(filename + '.log').stem
         filename = log_path_dir / log_filename
 
-    fh = logging.FileHandler(filename=filename, mode="a+")
+    fh = logging.FileHandler(filename=filename, mode='a+')
     fh.setLevel(logging.DEBUG)
-    formatter_fil = logging.Formatter("%(asctime)s - %(levelname)s - %(shortmsg)s")
+    formatter_fil = logging.Formatter('%(asctime)s - %(levelname)s - %(shortmsg)s')
     fh.setFormatter(formatter_fil)
     logger.addHandler(fh)
 
-    logging.addLevelName(10, "[...]")
-    logging.addLevelName(20, "[ i ]")
-    logging.addLevelName(25, "[ ✔ ]")
-    logging.addLevelName(30, "[ ! ]")
-    logging.addLevelName(40, "[ X ]")
+    logging.addLevelName(10, '[...]')
+    logging.addLevelName(20, '[ i ]')
+    logging.addLevelName(25, '[ ✔ ]')
+    logging.addLevelName(30, '[ ! ]')
+    logging.addLevelName(40, '[ X ]')
 
-    custom_print(f"Logging in '{filename}'", print_type="info")
+    custom_print(f"Logging in '{filename}'", print_type='info')
 
     return logger, filename
 
 
-def custom_print(string: str, print_type: str = "default", end="\n", extra_tab=False):
+def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=False):
     """Prints a string using different formatting styles for easier debugging.
 
     Parameters
@@ -90,53 +90,53 @@ def custom_print(string: str, print_type: str = "default", end="\n", extra_tab=F
     """
     # normal = "\u001b[0m"
 
-    normal = ""
-    prefix = ""
-    extra_tab = "\t" if extra_tab else ""
+    normal = ''
+    prefix = ''
+    extra_tab = '\t' if extra_tab else ''
 
-    logger = logging.getLogger("mdb")
+    logger = logging.getLogger('mdb')
 
-    if print_type in ["info", "default"]:
+    if print_type in ['info', 'default']:
         # prefix = "\u001b[38;5;33m [ i ]"
         logger.log(
             level=20,
-            msg=f"{prefix}{normal}{extra_tab}{string}",
-            extra={"shortmsg": string},
+            msg=f'{prefix}{normal}{extra_tab}{string}',
+            extra={'shortmsg': string},
         )
-    elif print_type in ["warn", "warning", "warn-soft", "warning-soft"]:
+    elif print_type in ['warn', 'warning', 'warn-soft', 'warning-soft']:
         # prefix = "\u001b[38;5;220m [ ! ]"
         logger.log(
             level=30,
-            msg=f"{prefix}{normal}{extra_tab}{string}",
-            extra={"shortmsg": string},
+            msg=f'{prefix}{normal}{extra_tab}{string}',
+            extra={'shortmsg': string},
         )
-    elif print_type in ["extra", "debug"]:
+    elif print_type in ['extra', 'debug']:
         # prefix = "\u001b[38;5;8m [···]"
         logger.log(
             level=10,
-            msg=f"{prefix}{normal}{extra_tab}{string}",
-            extra={"shortmsg": string},
+            msg=f'{prefix}{normal}{extra_tab}{string}',
+            extra={'shortmsg': string},
         )
-    elif print_type in ["done", "ok"]:
+    elif print_type in ['done', 'ok']:
         # prefix = "\u001b[38;5;46m [ ✔ ]"
         # logger.info(
         #     f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
         # )
         logger.log(
             level=25,
-            msg=f"{prefix}{normal}{extra_tab}{string}",
-            extra={"shortmsg": string},
+            msg=f'{prefix}{normal}{extra_tab}{string}',
+            extra={'shortmsg': string},
         )
-    if print_type in ["error", "problem"]:
+    if print_type in ['error', 'problem']:
         # prefix = "\u001b[38;5;1m [ X ]"
         logger.log(
             level=40,
-            msg=f"{prefix}{normal}{extra_tab}{string}",
-            extra={"shortmsg": string},
+            msg=f'{prefix}{normal}{extra_tab}{string}',
+            extra={'shortmsg': string},
         )
-    if print_type in ["none", "clean", "clear"]:
+    if print_type in ['none', 'clean', 'clear']:
         # prefix = ""
-        logger.info(f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string})
+        logger.info(f'{prefix}{normal}{extra_tab}{string}', extra={'shortmsg': string})
 
 
 def deprecated(reason, since_ver=None):
@@ -161,7 +161,7 @@ def deprecated(reason, since_ver=None):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            warn_text = f"{func.__name__}() is deprecated: {reason}."
+            warn_text = f'{func.__name__}() is deprecated: {reason}.'
             if since_ver:
                 warn_text += f"\n(Deprecated since version: '{since_ver}')."
             warnings.warn(warn_text, DeprecationWarning, stacklevel=2)
@@ -175,11 +175,11 @@ def deprecated(reason, since_ver=None):
 def get_config_path() -> pathlib.Path:
     """Get the path to MatDBForge's the configuration directory."""
     # Try to get XDG_CONFIG_HOME, if it doesn't exist, return None
-    config_path = os.environ.get("XDG_CONFIG_HOME", None)
+    config_path = os.environ.get('XDG_CONFIG_HOME', None)
 
     # Check if $HOME/.config exists and if it does, return the path
     if not config_path:
-        config_folder = pathlib.Path().home() / ".config"
+        config_folder = pathlib.Path().home() / '.config'
         if config_folder.exists():
             config_path = config_folder
 
@@ -189,15 +189,15 @@ def get_config_path() -> pathlib.Path:
 def init_config_dir(config_dir):
     """Create the configuration directory and the secrets file template."""
     # Create a 'mdb' directory inside the config directory
-    config_dir = config_dir / "mdb"
+    config_dir = config_dir / 'mdb'
     config_dir.mkdir(parents=True, exist_ok=True)
 
     # Create a 'secrets.json' file inside the 'mdb' directory
     try:
-        file_path = config_dir / "secrets.json"
+        file_path = config_dir / 'secrets.json'
 
-        with open(file_path, "x") as f:
-            f.write("{\n" '"API_KEY": ""\n' "}")
+        with open(file_path, 'x') as f:
+            f.write('{\n' '"API_KEY": ""\n' '}')
 
         # Limiting the permissions of the secrets file
         # to the owner only
@@ -212,11 +212,11 @@ def init_config_dir(config_dir):
 def get_cache_path() -> pathlib.Path:
     """Get the path to MatDBForge's the cacheuration directory."""
     # Try to get XDG_cache_HOME, if it doesn't exist, return None
-    cache_path = os.environ.get("$XDG_CACHE_HOME", None)
+    cache_path = os.environ.get('$XDG_CACHE_HOME', None)
 
     # Check if $HOME/.cache exists and if it does, return the path
     if not cache_path:
-        cache_folder = pathlib.Path().home() / ".cache"
+        cache_folder = pathlib.Path().home() / '.cache'
         if cache_folder.exists():
             cache_path = cache_folder
 
@@ -226,7 +226,7 @@ def get_cache_path() -> pathlib.Path:
 def init_cache_dir(cache_dir):
     """Create the mdb cache directory."""
     # Create an mdb folder inside the ~/.cache directory
-    cache_dir = cache_dir / "mdb"
+    cache_dir = cache_dir / 'mdb'
 
     try:
         cache_dir.mkdir(parents=True, exist_ok=False)
@@ -251,17 +251,17 @@ def get_last_tagged_version():
     os.chdir(MDB_ROOT_DIR)
 
     # Run the git fetch to get the last tagged version
-    _ = sb.check_output(["git", "fetch", "--quiet"])
+    _ = sb.check_output(['git', 'fetch', '--quiet'])
 
     # Getting a sorted tag list
     output = (
-        sb.check_output(["git", "tag", "--merged", "master", "--sort=-creatordate"])
+        sb.check_output(['git', 'tag', '--merged', 'master', '--sort=-creatordate'])
         .decode()
         .strip()
     )
 
     # Split the output into a list of tags
-    tags = output.split("\n") if output else []
+    tags = output.split('\n') if output else []
 
     # Get the newest tag (first in the sorted list)
     newest_tag = tags[0] if tags else None
@@ -293,18 +293,18 @@ def check_mdb_version():
     curr_version, last_tagged_version = get_mdb_version_info()
 
     print()
-    logger, _ = init_logger("mdb_version_check")
+    logger, _ = init_logger('mdb_version_check')
 
     if curr_version < last_tagged_version:
         custom_print(
-            f"Current version of MatDBForge ({curr_version}) is outdated. "
-            f"Please update to the latest version ({last_tagged_version}).",
-            "warn",
+            f'Current version of MatDBForge ({curr_version}) is outdated. '
+            f'Please update to the latest version ({last_tagged_version}).',
+            'warn',
         )
     else:
         custom_print(
-            f"Current version of MatDBForge ({curr_version}) is up-to-date.",
-            "done",
+            f'Current version of MatDBForge ({curr_version}) is up-to-date.',
+            'done',
         )
 
     print()

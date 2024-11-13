@@ -53,103 +53,103 @@ class ActiveLearningWorkChain(WorkChain):
         """Specify inputs and outputs."""
         super().define(spec)
 
-        spec.input("init_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("toml_file", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("final_db_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("run_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('init_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('toml_file', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('run_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "load_init_models",
+            'load_init_models',
             valid_type=(orm.List, type(None)),
             serializer=orm.to_aiida_type,
             default=None,
         )
-        spec.input("results_dir", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('results_dir', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "al_loop_iteration", valid_type=orm.Int, serializer=orm.to_aiida_type
+            'al_loop_iteration', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "seed_min_num_structs",
+            'seed_min_num_structs',
             valid_type=orm.Int,
             serializer=orm.to_aiida_type,
             required=False,
         )
-        spec.input("seed_size_frac", valid_type=orm.Float, serializer=orm.to_aiida_type)
+        spec.input('seed_size_frac', valid_type=orm.Float, serializer=orm.to_aiida_type)
         spec.input(
-            "seed_max_num_structs", valid_type=orm.Int, serializer=orm.to_aiida_type
+            'seed_max_num_structs', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "seed_select_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
+            'seed_select_settings', valid_type=orm.Dict, serializer=orm.to_aiida_type
         )
         spec.input(
-            "delete_seed_structs", valid_type=orm.Bool, serializer=orm.to_aiida_type
+            'delete_seed_structs', valid_type=orm.Bool, serializer=orm.to_aiida_type
         )
         spec.input(
-            "committee_num_models", valid_type=orm.Int, serializer=orm.to_aiida_type
+            'committee_num_models', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "model_acc_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
+            'model_acc_multiplier', valid_type=orm.Float, serializer=orm.to_aiida_type
         )
         spec.input(
-            "descriptor_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
+            'descriptor_settings', valid_type=orm.Dict, serializer=orm.to_aiida_type
         )
         spec.input(
-            "md_temperature_list_K", valid_type=orm.List, serializer=orm.to_aiida_type
+            'md_temperature_list_K', valid_type=orm.List, serializer=orm.to_aiida_type
         )
-        spec.input("md_num_steps", valid_type=orm.Int, serializer=orm.to_aiida_type)
+        spec.input('md_num_steps', valid_type=orm.Int, serializer=orm.to_aiida_type)
         spec.input(
-            "md_max_temp_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
+            'md_max_temp_multiplier', valid_type=orm.Float, serializer=orm.to_aiida_type
         )
         spec.input(
-            "md_filters",
+            'md_filters',
             valid_type=(orm.Dict, type(None)),
             serializer=orm.to_aiida_type,
             required=False,
             default=None,
         )
         spec.input(
-            "md_timestep_duration_ps",
+            'md_timestep_duration_ps',
             valid_type=orm.Float,
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "al_keep_struct_every_n_ps",
+            'al_keep_struct_every_n_ps',
             valid_type=orm.Float,
             serializer=orm.to_aiida_type,
         )
 
         spec.input(
-            "current_md_seed_structs_path",
+            'current_md_seed_structs_path',
             valid_type=orm.Str,
             serializer=orm.to_aiida_type,
         )
-        spec.input("seed_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("training_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('seed_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('training_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "current_md_seed_structs_idx",
+            'current_md_seed_structs_idx',
             valid_type=orm.List,
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "train_seed_group",
+            'train_seed_group',
             valid_type=orm.Str,
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "mace_train",
+            'mace_train',
             valid_type=orm.Dict,
             serializer=orm.to_aiida_type,
         )
-        spec.input("lammps_mace", valid_type=orm.Dict)
-        spec.input("dft_method", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("dft_settings", valid_type=orm.Dict)
-        spec.input("committee_eval", valid_type=orm.Dict, serializer=orm.to_aiida_type)
+        spec.input('lammps_mace', valid_type=orm.Dict)
+        spec.input('dft_method', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('dft_settings', valid_type=orm.Dict)
+        spec.input('committee_eval', valid_type=orm.Dict, serializer=orm.to_aiida_type)
         spec.input(
-            "check_extrapolation_type", valid_type=orm.Str, serializer=orm.to_aiida_type
+            'check_extrapolation_type', valid_type=orm.Str, serializer=orm.to_aiida_type
         )
         spec.input(
-            "gather_traj_cnt_lattice", valid_type=orm.Bool, serializer=orm.to_aiida_type
+            'gather_traj_cnt_lattice', valid_type=orm.Bool, serializer=orm.to_aiida_type
         )
-        spec.input("use_kokkos", valid_type=orm.Bool, serializer=orm.to_aiida_type)
+        spec.input('use_kokkos', valid_type=orm.Bool, serializer=orm.to_aiida_type)
 
         spec.outline(
             # Training the main mace model (M0) and the committee models
@@ -200,12 +200,12 @@ class ActiveLearningWorkChain(WorkChain):
             # do not change seed until the error is decreased
             # cls.choose_next_seed,
         )
-        spec.output("dft_calcs_path", valid_type=orm.Str, required=False)
-        spec.output("m0_model_file", valid_type=orm.SinglefileData)
-        spec.output("stop_md_seed_no_disagreement", valid_type=orm.Bool)
+        spec.output('dft_calcs_path', valid_type=orm.Str, required=False)
+        spec.output('m0_model_file', valid_type=orm.SinglefileData)
+        spec.output('stop_md_seed_no_disagreement', valid_type=orm.Bool)
 
         spec.exit_code(
-            420, "ERROR_SCHEDULER_MACE", "error when submitting a MACE calculation."
+            420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
 
     def train_mace_model(self):
@@ -226,7 +226,7 @@ class ActiveLearningWorkChain(WorkChain):
             The function does not return a value but updates the workchain context with
             futures of the submitted TrainMACEModelCalculation jobs for later reference.
         """
-        self.report("Generating new training database file.")
+        self.report('Generating new training database file.')
 
         # Adding workchain uuid input.data filename to path
         updated_path, _ = mdb_al_ut.get_final_db_path(
@@ -248,14 +248,14 @@ class ActiveLearningWorkChain(WorkChain):
         # and used to drive the MD simulations. The remaining models will act as
         # committee models and will only be used to evaluate energies.
         self.report(
-            f"Training {self.inputs.committee_num_models.value} models using "
-            "current iteration data."
+            f'Training {self.inputs.committee_num_models.value} models using '
+            'current iteration data.'
         )
 
         # Stop the calculation if initial models must be loaded
         if self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0:
             self.report(
-                "Loading models from nodes:"
+                'Loading models from nodes:'
                 f"'{self.inputs.load_init_models.get_list()}'."
             )
             return
@@ -265,7 +265,7 @@ class ActiveLearningWorkChain(WorkChain):
 
             # Load training settings from inputs and update path and model names.
             mace_train_settings: orm.Dict = mdb_al_ut.update_mace_train_settings_dict(
-                settings_dict=self.inputs.mace_train.get("train_settings"),
+                settings_dict=self.inputs.mace_train.get('train_settings'),
                 train_data_path=str(updated_path),
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
@@ -273,7 +273,7 @@ class ActiveLearningWorkChain(WorkChain):
             )
 
             # Run training and save new model file
-            mace_train = CalculationFactory("mace-train")
+            mace_train = CalculationFactory('mace-train')
             mace_builder = mace_train.get_builder()
 
             mace_builder.model_name = model_name
@@ -285,16 +285,16 @@ class ActiveLearningWorkChain(WorkChain):
                 node=self.node,
             )
             mace_builder.mace_train_file_path = str(mace_train_file_path)
-            code_str = self.inputs.mace_train.get_dict()["code"]
+            code_str = self.inputs.mace_train.get_dict()['code']
             code = orm.load_code(code_str)
             computer = code.computer
             mace_builder.code = code
             mace_builder.metadata.options.withmpi = True
             mace_builder.metadata.options = self.inputs.mace_train.get_dict()[
-                "metadata"
-            ].get("options")
+                'metadata'
+            ].get('options')
             mace_builder.metadata.options.output_filename = (
-                f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
+                f'train_{model_name}_iter-{self.inputs.al_loop_iteration.value}'
             )
             mace_builder.metadata.label = model_name
 
@@ -302,7 +302,7 @@ class ActiveLearningWorkChain(WorkChain):
             # if not present.
             # `mdb_calc_limit` is a custom property set with:
             # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = computer.metadata.get("mdb_calc_limit", 0)
+            calc_limit = computer.metadata.get('mdb_calc_limit', 0)
 
             # Check if the calculation can be submitted
             if calc_limit == 0:
@@ -370,7 +370,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Adding E + F multiplied by a weight value, in order to consider
             # forces when deciding which model to keep
             force_weight = self.inputs.mace_train.get(
-                "result_force_weight",
+                'result_force_weight',
                 0.1,
             )
             weighted_E_F_sum = curr_calc.outputs.m_rmse_e.value + (
@@ -390,7 +390,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Skipping model if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
                 self.report(
-                    f"Skipping MACE model that finished with errors (pk: {calc.pk})."
+                    f'Skipping MACE model that finished with errors (pk: {calc.pk}).'
                 )
                 continue
 
@@ -418,15 +418,15 @@ class ActiveLearningWorkChain(WorkChain):
 
                 self.report(
                     f"Generated LAMMPS potential using '{model_name}' as M0 - "
-                    f"RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, "
-                    f"RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å"
+                    f'RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, '
+                    f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
                 )
-                self.out("m0_model_file", model_file)
+                self.out('m0_model_file', model_file)
             else:
                 self.report(
                     f"Trained committee model '{model_name}' - "
-                    f"RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV/at, "
-                    f"RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV/Å"
+                    f'RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV/at, '
+                    f'RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV/Å'
                 )
                 commitee_models_tupl_name_uuid.append((model_name, model_file.uuid))
 
@@ -439,11 +439,11 @@ class ActiveLearningWorkChain(WorkChain):
 
     def is_advanced_extrapolation(self):
         """Check if the advanced extrapolation check is enabled."""
-        return self.inputs.check_extrapolation_type.value == "advanced"
+        return self.inputs.check_extrapolation_type.value == 'advanced'
 
     def has_latent_space(self):
         """Check if the latent space was computed for the current iteration."""
-        return hasattr(self.ctx, "latent_space")
+        return hasattr(self.ctx, 'latent_space')
 
     def can_do_advanced_extrapolation(self):
         """Check if the advanced extrapolation can be done."""
@@ -465,17 +465,17 @@ class ActiveLearningWorkChain(WorkChain):
         `descriptor_results` for their use in the next steps.
         """
         dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-            "dimensionality_reduction_method"
+            'dimensionality_reduction_method'
         )
-        if dimensionality_reduction_method == "autoencoder":
-            descr_calc = CalculationFactory("mdb-get-latent-space")
+        if dimensionality_reduction_method == 'autoencoder':
+            descr_calc = CalculationFactory('mdb-get-latent-space')
             self.report(
                 f"Generating descriptors using model '{self.ctx.best_model_name}'"
-                f" and latent space using autoencoder..."
+                f' and latent space using autoencoder...'
             )
         else:
             # Prepare GetMACEDescriptorsCalculation
-            descr_calc = CalculationFactory("mace-get-descriptors")
+            descr_calc = CalculationFactory('mace-get-descriptors')
             self.report(
                 f"Generating descriptors using model '{self.ctx.best_model_name}'..."
             )
@@ -496,35 +496,35 @@ class ActiveLearningWorkChain(WorkChain):
             code_builder.mace_train_file_path.store()
 
         prepend_text = (
-            self.inputs.descriptor_settings["metadata"]["prepend_text"]
-            + "\nPATH=$PATH:."
+            self.inputs.descriptor_settings['metadata']['prepend_text']
+            + '\nPATH=$PATH:.'
         )
 
         # Set metadata options
-        code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
-            "options"
+        code_builder.metadata.options = self.inputs.descriptor_settings['metadata'][
+            'options'
         ]
 
         # Set the computer
         computer = orm.load_computer(
-            self.inputs.descriptor_settings["metadata"]["computer"]
+            self.inputs.descriptor_settings['metadata']['computer']
         )
         code_builder.metadata.computer = computer
 
         # Get latent space of the descriptors using the autoencoder.
-        if dimensionality_reduction_method == "autoencoder":
-            train_settings = self.inputs.descriptor_settings["autoencoder"][
-                "train_settings"
+        if dimensionality_reduction_method == 'autoencoder':
+            train_settings = self.inputs.descriptor_settings['autoencoder'][
+                'train_settings'
             ]
             # Preparing inputs
             # Add RNG seed if not present
-            if not train_settings.get("rng_seed"):
+            if not train_settings.get('rng_seed'):
                 rng_seed = np.random.randint(1, int(1e15))
-                train_settings["rng_seed"] = rng_seed
+                train_settings['rng_seed'] = rng_seed
 
             # Overwriting `model_path` in the settings dict
-            train_settings["model_path"] = "autoencoder_model.pth"
-            train_settings["dataset"] = "all_descriptors.npy"
+            train_settings['model_path'] = 'autoencoder_model.pth'
+            train_settings['dataset'] = 'all_descriptors.npy'
 
             # Set the settings dict
             code_builder.settings_dict = train_settings
@@ -532,37 +532,37 @@ class ActiveLearningWorkChain(WorkChain):
             # Generate aiida code using the script in
             # the `descriptor_code_path` folder.
             descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts"
+                f'{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts'
             )
             code = orm.PortableCode(
-                label="mdb_get_latent_space",
+                label='mdb_get_latent_space',
                 filepath_files=descriptor_code_path,
-                filepath_executable="mdb_autoencoder_get_latent_space.py",
+                filepath_executable='mdb_autoencoder_get_latent_space.py',
                 prepend_text=prepend_text,
             )
-            code_builder.metadata.options.parser_name = "mdb-get-latent-space-parser"
-            code_builder.metadata.label = self.ctx.best_model_name + "_latent_space"
+            code_builder.metadata.options.parser_name = 'mdb-get-latent-space-parser'
+            code_builder.metadata.label = self.ctx.best_model_name + '_latent_space'
 
         # Get descriptors coming directly from MACE.
         else:
             self.report(
-                "No dimensionality reduction method specified."
-                " Getting MACE descriptors..."
+                'No dimensionality reduction method specified.'
+                ' Getting MACE descriptors...'
             )
             descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+                f'{MDB_ROOT_DIR}/active_learning/mace_code/descriptors'
             )
             code = orm.PortableCode(
-                label="mace_get_descriptors",
+                label='mace_get_descriptors',
                 filepath_files=descriptor_code_path,
-                filepath_executable="mdb_mace_get_descriptors.py",
+                filepath_executable='mdb_mace_get_descriptors.py',
                 prepend_text=prepend_text,
             )
-            code_builder.metadata.options.parser_name = "mace-descriptors-parser"
-            code_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
+            code_builder.metadata.options.parser_name = 'mace-descriptors-parser'
+            code_builder.metadata.label = self.ctx.best_model_name + '_descriptors'
             code_builder.metadata.options.output_filename = (
-                f"descriptors_{self.ctx.best_model_name}_"
-                f"iter-{self.inputs.al_loop_iteration.value}"
+                f'descriptors_{self.ctx.best_model_name}_'
+                f'iter-{self.inputs.al_loop_iteration.value}'
             )
 
         code_builder.code = code
@@ -571,7 +571,7 @@ class ActiveLearningWorkChain(WorkChain):
         # if not present.
         # `mdb_calc_limit` is a custom property set with:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = computer.metadata.get('mdb_calc_limit', 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -613,29 +613,29 @@ class ActiveLearningWorkChain(WorkChain):
             # Getting latent space and autoencoder model from the
             # autoencoder calculation
             dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-                "dimensionality_reduction_method"
+                'dimensionality_reduction_method'
             )
-            if dimensionality_reduction_method == "autoencoder":
-                with curr_calc.outputs.descriptors_file.open(mode="rb") as f:
+            if dimensionality_reduction_method == 'autoencoder':
+                with curr_calc.outputs.descriptors_file.open(mode='rb') as f:
                     db_descriptor_dict = pickle.load(f)
 
                 db_latent_space = np.vstack(
-                    [strc["latent_space"] for strc in db_descriptor_dict.values()]
+                    [strc['latent_space'] for strc in db_descriptor_dict.values()]
                 )
                 self.ctx.latent_space = db_latent_space
                 self.ctx.autoencoder_model_file = (
                     curr_calc.outputs.autoencoder_model_file
                 )
                 self.report(
-                    "Gathered descriptor ranges, latent space, and autoencoder model"
-                    " for training database."
+                    'Gathered descriptor ranges, latent space, and autoencoder model'
+                    ' for training database.'
                 )
             else:
-                self.report("Gathered descriptor ranges for training database.")
+                self.report('Gathered descriptor ranges for training database.')
 
     def get_concave_hull(self):
-        self.report("Getting concave hull...")
-        descr_calc = CalculationFactory("mdb-get-concave-hull")
+        self.report('Getting concave hull...')
+        descr_calc = CalculationFactory('mdb-get-concave-hull')
 
         code_builder = descr_calc.get_builder()
 
@@ -645,33 +645,33 @@ class ActiveLearningWorkChain(WorkChain):
         # Adding the CWD to the path in the script, so that the script can be
         # run from aiida.
         prepend_text = (
-            self.inputs.descriptor_settings["metadata"]["prepend_text"]
-            + "\nPATH=$PATH:."
+            self.inputs.descriptor_settings['metadata']['prepend_text']
+            + '\nPATH=$PATH:.'
         )
 
         # Set metadata options
-        code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
-            "options"
+        code_builder.metadata.options = self.inputs.descriptor_settings['metadata'][
+            'options'
         ]
 
         # Set the computer
         code_builder.metadata.computer = orm.load_computer(
-            self.inputs.descriptor_settings["metadata"]["computer"]
+            self.inputs.descriptor_settings['metadata']['computer']
         )
 
         # Generate aiida code using the script in the `descriptor_code_path` folder.
         descriptor_code_path = Path(
-            f"{MDB_ROOT_DIR}/active_learning/extrapolation/concave_hull_scripts"
+            f'{MDB_ROOT_DIR}/active_learning/extrapolation/concave_hull_scripts'
         )
 
         code = orm.PortableCode(
-            label="mdb_get_concave_hull",
+            label='mdb_get_concave_hull',
             filepath_files=descriptor_code_path,
-            filepath_executable="mdb_get_concave_hull.py",
+            filepath_executable='mdb_get_concave_hull.py',
             prepend_text=prepend_text,
         )
-        code_builder.metadata.options.parser_name = "mdb-get-concave-hull-parser"
-        code_builder.metadata.label = self.ctx.best_model_name + "_concave_hull"
+        code_builder.metadata.options.parser_name = 'mdb-get-concave-hull-parser'
+        code_builder.metadata.label = self.ctx.best_model_name + '_concave_hull'
 
         code_builder.code = code
 
@@ -679,7 +679,7 @@ class ActiveLearningWorkChain(WorkChain):
         # if not present.
         # `mdb_calc_limit` is a custom property set with:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = code.computer.metadata.get('mdb_calc_limit', 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -713,7 +713,7 @@ class ActiveLearningWorkChain(WorkChain):
                 curr_calc.outputs.concave_hull_array.get_array()
             )
 
-            self.report("Gathered concave hull for training database.")
+            self.report('Gathered concave hull for training database.')
 
     def gen_md_input(
         self,
@@ -758,54 +758,54 @@ class ActiveLearningWorkChain(WorkChain):
         - Future versions may include more dynamic options based on LAMMPS's extensive
         configurability.
         """
-        with open(f"{MDB_DATA_DIR}/input_files/input.lammps") as f:
+        with open(f'{MDB_DATA_DIR}/input_files/input.lammps') as f:
             lammps_template = f.read()
 
         if self.inputs.use_kokkos:
-            lammps_template = "newton on\n" + lammps_template
+            lammps_template = 'newton on\n' + lammps_template
 
         lammps_template = lammps_template.replace(
-            "$MACESTYLE", "mace no_domain_decomposition"
+            '$MACESTYLE', 'mace no_domain_decomposition'
         )
 
         species = structure.composition.elements
 
         # Setting MACE potential as the potential to use
-        pair_coeff_str = "* * "
-        pair_coeff_str += f"{Path(potential_path).name} "
+        pair_coeff_str = '* * '
+        pair_coeff_str += f'{Path(potential_path).name} '
 
         # Adding species from given structure
         for spec in species:
-            pair_coeff_str += f"{spec} "
-        lammps_template = lammps_template.replace("$PAIRCOEFF", pair_coeff_str)
+            pair_coeff_str += f'{spec} '
+        lammps_template = lammps_template.replace('$PAIRCOEFF', pair_coeff_str)
 
         # Setting elements
-        elem_str = ""
+        elem_str = ''
         for elem in species:
-            elem_str += f"{elem} "
+            elem_str += f'{elem} '
 
-        lammps_template = lammps_template.replace("$ELEMS", elem_str)
+        lammps_template = lammps_template.replace('$ELEMS', elem_str)
 
         # Setting timestep size
         timestep_val = self.inputs.md_timestep_duration_ps.value
-        lammps_template = lammps_template.replace("$TSTEP_SIZE", str(timestep_val))
+        lammps_template = lammps_template.replace('$TSTEP_SIZE', str(timestep_val))
 
         # Setting start and end temperature and the damping parameter.
         # The max T is calculated using a multiplier applied to the initial T.
         # The damping coefficient is computed as 100*dt as by the lammps docs,
         # see note in: https://docs.lammps.org/fix_nh.html#description
         temp_coeff = self.inputs.md_max_temp_multiplier.value
-        temp_arr = f"{current_temp} {current_temp*temp_coeff} {100 * timestep_val}"
-        lammps_template = lammps_template.replace("$TEMPARR", temp_arr)
+        temp_arr = f'{current_temp} {current_temp*temp_coeff} {100 * timestep_val}'
+        lammps_template = lammps_template.replace('$TEMPARR', temp_arr)
 
         # Setting intial velocities.
         seed = np.random.randint(low=1, high=1000000)
-        vel_str = f"{current_temp} {seed}"
-        lammps_template = lammps_template.replace("$VELOCITY", vel_str)
+        vel_str = f'{current_temp} {seed}'
+        lammps_template = lammps_template.replace('$VELOCITY', vel_str)
 
         # Setting number of timesteps
         num_tstep_str = str(self.inputs.md_num_steps.value)
-        lammps_template = lammps_template.replace("$NSTEPS", num_tstep_str)
+        lammps_template = lammps_template.replace('$NSTEPS', num_tstep_str)
 
         return lammps_template
 
@@ -839,20 +839,20 @@ class ActiveLearningWorkChain(WorkChain):
         and are tagged with additional information to link them back to their respective
         positions in the database.
         """
-        self.report("Running MD (using M0) for all structures in the current seed...")
+        self.report('Running MD (using M0) for all structures in the current seed...')
 
         # Creating a orm.List in the context to store the nodes
         self.ctx.current_train_seed = []
 
         # Getting atom count cutoff value for structures to be considered large
-        n_at_large = self.inputs.lammps_mace.get("num_at_large_struct")
+        n_at_large = self.inputs.lammps_mace.get('num_at_large_struct')
 
         # this string with the label used in the code setup.
-        code_str = self.inputs.lammps_mace.get("code")
+        code_str = self.inputs.lammps_mace.get('code')
         if self.inputs.use_kokkos:
-            builder = CalculationFactory("mace-lammps-gpu-md").get_builder()
+            builder = CalculationFactory('mace-lammps-gpu-md').get_builder()
         else:
-            builder = CalculationFactory("lammps.raw").get_builder()
+            builder = CalculationFactory('lammps.raw').get_builder()
 
         builder.code = orm.load_code(code_str)
 
@@ -864,8 +864,8 @@ class ActiveLearningWorkChain(WorkChain):
             # Setting the trajectory to be retrieved and the
             # potential file to be copied into the calculation folder
             builder_settings = {
-                "additional_retrieve_list": ["structure.lammpstrj.gz"],
-                "local_copy_list": [
+                'additional_retrieve_list': ['structure.lammpstrj.gz'],
+                'local_copy_list': [
                     (
                         self.ctx.lammps_potential_file.uuid,
                         lmp_pot_path,
@@ -876,19 +876,19 @@ class ActiveLearningWorkChain(WorkChain):
 
             builder.settings = orm.Dict(builder_settings)
 
-            with open(self.inputs.current_md_seed_structs_path.value, "rb") as f:
+            with open(self.inputs.current_md_seed_structs_path.value, 'rb') as f:
                 current_md_seed_structs = pickle.load(f)
 
             for idx, curr_structure in enumerate(current_md_seed_structs):
                 # Structures are stored as a orm.Dict in order to be json-serializable
                 for key in [
-                    "pbc",
-                    "cell",
-                    "numbers",
-                    "positions",
-                    "forces",
-                    "REF_forces",
-                    "MACE_forces",
+                    'pbc',
+                    'cell',
+                    'numbers',
+                    'positions',
+                    'forces',
+                    'REF_forces',
+                    'MACE_forces',
                 ]:
                     if curr_structure.get(key):
                         curr_structure[key] = np.array(curr_structure[key])
@@ -918,34 +918,34 @@ class ActiveLearningWorkChain(WorkChain):
                     builder.script = script
 
                     lammps_struct_str = LammpsData.from_structure(
-                        curr_structure, atom_style="atomic"
+                        curr_structure, atom_style='atomic'
                     ).get_str()
 
                     data = orm.SinglefileData(io.StringIO(lammps_struct_str))
                     builder.files = {
-                        "data": data,
-                        "mace_potential": self.ctx.lammps_potential_file,
+                        'data': data,
+                        'mace_potential': self.ctx.lammps_potential_file,
                     }
                     builder.filenames = {
-                        "data": "structure.lammps",
-                        "mace_potential": lmp_pot_filename,
+                        'data': 'structure.lammps',
+                        'mace_potential': lmp_pot_filename,
                     }
 
                     index_in_db = self.inputs.current_md_seed_structs_idx[idx]
 
                     # Loading metadata settings from workchain inputs
-                    builder.metadata = self.inputs.lammps_mace.get("metadata")
+                    builder.metadata = self.inputs.lammps_mace.get('metadata')
                     builder.metadata.label = (
-                        f"struct_{index_in_db}_mace_lammps_md_{temp_val}_K"
+                        f'struct_{index_in_db}_mace_lammps_md_{temp_val}_K'
                     )
-                    builder.metadata.options.parser_name = "mace-lammps-raw-parser"
+                    builder.metadata.options.parser_name = 'mace-lammps-raw-parser'
 
                     # Changing the number of cores used for large structures
                     if is_structure_large:
                         n_cpus_large = self.inputs.lammps_mace.get(
-                            "num_cpus_large_struct"
+                            'num_cpus_large_struct'
                         )
-                        builder.metadata.options.resources["num_cores_per_mpiproc"] = (
+                        builder.metadata.options.resources['num_cores_per_mpiproc'] = (
                             int(n_cpus_large)
                         )
 
@@ -953,7 +953,7 @@ class ActiveLearningWorkChain(WorkChain):
                     # if not present.
                     # `mdb_calc_limit` is a custom property set with:
                     # computer.set_property(name='mdb_calc_limit', value=366)
-                    calc_limit = builder.code.computer.metadata.get("mdb_calc_limit", 0)
+                    calc_limit = builder.code.computer.metadata.get('mdb_calc_limit', 0)
 
                     # Check if the calculation can be submitted
                     if calc_limit == 0:
@@ -985,8 +985,8 @@ class ActiveLearningWorkChain(WorkChain):
                     # with its position on the database.
                     for key, val in struct_properties.items():
                         future.base.extras.set(key, val)
-                    future.base.extras.set("index_in_db", index_in_db)
-                    future.base.extras.set("md_temperature", temp_val)
+                    future.base.extras.set('index_in_db', index_in_db)
+                    future.base.extras.set('md_temperature', temp_val)
 
                     # Telling the work chain to wait for the md to finish
                     # before continuing the workflow.
@@ -1003,7 +1003,7 @@ class ActiveLearningWorkChain(WorkChain):
         aggregates these into a structured format. The collected data is then organized
         into a pandas DataFrame, which is stored in the workflow's context.
         """
-        self.report("Gathering best model MD results for the current seed...")
+        self.report('Gathering best model MD results for the current seed...')
         new_rows = []
 
         # Gathering all results
@@ -1033,10 +1033,10 @@ class ActiveLearningWorkChain(WorkChain):
             filters_structure_wrong_list = []
 
             # Using distance between layers to filter structures
-            if self.inputs.md_filters and "layer_distance" in self.inputs.md_filters:
+            if self.inputs.md_filters and 'layer_distance' in self.inputs.md_filters:
                 structure_wrong_list = []
-                max_dist = self.inputs.md_filters["layer_distance"][
-                    "max_layer_distance_ang"
+                max_dist = self.inputs.md_filters['layer_distance'][
+                    'max_layer_distance_ang'
                 ]
                 for frame in traj:
                     is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
@@ -1049,7 +1049,7 @@ class ActiveLearningWorkChain(WorkChain):
             # Checking if there are atoms with no neighbors (isolated atoms)
             if (
                 self.inputs.md_filters
-                and "check_atoms_no_neighbor" in self.inputs.md_filters
+                and 'check_atoms_no_neighbor' in self.inputs.md_filters
             ):
                 structure_wrong_list = []
                 for frame in traj:
@@ -1070,13 +1070,13 @@ class ActiveLearningWorkChain(WorkChain):
             # energies, and forces from the row to add to the DataFrame.
             if np.all(filters_structure_wrong_list):
                 self.report(
-                    "Completely removing trajectory as all frames are incorrect."
+                    'Completely removing trajectory as all frames are incorrect.'
                 )
                 continue
             if np.any(filters_structure_wrong_list):
                 self.report(
-                    f"Removing {len(np.nonzero(filters_structure_wrong_list)[0])} "
-                    "incorrect MD frames."
+                    f'Removing {len(np.nonzero(filters_structure_wrong_list)[0])} '
+                    'incorrect MD frames.'
                 )
 
                 # Getting frames to keep
@@ -1106,17 +1106,17 @@ class ActiveLearningWorkChain(WorkChain):
 
             new_rows.append(
                 {
-                    "trajectory": traj,
-                    "energy": {self.ctx.best_model_name: energies},
-                    "forces": {self.ctx.best_model_name: forces},
-                    "al_step": self.inputs.al_loop_iteration.value,
-                    "index_in_db": md_calc_wkch.base.extras.all["index_in_db"],
-                    "mdb_struct_type": md_calc_wkch.base.extras.all["mdb_struct_type"],
-                    "material_name": md_calc_wkch.base.extras.all["struct_name"],
-                    "unique_id": md_calc_wkch.base.extras.all["aiida_uuid"],
-                    "mdb_md_node": str(md_calc_wkch.uuid),
-                    "md_temperature": md_calc_wkch.base.extras.all["md_temperature"],
-                    "extrapolation": np.nan,
+                    'trajectory': traj,
+                    'energy': {self.ctx.best_model_name: energies},
+                    'forces': {self.ctx.best_model_name: forces},
+                    'al_step': self.inputs.al_loop_iteration.value,
+                    'index_in_db': md_calc_wkch.base.extras.all['index_in_db'],
+                    'mdb_struct_type': md_calc_wkch.base.extras.all['mdb_struct_type'],
+                    'material_name': md_calc_wkch.base.extras.all['struct_name'],
+                    'unique_id': md_calc_wkch.base.extras.all['aiida_uuid'],
+                    'mdb_md_node': str(md_calc_wkch.uuid),
+                    'md_temperature': md_calc_wkch.base.extras.all['md_temperature'],
+                    'extrapolation': np.nan,
                 }
             )
 
@@ -1128,8 +1128,8 @@ class ActiveLearningWorkChain(WorkChain):
         )
         # Saving the DataFrame into the result directory as a file.
         self.ctx.md_seed_results_df_path = (
-            f"{self.ctx.results_dir}/run_tmp_data/md_seed_results_df_step-"
-            f"{self.inputs.al_loop_iteration.value}.pkl"
+            f'{self.ctx.results_dir}/run_tmp_data/md_seed_results_df_step-'
+            f'{self.inputs.al_loop_iteration.value}.pkl'
         )
         md_seed_results_df.to_pickle(path=str(self.ctx.md_seed_results_df_path))
 
@@ -1177,9 +1177,9 @@ class ActiveLearningWorkChain(WorkChain):
 
         """
         # Loading lammps output
-        output = workchain_results.get_object_content("lammps.out")
+        output = workchain_results.get_object_content('lammps.out')
         # Generating list with the logged steps data
-        steps = [line for line in output.splitlines() if line.startswith("thermo ")]
+        steps = [line for line in output.splitlines() if line.startswith('thermo ')]
 
         energy_array = []
         force_array = []
@@ -1201,7 +1201,7 @@ class ActiveLearningWorkChain(WorkChain):
             except IndexError as e:
                 parent_calc = workchain_results.creator.pk
                 self.report(
-                    f"Error while gathering MD calculation results {parent_calc} - {e}."
+                    f'Error while gathering MD calculation results {parent_calc} - {e}.'
                 )
                 break
 
@@ -1252,9 +1252,9 @@ class ActiveLearningWorkChain(WorkChain):
         # parse it file using ase
         with workchain_results.as_path() as results_path:
             ase_traj = ase_read(
-                filename=Path(results_path) / "structure.lammpstrj.gz",
-                format="lammps-dump-text",
-                index=":",
+                filename=Path(results_path) / 'structure.lammpstrj.gz',
+                format='lammps-dump-text',
+                index=':',
             )
 
         # Gather the forces
@@ -1273,14 +1273,14 @@ class ActiveLearningWorkChain(WorkChain):
 
     def check_committee_results_calcjob(self):
         """Gets predictions of all the committee models for the MD trajectories."""
-        self.report("Evaluating trajectories with committee models...")
+        self.report('Evaluating trajectories with committee models...')
 
         # Gather all commitee models
         # Prepare all committee information in a dict
         commitee_dict = {}
         for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
             # Only alphanumeric and underscores are allowed as links
-            model_name = model_name.replace("-", "_")
+            model_name = model_name.replace('-', '_')
 
             model = orm.load_node(model)
             if not isinstance(model, orm.SinglefileData):
@@ -1290,11 +1290,11 @@ class ActiveLearningWorkChain(WorkChain):
 
         if not commitee_dict:
             self.report(
-                "Committee dict is empty: no committee models trained. "
-                "Using main model only. Check model training step for errors."
+                'Committee dict is empty: no committee models trained. '
+                'Using main model only. Check model training step for errors.'
             )
             # Only alphanumeric and underscores are allowed as links
-            best_model_name_clean = self.ctx.best_model_name.replace("-", "_")
+            best_model_name_clean = self.ctx.best_model_name.replace('-', '_')
             commitee_dict[best_model_name_clean] = self.ctx.best_model_file
 
         # Reading md seed results DataFrame
@@ -1304,10 +1304,10 @@ class ActiveLearningWorkChain(WorkChain):
 
         # Checking committee predictions for every trajectory
         for row in md_seed_results_df.iterrows():
-            curr_traj = row[1]["trajectory"]
+            curr_traj = row[1]['trajectory']
 
             # Run training and save new model file
-            mace_train = CalculationFactory("mace-committee-eval")
+            mace_train = CalculationFactory('mace-committee-eval')
             mace_builder = mace_train.get_builder()
 
             # Input committee models to `commitee_models` namespace as a dict like:
@@ -1325,8 +1325,8 @@ class ActiveLearningWorkChain(WorkChain):
             f = io.StringIO()
             with redirect_stdout(f):
                 ase_write(
-                    filename="-",
-                    format="extxyz",
+                    filename='-',
+                    format='extxyz',
                     images=curr_traj_frames_atoms,
                 )
             xyz_string = f.getvalue()
@@ -1334,43 +1334,43 @@ class ActiveLearningWorkChain(WorkChain):
             # Generating tmp file
             md_xyz_file = orm.SinglefileData(
                 file=io.BytesIO(str.encode(xyz_string)),
-                filename="md_db.xyz",
+                filename='md_db.xyz',
             )
 
             # Input configurations to evaluate
             mace_builder.configurations_to_evaluate = md_xyz_file
 
             # Input number of threads to use
-            mace_builder.num_threads = int(self.inputs.committee_eval["openmp_threads"])
+            mace_builder.num_threads = int(self.inputs.committee_eval['openmp_threads'])
 
             # Gather mace evaluation settings
             mace_builder.mace_settings_dict = orm.Dict(
-                self.inputs.committee_eval["mace"]
+                self.inputs.committee_eval['mace']
             )
 
             # Get portable code
             descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/mace_code/committee"
+                f'{MDB_ROOT_DIR}/active_learning/mace_code/committee'
             )
             prepend_text = (
-                self.inputs.descriptor_settings["metadata"]["prepend_text"]
-                + "\nPATH=$PATH:."
+                self.inputs.descriptor_settings['metadata']['prepend_text']
+                + '\nPATH=$PATH:.'
             )
             portable_code = orm.PortableCode(
-                label="mace_get_descriptors",
+                label='mace_get_descriptors',
                 filepath_files=descriptor_code_path,
-                filepath_executable="mdb_mace_eval_committee_configs.py",
+                filepath_executable='mdb_mace_eval_committee_configs.py',
                 prepend_text=prepend_text,
             )
             mace_builder.code = portable_code
 
             # Loading computer and removing it from the input dictionary
-            mace_eval_aiida_settings_dict = self.inputs.committee_eval["metadata"][
-                "options"
+            mace_eval_aiida_settings_dict = self.inputs.committee_eval['metadata'][
+                'options'
             ]
-            computer = orm.load_computer(mace_eval_aiida_settings_dict["computer"])
+            computer = orm.load_computer(mace_eval_aiida_settings_dict['computer'])
             mace_builder.metadata.computer = computer
-            mace_eval_aiida_settings_dict.pop("computer", None)
+            mace_eval_aiida_settings_dict.pop('computer', None)
 
             # Load scheduler and resources options
             mace_builder.metadata.options = mace_eval_aiida_settings_dict
@@ -1380,7 +1380,7 @@ class ActiveLearningWorkChain(WorkChain):
             # `mdb_calc_limit` is a custom property set with:
             # computer.set_property(name='mdb_calc_limit', value=366)
             calc_limit = mace_builder.metadata.computer.metadata.get(
-                "mdb_calc_limit", 0
+                'mdb_calc_limit', 0
             )
 
             # Check if the calculation can be submitted
@@ -1403,13 +1403,13 @@ class ActiveLearningWorkChain(WorkChain):
                 )
 
             future = self.submit(mace_builder)
-            future.base.extras.set("unique_id", row[1]["unique_id"])
-            future.base.extras.set("md_temperature", row[1]["md_temperature"])
+            future.base.extras.set('unique_id', row[1]['unique_id'])
+            future.base.extras.set('md_temperature', row[1]['md_temperature'])
             self.to_context(committee_results=append_(future))
 
     def gather_committee_results(self):
         """Gather committee results for all trajectories."""
-        self.report("Gathering committee E and F evaluation...")
+        self.report('Gathering committee E and F evaluation...')
 
         # # REMOVE: Testing only
         # md_seed_results_df.to_pickle("/tmp/md_seed_results_df")
@@ -1423,14 +1423,14 @@ class ActiveLearningWorkChain(WorkChain):
             # Skipping calculation if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
                 self.report(
-                    f"Skipping calculation [{curr_calc.pk}]"
-                    f" - exit status: {curr_calc.exit_status}"
+                    f'Skipping calculation [{curr_calc.pk}]'
+                    f' - exit status: {curr_calc.exit_status}'
                 )
                 continue
 
             # Gather extras to identify the current calc
-            curr_unique_id = curr_calc.base.extras.all["unique_id"]
-            curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
+            curr_unique_id = curr_calc.base.extras.all['unique_id']
+            curr_md_temperature = curr_calc.base.extras.all['md_temperature']
 
             # Find row matching the calculation using curr_unique_id and
             # current_temperature
@@ -1446,9 +1446,9 @@ class ActiveLearningWorkChain(WorkChain):
                 energies = np.array(energies_list)
 
                 # Updating current energy dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "energy"][row_index][
-                    model_name
-                ] = energies
+                md_seed_results_df.loc[[row_index], 'energy'][row_index][model_name] = (
+                    energies
+                )
 
             # Collect forces from dict using model name
             forces_collection = curr_calc.outputs.forces_result_dict.get_dict()
@@ -1456,7 +1456,7 @@ class ActiveLearningWorkChain(WorkChain):
                 forces_list = [forces for forces in forces_model_list]
 
                 # Updating current forces dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "forces"][row_index][model_name] = (
+                md_seed_results_df.loc[[row_index], 'forces'][row_index][model_name] = (
                     np.array(forces_list)
                 )
 
@@ -1467,18 +1467,18 @@ class ActiveLearningWorkChain(WorkChain):
         """Get descriptors for the MD generated structures using the best model."""
         # Get the dimensionality reduction method
         dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-            "dimensionality_reduction_method"
+            'dimensionality_reduction_method'
         )
 
-        if dimensionality_reduction_method == "autoencoder":
-            descr_calc = CalculationFactory("mdb-get-latent-space")
+        if dimensionality_reduction_method == 'autoencoder':
+            descr_calc = CalculationFactory('mdb-get-latent-space')
             self.report(
-                "Getting latent space of descriptors for MD generated structures..."
+                'Getting latent space of descriptors for MD generated structures...'
             )
         else:
             # Prepare GetMACEDescriptorsCalculation
-            descr_calc = CalculationFactory("mace-get-descriptors")
-            self.report("Getting descriptors for MD generated structures...")
+            descr_calc = CalculationFactory('mace-get-descriptors')
+            self.report('Getting descriptors for MD generated structures...')
 
         code_builder = descr_calc.get_builder()
         code_builder.model_file = self.ctx.best_model_file
@@ -1491,13 +1491,13 @@ class ActiveLearningWorkChain(WorkChain):
         # Store all frames from the trajectory into a list
         for _, row in md_seed_results_df.iterrows():
             # all_frames_list = []
-            curr_traj = row["trajectory"]
+            curr_traj = row['trajectory']
             traj_frames = []
 
             for frame in curr_traj:
                 curr_frame: Atoms = AseAtomsAdaptor.get_atoms(frame)
-                curr_frame.info["aiida_uuid"] = row["unique_id"]
-                curr_frame.info["md_temperature"] = row["md_temperature"]
+                curr_frame.info['aiida_uuid'] = row['unique_id']
+                curr_frame.info['md_temperature'] = row['md_temperature']
                 traj_frames.append(curr_frame)
 
             # Write xyz file into a string captured in the stdout,
@@ -1505,8 +1505,8 @@ class ActiveLearningWorkChain(WorkChain):
             f = io.StringIO()
             with redirect_stdout(f):
                 ase_write(
-                    filename="-",
-                    format="extxyz",
+                    filename='-',
+                    format='extxyz',
                     images=traj_frames,
                 )
             xyz_string = f.getvalue()
@@ -1514,22 +1514,22 @@ class ActiveLearningWorkChain(WorkChain):
             # Generating tmp file
             md_xyz_file = orm.SinglefileData(
                 file=io.BytesIO(str.encode(xyz_string)),
-                filename="md_db.xyz",
+                filename='md_db.xyz',
             )
 
             prepend_text = (
-                self.inputs.descriptor_settings["metadata"]["prepend_text"]
-                + "\nPATH=$PATH:."
+                self.inputs.descriptor_settings['metadata']['prepend_text']
+                + '\nPATH=$PATH:.'
             )
 
             # Set metadata options
-            code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
-                "options"
+            code_builder.metadata.options = self.inputs.descriptor_settings['metadata'][
+                'options'
             ]
 
             # Set the computer
             computer = orm.load_computer(
-                self.inputs.descriptor_settings["metadata"]["computer"]
+                self.inputs.descriptor_settings['metadata']['computer']
             )
             code_builder.metadata.computer = computer
 
@@ -1538,50 +1538,50 @@ class ActiveLearningWorkChain(WorkChain):
             code_builder.mace_train_file_path.store()
 
             # Get latent space of the descriptors using the autoencoder.
-            if dimensionality_reduction_method == "autoencoder":
+            if dimensionality_reduction_method == 'autoencoder':
                 # Get autoencoder model
                 code_builder.trained_autoencoder_model = self.ctx.autoencoder_model_file
 
                 # Generate aiida code using the script in
                 # the `descriptor_code_path` folder.
                 descriptor_code_path = Path(
-                    f"{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts"
+                    f'{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts'
                 )
                 code = orm.PortableCode(
-                    label="mdb_get_latent_space",
+                    label='mdb_get_latent_space',
                     filepath_files=descriptor_code_path,
-                    filepath_executable="mdb_autoencoder_get_latent_space.py",
+                    filepath_executable='mdb_autoencoder_get_latent_space.py',
                     prepend_text=prepend_text,
                 )
                 code_builder.metadata.options.parser_name = (
-                    "mdb-get-latent-space-parser"
+                    'mdb-get-latent-space-parser'
                 )
-                code_builder.metadata.label = self.ctx.best_model_name + "_latent_space"
+                code_builder.metadata.label = self.ctx.best_model_name + '_latent_space'
 
             else:
                 # Prepare GetMACEDescriptorsCalculation
                 descriptor_code_path = Path(
-                    f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+                    f'{MDB_ROOT_DIR}/active_learning/mace_code/descriptors'
                 )
 
                 code = orm.PortableCode(
-                    label="mace_get_descriptors",
+                    label='mace_get_descriptors',
                     filepath_files=descriptor_code_path,
-                    filepath_executable="mdb_mace_get_descriptors.py",
+                    filepath_executable='mdb_mace_get_descriptors.py',
                     prepend_text=prepend_text,
                 )
 
-                code_builder.metadata.options.parser_name = "mace-descriptors-parser"
+                code_builder.metadata.options.parser_name = 'mace-descriptors-parser'
 
                 code_builder.metadata.label = (
-                    row["unique_id"][:8]
-                    + "_md_descriptors_"
+                    row['unique_id'][:8]
+                    + '_md_descriptors_'
                     + f"{row['md_temperature']}_K"
                 )
 
                 code_builder.metadata.options.output_filename = (
-                    f"descriptors_{self.ctx.best_model_name}_iter"
-                    f"-{self.inputs.al_loop_iteration.value}"
+                    f'descriptors_{self.ctx.best_model_name}_iter'
+                    f'-{self.inputs.al_loop_iteration.value}'
                 )
 
             code_builder.code = code
@@ -1590,7 +1590,7 @@ class ActiveLearningWorkChain(WorkChain):
             # if not present.
             # `mdb_calc_limit` is a custom property set with:
             # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = computer.metadata.get("mdb_calc_limit", 0)
+            calc_limit = computer.metadata.get('mdb_calc_limit', 0)
 
             # Check if the calculation can be submitted
             if calc_limit == 0:
@@ -1612,14 +1612,14 @@ class ActiveLearningWorkChain(WorkChain):
                 )
 
             future = self.submit(code_builder)
-            future.base.extras.set("unique_id", row["unique_id"])
-            future.base.extras.set("md_temperature", row["md_temperature"])
+            future.base.extras.set('unique_id', row['unique_id'])
+            future.base.extras.set('md_temperature', row['md_temperature'])
 
             self.to_context(md_descriptor_results=append_(future))
 
     def send_calc_or_remove_structures(self):
         """Decide which structures to keep and send to DFT or remove from db."""
-        self.report("Deciding which structures to keep...")
+        self.report('Deciding which structures to keep...')
 
         model_acc_multiplier = self.inputs.model_acc_multiplier.value
         e_rmse = self.ctx.m0_rmse_e.value
@@ -1646,11 +1646,11 @@ class ActiveLearningWorkChain(WorkChain):
                 if not curr_calc.is_finished_ok:
                     continue
 
-                curr_unique_id = curr_calc.base.extras.all["unique_id"]
-                curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
+                curr_unique_id = curr_calc.base.extras.all['unique_id']
+                curr_md_temperature = curr_calc.base.extras.all['md_temperature']
 
                 dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-                    "dimensionality_reduction_method"
+                    'dimensionality_reduction_method'
                 )
 
                 # Find row matching the calculation using curr_unique_id and
@@ -1663,18 +1663,18 @@ class ActiveLearningWorkChain(WorkChain):
                 # descr_file
                 with (
                     curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path,
-                    open(md_descr_file_path, "rb") as descr_file,  # noqa: E501
+                    open(md_descr_file_path, 'rb') as descr_file,  # noqa: E501
                 ):
                     md_descr_dict: list[list[list]] = pickle.load(descr_file)
 
                 # Gather latent space
-                if dimensionality_reduction_method == "autoencoder":
+                if dimensionality_reduction_method == 'autoencoder':
                     # Get latent space
                     desc_f_curr_row: dict = md_descr_dict[curr_unique_id]
-                    latent_space = desc_f_curr_row["latent_space"]
+                    latent_space = desc_f_curr_row['latent_space']
 
                     # Overwrite row in dataframe
-                    md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
+                    md_seed_results_df.loc[[row_index], 'extrapolation'] = pd.Series(
                         [latent_space],
                         index=md_seed_results_df.index[[row_index]],
                     )
@@ -1686,7 +1686,7 @@ class ActiveLearningWorkChain(WorkChain):
 
                     # Assign matching descriptors to the extrapolation column
                     # Overwrite row in dataframe
-                    md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
+                    md_seed_results_df.loc[[row_index], 'extrapolation'] = pd.Series(
                         [desc_f_curr_row],
                         index=md_seed_results_df.index[[row_index]],
                     )
@@ -1701,11 +1701,11 @@ class ActiveLearningWorkChain(WorkChain):
         for _, row in md_seed_results_df.iterrows():
             # Make len(traj) sized array filled with False.
             total_point_inside, total_point_outside = [], []
-            extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
+            extrapolating_frames = np.zeros(shape=len(row['trajectory']))
 
             # Use extrapolation based on descriptor ranges
-            if self.inputs.check_extrapolation_type.value == "basic":
-                curr_struct_descr = row["extrapolation"]
+            if self.inputs.check_extrapolation_type.value == 'basic':
+                curr_struct_descr = row['extrapolation']
 
                 # TODO: Check if this can be avoided
                 # Safeguard check for filtered trajectories.
@@ -1717,7 +1717,7 @@ class ActiveLearningWorkChain(WorkChain):
                 # extrapolating_frames array with zeros.
                 else:
                     if len(extrapolating_frames) < len(curr_struct_descr):
-                        extrapolating_frames = np.zeros(shape=len(row["extrapolation"]))
+                        extrapolating_frames = np.zeros(shape=len(row['extrapolation']))
 
                 try:
                     # Checking if the frames for the current structure are extrapolating
@@ -1736,8 +1736,8 @@ class ActiveLearningWorkChain(WorkChain):
                     pass
 
             # Use advanced extrapolation
-            elif self.inputs.check_extrapolation_type.value == "advanced":
-                curr_struct_descr = row["extrapolation"]
+            elif self.inputs.check_extrapolation_type.value == 'advanced':
+                curr_struct_descr = row['extrapolation']
 
                 for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
                     # print("type frame_descriptors: ", type(frame_descriptors))
@@ -1745,8 +1745,8 @@ class ActiveLearningWorkChain(WorkChain):
                         concave_hull=self.ctx.concave_hull_array,
                         descriptors=frame_descriptors,
                     )
-                    point_inside = in_domain_check_Dict.get_dict()["inside"]
-                    point_outside = in_domain_check_Dict.get_dict()["outside"]
+                    point_inside = in_domain_check_Dict.get_dict()['inside']
+                    point_outside = in_domain_check_Dict.get_dict()['outside']
                     total_point_inside.extend(point_inside)
                     total_point_outside.extend(point_outside)
 
@@ -1759,14 +1759,14 @@ class ActiveLearningWorkChain(WorkChain):
                         extrapolating_frames[frame_idx] = 1
 
             self.report(
-                f"Out of {len(extrapolating_frames)} frames, "
-                f"{len(np.nonzero(extrapolating_frames)[0])} were found "
-                "to be extrapolating."
+                f'Out of {len(extrapolating_frames)} frames, '
+                f'{len(np.nonzero(extrapolating_frames)[0])} were found '
+                'to be extrapolating.'
             )
 
             # Getting all energy predictions
             # TODO - Select std or variance
-            model_energies_dict = row["energy"]
+            model_energies_dict = row['energy']
 
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
 
@@ -1786,7 +1786,7 @@ class ActiveLearningWorkChain(WorkChain):
                 error_e_structures_sm, error_e_structures_bg
             )
 
-            model_forces_dict = row["forces"]
+            model_forces_dict = row['forces']
             forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
             forces_std_norm = np.linalg.norm(forces_std, axis=2)
             forces_std_norm_max = np.amax(forces_std_norm, axis=1)
@@ -1817,7 +1817,7 @@ class ActiveLearningWorkChain(WorkChain):
                 extrapolating_frames = np.pad(
                     extrapolating_frames,
                     (0, len(error_f_structures) - len(extrapolating_frames)),
-                    "constant",
+                    'constant',
                     constant_values=(0),
                 )
 
@@ -1836,7 +1836,7 @@ class ActiveLearningWorkChain(WorkChain):
             # be added to a list, which will be used as a mask to select
             # which structures to remove outside of the loop.
             if flag_no_error_structs:
-                delete_indices.append(row["unique_id"])
+                delete_indices.append(row['unique_id'])
             elif not flag_no_error_structs:
                 # If there are some structures to submit, select some of them and
                 # mark them for DFT.
@@ -1853,7 +1853,7 @@ class ActiveLearningWorkChain(WorkChain):
                     # the selected structure might be out of bounds for the
                     # trajectory array if frames are removed.
                     with suppress(IndexError):
-                        dft_structures.append(row["trajectory"][int(struct)])
+                        dft_structures.append(row['trajectory'][int(struct)])
 
                 # REMOVE: For testing purposes.
                 # TESTING
@@ -1864,7 +1864,7 @@ class ActiveLearningWorkChain(WorkChain):
                 mace_calcs_idx_list = []
 
                 for calc_idx, dft_struct in enumerate(dft_structures):
-                    if self.inputs.dft_method == "vasp":
+                    if self.inputs.dft_method == 'vasp':
                         builder = mdb_al_ut.get_dft_calc_builder_vasp(
                             dft_struct,
                             row,
@@ -1878,7 +1878,7 @@ class ActiveLearningWorkChain(WorkChain):
                         # `mdb_calc_limit` is a custom property set with:
                         # computer.set_property(name='mdb_calc_limit', value=366)
                         calc_limit = builder.metadata.computer.metadata.get(
-                            "mdb_calc_limit", 0
+                            'mdb_calc_limit', 0
                         )
 
                         # Check if the calculation can be submitted
@@ -1901,24 +1901,24 @@ class ActiveLearningWorkChain(WorkChain):
 
                         # Submitting current calculation
                         future = self.submit(builder)
-                        future.base.extras.set("mdb_calc_uuid", row["unique_id"])
+                        future.base.extras.set('mdb_calc_uuid', row['unique_id'])
                         future.base.extras.set(
-                            "mdb_struct_type", row["mdb_struct_type"]
+                            'mdb_struct_type', row['mdb_struct_type']
                         )
-                        future.base.extras.set("struct_name", row["material_name"])
+                        future.base.extras.set('struct_name', row['material_name'])
                         self.to_context(dft_struct_seed_calcs=append_(future))
 
                         if self.inputs.train_seed_group.value:
                             group = orm.load_group(self.inputs.train_seed_group.value)
                             group.add_nodes(future)
 
-                    elif self.inputs.dft_method == "mace":
+                    elif self.inputs.dft_method == 'mace':
                         mace_calcs_struct_list.append(dft_struct)
                         mace_calcs_idx_list.append(calc_idx)
 
                     submitted_dft_cnt += 1
 
-                if self.inputs.dft_method == "mace" and len(mace_calcs_struct_list) > 0:
+                if self.inputs.dft_method == 'mace' and len(mace_calcs_struct_list) > 0:
                     builder = mdb_al_ut.get_dft_calc_builder_mace_list(
                         struct_list=mace_calcs_struct_list,
                         row=row,
@@ -1929,7 +1929,7 @@ class ActiveLearningWorkChain(WorkChain):
                     # if not present.
                     # `mdb_calc_limit` is a custom property set with:
                     # computer.set_property(name='mdb_calc_limit', value=366)
-                    calc_limit = builder.code.computer.metadata.get("mdb_calc_limit", 0)
+                    calc_limit = builder.code.computer.metadata.get('mdb_calc_limit', 0)
 
                     # Check if the calculation can be submitted
                     if calc_limit == 0:
@@ -1953,10 +1953,10 @@ class ActiveLearningWorkChain(WorkChain):
 
                     # Submitting current calculation
                     future = self.submit(builder)
-                    future.base.extras.set("mdb_calc_uuid", row["unique_id"])
-                    future.base.extras.set("mdb_struct_type", row["mdb_struct_type"])
-                    future.base.extras.set("struct_name", row["material_name"])
-                    future.base.extras.set("mdb_md_node", row["mdb_md_node"])
+                    future.base.extras.set('mdb_calc_uuid', row['unique_id'])
+                    future.base.extras.set('mdb_struct_type', row['mdb_struct_type'])
+                    future.base.extras.set('struct_name', row['material_name'])
+                    future.base.extras.set('mdb_md_node', row['mdb_md_node'])
 
                     self.to_context(dft_struct_seed_calcs=append_(future))
 
@@ -1964,8 +1964,8 @@ class ActiveLearningWorkChain(WorkChain):
                         group = orm.load_group(self.inputs.train_seed_group.value)
                         group.add_nodes(future)
 
-        if self.inputs.check_extrapolation_type.value == "advanced":
-            self.report("Plotting extrapolation check results...")
+        if self.inputs.check_extrapolation_type.value == 'advanced':
+            self.report('Plotting extrapolation check results...')
             mdb_al_ut.plot_concave_hull(
                 point_inside=np.array(total_point_inside),
                 point_outside=np.array(total_point_outside),
@@ -1974,8 +1974,8 @@ class ActiveLearningWorkChain(WorkChain):
             )
 
         self.report(
-            f"Committee decision: {submitted_dft_cnt} get info / "
-            f"{len(delete_indices)} delete."
+            f'Committee decision: {submitted_dft_cnt} get info / '
+            f'{len(delete_indices)} delete.'
         )
 
         # Deleting well represented structures from seed_gen_db (Ds), if
@@ -1984,8 +1984,8 @@ class ActiveLearningWorkChain(WorkChain):
         delete_seed_structs: bool = self.inputs.delete_seed_structs.value
         if len(delete_indices) > 0 and delete_seed_structs:
             self.report(
-                f"Deleting {len(delete_indices)} structures from seed"
-                " generating DB (Ds)"
+                f'Deleting {len(delete_indices)} structures from seed'
+                ' generating DB (Ds)'
             )
 
             mdb_al_ut.remove_structs_from_seed_gen_db(
@@ -1994,7 +1994,7 @@ class ActiveLearningWorkChain(WorkChain):
 
         # If no structure is well represented, nothing will be deleted.
         else:
-            self.report("Nothing removed from DB.")
+            self.report('Nothing removed from DB.')
 
     def return_seed_dft_and_model(self):
         """
@@ -2007,10 +2007,10 @@ class ActiveLearningWorkChain(WorkChain):
         namespace `stop_md_seed_no_disagreement`.
         """
         # TODO: Adapt for VASP usage
-        if self.inputs.dft_method == "vasp":
+        if self.inputs.dft_method == 'vasp':
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(f"Gathered {dft_calcs} VASP DFT calculations.")
+                self.report(f'Gathered {dft_calcs} VASP DFT calculations.')
 
                 mdb_al_ut.gather_dft_calcs_vasp(
                     [node.uuid for node in self.ctx.dft_struct_seed_calcs]
@@ -2019,10 +2019,10 @@ class ActiveLearningWorkChain(WorkChain):
             except AttributeError:
                 orm.List([])
 
-        elif self.inputs.dft_method == "mace":
+        elif self.inputs.dft_method == 'mace':
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(f"Gathered {dft_calcs} MACE evaluations.")
+                self.report(f'Gathered {dft_calcs} MACE evaluations.')
 
                 calc_list = [node.uuid for node in self.ctx.dft_struct_seed_calcs]
 
@@ -2037,17 +2037,17 @@ class ActiveLearningWorkChain(WorkChain):
                 )
 
             except AttributeError:
-                return_list_path = ""
+                return_list_path = ''
 
         # File containing structures
         if return_list_path:
-            self.out("dft_calcs_path", return_list_path)
+            self.out('dft_calcs_path', return_list_path)
 
         # orm.SinglefileData for the MACE model with the best performance
-        self.out("m0_model_file", self.ctx.best_model_file)
+        self.out('m0_model_file', self.ctx.best_model_file)
 
         self.out(
-            "stop_md_seed_no_disagreement",
+            'stop_md_seed_no_disagreement',
             mdb_al_ut.check_md_seed_agreement(return_list_path),
         )
 
@@ -2089,24 +2089,24 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         spec.expose_inputs(
             ActiveLearningWorkChain,
-            namespace="active_learning",
+            namespace='active_learning',
             exclude=[
-                "current_md_seed_structs_path",
-                "current_md_seed_structs_idx",
-                "al_loop_iteration",
-                "train_seed_group",
-                "seed_gen_db",
-                "seed_size",
-                "seed_db_path",
-                "training_db_path",
-                "database_training",
+                'current_md_seed_structs_path',
+                'current_md_seed_structs_idx',
+                'al_loop_iteration',
+                'train_seed_group',
+                'seed_gen_db',
+                'seed_size',
+                'seed_db_path',
+                'training_db_path',
+                'database_training',
             ],
         )
-        spec.input("log_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
 
         # Optional input to resume the workchain from a previous state.
         spec.input(
-            "resume_dict",
+            'resume_dict',
             valid_type=orm.Dict,
             serializer=orm.to_aiida_type,
             required=False,
@@ -2149,17 +2149,17 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cls.results_final,
         )
         spec.output(
-            "final_training_db",
+            'final_training_db',
             valid_type=orm.SinglefileData,
         )
-        spec.output("final_model_file", valid_type=orm.SinglefileData)
+        spec.output('final_model_file', valid_type=orm.SinglefileData)
 
     def setup_textfile_logging(self):
         # Get log path
         log_path = self.inputs.log_path.value
 
         # Getting aiida logger
-        aiida_logger = logging.getLogger("aiida")
+        aiida_logger = logging.getLogger('aiida')
         cli_handler = aiida_logger.handlers[0]
         aiida_logger.removeHandler(cli_handler)
 
@@ -2169,16 +2169,16 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         aiida_logger.addHandler(file_handler)
 
         # Adding console logger
-        console = Console(color_system="truecolor")
+        console = Console(color_system='truecolor')
         ch = RichHandler(
             markup=True,
             show_path=False,
-            log_time_format="[%m/%d/%y %H:%M:%S]",
+            log_time_format='[%m/%d/%y %H:%M:%S]',
             omit_repeated_times=False,
             console=console,
         )
         ch.setLevel(23)
-        formatter_con = logging.Formatter("%(message)s")
+        formatter_con = logging.Formatter('%(message)s')
         ch.setFormatter(formatter_con)
         aiida_logger.addHandler(ch)
 
@@ -2190,21 +2190,21 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     def get_database(self):
         """Loading initial database."""
-        self.report("Reading database file...")
+        self.report('Reading database file...')
 
         # The training database (Dt) from which copies are made
         # for further processing. New structures will be added here.
         if self.inputs.resume_dict:
             database_training = ase_read(
-                filename=self.inputs.resume_dict["train_db_path"],
-                format="extxyz",
-                index=":",
+                filename=self.inputs.resume_dict['train_db_path'],
+                format='extxyz',
+                index=':',
             )
         else:
             database_training = ase_read(
                 filename=self.inputs.active_learning.init_db_path.value,
-                format="extxyz",
-                index=":",
+                format='extxyz',
+                index=':',
             )
 
         # Create files for database_training and seed_gen_db
@@ -2222,12 +2222,12 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # A copy of the initial database, (Ds)
         # used specifically for generating MD seeds and running the MDs.
         # New structures will be added and well represented configs removed from here.
-        self.ctx.seed_db_path = curr_run_results_dir / "mdb_seed_db.xyz"
+        self.ctx.seed_db_path = curr_run_results_dir / 'mdb_seed_db.xyz'
 
         # Copying the seed database from the initial database if new run,
         # otherwise copy from the previous run.
         if self.inputs.resume_dict:
-            shutil.copy(self.inputs.resume_dict["seed_db_path"], self.ctx.seed_db_path)
+            shutil.copy(self.inputs.resume_dict['seed_db_path'], self.ctx.seed_db_path)
         else:
             shutil.copy(
                 self.inputs.active_learning.init_db_path.value, self.ctx.seed_db_path
@@ -2254,10 +2254,10 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.training_db_path = final_db_path
         if self.inputs.resume_dict:
             shutil.copy(
-                self.inputs.resume_dict["train_db_path"], self.ctx.training_db_path
+                self.inputs.resume_dict['train_db_path'], self.ctx.training_db_path
             )
             self.report(
-                "Loaded initial database from previous run containing "
+                'Loaded initial database from previous run containing '
                 f"'{len(database_training)}' structures."
             )
         else:
@@ -2266,7 +2266,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 self.ctx.training_db_path,
             )
             self.report(
-                "Loaded initial database containing "
+                'Loaded initial database containing '
                 f"'{len(database_training)}' structures."
             )
 
@@ -2281,7 +2281,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
     def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
         if self.inputs.resume_dict:
-            last_iteration = self.inputs.resume_dict["last_iteration"]
+            last_iteration = self.inputs.resume_dict['last_iteration']
             node = self.ctx.children[self.ctx.iteration - (last_iteration - 1) - 2]
         else:
             node = self.ctx.children[self.ctx.iteration - 1]
@@ -2290,7 +2290,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # outputs = self._attach_outputs(node)
         # Sending seed disagreement flag to context
         self.ctx.stop_md_seed_no_disagreement = node.outputs[
-            "stop_md_seed_no_disagreement"
+            'stop_md_seed_no_disagreement'
         ]
         self.ctx.last_workchain_completed = node
         return None
@@ -2310,7 +2310,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             training_db = mdb_al_ut.load_database(self.ctx.training_db_path)
             last_wc = self.ctx.last_workchain_completed
             dft_calcs = ase_read(
-                last_wc.outputs["dft_calcs_path"].value, format="extxyz", index=":"
+                last_wc.outputs['dft_calcs_path'].value, format='extxyz', index=':'
             )
 
             cnt_dft_calcs = len(dft_calcs)
@@ -2319,7 +2319,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cnt_dft_calcs = 0
 
         if cnt_dft_calcs > 0:
-            self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
+            self.report(f'Adding {cnt_dft_calcs} DFT calculations to DB.')
 
             # Adding calculations to training database and seed_generation database
             for dft_calc in dft_calcs:
@@ -2331,31 +2331,31 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 training_db.append(dft_calc)
 
             # Updating final and seed database.
-            self.report("Updating database files...")
+            self.report('Updating database files...')
 
             ase_write(
                 filename=self.ctx.training_db_path,
                 images=training_db,
-                format="extxyz",
+                format='extxyz',
             )
             ase_write(
                 filename=self.ctx.seed_db_path,
                 images=seed_gen_db,
-                format="extxyz",
+                format='extxyz',
             )
 
-            self.report("Database files updated.")
+            self.report('Database files updated.')
 
-            tmp_folder_path: Path = self.ctx.results_dir / "run_tmp_data"
+            tmp_folder_path: Path = self.ctx.results_dir / 'run_tmp_data'
 
             # Saving current step database
             curr_it_db_path = (
-                tmp_folder_path / f"train_db_it_{self.ctx.iteration}.xyz.xz"
+                tmp_folder_path / f'train_db_it_{self.ctx.iteration}.xyz.xz'
             )
             ase_write(
                 filename=curr_it_db_path,
                 images=seed_gen_db,
-                format="extxyz",
+                format='extxyz',
             )
 
             # Removing teporary files from the AL loop step.
@@ -2363,13 +2363,13 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # this will be added if the library is updated to Python 3.12
             for _, _, files in os.walk(top=tmp_folder_path):
                 for file in files:
-                    if "md_seed_structures" not in file:
+                    if 'md_seed_structures' not in file:
                         (tmp_folder_path / file).unlink(missing_ok=True)
 
         self.report(
-            f"Iteration {self.ctx.iteration}: "
-            f"seed_gen_db {len(seed_gen_db)}, "
-            f"training_db: {len(training_db)} entries"
+            f'Iteration {self.ctx.iteration}: '
+            f'seed_gen_db {len(seed_gen_db)}, '
+            f'training_db: {len(training_db)} entries'
         )
 
     def get_al_loop_break_conditions(self):
@@ -2401,7 +2401,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.
         """
-        self.report("Starting Workchain setup.")
+        self.report('Starting Workchain setup.')
         super().setup()
 
         # Update the iteration counter if resuming from a previous run
@@ -2410,16 +2410,16 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "Resuming from previous run, stopped at iteration: "
                 f"'{self.inputs.resume_dict['last_iteration']}'."
             )
-            self.ctx.iteration = self.inputs.resume_dict["last_iteration"]
+            self.ctx.iteration = self.inputs.resume_dict['last_iteration']
 
         self.ctx.inputs = self.exposed_inputs(
-            ActiveLearningWorkChain, "active_learning"
+            ActiveLearningWorkChain, 'active_learning'
         )
 
         # Creating aiida orm.Group to store all calculations
-        ctime = time.strftime("%Y%m%dT%H%M%S")
+        ctime = time.strftime('%Y%m%dT%H%M%S')
         seed_group = orm.Group(
-            label=f"{self.inputs.active_learning.run_name.value}_train_md_seed_{ctime}"
+            label=f'{self.inputs.active_learning.run_name.value}_train_md_seed_{ctime}'
         )
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
@@ -2437,20 +2437,20 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
 
-        self.report("Workchain setup finished.")
+        self.report('Workchain setup finished.')
 
     def get_input_report(self):
-        console = Console(color_system="truecolor")
+        console = Console(color_system='truecolor')
 
         input_dict = {}
         for i in self.ctx.inputs:
-            if i != "metadata":
+            if i != 'metadata':
                 if self.ctx.inputs[i]:
                     if isinstance(self.ctx.inputs[i], orm.Dict):
                         input_dict[i] = {}
                         curr_dict = self.ctx.inputs[i].get_dict()
                         for key, val in curr_dict.items():
-                            if key not in ["metadata", "options", "prepend_text"]:
+                            if key not in ['metadata', 'options', 'prepend_text']:
                                 input_dict[i][key] = val
                     elif isinstance(self.ctx.inputs[i], orm.List):
                         input_dict[i] = self.ctx.inputs[i].get_list()
@@ -2465,15 +2465,15 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Hacky way of logging the inputs to both the console and the log file
         # in different formats.
-        aiida_logger = logging.getLogger("aiida")
+        aiida_logger = logging.getLogger('aiida')
         ini_level = aiida_logger.level
         aiida_logger.level = 20
         aiida_logger.handlers[-1].setLevel(23)
-        aiida_logger.log(msg=f"Active Learning Inputs: \n{input_dict}", level=20)
+        aiida_logger.log(msg=f'Active Learning Inputs: \n{input_dict}', level=20)
         aiida_logger.level = ini_level
 
         print()
-        inputs = Panel(Pretty(input_dict), title="Active Learning Inputs")
+        inputs = Panel(Pretty(input_dict), title='Active Learning Inputs')
         console.print(inputs)
 
     def check_al_loop_conditions(self) -> bool:
@@ -2524,16 +2524,16 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         continue_cond = continue_loop_conditions and iterations_status_ok
 
         if self.ctx.stop_md_seed_no_disagreement.value:
-            self.report("Stopping AL Loop as all predictions agree for a MD seed.")
+            self.report('Stopping AL Loop as all predictions agree for a MD seed.')
         elif self.ctx.seed_gen_db_all_structs_removed.value:
             self.report(
-                "Stopping AL Loop as seed generating database has been depleted."
+                'Stopping AL Loop as seed generating database has been depleted.'
             )
         else:
             if self.ctx.iteration != 0:
                 self.report(
-                    f"Proceeding with iteration-{self.ctx.iteration+1} of AL Loop "
-                    "as stopping conditions not met."
+                    f'Proceeding with iteration-{self.ctx.iteration+1} of AL Loop '
+                    'as stopping conditions not met.'
                 )
             self.ctx.inputs.al_loop_iteration = self.ctx.iteration
 
@@ -2554,15 +2554,15 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             selected structures.
         """
         self.report(
-            f"Starting AL Loop iteration {self.ctx.iteration+1}/"
-            f"{self.inputs.active_learning.max_iterations.value}..."
+            f'Starting AL Loop iteration {self.ctx.iteration+1}/'
+            f'{self.inputs.active_learning.max_iterations.value}...'
         )
-        self.report("Getting MD seed...")
+        self.report('Getting MD seed...')
         self.ctx.inputs.metadata.description = (
-            "Perform MD simulations, evaluate and refine ML models. "
-            f"Step: {self.ctx.iteration+1}"
+            'Perform MD simulations, evaluate and refine ML models. '
+            f'Step: {self.ctx.iteration+1}'
         )
-        self.ctx.inputs.metadata.label = f"Step - {self.ctx.iteration+1}"
+        self.ctx.inputs.metadata.label = f'Step - {self.ctx.iteration+1}'
 
         seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
 
@@ -2572,24 +2572,24 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # In order to use small_first, the current iteration number must be
         # less than small_first_max_iter.
         if (
-            seed_select_settings["seed_select_type"] == "small_first"
-            and self.ctx.iteration + 1 <= seed_select_settings["small_first_max_iter"]
+            seed_select_settings['seed_select_type'] == 'small_first'
+            and self.ctx.iteration + 1 <= seed_select_settings['small_first_max_iter']
         ):
             self.report("Using 'small_first' seed selection type.")
-            seed_select_type = "small_first"
+            seed_select_type = 'small_first'
         else:
-            seed_select_type = "random"
+            seed_select_type = 'random'
 
         # Filter the structure database and only use the small structures.
-        if seed_select_type == "small_first":
-            max_size = seed_select_settings["small_first_max_size"]
+        if seed_select_type == 'small_first':
+            max_size = seed_select_settings['small_first_max_size']
             seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
             if len(seed_gen_db) == 0:
                 raise mdb_excp.FilterError(
-                    f"There are no structures with less than "
-                    f"{max_size} atoms in the given database. "
+                    f'There are no structures with less than '
+                    f'{max_size} atoms in the given database. '
                     "Please, remove the 'small_first' seed selection mode. "
-                    "and try again."
+                    'and try again.'
                 )
 
         # Getting length of the seed generating database
@@ -2603,8 +2603,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_size < self.ctx.min_seed_size:
             seed_size = self.ctx.min_seed_size
             self.report(
-                "Set MD seed size to minimum seed size as the calculated seed size was "
-                f"below the minimum seed size: {self.ctx.min_seed_size}."
+                'Set MD seed size to minimum seed size as the calculated seed size was '
+                f'below the minimum seed size: {self.ctx.min_seed_size}.'
             )
 
         # Limit the maximum number of structures to the seed size limit set on the input
@@ -2616,7 +2616,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_size > db_length:
             seed_size = db_length
             self.report(
-                "MD seed size larger than seed generation database."
+                'MD seed size larger than seed generation database. '
                 f"Limited size to '{db_length}'."
             )
 
@@ -2624,7 +2624,7 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # if this happens, make it 1.
         if seed_size < 1:
             seed_size = 1
-            self.report("MD seed size is 0. Set to 1.")
+            self.report('MD seed size is 0. Set to 1.')
 
         # Choosing structures at random to create the training seed
         selected_structs = np.random.choice(
@@ -2644,8 +2644,8 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             current_md_seed_structs.append(seed_gen_db[idx])
 
         self.report(
-            f"Created MD seed with {seed_size}"
-            f" structures ({(seed_size/db_length)*100:.1f}% of current database size)."
+            f'Created MD seed with {seed_size}'
+            f' structures ({(seed_size/db_length)*100:.1f}% of current database size).'
         )
 
         # Adding current train seed to the context
@@ -2662,11 +2662,11 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
             node=self.node,
         )
         self.ctx.current_md_seed_structs_path = (
-            f"{self.ctx.results_dir}/run_tmp_data/md_seed_structures-"
-            f"{self.ctx.iteration}.pkl"
+            f'{self.ctx.results_dir}/run_tmp_data/md_seed_structures-'
+            f'{self.ctx.iteration}.pkl'
         )
 
-        with open(self.ctx.current_md_seed_structs_path, "wb") as seed_file:
+        with open(self.ctx.current_md_seed_structs_path, 'wb') as seed_file:
             pickle.dump(current_md_seed_structs, seed_file)
         self.ctx.inputs.current_md_seed_structs_path = (
             self.ctx.current_md_seed_structs_path
@@ -2684,31 +2684,31 @@ class ActiveLearningBaseWorkChain(BaseRestartWorkChain):
         signifies the completion of the workchain and the availability of the
         processed training data for further use.
         """
-        self.report("Returning final results...")
+        self.report('Returning final results...')
 
         # Storing final database as a orm.SinglefileData object
         train_db = mdb_al_ut.prepare_output_final_training_db(
             training_db_path=self.ctx.inputs.training_db_path
         )
 
-        self.out("final_training_db", train_db)
+        self.out('final_training_db', train_db)
 
         # Returning final model as orm.SinglefileData object
         final_model_singlefile = self.ctx.last_workchain_completed.outputs[
-            "m0_model_file"
+            'm0_model_file'
         ]
         self.out(
-            "final_model_file",
-            self.ctx.last_workchain_completed.outputs["m0_model_file"],
+            'final_model_file',
+            self.ctx.last_workchain_completed.outputs['m0_model_file'],
         )
 
-        target_file_name = f"al_loop_{self.inputs.active_learning.run_name.value}.model"
+        target_file_name = f'al_loop_{self.inputs.active_learning.run_name.value}.model'
         target_file_path = self.ctx.curr_run_results_dir / target_file_name
 
         with (
-            final_model_singlefile.open(mode="rb") as source,
-            open(target_file_path, mode="wb") as target,
+            final_model_singlefile.open(mode='rb') as source,
+            open(target_file_path, mode='wb') as target,
         ):
             shutil.copyfileobj(source, target)
 
-        self.report("Workchain completed!")
+        self.report('Workchain completed!')

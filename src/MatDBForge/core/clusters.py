@@ -13,7 +13,7 @@ import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.utils as mdb_utils
 
 # Gathering some cluster related data
-DATA_PATH = (pl.Path(f"{__file__}").parent / "../data").resolve()
+DATA_PATH = (pl.Path(f'{__file__}').parent / '../data').resolve()
 CLUST_LIST = [clst.stem for clst in DATA_PATH.iterdir()]
 
 # Default initial lattice size.
@@ -23,9 +23,9 @@ LATT = [20, 21, 22]
 # Data sourced from Materials Project
 # Will probably need the structure name and phase?
 ATOM_DATA = {
-    "Cu": {
-        "a": 3.5691940,
-        "dimer_dist": (
+    'Cu': {
+        'a': 3.5691940,
+        'dimer_dist': (
             2.248
         ),  # Å, via DFT calculations (Kabir et al., 2004; Guvelioglu et al., 2006)
     }
@@ -54,7 +54,7 @@ def make_clean_cluster(indb_obj, size, phase: mdb_phase.Phase):
     )
     struct = Structure(
         lattice=lattice,
-        coords=at_posc * curr_at_data["a"],
+        coords=at_posc * curr_at_data['a'],
         species=list(it.repeat(phase.cluster_elem, size)),
         coords_are_cartesian=True,
     )
@@ -87,7 +87,7 @@ def make_clean_cluster(indb_obj, size, phase: mdb_phase.Phase):
     # Centering structure using center of mass
     struct = center_structure(struct)
 
-    cluster_name = f"base_cluster_{phase.name}_{struct.formula}"
+    cluster_name = f'base_cluster_{phase.name}_{struct.formula}'
     clust_obj = mdb_struct.Cluster(
         material_name=cluster_name,
         structure=struct,
@@ -108,7 +108,7 @@ def make_clean_dimer(indb_obj, phase: mdb_phase.Phase):
         raise mdb_exc.AtomNotFoundForCluster
 
     # Dimer created by hand
-    at_posc = np.array([[0, 0, 0], [0, curr_at_data["dimer_dist"], 0]])
+    at_posc = np.array([[0, 0, 0], [0, curr_at_data['dimer_dist'], 0]])
 
     # Generating initial structure with a large cell size.
     # It will be used to check the cluster size and the cell siize
@@ -151,7 +151,7 @@ def make_clean_dimer(indb_obj, phase: mdb_phase.Phase):
     # Centering structure using center of mass
     struct = center_structure(struct)
 
-    cluster_name = f"base_cluster_{phase.name}_{struct.formula}"
+    cluster_name = f'base_cluster_{phase.name}_{struct.formula}'
     clust_obj = mdb_struct.Cluster(
         material_name=cluster_name,
         structure=struct,
@@ -280,9 +280,9 @@ def get_center_of_mass(structure: Structure):
 
 
 def apply_replacement_cluster(
-    db_obj: "mdb_indb.InitialDatabase",
-    cluster: "mdb_struct.Cluster",
-    phase: "mdb_phase.Phase",
+    db_obj: 'mdb_indb.InitialDatabase',
+    cluster: 'mdb_struct.Cluster',
+    phase: 'mdb_phase.Phase',
     num_struct: int,
     num_repeat: int,
 ):
@@ -323,8 +323,8 @@ def apply_replacement_cluster(
             )
 
             cluster_name = (
-                f"cluster_{new_structure.formula}_replacement"
-                f"-{n_replace}_repeat-{repeat_ind}"
+                f'cluster_{new_structure.formula}_replacement'
+                f'-{n_replace}_repeat-{repeat_ind}'
             )
             clust_obj = mdb_struct.Cluster(
                 material_name=cluster_name,
@@ -339,7 +339,7 @@ def apply_replacement_cluster(
 
 
 def apply_replacement_cluster_db(
-    db_obj: "mdb_indb.InitialDatabase",
+    db_obj: 'mdb_indb.InitialDatabase',
     # cluster: mdb_struct.Cluster,
     phase: mdb_phase.Phase,
     num_struct: int,
@@ -355,7 +355,7 @@ def apply_replacement_cluster_db(
     (other_elem,) = db_obj.ALLOY_SET - {phase.cluster_elem}
 
     # Selecting only non-replaced structures
-    base_clusters = db_obj.df.loc[db_obj.df["replacement"] is False]
+    base_clusters = db_obj.df.loc[db_obj.df['replacement'] is False]
 
     for _row_idx, row in base_clusters.iterrows():
         cluster = row.structure
@@ -387,8 +387,8 @@ def apply_replacement_cluster_db(
                 )
 
                 cluster_name = (
-                    f"cluster_{new_structure.formula}_replacement"
-                    f"-{n_replace}_repeat-{repeat_ind}"
+                    f'cluster_{new_structure.formula}_replacement'
+                    f'-{n_replace}_repeat-{repeat_ind}'
                 )
                 clust_obj = mdb_struct.Cluster(
                     material_name=cluster_name,
@@ -400,7 +400,7 @@ def apply_replacement_cluster_db(
                 replaced_clusters.append(clust_obj)
 
     mdb_utils.custom_print(
-        f"Generated {len(replaced_clusters)} clusters after replacement", "debug"
+        f'Generated {len(replaced_clusters)} clusters after replacement', 'debug'
     )
 
     if similarity_check:
@@ -411,7 +411,7 @@ def apply_replacement_cluster_db(
         )
 
     if save_in_db and not similarity_check:
-        mdb_utils.custom_print("Saving to db...", "debug")
+        mdb_utils.custom_print('Saving to db...', 'debug')
         for _idx, cluster in enumerate(replaced_clusters):
             db_obj._save_row(structure=cluster)
 
@@ -423,7 +423,7 @@ def _apply_perturbation_cluster(center, row, per_idx):
     new_struct_perturb = mdb_utils.gauss_perturb(center=center, structure=row.structure)
 
     # Creating perturbed cluster object
-    mat_str = f"{row.material_name}_perturb_gauss_{per_idx+1}"
+    mat_str = f'{row.material_name}_perturb_gauss_{per_idx+1}'
     clust_obj = mdb_struct.Cluster(
         material_name=mat_str,
         structure=new_struct_perturb,
@@ -450,18 +450,18 @@ def apply_gauss_perturb_db(repeat: int, db_obj, center: float = 0.04):
     if not isinstance(db_obj, mdb_indb.InitialDatabase):
         raise TypeError(
             f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
-            f"database object, not a {type(db_obj)}."
+            f'database object, not a {type(db_obj)}.'
         )
 
     # Iterating over all database rows to get the unperturbed clusters
-    mdb_utils.custom_print(f"Perturbation db_obj shape: {db_obj.df.shape}", "debug")
+    mdb_utils.custom_print(f'Perturbation db_obj shape: {db_obj.df.shape}', 'debug')
     for _, row in db_obj.df.iterrows():
         for per_idx in range(repeat):
             clust_obj = _apply_perturbation_cluster(center, row, per_idx)
             perturbed_clusters.append(clust_obj)
 
     mdb_utils.custom_print(
-        f"Total structures perturbed: {len(perturbed_clusters)}", "debug"
+        f'Total structures perturbed: {len(perturbed_clusters)}', 'debug'
     )
 
     # Saving in database

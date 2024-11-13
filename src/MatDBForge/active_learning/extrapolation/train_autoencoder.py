@@ -79,7 +79,7 @@ def load_dataset(
     dtype=torch.float32,
 ):
     if not device:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if not rng_seed:
         rng_seed = np.random.randint(1, int(1e15))
@@ -122,10 +122,10 @@ def load_dataset(
     train_data = torch.Tensor(point_arr).to(device=device, dtype=dtype)
     valid_data = torch.Tensor(valid_arr).to(device=device, dtype=dtype)
     test_data = torch.Tensor(test_arr).to(device=device, dtype=dtype)
-    mdb_cud.custom_print("Data loaded:", "info")
-    mdb_cud.custom_print(f"- Training data array shape: {train_data.shape}", "clean")
-    mdb_cud.custom_print(f"- Validation data array shape: {valid_data.shape}", "clean")
-    mdb_cud.custom_print(f"- Test data array shape: {test_data.shape}", "clean")
+    mdb_cud.custom_print('Data loaded:', 'info')
+    mdb_cud.custom_print(f'- Training data array shape: {train_data.shape}', 'clean')
+    mdb_cud.custom_print(f'- Validation data array shape: {valid_data.shape}', 'clean')
+    mdb_cud.custom_print(f'- Test data array shape: {test_data.shape}', 'clean')
     print()
 
     return train_data, valid_data, test_data
@@ -189,14 +189,14 @@ def run_training(args):
         Autoencoder model trained for dimensionality reduction.
     """
     # Set device if no device is given
-    if not args.device or args.device == "auto":
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if not args.device or args.device == 'auto':
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     else:
         device = args.device
-    mdb_cud.custom_print(f"Running on device: '{device}'", "info")
+    mdb_cud.custom_print(f"Running on device: '{device}'", 'info')
 
     # Setting verbosity
-    if "verbose" in vars(args):
+    if 'verbose' in vars(args):
         match args.verbose:
             case True:
                 args.verbose = True
@@ -210,18 +210,18 @@ def run_training(args):
         args.dtype = torch.float32
     else:
         match args.dtype:
-            case "float32":
+            case 'float32':
                 args.dtype = torch.float32
-            case "float64":
+            case 'float64':
                 args.dtype = torch.float64
             case _:
                 args.dtype = torch.float32
-    mdb_cud.custom_print(f"Using dtype: '{args.dtype}'", "info")
+    mdb_cud.custom_print(f"Using dtype: '{args.dtype}'", 'info')
 
     # If no seed is given, generate a random seed
     if not args.rng_seed:
         args.rng_seed = np.random.randint(1, int(1e15))
-    mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
+    mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", 'info')
 
     # Load data
     train_data, valid_data, test_data = load_dataset(
@@ -246,19 +246,19 @@ def run_training(args):
             name=args.wandb_name,
             # track hyperparameters and run metadata
             config={
-                "learning_rate": args.lr,
-                "bias_flag": args.bias_flag,
-                "dataset": args.dataset,
-                "num_epochs": args.num_epochs,
-                "batch_size": args.batch_size,
-                "patience": args.patience,
-                "train_frac": args.train_frac,
-                "valid_frac": args.valid_frac,
-                "test_frac": args.test_frac,
-                "l1_hidden_dim": args.l1_hidden_dim,
-                "l2_hidden_dim": args.l2_hidden_dim,
-                "weight_decay": args.weight_decay,
-                "device": device,
+                'learning_rate': args.lr,
+                'bias_flag': args.bias_flag,
+                'dataset': args.dataset,
+                'num_epochs': args.num_epochs,
+                'batch_size': args.batch_size,
+                'patience': args.patience,
+                'train_frac': args.train_frac,
+                'valid_frac': args.valid_frac,
+                'test_frac': args.test_frac,
+                'l1_hidden_dim': args.l1_hidden_dim,
+                'l2_hidden_dim': args.l2_hidden_dim,
+                'weight_decay': args.weight_decay,
+                'device': device,
             },
         )
 
@@ -273,11 +273,11 @@ def run_training(args):
 
     match args.loss:
         # Define loss function as MSE (Mean Squared Error)
-        case "mse":
+        case 'mse':
             criterion = nn.MSELoss()
 
         # Alternative loss function that penalizes small errors more heavily
-        case "weighted_mse":
+        case 'weighted_mse':
 
             def weighted_mse_loss(output, target, weight=10):
                 diff = (output - target) ** 2
@@ -296,7 +296,7 @@ def run_training(args):
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer=optimizer,
-        mode="min",
+        mode='min',
         factor=0.5,
         patience=args.patience,
         # threshold=1e-3,
@@ -312,7 +312,7 @@ def run_training(args):
         # shuffle=True,
     )
 
-    mdb_cud.custom_print(f"Starting training for {args.num_epochs} epochs...", "info")
+    mdb_cud.custom_print(f'Starting training for {args.num_epochs} epochs...', 'info')
 
     for epoch in range(args.num_epochs):
         _, train_avg_loss = train_loop(
@@ -339,23 +339,23 @@ def run_training(args):
             if args.verbose:
                 mdb_cud.custom_print(
                     {
-                        "Epoch": epoch,
-                        "Train Avg. MSE": train_avg_loss,
-                        "Validation Avg. MSE": val_loss,
-                        "Test Avg. MSE": test_loss,
-                        "lr": scheduler.get_last_lr()[0],
+                        'Epoch': epoch,
+                        'Train Avg. MSE': train_avg_loss,
+                        'Validation Avg. MSE': val_loss,
+                        'Test Avg. MSE': test_loss,
+                        'lr': scheduler.get_last_lr()[0],
                     },
-                    "info",
+                    'info',
                 )
             # log metrics to wandb
             if args.wandb:
                 wandb.log(
                     {
-                        "epoch": epoch,
-                        "train_loss": train_avg_loss,
-                        "val_loss": val_loss,
-                        "test_loss": val_loss,
-                        "lr": scheduler.get_last_lr()[0],
+                        'epoch': epoch,
+                        'train_loss': train_avg_loss,
+                        'val_loss': val_loss,
+                        'test_loss': val_loss,
+                        'lr': scheduler.get_last_lr()[0],
                     }
                 )
         # Log metrics for normal epoch
@@ -363,32 +363,32 @@ def run_training(args):
             if args.verbose:
                 mdb_cud.custom_print(
                     {
-                        "Epoch": epoch,
-                        "Train Avg. MSE": train_avg_loss,
-                        "Validation Avg. MSE": val_loss,
-                        "lr": scheduler.get_last_lr()[0],
+                        'Epoch': epoch,
+                        'Train Avg. MSE': train_avg_loss,
+                        'Validation Avg. MSE': val_loss,
+                        'lr': scheduler.get_last_lr()[0],
                     },
-                    "info",
+                    'info',
                 )
             # log metrics to wandb
             if args.wandb:
                 wandb.log(
                     {
-                        "epoch": epoch,
-                        "train_loss": train_avg_loss,
-                        "val_loss": val_loss,
-                        "lr": scheduler.get_last_lr()[0],
+                        'epoch': epoch,
+                        'train_loss': train_avg_loss,
+                        'val_loss': val_loss,
+                        'lr': scheduler.get_last_lr()[0],
                     }
                 )
 
         scheduler.step(metrics=val_loss)
 
-    mdb_cud.custom_print("Training complete!", "done")
+    mdb_cud.custom_print('Training complete!', 'done')
     if args.model_path:
         # Save the model
         # torch.save(model.state_dict(), args.model_path)
         torch.save(model, args.model_path)
 
-        mdb_cud.custom_print(f"Model saved to '{args.model_path}'.", "info")
+        mdb_cud.custom_print(f"Model saved to '{args.model_path}'.", 'info')
 
     return model

@@ -54,9 +54,9 @@ from MatDBForge.core import initial_db as indb
 from MatDBForge.core import utils as ut
 
 # Filtering certain warnings
-warnings.filterwarnings("ignore", category=vasp.outputs.UnconvergedVASPWarning)
-warnings.filterwarnings("ignore", category=UserWarning, module="pymatgen")
-warnings.filterwarnings("ignore", category=FutureWarning, module="pandas")
+warnings.filterwarnings('ignore', category=vasp.outputs.UnconvergedVASPWarning)
+warnings.filterwarnings('ignore', category=UserWarning, module='pymatgen')
+warnings.filterwarnings('ignore', category=FutureWarning, module='pandas')
 
 
 class InitialDatabase:
@@ -140,7 +140,7 @@ class InitialDatabase:
         # Using the offset
         if use_offset:
             mdb_cud.custom_print(
-                "Using an offset for computing the phases concentrations.", "info"
+                'Using an offset for computing the phases concentrations.', 'info'
             )
             self.use_offset = use_offset
 
@@ -169,11 +169,11 @@ class InitialDatabase:
     def _adapt_old_db(self, database_old):
         """Adapter for the old version of the database."""
         columns_to_add = {
-            "bulk": bool,
-            "surface": bool,
-            "cluster": bool,
-            "calc_performed": bool,
-            "replacement": bool,
+            'bulk': bool,
+            'surface': bool,
+            'cluster': bool,
+            'calc_performed': bool,
+            'replacement': bool,
         }
 
         for col in columns_to_add:
@@ -191,20 +191,20 @@ class InitialDatabase:
             Dataframe containing structure data for the initial database.
         """
         db_path = pl.Path(self.database_path) / pl.Path(self.database_name)
-        mdb_cud.custom_print(f"Loading database: '{self.database_name}'", "debug")
-        self.database_name = db_path.name.replace(db_path.suffix, "")
+        mdb_cud.custom_print(f"Loading database: '{self.database_name}'", 'debug')
+        self.database_name = db_path.name.replace(db_path.suffix, '')
 
         # If no suffixes are present, add the default one.
         if len(db_path.suffixes) == 0:
-            suffix = ".xz"
+            suffix = '.xz'
             db_path = db_path.with_suffix(suffix)
 
         # Compatibility with the old version of the database
-        if ".pkl" in db_path.suffixes:
-            suffix = ".pkl"
+        if '.pkl' in db_path.suffixes:
+            suffix = '.pkl'
             mdb_cud.custom_print(
-                "Using outdated version of database. Adding missing columns.",
-                "debug",
+                'Using outdated version of database. Adding missing columns.',
+                'debug',
             )
             database = pd.read_pickle(db_path)
             database = self._adapt_old_db(database)
@@ -212,9 +212,9 @@ class InitialDatabase:
             return database
 
         # Loading the database
-        elif ".xz" in db_path.suffixes or suffix == ".xz":
-            suffix = ".xz"
-            with lzma.open(db_path, "rb") as f:
+        elif '.xz' in db_path.suffixes or suffix == '.xz':
+            suffix = '.xz'
+            with lzma.open(db_path, 'rb') as f:
                 database = pickle.load(f)
 
                 # Setting parameters from InitialDatabase
@@ -223,13 +223,13 @@ class InitialDatabase:
                 self.db_version = database.db_version
 
                 mdb_cud.custom_print(
-                    f"Using database version {self.db_version}.", "debug"
+                    f'Using database version {self.db_version}.', 'debug'
                 )
 
             return database.df
 
-        mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", "info")
-        mdb_cud.custom_print(f"Path: {db_path}", "debug")
+        mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
+        mdb_cud.custom_print(f'Path: {db_path}', 'debug')
 
     def gen_report(self) -> dict:
         """
@@ -240,7 +240,7 @@ class InitialDatabase:
         dict
             Dictionary containing the database information in different categories.
         """
-        mdb_cud.custom_print(f"Generating report for '{self.database_name}'...", "info")
+        mdb_cud.custom_print(f"Generating report for '{self.database_name}'...", 'info')
 
         # Getting the amount of entries in the database
         count = len(self.df.count(axis=1))
@@ -258,73 +258,73 @@ class InitialDatabase:
         max_atoms = self.max_num_atoms
 
         struct_info_dict = {
-            "structure_count": {
-                "bulk": 0,
-                "base": 0,
-                "surface": 0,
-                "cluster": 0,
-                "perturb": 0,
-                "vacancy": 0,
-                "displacement": 0,
+            'structure_count': {
+                'bulk': 0,
+                'base': 0,
+                'surface': 0,
+                'cluster': 0,
+                'perturb': 0,
+                'vacancy': 0,
+                'displacement': 0,
             },
-            "phases": {},
+            'phases': {},
         }
 
         for phase in self.phase_diagram.phases:
-            struct_info_dict["phases"][phase.name] = 0
+            struct_info_dict['phases'][phase.name] = 0
 
         for struct in self.df.iterrows():
             if struct[1].base:
-                struct_info_dict["structure_count"]["base"] += 1
+                struct_info_dict['structure_count']['base'] += 1
             if struct[1].bulk:
-                struct_info_dict["structure_count"]["bulk"] += 1
+                struct_info_dict['structure_count']['bulk'] += 1
             if struct[1].surface:
-                struct_info_dict["structure_count"]["surface"] += 1
+                struct_info_dict['structure_count']['surface'] += 1
             if struct[1].cluster:
-                struct_info_dict["structure_count"]["cluster"] += 1
+                struct_info_dict['structure_count']['cluster'] += 1
             if struct[1].perturb:
-                struct_info_dict["structure_count"]["perturb"] += 1
+                struct_info_dict['structure_count']['perturb'] += 1
             if struct[1].vacancy:
-                struct_info_dict["structure_count"]["vacancy"] += 1
+                struct_info_dict['structure_count']['vacancy'] += 1
             if struct[1].displacement:
-                struct_info_dict["structure_count"]["displacement"] += 1
+                struct_info_dict['structure_count']['displacement'] += 1
             if struct[1].targeted_modification:
                 mod_type = struct[1].targeted_modification
 
-                if mod_type == "central_atom_perturbation":
-                    mod_type = "oct_perturb"
+                if mod_type == 'central_atom_perturbation':
+                    mod_type = 'oct_perturb'
 
-                if not struct_info_dict["structure_count"].get(mod_type):
-                    struct_info_dict["structure_count"][mod_type] = 1
+                if not struct_info_dict['structure_count'].get(mod_type):
+                    struct_info_dict['structure_count'][mod_type] = 1
                 else:
-                    struct_info_dict["structure_count"][mod_type] += 1
+                    struct_info_dict['structure_count'][mod_type] += 1
 
             if isinstance(struct[1].phase, str):
-                struct_info_dict["phases"][struct[1].phase] += 1
+                struct_info_dict['phases'][struct[1].phase] += 1
             else:
-                struct_info_dict["phases"][struct[1].phase.name] += 1
+                struct_info_dict['phases'][struct[1].phase.name] += 1
 
         # Adding database info
         struct_info_dict.update(
             {
-                "database_settings": {
-                    "database_name": db_name,
-                    "database_version": db_version,
-                    "database_path": str(db_path.absolute()),
-                    "total_entries": count,
-                    "structure_max_atoms": max_atoms,
+                'database_settings': {
+                    'database_name': db_name,
+                    'database_version': db_version,
+                    'database_path': str(db_path.absolute()),
+                    'total_entries': count,
+                    'structure_max_atoms': max_atoms,
                 },
             }
         )
 
         # Sorting structure count dictionary by values
-        struct_info_dict["structure_count"] = dict(
-            sorted(struct_info_dict["structure_count"].items(), key=lambda x: x[1])
+        struct_info_dict['structure_count'] = dict(
+            sorted(struct_info_dict['structure_count'].items(), key=lambda x: x[1])
         )
 
         # Sorting phase dictionary by values
-        struct_info_dict["phases"] = dict(
-            sorted(struct_info_dict["phases"].items(), key=lambda x: x[1])[::-1]
+        struct_info_dict['phases'] = dict(
+            sorted(struct_info_dict['phases'].items(), key=lambda x: x[1])[::-1]
         )
 
         return struct_info_dict
@@ -346,7 +346,7 @@ class InitialDatabase:
 
         # Checking for a file with correct name and suffixes.
         for file in pl.Path(self.database_path).iterdir():
-            if self.database_name in file.name and set(file.suffixes) & {".xz", ".pkl"}:
+            if self.database_name in file.name and set(file.suffixes) & {'.xz', '.pkl'}:
                 file_check.append(file)
 
         if len(file_check) > 0:
@@ -358,7 +358,7 @@ class InitialDatabase:
         if name_as_path.exists():
             file_exists = True
 
-        mdb_cud.custom_print(f"Database found: {file_exists}.", "debug")
+        mdb_cud.custom_print(f'Database found: {file_exists}.', 'debug')
 
         return file_exists
 
@@ -375,40 +375,40 @@ class InitialDatabase:
         # Creating a pandas dataframe to store the structures
         df = pd.DataFrame(
             columns=[
-                "material_name",
-                "material_id",
-                "structure",
-                "phase",
-                "formula",
-                "symmetry",
-                "base",
-                "perturb",
-                "unique_id",
-                "supercell",
-                "surface",
-                "bulk",
-                "cluster",
-                "temperature",
-                "magnetic_properties",
-                "calc_energy",
-                "calc_energy_per_atom",
-                "calc_energy_toten",
-                "calc_performed",
-                "calc_type",
-                "calc_output",
-                "replacement",
-                "vacancy",
-                "targeted_modification",
-                "displacement",
+                'material_name',
+                'material_id',
+                'structure',
+                'phase',
+                'formula',
+                'symmetry',
+                'base',
+                'perturb',
+                'unique_id',
+                'supercell',
+                'surface',
+                'bulk',
+                'cluster',
+                'temperature',
+                'magnetic_properties',
+                'calc_energy',
+                'calc_energy_per_atom',
+                'calc_energy_toten',
+                'calc_performed',
+                'calc_type',
+                'calc_output',
+                'replacement',
+                'vacancy',
+                'targeted_modification',
+                'displacement',
             ]
         )
 
-        df.attrs["db_version"] = self.db_version
-        mdb_cud.custom_print(f"Created database '{self.database_name}'.", "done")
+        df.attrs['db_version'] = self.db_version
+        mdb_cud.custom_print(f"Created database '{self.database_name}'.", 'done')
 
         return df
 
-    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
+    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _find_supercell_indices(
         self,
         structure,
@@ -463,9 +463,9 @@ class InitialDatabase:
 
         if verbose:
             mdb_cud.custom_print(
-                f"Supercell generated {supercell_vec}"
-                f" - total atoms: {len(new_structure.species)}",
-                "debug",
+                f'Supercell generated {supercell_vec}'
+                f' - total atoms: {len(new_structure.species)}',
+                'debug',
             )
 
         if get_different_supercells:
@@ -505,10 +505,10 @@ class InitialDatabase:
                         if verbose:
                             mdb_cud.custom_print(
                                 (
-                                    f"Supercell generated (diff.) {supercell_vec} "
-                                    f"- total atoms: {struct_size}"
+                                    f'Supercell generated (diff.) {supercell_vec} '
+                                    f'- total atoms: {struct_size}'
                                 ),
-                                "debug",
+                                'debug',
                             )
 
         return structure_list, idx_list, supercell_vec_list
@@ -532,7 +532,7 @@ class InitialDatabase:
             n_max=n_max,
             l_max=l_max,
             sparse=False,
-            average="inner",
+            average='inner',
         )
 
         for pym_struct in structure_list:
@@ -555,7 +555,7 @@ class InitialDatabase:
         )
 
         if np.count_nonzero(comp_arr) > 0:
-            mdb_cud.custom_print("Duplicate structure found!", "warn")
+            mdb_cud.custom_print('Duplicate structure found!', 'warn')
             return True
 
         else:
@@ -576,13 +576,13 @@ class InitialDatabase:
         - str: The type of the structure ("bulk", "surface", or "cluster").
         """
         if bulk:
-            return "bulk"
+            return 'bulk'
         elif surface:
-            return "surface"
+            return 'surface'
         elif cluster:
-            return "cluster"
+            return 'cluster'
         else:
-            return "unknown"  # handle the case where no flags are True
+            return 'unknown'  # handle the case where no flags are True
 
     def get_structure_list(self) -> list[ase_atoms]:
         """
@@ -597,17 +597,17 @@ class InitialDatabase:
 
         for _, row in self.df.iterrows():
             # Get ASE structure
-            pmg_curr_struct = row["structure"]
+            pmg_curr_struct = row['structure']
             ase_curr_struct = AseAtomsAdaptor().get_atoms(pmg_curr_struct)
 
             # Populate structure with information
-            ase_curr_struct.info["mdb_struct_type"] = self._get_structure_type_row(
-                bulk=row["bulk"],
-                surface=row["surface"],
-                cluster=row["cluster"],
+            ase_curr_struct.info['mdb_struct_type'] = self._get_structure_type_row(
+                bulk=row['bulk'],
+                surface=row['surface'],
+                cluster=row['cluster'],
             )
-            ase_curr_struct.info["aiida_uuid"] = str(row["unique_id"])
-            ase_curr_struct.info["struct_name"] = row["material_name"]
+            ase_curr_struct.info['aiida_uuid'] = str(row['unique_id'])
+            ase_curr_struct.info['struct_name'] = row['material_name']
 
             structure_list.append(ase_curr_struct)
 
@@ -615,7 +615,7 @@ class InitialDatabase:
 
     def export_db(
         self,
-        out_format: str = "extxyz",
+        out_format: str = 'extxyz',
         file_name: str = None,
         file_path: str | pl.Path = None,
     ):
@@ -623,37 +623,37 @@ class InitialDatabase:
         struct_list = []
         for _, row in self.df.iterrows():
             # Get ASE structure
-            pmg_curr_struct = row["structure"]
+            pmg_curr_struct = row['structure']
             ase_curr_struct = AseAtomsAdaptor().get_atoms(pmg_curr_struct)
 
             # Populate structure with information
-            ase_curr_struct.info["mdb_struct_type"] = self._get_structure_type_row(
-                bulk=row["bulk"],
-                surface=row["surface"],
-                cluster=row["cluster"],
+            ase_curr_struct.info['mdb_struct_type'] = self._get_structure_type_row(
+                bulk=row['bulk'],
+                surface=row['surface'],
+                cluster=row['cluster'],
             )
 
-            ase_curr_struct.info["mdb_id"] = str(row["unique_id"])
-            ase_curr_struct.info["struct_name"] = row["material_name"]
-            ase_curr_struct.info["perturb"] = row["perturb"]
-            ase_curr_struct.info["replacement"] = row["replacement"]
-            ase_curr_struct.info["base"] = row["base"]
-            ase_curr_struct.info["bulk"] = row["bulk"]
-            ase_curr_struct.info["cluster"] = row["cluster"]
-            ase_curr_struct.info["surface"] = row["surface"]
-            ase_curr_struct.info["surface_miller"] = row["surface_miller"]
-            ase_curr_struct.info["supercell"] = row["supercell"]
-            ase_curr_struct.info["symmetry"] = row["symmetry"]
-            ase_curr_struct.info["calc_type"] = row["calc_type"]
-            ase_curr_struct.info["calc_performed"] = row["calc_performed"]
-            ase_curr_struct.info["displacement"] = row["displacement"]
-            ase_curr_struct.info["vacancy"] = row["vacancy"]
-            ase_curr_struct.info["targeted_modification"] = row["targeted_modification"]
-            if row.get("phase"):
-                if isinstance(row["phase"], str):
-                    ase_curr_struct.info["phase"] = row["phase"]
+            ase_curr_struct.info['mdb_id'] = str(row['unique_id'])
+            ase_curr_struct.info['struct_name'] = row['material_name']
+            ase_curr_struct.info['perturb'] = row['perturb']
+            ase_curr_struct.info['replacement'] = row['replacement']
+            ase_curr_struct.info['base'] = row['base']
+            ase_curr_struct.info['bulk'] = row['bulk']
+            ase_curr_struct.info['cluster'] = row['cluster']
+            ase_curr_struct.info['surface'] = row['surface']
+            ase_curr_struct.info['surface_miller'] = row['surface_miller']
+            ase_curr_struct.info['supercell'] = row['supercell']
+            ase_curr_struct.info['symmetry'] = row['symmetry']
+            ase_curr_struct.info['calc_type'] = row['calc_type']
+            ase_curr_struct.info['calc_performed'] = row['calc_performed']
+            ase_curr_struct.info['displacement'] = row['displacement']
+            ase_curr_struct.info['vacancy'] = row['vacancy']
+            ase_curr_struct.info['targeted_modification'] = row['targeted_modification']
+            if row.get('phase'):
+                if isinstance(row['phase'], str):
+                    ase_curr_struct.info['phase'] = row['phase']
                 else:
-                    ase_curr_struct.info["phase"] = row["phase"].name
+                    ase_curr_struct.info['phase'] = row['phase'].name
 
             struct_list.append(ase_curr_struct)
 
@@ -666,10 +666,10 @@ class InitialDatabase:
             file_path = pl.Path()
 
         file_path = pl.Path(file_path) / file_name
-        file_path = file_path.with_suffix(f".{out_format}")
+        file_path = file_path.with_suffix(f'.{out_format}')
 
         aseio.write(filename=file_path, images=struct_list, format=out_format)
-        mdb_cud.custom_print(f"Database exported to '{file_path}'", "done")
+        mdb_cud.custom_print(f"Database exported to '{file_path}'", 'done')
 
     def find_repeat_structures(
         self,
@@ -701,8 +701,8 @@ class InitialDatabase:
         l_max = 4
 
         mdb_cud.custom_print(
-            f"Setting up SOAP with: r_cut = {r_cut}, n_max = {n_max}, l_max = {l_max}",
-            "debug",
+            f'Setting up SOAP with: r_cut = {r_cut}, n_max = {n_max}, l_max = {l_max}',
+            'debug',
         )
 
         # Setting up the SOAP descriptor
@@ -727,7 +727,7 @@ class InitialDatabase:
             structure_list = filtered_df.structure.values
 
             # Getting the names fo the current structures
-            uuid_list = filtered_df[filtered_df.phase == curr_phase]["unique_id"].values
+            uuid_list = filtered_df[filtered_df.phase == curr_phase]['unique_id'].values
 
             # Getting the total structure count
             tot_structures = len(structure_list)
@@ -745,7 +745,7 @@ class InitialDatabase:
 
             # Calculating similarity with an average kernel and a gaussan metric. The
             # result will be a full similarity matrix.
-            kernel = AverageKernel(metric="rbf", gamma=1)
+            kernel = AverageKernel(metric='rbf', gamma=1)
             simi_matrix = kernel.create(soap_structs)
 
             # Checking every structure in the similarity matrix.
@@ -764,10 +764,10 @@ class InitialDatabase:
             mdb_cud.custom_print(
                 (
                     f"Phase '{curr_phase.name}' - Total selected structures:"
-                    f" {tot_structures}, equivalent: {tot_equival}"
-                    f" ({(tot_equival/tot_structures)*100:.2f}%)"
+                    f' {tot_structures}, equivalent: {tot_equival}'
+                    f' ({(tot_equival/tot_structures)*100:.2f}%)'
                 ),
-                "debug",
+                'debug',
             )
 
         duplicate_structure_names = tot_duplicate_uuid_list
@@ -775,14 +775,14 @@ class InitialDatabase:
         # If the deletion flag is set, the function will delete the duplicate stuctures.
         if delete:
             mdb_cud.custom_print(
-                f"{len(duplicate_structure_names)} structures marked for deletion.",
-                "debug",
+                f'{len(duplicate_structure_names)} structures marked for deletion.',
+                'debug',
             )
 
             # Getting the dataframe entries that match the stored uuids
             mat_name_match_mask = filtered_df.isin(
-                {"unique_id": duplicate_structure_names}
-            )["unique_id"]
+                {'unique_id': duplicate_structure_names}
+            )['unique_id']
             duplicate_structures_df = filtered_df[mat_name_match_mask]
 
             # Dropping the matching entries
@@ -793,35 +793,32 @@ class InitialDatabase:
             self.df = init_df_after_removal
 
             mdb_cud.custom_print(
-                f"Deleted {len(duplicate_structures_df)} structures.",
-                "warn",
+                f'Deleted {len(duplicate_structures_df)} structures.',
+                'warn',
             )
 
             mdb_cud.custom_print(
-                f"Dataframe shape after deleting: {self.df.shape}", "debug"
+                f'Dataframe shape after deleting: {self.df.shape}', 'debug'
             )
 
         else:
             mdb_cud.custom_print(
                 (
-                    f"{len(duplicate_structure_names)} repeated structures found. "
+                    f'{len(duplicate_structure_names)} repeated structures found. '
                     "Database untouched as 'delete' is set to False."
                 ),
-                "info",
+                'info',
             )
 
     def gather_base_structures(self, phase_diag_phases):
-
         # Querying materials project database.
         mdb_cud.custom_print(
-            "Gathering base structures by querying the MP API...", "info"
+            'Gathering base structures by querying the MP API...', 'info'
         )
 
         report_replacements = True
-        with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
-
+        with MPRester(ut.gather_secrets()['API_KEY'], mute_progress_bars=True) as mpr:
             for phase in phase_diag_phases:
-
                 query_materials = phase.prototype
 
                 if isinstance(query_materials, str):
@@ -831,15 +828,14 @@ class InitialDatabase:
 
                 ut.custom_print(
                     (
-                        f"Gathered {len(query_result)} structures for phase"
+                        f'Gathered {len(query_result)} structures for phase'
                         f" '{phase.name}' from the MP,"
-                        f" using {len(query_materials)} MP ids."
+                        f' using {len(query_materials)} MP ids.'
                     ),
-                    "info",
+                    'info',
                 )
 
                 for material in query_result:
-
                     # for phase in self.phase_diagram.phases:
                     if (
                         isinstance(phase.prototype, str)
@@ -863,25 +859,25 @@ class InitialDatabase:
 
                     # Replacing elements
                     if phase.replace_dict:  # noqa: SIM102
-                        if phase.replace_dict.get("replace"):
+                        if phase.replace_dict.get('replace'):
                             replace_with = phase.replace_dict.get(
-                                "replace_with", phase.base_elem
+                                'replace_with', phase.base_elem
                             )
 
                             replace_dict = {}
-                            for element in phase.replace_dict["element_list"]:
+                            for element in phase.replace_dict['element_list']:
                                 # If "M", all metals should be replaced.
                                 # Thus, any metals found in the structure willl
                                 # be added in phase.replace_dict["element_list"]
-                                if element == "M":
+                                if element == 'M':
                                     for spec in material.structure.species:
                                         if spec.is_metal:
-                                            phase.replace_dict["element_list"].append(
+                                            phase.replace_dict['element_list'].append(
                                                 spec.symbol
                                             )
                                             # Removing repeated keys
-                                            phase.replace_dict["element_list"] = list(
-                                                set(phase.replace_dict["element_list"])
+                                            phase.replace_dict['element_list'] = list(
+                                                set(phase.replace_dict['element_list'])
                                             )
 
                                 else:
@@ -893,16 +889,16 @@ class InitialDatabase:
                                     replace_dict[element] = str(replace_with)
 
                             # Removing M key from dict
-                            if "M" in replace_dict:
-                                replace_dict.pop("M")
+                            if 'M' in replace_dict:
+                                replace_dict.pop('M')
 
                             if report_replacements:
                                 mdb_cud.custom_print(
                                     (
-                                        f"Applying substitution to "
-                                        f"base structures: {replace_dict}..."
+                                        f'Applying substitution to '
+                                        f'base structures: {replace_dict}...'
                                     ),
-                                    "debug",
+                                    'debug',
                                 )
                                 report_replacements = False
 
@@ -912,7 +908,7 @@ class InitialDatabase:
 
                     curr_struct = mdb_struct.Bulk(
                         material_id=str(material.material_id),
-                        material_name=f"base_{material.material_id}",
+                        material_name=f'base_{material.material_id}',
                         structure=material.structure,
                         temperature=np.nan,
                         perturb=False,
@@ -929,11 +925,11 @@ class InitialDatabase:
 
                     self.df = curr_struct.save_to_db(self.df)
 
-        self.df.set_index("material_id", inplace=True, drop=False)
+        self.df.set_index('material_id', inplace=True, drop=False)
 
     def read_base_structures(self, path: str, target_structures=None):
         """Reads base structures from a given path and stores them in the database."""
-        mdb_cud.custom_print("Reading relaxed structures...")
+        mdb_cud.custom_print('Reading relaxed structures...')
 
         # Getting the path where the calculations will be searched for.
         read_path = pathlib.Path(path) if path else pathlib.Path()
@@ -945,7 +941,7 @@ class InitialDatabase:
 
         selection_criteria = [crit.name for crit in selection_criteria]
 
-        folders = read_path.glob("./*")
+        folders = read_path.glob('./*')
         list_dir = [
             fold
             for fold in folders
@@ -956,11 +952,11 @@ class InitialDatabase:
             # Getting information about the current calculation
             curr_phase = pathlib.PurePath(calc_fold).name
             mdb_cud.custom_print(
-                f"Loading calculation for '{curr_phase}' as a base structure.", "debug"
+                f"Loading calculation for '{curr_phase}' as a base structure.", 'debug'
             )
 
             # Loading current calculation info
-            xml_path = pathlib.Path(calc_fold, "vasprun.xml")
+            xml_path = pathlib.Path(calc_fold, 'vasprun.xml')
             curr_run = vasp.Vasprun(xml_path, parse_potcar_file=False)
 
             # Gathering phase information
@@ -970,7 +966,7 @@ class InitialDatabase:
                         curr_phase = phase
                         curr_phase = self.phase_diagram.get_phase(phase)
                         curr_mat_id = curr_phase.prototype
-                        curr_name = f"base_relax_{curr_phase.name}_MP"
+                        curr_name = f'base_relax_{curr_phase.name}_MP'
 
             # Creating the structure object
             curr_struct = mdb_struct.Structure().from_vasprun(
@@ -1005,19 +1001,19 @@ class InitialDatabase:
 
         """
         if suffix:
-            filename = self.database_name + f"_{suffix}.xz"
+            filename = self.database_name + f'_{suffix}.xz'
         else:
-            filename = self.database_name + ".xz"
+            filename = self.database_name + '.xz'
 
         if not path:
-            path = ""
+            path = ''
 
         file_path = pathlib.Path(path, filename)
 
-        with lzma.open(file_path, "wb") as f:
+        with lzma.open(file_path, 'wb') as f:
             pickle.dump(self, f)
 
-        mdb_cud.custom_print(f"Database saved in {file_path}", "info")
+        mdb_cud.custom_print(f'Database saved in {file_path}', 'info')
 
     def _apply_user_filters(self, filters: list, target_entries: pd.DataFrame):
         # Creating a empty DataFrame with the same column dtypes but no entries.
@@ -1098,7 +1094,7 @@ class InitialDatabase:
                 new_struct_vac = entry.structure.copy()
                 new_struct_vac = new_struct_vac.remove_sites(vac_indices)
 
-                mat_str = f"{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx+1}"
+                mat_str = f'{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx+1}'
 
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdb_struct.Structure(
@@ -1129,29 +1125,29 @@ class InitialDatabase:
                     curr_struct_conv = curr_struct.to_cluster()
                 else:
                     raise NotImplementedError(
-                        "Vacancy generation is not implemented "
-                        "for the current structure type."
+                        'Vacancy generation is not implemented '
+                        'for the current structure type.'
                     )
 
                 # Saving the bulk to the db.
                 self.df = curr_struct_conv.save_to_db(self.df)
 
     @mdb_cud.deprecated(
-        reason="Replaced with _apply_perturbation_mdb_struct", since_ver="0.3.7"
+        reason='Replaced with _apply_perturbation_mdb_struct', since_ver='0.3.7'
     )
     def perturb_gauss(
         self, center: float = 0.04, repeat: int = 5, filters: list = None
     ):
         # Getting all structures which are not perturbed
-        target_entries = self.df.loc[(~self.df.material_name.str.contains("_perturb"))]
+        target_entries = self.df.loc[(~self.df.material_name.str.contains('_perturb'))]
 
         # Applying user specified filters
         if filters:
             target_entries = self._apply_user_filters(filters, target_entries)
 
-        mdb_cud.custom_print(f"Applying filters {filters} for perturbation.")
+        mdb_cud.custom_print(f'Applying filters {filters} for perturbation.')
         mdb_cud.custom_print(
-            f"{len(target_entries)*repeat} perturbed entries will be added.", "debug"
+            f'{len(target_entries)*repeat} perturbed entries will be added.', 'debug'
         )
 
         # Applying displacement to all perturbed structures
@@ -1162,12 +1158,12 @@ class InitialDatabase:
             curr_str = entry.structure
 
             # Generating string for naming the current structure
-            extra_info = ""
+            extra_info = ''
             if entry.supercell:
-                extra_info += f"_super-{mdb_surf.get_miller_index_str(entry.supercell)}"
+                extra_info += f'_super-{mdb_surf.get_miller_index_str(entry.supercell)}'
             if entry.replacement:
                 extra_info += (
-                    f"_repl-{entry.replacement_ind[0]}-{entry.replacement_ind[1]}"
+                    f'_repl-{entry.replacement_ind[0]}-{entry.replacement_ind[1]}'
                 )
 
             for perturb_repeat_idx in range(repeat):
@@ -1177,7 +1173,7 @@ class InitialDatabase:
                 )
 
                 mat_str = (
-                    f"{entry.curr_str.unique_id}_perturb_gauss_{perturb_repeat_idx+1}"
+                    f'{entry.curr_str.unique_id}_perturb_gauss_{perturb_repeat_idx+1}'
                 )
 
                 # Creating a new Structure from the perturbed structure
@@ -1206,8 +1202,8 @@ class InitialDatabase:
                     curr_struct_conv = curr_struct.to_cluster()
                 else:
                     raise NotImplementedError(
-                        "This perturbation strategy is not implemented "
-                        "for the current structure type."
+                        'This perturbation strategy is not implemented '
+                        'for the current structure type.'
                     )
 
                 # Saving the bulk to the db.
@@ -1223,7 +1219,7 @@ class InitialDatabase:
         frac_max: float = 0.05,
         frac_min: float = 0.01,
         repeat: int = 1,
-        filters: list["str"] = None,
+        filters: list['str'] = None,
         only_use_base: bool = True,
         use_phase: mdb_pd.Phase = None,
         rng_seed: int = None,
@@ -1303,7 +1299,7 @@ class InitialDatabase:
         if limit_num_structures:
             limit_num_structures = min(limit_num_structures // repeat, self.df.shape[0])
             mdb_cud.custom_print(
-                f"Limiting number of displacements to  {limit_num_structures}", "debug"
+                f'Limiting number of displacements to  {limit_num_structures}', 'debug'
             )
             rng_idxs = rng.choice(
                 self.df.shape[0], size=limit_num_structures, replace=False
@@ -1331,8 +1327,8 @@ class InitialDatabase:
                 )
 
                 mat_str = (
-                    f"{entry.unique_id}_{str_matid}_{str_phase.name}_"
-                    f"perturb_min_{perturb_repeat_idx+1}"
+                    f'{entry.unique_id}_{str_matid}_{str_phase.name}_'
+                    f'perturb_min_{perturb_repeat_idx+1}'
                 )
 
                 # Creating a new Structure from the perturbed structure
@@ -1363,8 +1359,8 @@ class InitialDatabase:
                     curr_struct_conv = curr_struct.to_cluster()
                 else:
                     raise NotImplementedError(
-                        "This perturbation strategy is not implemented "
-                        "for the current structure type."
+                        'This perturbation strategy is not implemented '
+                        'for the current structure type.'
                     )
 
                 # Saving the bulk to the db.
@@ -1518,13 +1514,13 @@ class InitialDatabase:
 
         if not self.phase_diagram.get_phase(phase_name):
             raise KeyError(
-                "Wrong phase given. "
-                f"Please introduce one of: {[k for k in self.phase_diagram.phases]}"
+                'Wrong phase given. '
+                f'Please introduce one of: {[k for k in self.phase_diagram.phases]}'
             )
 
         # Reading structure from database
         if read:
-            mdb_cud.custom_print("Using structure from the DB as template...", "info")
+            mdb_cud.custom_print('Using structure from the DB as template...', 'info')
             try:
                 if isinstance(phase, mdb_pd.Phase):
                     phase_name = phase.name
@@ -1555,7 +1551,6 @@ class InitialDatabase:
         report_replacements = True
 
         for struct_idx, current_struct in enumerate(structure):
-
             # Getting conventional cell for the replaced structure
             sga = SpacegroupAnalyzer(current_struct)
 
@@ -1574,32 +1569,32 @@ class InitialDatabase:
 
             struct_obj_list = []
             # Saving all the generated supercells as separate bulk structures
-            for structure, idxs in zip(structure_list, supercells):
+            for structure, idxs in zip(structure_list, supercells, strict=False):
                 # Ignore small structures
                 if len(structure) < num_min_atoms:
                     continue
 
                 # Replacing elements
                 if phase.replace_dict:  # noqa: SIM102
-                    if phase.replace_dict.get("replace"):
+                    if phase.replace_dict.get('replace'):
                         replace_with = phase.replace_dict.get(
-                            "replace_with", phase.base_elem
+                            'replace_with', phase.base_elem
                         )
 
                         replace_dict = {}
-                        for element in phase.replace_dict["element_list"]:
+                        for element in phase.replace_dict['element_list']:
                             # If "M", all metals should be replaced.
                             # Thus, any metals found in the structure willl
                             # be added in phase.replace_dict["element_list"]
-                            if element == "M":
+                            if element == 'M':
                                 for spec in structure.species:
                                     if spec.is_metal:
-                                        phase.replace_dict["element_list"].append(
+                                        phase.replace_dict['element_list'].append(
                                             spec.symbol
                                         )
                                         # Removing repeated keys
-                                        phase.replace_dict["element_list"] = list(
-                                            set(phase.replace_dict["element_list"])
+                                        phase.replace_dict['element_list'] = list(
+                                            set(phase.replace_dict['element_list'])
                                         )
 
                             else:
@@ -1611,17 +1606,17 @@ class InitialDatabase:
                                 replace_dict[element] = str(replace_with)
 
                         # Removing M key from dict
-                        if "M" in replace_dict:
-                            replace_dict.pop("M")
+                        if 'M' in replace_dict:
+                            replace_dict.pop('M')
 
                         if report_replacements:
                             mdb_cud.custom_print(
                                 (
-                                    "Applying substitution to"
-                                    " all base structures from phase."
-                                    f" Using dict: {replace_dict}..."
+                                    'Applying substitution to'
+                                    ' all base structures from phase.'
+                                    f' Using dict: {replace_dict}...'
                                 ),
-                                "debug",
+                                'debug',
                             )
                             report_replacements = False
 
@@ -1630,7 +1625,7 @@ class InitialDatabase:
                         )
 
                 # Getting the supercell vector as a string for naming
-                idxs_str = "".join(map(str, idxs))
+                idxs_str = ''.join(map(str, idxs))
 
                 try:
                     bulk_temp = query_result.temperature.values[0]
@@ -1649,7 +1644,7 @@ class InitialDatabase:
 
                 # Creating a new bulk from the supercell
                 curr_bulk = mdb_struct.Bulk(
-                    material_name=f"{curr_mat_id}_{phase_name}_super-{idxs_str}",
+                    material_name=f'{curr_mat_id}_{phase_name}_super-{idxs_str}',
                     material_id=curr_mat_id,
                     structure=structure,
                     temperature=bulk_temp,
@@ -1670,9 +1665,8 @@ class InitialDatabase:
         return struct_obj_list, query_result, idx_list
 
     def query_mp_api_prototype(self, prototype):
-        mdb_cud.custom_print("Querying the MP API...", "debug")
-        with MPRester(ut.gather_secrets()["API_KEY"], mute_progress_bars=True) as mpr:
-
+        mdb_cud.custom_print('Querying the MP API...', 'debug')
+        with MPRester(ut.gather_secrets()['API_KEY'], mute_progress_bars=True) as mpr:
             if isinstance(prototype, list):
                 query_result = mpr.summary.search(material_ids=prototype)
             elif isinstance(prototype, str):
@@ -1687,12 +1681,12 @@ class InitialDatabase:
 
         return query_result, material_id_prefix, structure
 
-    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
+    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _create_symmetrical_prototype(
         self,
         structure: Structure,
         phase: mdb_pd.Phase,
-        structure_obj: "mdb_struct.Structure",
+        structure_obj: 'mdb_struct.Structure',
     ):
         phase = structure_obj.phase
 
@@ -1726,7 +1720,7 @@ class InitialDatabase:
 
         # Generating the symmetrized structure
         new_struct_symm = mdb_struct.Structure(
-            material_name=f"{material_id_prefix}_{phase.name}_symm",
+            material_name=f'{material_id_prefix}_{phase.name}_symm',
             material_id=material_id_prefix,
             structure=structure,
             temperature=structure_obj.temperature,
@@ -1749,15 +1743,15 @@ class InitialDatabase:
             final_struct = new_struct_symm.to_cluster()
         else:
             raise NotImplementedError(
-                "Symmetrical prototype not implemented for"
-                "implemented for current structure type."
+                'Symmetrical prototype not implemented for'
+                'implemented for current structure type.'
             )
 
         self.df = final_struct.save_to_db(self.df)
 
         return structure
 
-    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
+    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _gen_base_elem_perc(self, phase, num_struct):
         # Computing base_elem percentages using offset
         if self.use_offset:
@@ -1782,7 +1776,7 @@ class InitialDatabase:
 
         return subst_base_elem_perc
 
-    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
+    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _fit_replacements_phase(
         self,
         phase,
@@ -1824,7 +1818,7 @@ class InitialDatabase:
 
         return n_at_replacement_upd
 
-    @mdb_cud.deprecated("Moved to `core.utils`", since_ver="0.13.0")
+    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _apply_replacement(
         self, structure: Structure, phase, n_target_at: int | float, rng=None
     ):
@@ -1857,7 +1851,7 @@ class InitialDatabase:
             n_target_at = 1
 
         curr_n_base_atoms = int(curr_comp[phase.base_elem])
-        replacement_type = "add" if n_target_at > curr_n_base_atoms else "sub"
+        replacement_type = 'add' if n_target_at > curr_n_base_atoms else 'sub'
 
         # Getting current structure composition information
         # The current procedure assumes that all of the atom species in the structure
@@ -1879,7 +1873,7 @@ class InitialDatabase:
         #         other_elem = list(self.phase_diagram.alloy_set)[0]
 
         # Adding base atoms to match the target percentage
-        if replacement_type == "add":
+        if replacement_type == 'add':
             n_at_diff = n_target_at - curr_n_base_atoms
             spec_to_replace = Element(other_elem)
             replacing_elem = Element(base_elem)
@@ -1910,7 +1904,7 @@ class InitialDatabase:
                     "Add one of the formula's elements to the current phase"
                     " 'replacements.element_list'."
                 ),
-                "error",
+                'error',
             )
 
         if isinstance(structure, (mdb_struct.Surface, Slab)):
@@ -1989,7 +1983,7 @@ class InitialDatabase:
             seed = np.random.randint(0, int(1e12))
 
         rng = np.random.default_rng(seed=seed)
-        mdb_cud.custom_print(f"Bulk generation RNG seed: {str(seed)}", "debug")
+        mdb_cud.custom_print(f'Bulk generation RNG seed: {str(seed)}', 'debug')
 
         # If the current phase is in overwrite_read_from_db_list,
         # the read flag is set to True
@@ -2013,7 +2007,7 @@ class InitialDatabase:
             supercell_max_idx=supercell_max_idx,
         )
 
-        for structure_obj, supr_idx in zip(structure_list, idx_list):
+        for structure_obj, supr_idx in zip(structure_list, idx_list, strict=False):
             structure = structure_obj.structure
 
             # Converting all of the atoms from the prototype cell to the
@@ -2031,8 +2025,8 @@ class InitialDatabase:
             # for the new structures
             subst_base_elem_perc = self._gen_base_elem_perc(phase, num_struct)
             mdb_cud.custom_print(
-                f"Random base element % for bulk to gen: {subst_base_elem_perc*100}",
-                "debug",
+                f'Random base element % for bulk to gen: {subst_base_elem_perc*100}',
+                'debug',
             )
 
             # Choosing the amount of atoms to replace with the base element in the
@@ -2070,7 +2064,7 @@ class InitialDatabase:
 
                     # Creating a new Bulk object for the structure with replacement
                     new_struct_symm = mdb_struct.Bulk(
-                        material_name=f"{structure_obj.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
+                        material_name=f'{structure_obj.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}',
                         material_id=structure_obj.material_id,
                         structure=new_structure,
                         temperature=bulk_temp,
@@ -2097,7 +2091,7 @@ class InitialDatabase:
         phase_mask = base_structs.phase == phase
 
         base_structs = base_structs.where(phase_mask, other=pd.NA)
-        base_structs.dropna(how="all", inplace=True)
+        base_structs.dropna(how='all', inplace=True)
 
         return base_structs
 
@@ -2130,7 +2124,7 @@ class InitialDatabase:
         perc = main_cnt / total_atoms
         return perc
 
-    @mdb_cud.deprecated("Unused method", "0.11.2")
+    @mdb_cud.deprecated('Unused method', '0.11.2')
     def generate_surfaces_replacements(
         self,
         phase: mdb_pd.Phase,
@@ -2194,15 +2188,15 @@ class InitialDatabase:
                     )
 
                     prototype = phase.prototype
-                    extra = {"surface": True}
+                    extra = {'surface': True}
 
                     # Matching the miller index from the name as it is not stored.
-                    match = re.search(r"\((.*?)\)", row.material_id)
-                    curr_miller = match.group(1) if match else "???"
+                    match = re.search(r'\((.*?)\)', row.material_id)
+                    curr_miller = match.group(1) if match else '???'
 
                     # Preparing the structure name
-                    mat_id_name = f"{prototype}_{phase.name}"
-                    mat_id_surf_data = f"_replacement-({curr_miller})-_{str_ind}-{repl}"
+                    mat_id_name = f'{prototype}_{phase.name}'
+                    mat_id_surf_data = f'_replacement-({curr_miller})-_{str_ind}-{repl}'
                     material_id = mat_id_name + mat_id_surf_data
 
                     # Saving the structure into the database.
@@ -2224,25 +2218,25 @@ class InitialDatabase:
         # HACK: This should probably use __dict__ instead of a manually set list...
         # Attributes not to store in a row
         unwanted_attrs = [
-            "save_to_db",
-            "from_vasprun",
-            "from_mdb_structure",
-            "to_bulk",
-            "to_surface",
-            "to_cluster",
+            'save_to_db',
+            'from_vasprun',
+            'from_mdb_structure',
+            'to_bulk',
+            'to_surface',
+            'to_cluster',
         ]
 
         # If given structure is a pymatgen Structure
         if isinstance(structure, Structure):
             new_row = pd.Series(
                 {
-                    "material_id": material_id,
-                    "structure": structure,
-                    "temperature": None,
-                    "perturb": True,
-                    "phase": phase.name,
-                    "base": base,
-                    "formula": structure.formula,
+                    'material_id': material_id,
+                    'structure': structure,
+                    'temperature': None,
+                    'perturb': True,
+                    'phase': phase.name,
+                    'base': base,
+                    'formula': structure.formula,
                     **extra,
                 }
             )
@@ -2251,7 +2245,7 @@ class InitialDatabase:
             attr_list = [
                 att
                 for att in dir(structure)
-                if not att.startswith("_") and att not in unwanted_attrs
+                if not att.startswith('_') and att not in unwanted_attrs
             ]
             att_dict = {att: getattr(structure, att) for att in attr_list}
 
@@ -2260,29 +2254,29 @@ class InitialDatabase:
         new_row_df = new_row.to_frame().T
         new_row_df = new_row_df.astype(
             {
-                "perturb": bool,
-                "base": bool,
-                "bulk": bool,
-                "surface": bool,
-                "cluster": bool,
-                "calc_performed": bool,
-                "replacement": bool,
-                "displacement": bool,
-                "vacancy": bool,
+                'perturb': bool,
+                'base': bool,
+                'bulk': bool,
+                'surface': bool,
+                'cluster': bool,
+                'calc_performed': bool,
+                'replacement': bool,
+                'displacement': bool,
+                'vacancy': bool,
             }
         )
 
         self.df = self.df.astype(
             {
-                "perturb": bool,
-                "base": bool,
-                "bulk": bool,
-                "surface": bool,
-                "cluster": bool,
-                "calc_performed": bool,
-                "replacement": bool,
-                "vacancy": bool,
-                "displacement": bool,
+                'perturb': bool,
+                'base': bool,
+                'bulk': bool,
+                'surface': bool,
+                'cluster': bool,
+                'calc_performed': bool,
+                'replacement': bool,
+                'vacancy': bool,
+                'displacement': bool,
             }
         )
 
@@ -2298,15 +2292,15 @@ class InitialDatabase:
 
     def _gather_n2p2_reqdata_from_node(self, node):
         # Getting calculation name
-        name = node.label + "_aiida-uuid_" + node.uuid
+        name = node.label + '_aiida-uuid_' + node.uuid
 
         # Writing the vasprun.xml file to a buffer.
         retrieved = node.outputs.retrieved
-        vasprun_f = retrieved.get_object_content("vasprun.xml", "rb")
+        vasprun_f = retrieved.get_object_content('vasprun.xml', 'rb')
         buffer = BytesIO(vasprun_f)
 
         # Reading the file from the buffer and closing it
-        vasprun = aseio.read(buffer, format="vasp-xml", index="-1")
+        vasprun = aseio.read(buffer, format='vasp-xml', index='-1')
         buffer.close()
 
         # Getting properties from the vasprun
@@ -2325,36 +2319,36 @@ class InitialDatabase:
         charge = 0
 
         data_dict = {
-            "name": name,
-            "lattice": lattice,
-            "positions": structure,
-            "symbols": symbols,
-            "pot_energy": pot_energy,
-            "charge": charge,
-            "forces": forces,
+            'name': name,
+            'lattice': lattice,
+            'positions': structure,
+            'symbols': symbols,
+            'pot_energy': pot_energy,
+            'charge': charge,
+            'forces': forces,
         }
 
         return data_dict
 
     def _add_entry_to_n2p2_input(self, buffer: TextIOWrapper, data_dict: dict):
         # Writing begin keyword and structure name
-        buffer.write("begin\n")
+        buffer.write('begin\n')
         buffer.write(f'comment {data_dict.get("material_name","no name found")}\n')
 
         # Getting lattice parameters and converting them to Bohr
-        lat_x = data_dict["lattice"][0]
-        lat_y = data_dict["lattice"][1]
-        lat_z = data_dict["lattice"][2]
+        lat_x = data_dict['lattice'][0]
+        lat_y = data_dict['lattice'][1]
+        lat_z = data_dict['lattice'][2]
 
         # Writing lattice parameters
-        buffer.write(f"lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n")
-        buffer.write(f"lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n")
-        buffer.write(f"lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n")
+        buffer.write(f'lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n')
+        buffer.write(f'lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n')
+        buffer.write(f'lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n')
 
         # Writing information for every atom. Every atom line must contain:
         # atom <x1> <y1> <z1> <e1> <c1> <n1> <fx1> <fy1> <fz1>
         for idx, (at, frc) in enumerate(
-            zip(data_dict["positions"], data_dict["forces"])
+            zip(data_dict['positions'], data_dict['forces'], strict=False)
         ):
             # Preparing and writing the line
             buffer.write(
@@ -2369,7 +2363,7 @@ class InitialDatabase:
         buffer.write(f'charge {data_dict["charge"]:.6f}\n')
 
         # writing end keyword
-        buffer.write("end\n")
+        buffer.write('end\n')
 
     def generate_n2p2_input_aiida(
         self, aiida_group_list: list, filter_dict: dict, path: str = None
@@ -2381,39 +2375,39 @@ class InitialDatabase:
         path = pathlib.Path(path) if path and isinstance(path, str) else pathlib.Path()
 
         # Adding input.data filename to path
-        path = path / "input.data"
+        path = path / 'input.data'
 
         # Gathering nodes from the given group
-        mdb_cud.custom_print("Getting nodes...")
+        mdb_cud.custom_print('Getting nodes...')
 
         # Preparing a query in the aiida db
         qb = orm.QueryBuilder()
 
         for group in aiida_group_list:
-            qb.append(orm.Group, filters={"label": group}, tag="group")
-            (qb.append(orm.WorkChainNode, with_group="group", filters=filter_dict),)
+            qb.append(orm.Group, filters={'label': group}, tag='group')
+            (qb.append(orm.WorkChainNode, with_group='group', filters=filter_dict),)
 
         result_nodes = qb.all(flat=True)
 
         if len(result_nodes) == 0:
             for _group in aiida_group_list:
-                qb.append(VaspCalculation, with_group="group", filters=filter_dict)
+                qb.append(VaspCalculation, with_group='group', filters=filter_dict)
             result_nodes = qb.all(flat=True)
 
-        mdb_cud.custom_print(f"{len(result_nodes)} nodes found.", "info")
+        mdb_cud.custom_print(f'{len(result_nodes)} nodes found.', 'info')
 
         # Writing the file
-        with open(path, "w") as curr_f:
+        with open(path, 'w') as curr_f:
             # Checking every node
             for node in riprg.track(
-                result_nodes, description=" [ ⧖ ]  Writing info..."
+                result_nodes, description=' [ ⧖ ]  Writing info...'
             ):
                 # Gathering the information from each node
                 data_dict = self._gather_n2p2_reqdata_from_node(node=node)
 
                 # Writing the information to the buffer
                 self._add_entry_to_n2p2_input(buffer=curr_f, data_dict=data_dict)
-        mdb_cud.custom_print(f"All calculations saved in '{path}'.", "done")
+        mdb_cud.custom_print(f"All calculations saved in '{path}'.", 'done')
 
     def remove_structs_out_of_atom_count_range(
         self, min_num_atoms: int, max_num_atoms: int, remove_base=False
@@ -2451,7 +2445,7 @@ class InitialDatabase:
                     )
                 except TypeError as e:
                     mdb_cud.custom_print(
-                        f"Row {row} resulted in TypeError: '{e}'. Removing.", "warning"
+                        f"Row {row} resulted in TypeError: '{e}'. Removing.", 'warning'
                     )
                     self.df.drop(row, inplace=True)
                     continue
@@ -2544,27 +2538,27 @@ class InitialDatabase:
         num_repeat: int = 2,
     ):
         # Getting default phase
-        phase = self.phase_diagram.get_phase("alpha")
+        phase = self.phase_diagram.get_phase('alpha')
 
         # Generate a list of mdb_struct.Cluster
         cluster_list = []
 
         # Adding a dimer
         if add_dimer:
-            mdb_cud.custom_print("Adding base dimers...", "debug")
+            mdb_cud.custom_print('Adding base dimers...', 'debug')
             clust_obj = mdb_clust.make_clean_dimer(self, phase=phase)
             cluster_list.append(clust_obj)
-            mdb_cud.custom_print("Base dimers done...", "debug")
+            mdb_cud.custom_print('Base dimers done...', 'debug')
 
         # Create clusters over all size range given, from smallest to largest.
         mdb_cud.custom_print(
-            f"Adding base clusters with n_atoms: {size_range[0]}-{size_range[-1]}...",
-            "debug",
+            f'Adding base clusters with n_atoms: {size_range[0]}-{size_range[-1]}...',
+            'debug',
         )
         for size in size_range:
             clust_obj = mdb_clust.make_clean_cluster(self, size=size, phase=phase)
             cluster_list.append(clust_obj)
-        mdb_cud.custom_print("Base clusters done...", "debug")
+        mdb_cud.custom_print('Base clusters done...', 'debug')
 
         # If True, store the structures along with their information
         # into the MatDBForge InitialDatabase object
@@ -2574,41 +2568,40 @@ class InitialDatabase:
 
         # Return the cluster list in case the user just wants the clusters
         # but not storing them into the database.
-        mdb_cud.custom_print(f"Generated {len(cluster_list)} base clusters.", "debug")
+        mdb_cud.custom_print(f'Generated {len(cluster_list)} base clusters.', 'debug')
         return cluster_list
 
     def plot_database_composition(
         self,
         temperature_K: float = 273.0,
         rc_params: dict = None,
-        fig_path: str | pl.Path = ".",
-        fig_name: str = "database_composition",
-        fig_format: str = "png",
+        fig_path: str | pl.Path = '.',
+        fig_name: str = 'database_composition',
+        fig_format: str = 'png',
         max_phases_pie: int = 5,
     ):
-
         # Updating matplotlib rcParams
         for key, value in rc_params.items():
             mpl.rcParams[key] = value
 
-        inner = [["pie1"], ["pie2"]]
+        inner = [['pie1'], ['pie2']]
         outer = [
-            ["histogram", "ignore"],
-            ["main", inner],
+            ['histogram', 'ignore'],
+            ['main', inner],
         ]
 
-        gridspec_kw = {"height_ratios": [1, 4], "width_ratios": [8, 1]}
+        gridspec_kw = {'height_ratios': [1, 4], 'width_ratios': [8, 1]}
         fig, axd = plt.subplot_mosaic(
             outer,
             gridspec_kw=gridspec_kw,
             figsize=(16, 7),
         )
 
-        hist_t_ax = axd["histogram"]
-        main_plot_ax = axd["main"]
-        bar_chart_ax = axd["pie1"]
-        pie_chart_ax = axd["pie2"]
-        empty_axis = axd["ignore"]
+        hist_t_ax = axd['histogram']
+        main_plot_ax = axd['main']
+        bar_chart_ax = axd['pie1']
+        pie_chart_ax = axd['pie2']
+        empty_axis = axd['ignore']
         empty_axis.set_axis_off()
 
         # Plotting the phase diagram of the database
@@ -2620,15 +2613,15 @@ class InitialDatabase:
         base_elem = self.phase_diagram.base_elem
 
         plot_dict = {
-            "bulk": {"structs": [], "color": "#458588"},
-            "base": {"structs": [], "color": "#076678"},
-            "surface": {"structs": [], "color": "#fe8019"},
-            "cluster": {"structs": [], "color": "#d3869b"},
-            "perturb": {"structs": [], "color": "#d79921"},
-            "vacancy": {"structs": [], "color": "#689d6a"},
-            "displacement": {"structs": [], "color": "#b16286"},
-            "oct_perturb": {"structs": [], "color": "#665c54"},
-            "unknown": {"structs": [], "color": "#ee0000"},
+            'bulk': {'structs': [], 'color': '#458588'},
+            'base': {'structs': [], 'color': '#076678'},
+            'surface': {'structs': [], 'color': '#fe8019'},
+            'cluster': {'structs': [], 'color': '#d3869b'},
+            'perturb': {'structs': [], 'color': '#d79921'},
+            'vacancy': {'structs': [], 'color': '#689d6a'},
+            'displacement': {'structs': [], 'color': '#b16286'},
+            'oct_perturb': {'structs': [], 'color': '#665c54'},
+            'unknown': {'structs': [], 'color': '#ee0000'},
         }
 
         # Get base element composition for every structure in the database
@@ -2637,20 +2630,20 @@ class InitialDatabase:
             curr_frac = curr_comp.get_atomic_fraction(base_elem.symbol)
 
             if row.bulk:
-                plot_dict["bulk"]["structs"].append(curr_frac * 100)
+                plot_dict['bulk']['structs'].append(curr_frac * 100)
             elif row.surface:
-                plot_dict["surface"]["structs"].append(curr_frac * 100)
+                plot_dict['surface']['structs'].append(curr_frac * 100)
             elif row.cluster:
-                plot_dict["cluster"]["structs"].append(curr_frac * 100)
+                plot_dict['cluster']['structs'].append(curr_frac * 100)
             else:
-                plot_dict["unknown"]["structs"].append(curr_frac * 100)
+                plot_dict['unknown']['structs'].append(curr_frac * 100)
 
-        plot_dict["bulk"]["structs"] = np.array(plot_dict["bulk"]["structs"])
-        plot_dict["surface"]["structs"] = np.array(plot_dict["surface"]["structs"])
-        plot_dict["cluster"]["structs"] = np.array(plot_dict["cluster"]["structs"])
+        plot_dict['bulk']['structs'] = np.array(plot_dict['bulk']['structs'])
+        plot_dict['surface']['structs'] = np.array(plot_dict['surface']['structs'])
+        plot_dict['cluster']['structs'] = np.array(plot_dict['cluster']['structs'])
 
         for key, type_dict in plot_dict.items():
-            struct_comp_base_elem = type_dict["structs"]
+            struct_comp_base_elem = type_dict['structs']
 
             if len(struct_comp_base_elem) == 0:
                 continue
@@ -2662,10 +2655,10 @@ class InitialDatabase:
             main_plot_ax.scatter(
                 struct_comp_base_elem,
                 temps_K,
-                color=type_dict["color"],
+                color=type_dict['color'],
                 label=key,
-                edgecolor="black",
-                marker="o",
+                edgecolor='black',
+                marker='o',
                 s=55,
                 alpha=0.7,
                 linewidth=0.25,
@@ -2684,79 +2677,79 @@ class InitialDatabase:
             hist_t_ax.sharex(main_plot_ax)
             hist_t_ax.hist(
                 struct_comp_base_elem,
-                color=type_dict["color"],
+                color=type_dict['color'],
                 alpha=0.35,
                 bins=bins,
                 label=key,
             )
-            hist_t_ax.tick_params(axis="x", labelbottom=False)
+            hist_t_ax.tick_params(axis='x', labelbottom=False)
 
         db_report: dict = self.gen_report()
 
         # Removing empty keys from the pie chart
         keys_to_pop = [
             key
-            for key in db_report["structure_count"]
-            if db_report["structure_count"][key] == 0
+            for key in db_report['structure_count']
+            if db_report['structure_count'][key] == 0
         ]
         for key in keys_to_pop:
-            db_report["structure_count"].pop(key)
+            db_report['structure_count'].pop(key)
 
         def autopct_format(values):
             def my_format(pct):
-                total = db_report["database_settings"]["total_entries"]
+                total = db_report['database_settings']['total_entries']
                 val = int(round(pct * total / 100.0))
-                return f"{pct:.1f}%\n({val:d})"
+                return f'{pct:.1f}%\n({val:d})'
 
             return my_format
 
         def autopct_display_value(values):
             def my_format(pct):
-                total = sum(db_report["structure_count"].values())
+                total = sum(db_report['structure_count'].values())
                 val = int(round(pct * total / 100.0))
-                return f"{val:d}"
+                return f'{val:d}'
 
             return my_format
 
         # Plotting bar chart
-        y_pos_bar = range(len(db_report["structure_count"].keys()))
+        y_pos_bar = range(len(db_report['structure_count'].keys()))
         bar_chart_ax.barh(
             y=y_pos_bar,
-            width=db_report["structure_count"].values(),
-            color=[plot_dict[key]["color"] for key in db_report["structure_count"]],
+            width=db_report['structure_count'].values(),
+            color=[plot_dict[key]['color'] for key in db_report['structure_count']],
             alpha=0.3,
         )
-        bar_chart_ax.set_yticks(y_pos_bar, labels=db_report["structure_count"].keys())
+        bar_chart_ax.set_yticks(y_pos_bar, labels=db_report['structure_count'].keys())
 
         # Writing labels in barchart
-        label_x = max(db_report["structure_count"].values()) * 0.10
+        label_x = max(db_report['structure_count'].values()) * 0.10
         for bar, amount in zip(
-            bar_chart_ax.patches, db_report["structure_count"].values()
+            bar_chart_ax.patches, db_report['structure_count'].values(), strict=False
         ):
             bar_chart_ax.text(
                 x=label_x,
                 y=bar.get_y() + bar.get_height() / 2,
                 s=amount,
-                color="#282828",
-                ha="left",
-                va="center",
-                fontsize="small",
+                color='#282828',
+                ha='left',
+                va='center',
+                fontsize='small',
             )
 
         # Creating a shortened version of the dict
         short_phase_dict = {}
-        if len(db_report["phases"]) > max_phases_pie:
+        if len(db_report['phases']) > max_phases_pie:
             phase_count = 0
-            for phase in db_report["phases"]:
+            for phase in db_report['phases']:
                 if phase_count < max_phases_pie:
-                    short_phase_dict[phase] = db_report["phases"][phase]
+                    short_phase_dict[phase] = db_report['phases'][phase]
                     phase_count += 1
                 else:
-                    short_phase_dict["other"] = (
-                        short_phase_dict.get("other", 0) + db_report["phases"][phase]
+                    short_phase_dict['other'] = (
+                        short_phase_dict.get('other', 0) + db_report['phases'][phase]
                     )
         else:
-            short_phase_dict = db_report["phases"]
+            short_phase_dict = db_report['phases']
 
         # Pie chart for phases
         phase_color_list = plt.cm.viridis(np.linspace(0, 1, len(short_phase_dict)))
@@ -2768,25 +2761,25 @@ class InitialDatabase:
             startangle=90,
             wedgeprops=dict(width=0.95, alpha=0.3),
             radius=1.25,
-            textprops={"size": "8"},
+            textprops={'size': '8'},
         )
 
-        hist_t_ax.set_title("Database composition")
-        hist_t_ax.spines["top"].set_visible(False)
-        hist_t_ax.spines["right"].set_visible(False)
-        main_plot_ax.set_title("")
+        hist_t_ax.set_title('Database composition')
+        hist_t_ax.spines['top'].set_visible(False)
+        hist_t_ax.spines['right'].set_visible(False)
+        main_plot_ax.set_title('')
         hist_t_ax.legend()
         fig.tight_layout()
 
         # Saving the figure
-        fig_name = "comp_plot_" + fig_name
+        fig_name = 'comp_plot_' + fig_name
         chart_img_path = pl.Path(fig_path) / fig_name
-        chart_img_path = chart_img_path.with_suffix(f".{fig_format}")
+        chart_img_path = chart_img_path.with_suffix(f'.{fig_format}')
         plt.savefig(chart_img_path, dpi=300, format=str(fig_format))
 
         mdb_cud.custom_print(
             f"Database composition plot saved in '{chart_img_path}'.",
-            "done",
+            'done',
         )
 
         # Displaying the plot
@@ -2812,7 +2805,7 @@ class InitialDatabase:
             r_cut=r_cut,
             n_max=n_max,
             l_max=l_max,
-            average="inner",
+            average='inner',
             sparse=False,
         )
 
@@ -2826,14 +2819,14 @@ class InitialDatabase:
             struct_soap = soap.create(ase_struct, n_jobs=-1, verbose=False)
 
             # Adding structure to dictionary using unique_id as key
-            soap_structs[unique_id]["descriptors"] = struct_soap
+            soap_structs[unique_id]['descriptors'] = struct_soap
 
         return soap_structs
 
     def descriptors_concave_hull(
         self,
-        descriptor_type: str = "soap",
-        dimensionality_reduction_method: str = "autoencoder",
+        descriptor_type: str = 'soap',
+        dimensionality_reduction_method: str = 'autoencoder',
         descriptor_settings: dict = None,
         load_autoencoder_path: str = None,
         rng_seed: int = None,
@@ -2848,35 +2841,35 @@ class InitialDatabase:
         )
 
         if not device:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if not descriptor_settings:
             descriptor_settings = {}
 
         # Get the descriptors using the selected descriptor type
         match descriptor_type:
-            case "soap":
-                mdb_cud.custom_print("Generating descriptors using SOAP...", "info")
+            case 'soap':
+                mdb_cud.custom_print('Generating descriptors using SOAP...', 'info')
                 # Get the SOAP descriptors
                 descriptors: dict = self.get_soap_descriptors(**descriptor_settings)
-            case "mace":
+            case 'mace':
                 # Get the MACE descriptors
                 raise NotImplementedError(
-                    "MACE descriptors are not yet implemented" "in database generation."
+                    'MACE descriptors are not yet implemented' 'in database generation.'
                 )
-                mdb_cud.custom_print("Generating descriptors using MACE...", "info")
-            case "acsf":
+                mdb_cud.custom_print('Generating descriptors using MACE...', 'info')
+            case 'acsf':
                 # Get the ACSF descriptors
                 raise NotImplementedError(
-                    "ASCF descriptors are not yet implemented" "in database generation"
+                    'ASCF descriptors are not yet implemented' 'in database generation'
                 )
-        mdb_cud.custom_print("Generated descriptors.", "done")
+        mdb_cud.custom_print('Generated descriptors.', 'done')
 
         # Reduce dimensionality of the descriptors
         match (load_autoencoder_path, dimensionality_reduction_method):
-            case (None, "autoencoder"):
+            case (None, 'autoencoder'):
                 descriptor_arr = np.vstack(
-                    [val["descriptors"] for key, val in descriptors.items()]
+                    [val['descriptors'] for key, val in descriptors.items()]
                 )
                 model = mdb_tr_ae.run_training(
                     SimpleNamespace(
@@ -2891,7 +2884,7 @@ class InitialDatabase:
                         l1_hidden_dim=256,
                         l2_hidden_dim=32,
                         bias_flag=True,
-                        loss="mse",
+                        loss='mse',
                         patience=5,
                         lr=1e-3,
                         batch_size=4096,
@@ -2902,15 +2895,15 @@ class InitialDatabase:
                     )
                 )
 
-            case (_, "autoencoder"):
+            case (_, 'autoencoder'):
                 model = torch.load(load_autoencoder_path, weights_only=False)
 
         match dimensionality_reduction_method:
-            case "pca":
+            case 'pca':
                 raise NotImplementedError(
-                    "PCA is not yet implemented in database generation."
+                    'PCA is not yet implemented in database generation.'
                 )
-            case "autoencoder":
+            case 'autoencoder':
                 from MatDBForge.active_learning.extrapolation import (
                     autoencoder as mdb_ae,
                 )
@@ -2923,7 +2916,7 @@ class InitialDatabase:
 
         # Get the concave hull of the reduced descriptors
         latent_space = np.vstack(
-            [val["latent_space"] for key, val in descriptors.items()]
+            [val['latent_space'] for key, val in descriptors.items()]
         )
 
         concave_hull = mdb_ch.get_concave_hull_julia(latent_space)
@@ -2947,13 +2940,13 @@ def cli_run_gen_initial_database(
 
     # If db_path is not given, the current directory is used.
     if not db_path:
-        db_dict["database_path"] = pl.Path.cwd()
+        db_dict['database_path'] = pl.Path.cwd()
 
     # Start logger
-    log_path = pl.Path(db_path) / "logs"
+    log_path = pl.Path(db_path) / 'logs'
     if not log_path.exists():
         log_path.mkdir(parents=True)
-    mdb_cud.init_logger(source=pl.Path(__file__).stem, log_path=f"{db_path}/logs")
+    mdb_cud.init_logger(source=pl.Path(__file__).stem, log_path=f'{db_path}/logs')
 
     # Checking last version of the library
     mdb_cud.check_mdb_version()
@@ -2961,54 +2954,54 @@ def cli_run_gen_initial_database(
     # Get timestamp for the entire run
     timestamp = int(time.time())
 
-    overwrite_db = db_dict.get("overwrite_db", False)
-    db_path_exists = pl.Path(db_dict["database_path"]).exists()
+    overwrite_db = db_dict.get('overwrite_db', False)
+    db_path_exists = pl.Path(db_dict['database_path']).exists()
 
     # Avoiding database overwrite
     if not overwrite_db and db_path_exists:
         # Get timestamp based on host and current time
         # db_dict["database_path"] = pl.Path(db_path) / f"gen_db_{timestamp}"
-        db_dict["database_name"] = db_dict["database_name"] + f"_{timestamp}"
+        db_dict['database_name'] = db_dict['database_name'] + f'_{timestamp}'
         mdb_cud.custom_print(
             (
                 "Overwriting disabled. Creating new database in"
                 f" {db_dict['database_path']} named '{db_dict['database_name']}'."
             ),
-            "warn",
+            'warn',
         )
 
     # If db_path is not given, the current directory is used.
     if not db_path:
         db_path = pl.Path.cwd()
 
-    mdb_cud.custom_print("Starting generation of initial database...", "info")
+    mdb_cud.custom_print('Starting generation of initial database...', 'info')
     print()
 
     # Get seed from input file or generate one
-    rng_seed = int(db_dict.get("rng_seed", np.random.randint(0, int(1e15))))
-    mdb_cud.custom_print(f"Using RNG seed: '{rng_seed}'.", "info")
+    rng_seed = int(db_dict.get('rng_seed', np.random.randint(0, int(1e15))))
+    mdb_cud.custom_print(f"Using RNG seed: '{rng_seed}'.", 'info')
 
     # Assemble phase diagram
     phase_diagram = mdb_pd.PhaseDiagram(
-        material=phase_diagram_dict["material_name"],
-        base_elem=phase_diagram_dict["base_element"],
-        element_list=phase_diagram_dict["element_list"],
+        material=phase_diagram_dict['material_name'],
+        base_elem=phase_diagram_dict['base_element'],
+        element_list=phase_diagram_dict['element_list'],
     )
 
     # Create phase diagram
     phases_list = []
-    for curr_phase_name, phase_d in phase_diagram_dict["phase"].items():
+    for curr_phase_name, phase_d in phase_diagram_dict['phase'].items():
         curr_phase = mdb_pd.Phase(
             name=curr_phase_name,
-            element_list=phase_diagram_dict["element_list"],
-            cluster_elem=phase_d.get("cluster_element"),
-            composition=phase_d["composition"],
-            prototype=phase_d["prototype"],
-            offset=float(phase_d.get("offset", 0)),
-            replace_dict=phase_d.get("replacements"),
-            allow_modifications=phase_d.get("allow_modifications", True),
+            element_list=phase_diagram_dict['element_list'],
+            cluster_elem=phase_d.get('cluster_element'),
+            composition=phase_d['composition'],
+            prototype=phase_d['prototype'],
+            offset=float(phase_d.get('offset', 0)),
+            replace_dict=phase_d.get('replacements'),
+            allow_modifications=phase_d.get('allow_modifications', True),
             phase_diagram=phase_diagram,
-            use_cache=phase_d.get("use_cache", False),
+            use_cache=phase_d.get('use_cache', False),
         )
         phases_list.append(curr_phase)
 
@@ -3017,18 +3010,18 @@ def cli_run_gen_initial_database(
 
     # Initialize the database
     structures = indb.InitialDatabase(
-        database_name=db_dict["database_name"],
-        database_path=db_dict["database_path"],
-        max_num_atoms=int(db_dict["max_num_atoms"]),
+        database_name=db_dict['database_name'],
+        database_path=db_dict['database_path'],
+        max_num_atoms=int(db_dict['max_num_atoms']),
         phase_diagram=phase_diagram,
         load_db=True,
     )
 
     read_from_db = True
-    if db_dict.get("relax_struct_path"):
+    if db_dict.get('relax_struct_path'):
         # Initial structures obtained with DFT relaxation are loaded from a given path
         structures.read_base_structures(
-            path=db_dict["relax_struct_path"],
+            path=db_dict['relax_struct_path'],
             target_structures=selected_phases,
         )
     else:
@@ -3038,26 +3031,26 @@ def cli_run_gen_initial_database(
 
     # Applying central_atom_octahedral perturbation to specific structures
     phases_read_from_db = []
-    target_mod_dict = config_dict.get("targeted_modification", {})
-    if target_mod_dict.get("central_atom_octahedral"):
-        cen_at_oh_dict = target_mod_dict["central_atom_octahedral"]
+    target_mod_dict = config_dict.get('targeted_modification', {})
+    if target_mod_dict.get('central_atom_octahedral'):
+        cen_at_oh_dict = target_mod_dict['central_atom_octahedral']
         mdb_cud.custom_print(
-            "Applying central atom octahedral modifications...", "info"
+            'Applying central atom octahedral modifications...', 'info'
         )
         ut.apply_central_atom_octahedral(
             db_obj=structures,
-            filter_struct_types=cen_at_oh_dict["filter_struct_types"],
-            filter_phase_list=cen_at_oh_dict["filter_phases"],
-            num_repeats=int(cen_at_oh_dict["num_repeats"]),
-            central_element=cen_at_oh_dict["central_element"],
-            limit_num_structures=int(cen_at_oh_dict["limit_max_num_modifications"]),
+            filter_struct_types=cen_at_oh_dict['filter_struct_types'],
+            filter_phase_list=cen_at_oh_dict['filter_phases'],
+            num_repeats=int(cen_at_oh_dict['num_repeats']),
+            central_element=cen_at_oh_dict['central_element'],
+            limit_num_structures=int(cen_at_oh_dict['limit_max_num_modifications']),
             seed=rng_seed,
-            max_perturbation_ang=float(cen_at_oh_dict.get("max_perturbation_ang", 0.2)),
+            max_perturbation_ang=float(cen_at_oh_dict.get('max_perturbation_ang', 0.2)),
         )
-        phases_read_from_db.extend(cen_at_oh_dict["filter_phases"])
-        mdb_cud.custom_print(structures, "info")
+        phases_read_from_db.extend(cen_at_oh_dict['filter_phases'])
+        mdb_cud.custom_print(structures, 'info')
 
-    mdb_cud.custom_print("Generating structures from initial structures...", "debug")
+    mdb_cud.custom_print('Generating structures from initial structures...', 'debug')
 
     for phase_idx, phase in enumerate(selected_phases):
         # Line break for aesthetic purposes
@@ -3066,8 +3059,8 @@ def cli_run_gen_initial_database(
         # Creating surfaces from the base structures, generating
         # different supercells and applying replacements.
         mdb_cud.custom_print(
-            f"[bold][{phase_idx+1}/{len(selected_phases)}] - Current phase: {phase}[/]",
-            "info",
+            f'[bold][{phase_idx+1}/{len(selected_phases)}] - Current phase: {phase}[/]',
+            'info',
         )
 
         # Getting phase object
@@ -3078,148 +3071,148 @@ def cli_run_gen_initial_database(
         if not phase.allow_modifications:
             mdb_cud.custom_print(
                 f"Modifications are not allowed for phase: '{phase.name}'. Skipping.",
-                "warn",
+                'warn',
             )
             continue
 
-        if "bulk" in gen_dict:
-            mdb_cud.custom_print("Generating bulk structures...", "info")
+        if 'bulk' in gen_dict:
+            mdb_cud.custom_print('Generating bulk structures...', 'info')
 
             # Generating bulk structures.
             structures.generate_bulk_structures(
                 prototype=phase.prototype,
                 phase=phase,
-                num_struct=int(gen_dict["bulk"]["num_struct"]),
-                num_repeats=int(gen_dict["bulk"]["num_repeat"]),
+                num_struct=int(gen_dict['bulk']['num_struct']),
+                num_repeats=int(gen_dict['bulk']['num_repeat']),
                 get_different_supercells=True,
-                min_num_atoms=int(db_dict["min_num_atoms"]),
-                supercell_max_idx=int(gen_dict["bulk"]["supercell_max_idx"]),
+                min_num_atoms=int(db_dict['min_num_atoms']),
+                supercell_max_idx=int(gen_dict['bulk']['supercell_max_idx']),
                 read=read_from_db,
                 overwrite_read_from_db_list=phases_read_from_db,
                 convert_to_base=False,
                 seed=rng_seed,
             )
 
-            mdb_cud.custom_print(structures, "info")
+            mdb_cud.custom_print(structures, 'info')
 
-        if "surface" in gen_dict:
-            mdb_cud.custom_print("Generating surface structures...", "info")
+        if 'surface' in gen_dict:
+            mdb_cud.custom_print('Generating surface structures...', 'info')
 
             # Generating surface structures.
             mdb_surf.gen_surfaces_diff_miller_parallel(
                 db_obj=structures,
                 phase=phase,
-                min_num_atoms=int(db_dict["min_num_atoms"]),
-                overwrite_max_num_atoms=int(db_dict["max_num_atoms"]),
-                min_miller_index=int(gen_dict["surface"]["min_miller_index"]),
-                max_miller_index=int(gen_dict["surface"]["max_miller_index"]),
-                min_slab_size=float(gen_dict["surface"]["min_slab_size_ang"]),
-                min_vacuum_size=float(gen_dict["surface"]["min_vacuum_size_ang"]),
-                get_supercells=gen_dict["surface"]["get_supercells"],
-                fixed_layers=int(gen_dict["surface"]["fixed_layers"]),
-                num_replacements=int(gen_dict["surface"]["num_replacements"]),
-                num_repeat_replace=int(gen_dict["surface"]["num_repeat_replace"]),
+                min_num_atoms=int(db_dict['min_num_atoms']),
+                overwrite_max_num_atoms=int(db_dict['max_num_atoms']),
+                min_miller_index=int(gen_dict['surface']['min_miller_index']),
+                max_miller_index=int(gen_dict['surface']['max_miller_index']),
+                min_slab_size=float(gen_dict['surface']['min_slab_size_ang']),
+                min_vacuum_size=float(gen_dict['surface']['min_vacuum_size_ang']),
+                get_supercells=gen_dict['surface']['get_supercells'],
+                fixed_layers=int(gen_dict['surface']['fixed_layers']),
+                num_replacements=int(gen_dict['surface']['num_replacements']),
+                num_repeat_replace=int(gen_dict['surface']['num_repeat_replace']),
                 limit_total_num_struct=int(
-                    gen_dict["surface"]["max_number_supercells"]
+                    gen_dict['surface']['max_number_supercells']
                 ),
-                frac_slabs_save=gen_dict["surface"].get("frac_slabs_save", 0.1),
-                frac_supercells_save=gen_dict["surface"].get(
-                    "frac_supercells_save", 0.1
+                frac_slabs_save=gen_dict['surface'].get('frac_slabs_save', 0.1),
+                frac_supercells_save=gen_dict['surface'].get(
+                    'frac_supercells_save', 0.1
                 ),
-                save_in_db=gen_dict["surface"]["save_in_db"],
-                max_slab_num=int(gen_dict["surface"]["max_slab_num"]),
-                n_workers=int(gen_dict["surface"].get("n_workers", None)),
+                save_in_db=gen_dict['surface']['save_in_db'],
+                max_slab_num=int(gen_dict['surface']['max_slab_num']),
+                n_workers=int(gen_dict['surface'].get('n_workers', None)),
             )
 
-            mdb_cud.custom_print(structures, "info")
+            mdb_cud.custom_print(structures, 'info')
 
-        if "cluster" in gen_dict:
-            raise NotImplementedError("Cluster type not implemented yet")
+        if 'cluster' in gen_dict:
+            raise NotImplementedError('Cluster type not implemented yet')
 
         # Filter small and large structures
         remove_count = structures.remove_structs_out_of_atom_count_range(
-            min_num_atoms=int(db_dict["min_num_atoms"]),
-            max_num_atoms=int(db_dict["max_num_atoms"]),
+            min_num_atoms=int(db_dict['min_num_atoms']),
+            max_num_atoms=int(db_dict['max_num_atoms']),
         )
         mdb_cud.custom_print(
-            f"Removed {remove_count} structures out of atom count range.", "info"
+            f'Removed {remove_count} structures out of atom count range.', 'info'
         )
-        mdb_cud.custom_print(structures, "info")
+        mdb_cud.custom_print(structures, 'info')
 
         # Lattice displacement
-        if "displacement" in config_dict:
-            displ_dict = config_dict["displacement"]
+        if 'displacement' in config_dict:
+            displ_dict = config_dict['displacement']
 
-            mdb_cud.custom_print("Applying displacements to lattices.", "info")
+            mdb_cud.custom_print('Applying displacements to lattices.', 'info')
 
             structures.perturb_min_displacement(
-                frac_max=float(displ_dict["lattice_frac_displ_max"]),
-                frac_min=float(displ_dict["lattice_frac_displ_min"]),
-                repeat=int(displ_dict["num_repeats"]),
+                frac_max=float(displ_dict['lattice_frac_displ_max']),
+                frac_min=float(displ_dict['lattice_frac_displ_min']),
+                repeat=int(displ_dict['num_repeats']),
                 use_phase=phase,
                 only_use_base=False,
-                limit_num_structures=int(displ_dict["limit_max_num_displacements"]),
-                filters=displ_dict["filter_struct_types"],
+                limit_num_structures=int(displ_dict['limit_max_num_displacements']),
+                filters=displ_dict['filter_struct_types'],
                 rng_seed=rng_seed,
             )
-            mdb_cud.custom_print(structures, "info")
+            mdb_cud.custom_print(structures, 'info')
 
             remove_count = structures.remove_structs_out_of_cell_size_range(
-                min_cell_size=float(db_dict["min_cell_size"])
+                min_cell_size=float(db_dict['min_cell_size'])
             )
             mdb_cud.custom_print(
-                f"Removed {remove_count} structures out of cell size range.", "info"
+                f'Removed {remove_count} structures out of cell size range.', 'info'
             )
-        if "perturbation" in config_dict:
-            perturb_dict = config_dict["perturbation"]
+        if 'perturbation' in config_dict:
+            perturb_dict = config_dict['perturbation']
             mdb_cud.custom_print(
-                "Applying a random perturbation to the structures...",
-                "info",
+                'Applying a random perturbation to the structures...',
+                'info',
             )
 
             ut.apply_gauss_perturb_db(
                 db_obj=structures,
-                repeat=int(perturb_dict["num_repeats"]),
-                filters=perturb_dict["filter_struct_types"],
+                repeat=int(perturb_dict['num_repeats']),
+                filters=perturb_dict['filter_struct_types'],
                 phase=phase,
-                limit_num_structures=int(perturb_dict["limit_max_num_perturbs"]),
+                limit_num_structures=int(perturb_dict['limit_max_num_perturbs']),
             )
 
-            mdb_cud.custom_print(structures, "info")
+            mdb_cud.custom_print(structures, 'info')
 
         # Applying vacancies to a random subset of structures
-        if "vacancies" in config_dict:
-            vacancies_dict = config_dict["vacancies"]
+        if 'vacancies' in config_dict:
+            vacancies_dict = config_dict['vacancies']
             mdb_cud.custom_print(
                 (
                     f"Applying vacancies to a random subset of "
                     f"{vacancies_dict['limit_max_num_vacancies']} structures..."
                 ),
-                "info",
+                'info',
             )
 
             structures.apply_vacancies_random(
-                max_vac_perc=vacancies_dict["max_vacancy_percentage"],
-                min_vac_perc=vacancies_dict["min_vacancy_percentage"],
-                filters=vacancies_dict["filter_struct_types"],
-                lim_num_struc=int(vacancies_dict["limit_max_num_vacancies"]),
-                repeat=int(vacancies_dict["num_repeats"]),
+                max_vac_perc=vacancies_dict['max_vacancy_percentage'],
+                min_vac_perc=vacancies_dict['min_vacancy_percentage'],
+                filters=vacancies_dict['filter_struct_types'],
+                lim_num_struc=int(vacancies_dict['limit_max_num_vacancies']),
+                repeat=int(vacancies_dict['num_repeats']),
                 seed=rng_seed,
-                element_list=vacancies_dict["element_list"],
+                element_list=vacancies_dict['element_list'],
                 phase=phase,
             )
 
         # Limiting structures for current phase
-        lim_phas_structs = phase_diagram_dict["phase"][phase.original_name].get(
-            "limit_max_num_structures"
+        lim_phas_structs = phase_diagram_dict['phase'][phase.original_name].get(
+            'limit_max_num_structures'
         )
         if lim_phas_structs:
             mdb_cud.custom_print(
                 (
-                    "Limiting number of structures "
+                    'Limiting number of structures '
                     f"from phase '{phase.name}' to {lim_phas_structs}."
                 ),
-                "info",
+                'info',
             )
             structures = ut.limit_num_structures_phase(
                 structures,
@@ -3227,105 +3220,105 @@ def cli_run_gen_initial_database(
                 lim_phas_structs,
                 rng_seed,
             )
-            mdb_cud.custom_print(structures, "info")
+            mdb_cud.custom_print(structures, 'info')
 
     print()
     mdb_cud.custom_print(
-        "Finishing populating structures from every phase.",
-        "done",
+        'Finishing populating structures from every phase.',
+        'done',
     )
     print()
 
-    if "adsorbates" in config_dict:
+    if 'adsorbates' in config_dict:
         mdb_cud.custom_print(
-            "Adding adsorbates on top of the structures...",
-            "info",
+            'Adding adsorbates on top of the structures...',
+            'info',
         )
 
-        adsorb_dict = config_dict["adsorbates"]
+        adsorb_dict = config_dict['adsorbates']
         ut.add_adsorbates(
             db_obj=structures,
-            repeat=int(adsorb_dict["num_repeats"]),
-            filters=adsorb_dict["filter_struct_types"],
+            repeat=int(adsorb_dict['num_repeats']),
+            filters=adsorb_dict['filter_struct_types'],
             phase=phase,
-            limit_num_structures=int(adsorb_dict["limit_max_num_perturbs"]),
-            adsorbate_species=adsorb_dict["adsorbate_species"],
+            limit_num_structures=int(adsorb_dict['limit_max_num_perturbs']),
+            adsorbate_species=adsorb_dict['adsorbate_species'],
         )
 
-        mdb_cud.custom_print(structures, "info")
+        mdb_cud.custom_print(structures, 'info')
 
-    mdb_cud.custom_print("Database generation complete!", "done")
+    mdb_cud.custom_print('Database generation complete!', 'done')
     print()
 
     structures.save_database(
-        path=db_dict["database_path"],
+        path=db_dict['database_path'],
     )
 
     # Generating report with database composition
     # Print using rich
     report = structures.gen_report()
     pretty = Pretty(report)
-    panel = Panel(pretty, title="Database report")
+    panel = Panel(pretty, title='Database report')
     rprint(panel)
-    mdb_cud.custom_print(f"Database report generated:\n{report}", "debug")
+    mdb_cud.custom_print(f'Database report generated:\n{report}', 'debug')
 
     # Plot the database if requested
-    if db_dict.get("plot_db", {}).get("show"):
-        mdb_cud.custom_print("Plotting database composition...", "info")
+    if db_dict.get('plot_db', {}).get('show'):
+        mdb_cud.custom_print('Plotting database composition...', 'info')
 
         # Selecting plot style settings for the plot
-        params = db_dict["plot_db"].get("rc_params")
+        params = db_dict['plot_db'].get('rc_params')
 
         # Generating and saving the composition plot
         structures.plot_database_composition(
             temperature_K=400,
             rc_params=params,
-            fig_path=db_dict["database_path"],
-            fig_name=db_dict["database_name"],
-            fig_format=db_dict["plot_db"].get("format", "png"),
+            fig_path=db_dict['database_path'],
+            fig_name=db_dict['database_name'],
+            fig_format=db_dict['plot_db'].get('format', 'png'),
         )
 
     # Getting the concave hull if requested
-    if config_dict.get("concave_hull", {}).get("gen_concave_hull", False):
-        concave_dict = config_dict["concave_hull"]
+    if config_dict.get('concave_hull', {}).get('gen_concave_hull', False):
+        concave_dict = config_dict['concave_hull']
         print()
-        mdb_cud.custom_print("Generating concave hull...", "info")
+        mdb_cud.custom_print('Generating concave hull...', 'info')
         structures.descriptors_concave_hull(
-            descriptor_type=concave_dict.get("descriptor", "soap").lower(),
+            descriptor_type=concave_dict.get('descriptor', 'soap').lower(),
             dimensionality_reduction_method=concave_dict.get(
-                "dim_reduction", "autoencoder"
+                'dim_reduction', 'autoencoder'
             ),
             plot_filename=concave_dict.get(
-                "plot_filename",
+                'plot_filename',
                 f"{pl.Path(db_path)/'descriptors_concave_hull.png'}",
             ),
-            device=concave_dict.get("device", "cpu"),
+            device=concave_dict.get('device', 'cpu'),
             rng_seed=rng_seed,
         )
-        mdb_cud.custom_print("Concave hull generated!", "done")
+        mdb_cud.custom_print('Concave hull generated!', 'done')
         print()
 
     # Export the database if requested
-    if db_dict.get("export", {}).get("export"):
-        export_path = db_dict["export"].get("file_path", db_dict["database_path"])
-        file_name = db_dict["export"].get("file_name", db_dict["database_name"])
+    if db_dict.get('export', {}).get('export'):
+        export_path = db_dict['export'].get('file_path', db_dict['database_path'])
+        file_name = db_dict['export'].get('file_name', db_dict['database_name'])
 
         if not file_name:
-            file_name = db_dict["database_name"]
+            file_name = db_dict['database_name']
         if not export_path:
-            export_path = db_dict["database_path"]
+            export_path = db_dict['database_path']
 
-        out_format = db_dict["export"].get("format")
+        out_format = db_dict['export'].get('format')
 
-        mdb_cud.custom_print(f"Exporting database as '{out_format}'...", "info")
+        mdb_cud.custom_print(f"Exporting database as '{out_format}'...", 'info')
 
         structures.export_db(
             out_format=out_format,
             file_path=export_path,
-            file_name=file_name + f"_structures_{timestamp}",
+            file_name=file_name + f'_structures_{timestamp}',
         )
 
     # Display the database if requested
-    if db_dict.get("show_db_ase", {}).get("show"):
-        mdb_cud.custom_print("Displaying database in ASE...", "info")
+    if db_dict.get('show_db_ase', {}).get('show'):
+        mdb_cud.custom_print('Displaying database in ASE...', 'info')
         structures.display_db_ase()

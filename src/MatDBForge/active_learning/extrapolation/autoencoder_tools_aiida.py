@@ -17,19 +17,18 @@ class TrainAutoencoderCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
-        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+        retrieved_temporary_folder: Path = Path(kwargs['retrieved_temporary_folder'])
 
         model_file = None
 
-        for child_file in retrieved_temporary_folder.rglob("*"):
-
+        for child_file in retrieved_temporary_folder.rglob('*'):
             # Create singlefile data for the model
-            if ".pt" in child_file.name:
+            if '.pt' in child_file.name:
                 model_file = orm.SinglefileData(file=child_file)
                 continue
 
             # Get train statistics from the training output
-            if "mdb_train_autoencoder" in child_file.name:
+            if 'mdb_train_autoencoder' in child_file.name:
                 training_log = orm.SinglefileData(file=child_file)
 
         # Return failed code
@@ -37,8 +36,8 @@ class TrainAutoencoderCalculationParser(Parser):
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
-        self.out("model_file", model_file)
-        self.out("training_log", training_log)
+        self.out('model_file', model_file)
+        self.out('training_log', training_log)
 
 
 # entry point: mdb-autoencoder-train
@@ -72,29 +71,29 @@ class TrainAutoencoderCalculation(CalcJob):
         """Define the input and output specifications for the CalcJob."""
         super().define(spec)
         spec.input(
-            "settings_dict",
+            'settings_dict',
             valid_type=orm.Dict,
-            help="Dictionary containing Autoencoder training settings.",
+            help='Dictionary containing Autoencoder training settings.',
         )
         spec.input(
-            "descriptors_file_path",
+            'descriptors_file_path',
             valid_type=orm.Str,
-            help=("Path to the descriptors to evaluate in npy format."),
+            help=('Path to the descriptors to evaluate in npy format.'),
             # non_db=True,
             serializer=orm.to_aiida_type,
         )
         spec.output(
-            "model_file",
+            'model_file',
             valid_type=orm.SinglefileData,
-            help="Path of the trained Autoencoder model.",
+            help='Path of the trained Autoencoder model.',
         )
         spec.output(
-            "training_log",
+            'training_log',
             valid_type=orm.SinglefileData,
-            help="Log file containing information of the training process",
+            help='Log file containing information of the training process',
         )
         spec.exit_code(
-            420, "ERROR_INVALID_OUTPUT", "training calculation could not run"
+            420, 'ERROR_INVALID_OUTPUT', 'training calculation could not run'
         )
 
     def prepare_for_submission(self, folder):
@@ -111,7 +110,7 @@ class TrainAutoencoderCalculation(CalcJob):
         prepare_cli_args_autoencoder(params_list, self.inputs.settings_dict)
 
         dest_name = self.inputs.settings_dict.get_dict().get(
-            "dataset", "all_descriptors.npy"
+            'dataset', 'all_descriptors.npy'
         )
 
         # Copying database to temporary folder
@@ -124,7 +123,7 @@ class TrainAutoencoderCalculation(CalcJob):
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
         # codeinfo.stdout_name = self.options.output_filename
-        codeinfo.stdout_name = "calc_train_stdout.out"
+        codeinfo.stdout_name = 'calc_train_stdout.out'
         codeinfo.cmdline_params = params_list
 
         calcinfo = CalcInfo()
@@ -139,11 +138,11 @@ class TrainAutoencoderCalculation(CalcJob):
         # by accessing the temporary folder.
         calcinfo.retrieve_temporary_list = [
             self.metadata.options.output_filename,
-            "./*.model",
-            "./*.pth",
-            "./*.pt",
-            "./results/*",
-            "./*.log",
+            './*.model',
+            './*.pth',
+            './*.pt',
+            './results/*',
+            './*.log',
         ]
 
         return calcinfo
@@ -156,7 +155,7 @@ class GetLatentSpaceAutoencoderCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
-        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+        retrieved_temporary_folder: Path = Path(kwargs['retrieved_temporary_folder'])
 
         latent_space = None
         autoencoder_model_file = None
@@ -164,18 +163,17 @@ class GetLatentSpaceAutoencoderCalculationParser(Parser):
         descr_min_arr = None
 
         for child_file in retrieved_temporary_folder.iterdir():
-
             # Get output files in the appropriate format
             match child_file.name:
-                case "latent_space.npy":
+                case 'latent_space.npy':
                     latent_space = orm.ArrayData(np.load(child_file))
-                case "autoencoder_model.pth":
+                case 'autoencoder_model.pth':
                     autoencoder_model_file = orm.SinglefileData(file=child_file)
-                case "curr_it_db_max.npy":
+                case 'curr_it_db_max.npy':
                     descr_max_arr = orm.ArrayData(np.load(child_file))
-                case "curr_it_db_min.npy":
+                case 'curr_it_db_min.npy':
                     descr_min_arr = orm.ArrayData(np.load(child_file))
-                case "curr_it_db_descriptors.pkl":
+                case 'curr_it_db_descriptors.pkl':
                     descriptor_arr_file = orm.SinglefileData(file=child_file)
 
         if not all(
@@ -184,11 +182,11 @@ class GetLatentSpaceAutoencoderCalculationParser(Parser):
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs\
-        self.out("latent_space", latent_space)
-        self.out("autoencoder_model_file", autoencoder_model_file)
-        self.out("descriptors_max_array", descr_max_arr)
-        self.out("descriptors_min_array", descr_min_arr)
-        self.out("descriptors_file", descriptor_arr_file)
+        self.out('latent_space', latent_space)
+        self.out('autoencoder_model_file', autoencoder_model_file)
+        self.out('descriptors_max_array', descr_max_arr)
+        self.out('descriptors_min_array', descr_min_arr)
+        self.out('descriptors_file', descriptor_arr_file)
 
 
 # mdb-get-latent-space
@@ -201,77 +199,77 @@ class GetLatentSpaceAutoencoderCalculation(CalcJob):
     def define(cls, spec):  # noqa: D102
         super().define(spec)
         spec.input(
-            "settings_dict",
+            'settings_dict',
             valid_type=orm.Dict,
-            help="Dictionary containing autoencoder training settings.",
+            help='Dictionary containing autoencoder training settings.',
             required=False,
             default=None,
         )
         spec.input(
-            "model_file",
+            'model_file',
             valid_type=orm.SinglefileData,
-            help="Trained MACE model.",
+            help='Trained MACE model.',
             non_db=True,
         )
         spec.input(
-            "mace_train_file_path",
+            'mace_train_file_path',
             help=(
-                "Path to the file containing the structures to be used for training,"
-                " in the extxyz format."
+                'Path to the file containing the structures to be used for training,'
+                ' in the extxyz format.'
             ),
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "trained_autoencoder_model",
+            'trained_autoencoder_model',
             valid_type=orm.SinglefileData,
-            help="Trained Autoencoder model.",
+            help='Trained Autoencoder model.',
             non_db=True,
             required=False,
             default=None,
         )
         spec.output(
-            "autoencoder_model_file",
-            help="Trained Autoencoder model.",
+            'autoencoder_model_file',
+            help='Trained Autoencoder model.',
             valid_type=orm.SinglefileData,
         )
         spec.output(
-            "descriptors_file",
+            'descriptors_file',
             valid_type=orm.SinglefileData,
             help=(
-                "This file will contain a dict of length n_struct,"
-                " that will have two keys inside inside, `descriptors` and"
-                " `latent_space`. The `descriptors` will contain model_size"
-                " lists of descriptor values. The `latent_space` will contain"
-                " the 2D latent space representation of the descriptors."
+                'This file will contain a dict of length n_struct,'
+                ' that will have two keys inside inside, `descriptors` and'
+                ' `latent_space`. The `descriptors` will contain model_size'
+                ' lists of descriptor values. The `latent_space` will contain'
+                ' the 2D latent space representation of the descriptors.'
             ),
             required=False,
         )
         spec.output(
-            "autoencoder_model_file",
-            help="Trained Autoencoder model.",
+            'autoencoder_model_file',
+            help='Trained Autoencoder model.',
             valid_type=orm.SinglefileData,
         )
         spec.output(
-            "latent_space",
-            help="Array containing the latent space descriptors array.",
+            'latent_space',
+            help='Array containing the latent space descriptors array.',
             valid_type=orm.ArrayData,
         )
         spec.output(
-            "descriptors_max_array",
+            'descriptors_max_array',
             valid_type=orm.ArrayData,
-            help="Array containing the maximum values for the MACE descriptors, "
-            "shaped according to the model size.",
+            help='Array containing the maximum values for the MACE descriptors, '
+            'shaped according to the model size.',
         )
         spec.output(
-            "descriptors_min_array",
+            'descriptors_min_array',
             valid_type=orm.ArrayData,
-            help="Array containing the minimum values for the MACE descriptors, "
-            "shaped according to the model size.",
+            help='Array containing the minimum values for the MACE descriptors, '
+            'shaped according to the model size.',
         )
         spec.exit_code(
             420,
-            "ERROR_INVALID_OUTPUT",
-            "calculation could not generate/gather all necessary outputs",
+            'ERROR_INVALID_OUTPUT',
+            'calculation could not generate/gather all necessary outputs',
         )
 
     def prepare_for_submission(self, folder):
@@ -285,13 +283,13 @@ class GetLatentSpaceAutoencoderCalculation(CalcJob):
             final_db_path = self.inputs.mace_train_file_path.value
             folder.insert_path(
                 src=Path(final_db_path).resolve(),
-                dest_name="current_db.xyz",
+                dest_name='current_db.xyz',
             )
         elif isinstance(self.inputs.mace_train_file_path, orm.SinglefileData):
             with self.inputs.mace_train_file_path.as_path() as model_path:
                 folder.insert_path(
                     src=model_path,
-                    dest_name="current_db.xyz",
+                    dest_name='current_db.xyz',
                 )
 
         # If trained autoencoder model is given, copy it to the temporary folder
@@ -300,7 +298,7 @@ class GetLatentSpaceAutoencoderCalculation(CalcJob):
             with self.inputs.trained_autoencoder_model.as_path() as auto_model_path:
                 folder.insert_path(
                     src=auto_model_path,
-                    dest_name="autoencoder_model.pth",
+                    dest_name='autoencoder_model.pth',
                 )
 
         # Copying model to temporary folder
@@ -309,12 +307,12 @@ class GetLatentSpaceAutoencoderCalculation(CalcJob):
         with model_file.as_path() as model_path:
             folder.insert_path(
                 src=model_path,
-                dest_name="current_model_mace.model",
+                dest_name='current_model_mace.model',
             )
 
         # Writing settings dict to a json file
         if self.inputs.settings_dict:
-            with folder.open("settings_dict.json", "w") as f:
+            with folder.open('settings_dict.json', 'w') as f:
                 json.dump(self.inputs.settings_dict.get_dict(), f)
 
         codeinfo = CodeInfo()
@@ -331,9 +329,9 @@ class GetLatentSpaceAutoencoderCalculation(CalcJob):
         # They can later be processed during the parse function
         # by accessing the temporary folder.
         calcinfo.retrieve_temporary_list = [
-            "./*.npy",
-            "./*.pt*",
-            "./*.pkl*",
+            './*.npy',
+            './*.pt*',
+            './*.pkl*',
         ]
 
         return calcinfo
@@ -346,28 +344,25 @@ class GetConcaveHullCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
-        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+        retrieved_temporary_folder: Path = Path(kwargs['retrieved_temporary_folder'])
 
         concave_hull_array = None
         concave_hull_plot = None
 
         for child_file in retrieved_temporary_folder.iterdir():
-
             # Get output files in the appropriate format
             match child_file.name:
-                case "concave_hull.npy":
+                case 'concave_hull.npy':
                     concave_hull_array = orm.ArrayData(np.load(child_file))
-                case "concave_hull.png":
+                case 'concave_hull.png':
                     concave_hull_plot = orm.SinglefileData(file=child_file)
 
-        if not all(
-            (child_file, concave_hull_plot)
-        ):
+        if not all((child_file, concave_hull_plot)):
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs\
-        self.out("concave_hull_array", concave_hull_array)
-        self.out("concave_hull_plot", concave_hull_plot)
+        self.out('concave_hull_array', concave_hull_array)
+        self.out('concave_hull_plot', concave_hull_plot)
 
 
 # mdb-get-concave-hull
@@ -380,24 +375,24 @@ class GetConcaveHullCalculation(CalcJob):
     def define(cls, spec):  # noqa: D102
         super().define(spec)
         spec.input(
-            "latent_space",
+            'latent_space',
             valid_type=orm.ArrayData,
-            help="Array containing the latent space of a set of descriptors.",
+            help='Array containing the latent space of a set of descriptors.',
         )
         spec.output(
-            "concave_hull_array",
-            help="Array containing the computed concave hull.",
+            'concave_hull_array',
+            help='Array containing the computed concave hull.',
             valid_type=orm.ArrayData,
         )
         spec.output(
-            "concave_hull_plot",
+            'concave_hull_plot',
             valid_type=orm.SinglefileData,
-            help="Chart showing the 2D representation of the concave hull.",
+            help='Chart showing the 2D representation of the concave hull.',
         )
         spec.exit_code(
             420,
-            "ERROR_INVALID_OUTPUT",
-            "calculation could not generate/gather all necessary outputs",
+            'ERROR_INVALID_OUTPUT',
+            'calculation could not generate/gather all necessary outputs',
         )
 
     def prepare_for_submission(self, folder):
@@ -407,7 +402,7 @@ class GetConcaveHullCalculation(CalcJob):
         :return: `CalcInfo` instance
         """
         # Writing latent space a file
-        with folder.open("latent_space.npy", "wb") as f:
+        with folder.open('latent_space.npy', 'wb') as f:
             np.save(f, self.inputs.latent_space.get_array())
 
         codeinfo = CodeInfo()
@@ -424,8 +419,8 @@ class GetConcaveHullCalculation(CalcJob):
         # They can later be processed during the parse function
         # by accessing the temporary folder.
         calcinfo.retrieve_temporary_list = [
-            "./*.npy",
-            "./*.png*",
+            './*.npy',
+            './*.png*',
         ]
 
         return calcinfo
@@ -434,20 +429,20 @@ class GetConcaveHullCalculation(CalcJob):
 def prepare_cli_args_autoencoder(params_list: list, settings_dict: dict):
     """Prepare the command line arguments for the Autoencoder training."""
     for key, val in settings_dict.items():
-        if key == "train_file":
+        if key == 'train_file':
             val = Path(val).resolve().name
 
-        if key == "dtype":
-            key = "default_dtype"
+        if key == 'dtype':
+            key = 'default_dtype'
 
         if isinstance(val, str):
-            curr_key = f"--{key}={val}"
+            curr_key = f'--{key}={val}'
         elif isinstance(val, bool):
             if val:
-                curr_key = f"--{key}"
+                curr_key = f'--{key}'
             else:
                 continue
         else:
-            curr_key = f"--{key}={val}"
+            curr_key = f'--{key}={val}'
 
         params_list.append(curr_key)

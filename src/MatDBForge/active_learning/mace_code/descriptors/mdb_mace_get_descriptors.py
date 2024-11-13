@@ -10,30 +10,30 @@ from mace.calculators import MACECalculator
 
 def generate_descriptors(model_path: str, database):
     calculator = MACECalculator(
-        model_paths=model_path, device="cpu", default_dtype="float32"
+        model_paths=model_path, device='cpu', default_dtype='float32'
     )
     descriptor_dict = {}
     descriptor_list = []
     for struct in database:
-        descriptor_dict[struct.info["aiida_uuid"]] = []
+        descriptor_dict[struct.info['aiida_uuid']] = []
 
     for struct in database:
         curr_struct_descriptors = calculator.get_descriptors(struct)
         descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct.info["aiida_uuid"]].append(curr_struct_descriptors)
+        descriptor_dict[struct.info['aiida_uuid']].append(curr_struct_descriptors)
 
     descriptor_arr = np.vstack(descriptor_list)
     return descriptor_dict, descriptor_arr
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # As this code will be run as a script,
     # we can keep these variables as constant.
-    DATABASE_PATH = "current_db.xyz"
-    MODEL_PATH = "current_model_mace.model"
+    DATABASE_PATH = 'current_db.xyz'
+    MODEL_PATH = 'current_model_mace.model'
 
     # Read database using ase into an Atoms object
-    database = ase_read(DATABASE_PATH, format="extxyz", index=":")
+    database = ase_read(DATABASE_PATH, format='extxyz', index=':')
 
     # Generate descriptors using MACE
     descriptor_dict, descriptor_arr = generate_descriptors(MODEL_PATH, database)
@@ -43,13 +43,13 @@ if __name__ == "__main__":
     max_val = np.max(descriptor_arr, axis=0)
 
     # Storing arrays into a numpy file to be later gathered by the workchain
-    np.save(file="curr_it_db_max", arr=max_val)
-    np.save(file="curr_it_db_min", arr=min_val)
+    np.save(file='curr_it_db_max', arr=max_val)
+    np.save(file='curr_it_db_min', arr=min_val)
 
     # No way to store all of the descriptors in a single array,
     # as the n_atom dimension will change according to the structure
     # This pickle object will contain a list of length n_struct,
     # that will have n_at lists inside, each containing model_size
     # lists of descriptor values.
-    with open("curr_it_db_descriptors.pkl", "wb") as f:
+    with open('curr_it_db_descriptors.pkl', 'wb') as f:
         pickle.dump(descriptor_dict, f)

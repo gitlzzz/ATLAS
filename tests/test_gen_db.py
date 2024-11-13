@@ -22,12 +22,12 @@ def tmp_dir():
 def test_gen_settings(tmp_dir):
     os.chdir(tmp_dir)
 
-    test_args = ["mdb_gen_configuration_file", "-t", "initial_db"]
+    test_args = ['mdb_gen_configuration_file', '-t', 'initial_db']
     sys.argv = test_args
     mdb_gen()
 
     compare = filecmp.cmp(
-        f1=f"{tmp_dir}/database_generation_settings.toml",
-        f2=f"{MDB_DATA_DIR}/input_files/database_generation_settings.toml",
+        f1=f'{tmp_dir}/database_generation_settings.toml',
+        f2=f'{MDB_DATA_DIR}/input_files/database_generation_settings.toml',
     )
     assert compare

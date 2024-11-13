@@ -9,7 +9,7 @@ from shapely.geometry import Point, Polygon
 
 def get_concave_hull_julia(latent_space: np.ndarray) -> np.ndarray:
     # Load the required Julia modules.
-    jl.seval("using GMT")
+    jl.seval('using GMT')
 
     # Convert the latent space to a Julia array.
     # As it is necessary for the concave hull function.
@@ -59,58 +59,58 @@ def plot_concave_hull(
     filename: str = None,
 ):
     if not filename:
-        filename = "concave_hull.png"
+        filename = 'concave_hull.png'
 
     # Plotting the concave hull in 2D space using lines
-    plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
+    plt.plot(concave_hull[:, 0], concave_hull[:, 1], 'r-')
     if latent_space is not None and latent_space.size != 0:
         plt.plot(
             latent_space[:, 0],
             latent_space[:, 1],
-            "o",
+            'o',
             markersize=3.5,
             alpha=0.5,
-            label="Descriptor in database",
+            label='Descriptor in database',
             markeredgewidth=0,
-            color="#b16286",
+            color='#b16286',
         )
 
     if point_inside is not None and point_inside.size != 0:
         plt.plot(
             point_inside[:, 0],
             point_inside[:, 1],
-            "s",
-            label="Structure in domain",
-            color="#8ec07c",
+            's',
+            label='Structure in domain',
+            color='#8ec07c',
             markersize=5,
             markeredgewidth=1.5,
-            markeredgecolor="#282828",
+            markeredgecolor='#282828',
         )
     if point_outside is not None and point_outside.size != 0:
         plt.plot(
             point_outside[:, 0],
             point_outside[:, 1],
-            "s",
-            label="Structure out of domain",
-            color="#fb4934",
+            's',
+            label='Structure out of domain',
+            color='#fb4934',
             markersize=5,
             markeredgewidth=1.5,
-            markeredgecolor="#282828",
+            markeredgecolor='#282828',
         )
 
-    plt.title("Concave Hull")
-    plt.xlabel("Embedded dimension 1")
-    plt.ylabel("Embedded dimension 2")
+    plt.title('Concave Hull')
+    plt.xlabel('Embedded dimension 1')
+    plt.ylabel('Embedded dimension 2')
     plt.legend()
     plt.savefig(filename, dpi=300)
     plt.show(block=False)
     plt.clf()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     plot_hull = True
-    latent_space_file = "latent_space.npy"
-    descriptors_file = "descriptors.npy"
+    latent_space_file = 'latent_space.npy'
+    descriptors_file = 'descriptors.npy'
 
     # Set the random seed for reproducibility.
     rng = np.random.default_rng(seed=420)
@@ -129,9 +129,9 @@ if __name__ == "__main__":
         concave_hull, descriptors
     )
 
-    np.save("point_inside.npy", point_inside)
-    np.save("point_outside.npy", point_outside)
-    np.save("all_points.npy", all_points)
+    np.save('point_inside.npy', point_inside)
+    np.save('point_outside.npy', point_outside)
+    np.save('all_points.npy', all_points)
 
     if plot_hull:
         plot_concave_hull(
@@ -139,5 +139,5 @@ if __name__ == "__main__":
             point_inside=point_inside,
             point_outside=point_outside,
             latent_space=latent_space,
-            filename="/tmp/concave_hull.png",
+            filename='/tmp/concave_hull.png',
         )

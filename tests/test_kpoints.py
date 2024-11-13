@@ -28,7 +28,7 @@ def test_kpoints_bulk(): ...
 @pytest.mark.xfail
 def test_kpoints_surface():
     # Loading aiida profile
-    load_profile("")
+    load_profile('')
 
     # Defining calculation type
     calc_type = mdb_aut.CalcType.single_point_surface
@@ -38,7 +38,7 @@ def test_kpoints_surface():
 
     # Generating sample structure
     bcc_cu = Structure.from_spacegroup(
-        "Pm-3m", Lattice.cubic(3.6258), ["Cu"], [[0, 0, 0]]
+        'Pm-3m', Lattice.cubic(3.6258), ['Cu'], [[0, 0, 0]]
     )
 
     for miller in list(it.product(list(range(3 + 1)), repeat=3))[1:]:

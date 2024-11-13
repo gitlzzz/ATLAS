@@ -11,7 +11,7 @@ class EmptyDataBase(Exception):
     """Raised when the database is empty."""
 
     def __str__(self):
-        return "A database could not be read from the given path."
+        return 'A database could not be read from the given path.'
 
 
 class FilterError(Exception):
@@ -30,9 +30,9 @@ class MissingElementError(Exception):
     def __str__(self):
         return (
             f"The element '{self.element}' is not found in the "
-            f"current phase element list, "
-            f"which has the following elements: {self.element_list}."
-            f"\nCheck your `base_element` or `cluster_element` options."
+            f'current phase element list, '
+            f'which has the following elements: {self.element_list}.'
+            f'\nCheck your `base_element` or `cluster_element` options.'
         )
 
 
@@ -46,9 +46,9 @@ class IncompatiblePhaseError(Exception):
     def __str__(self):
         return (
             f"The phase '{self.phase.name}' has an element list incompatible with "
-            f"the phase diagram. Check the elements in the phase:"
-            f"\nPhase elements: {self.phase.element_list}"
-            f"\nPhase diagram elements: {self.phase_diagram_ele_list}"
+            f'the phase diagram. Check the elements in the phase:'
+            f'\nPhase elements: {self.phase.element_list}'
+            f'\nPhase diagram elements: {self.phase_diagram_ele_list}'
         )
 
 
@@ -62,8 +62,8 @@ class CompositionNotMatchingElementListError(Exception):
     def __str__(self):
         return (
             f"The composition '{self.composition}' for the current phase"
-            " does not match the element list."
-            f"\nElement list: {self.element_list}"
+            ' does not match the element list.'
+            f'\nElement list: {self.element_list}'
         )
 
 
@@ -71,7 +71,7 @@ class PhaseDiagramEmpty(Exception):
     """Raised when the phase diagram is empty."""
 
     def __str__(self):
-        return "The phase diagram is empty."
+        return 'The phase diagram is empty.'
 
 
 class PhaseNotFound(Exception):
@@ -84,7 +84,7 @@ class PhaseNotFound(Exception):
     def __str__(self):
         return (
             f"The given phase '{self.given_phase}' str is not found in the phase"
-            f" diagram, which has the following phases:\n {self.phases}"
+            f' diagram, which has the following phases:\n {self.phases}'
         )
 
 
@@ -92,7 +92,7 @@ class AtomNotFoundForCluster(Exception):
     """Raised when the atom type is not found in the cluster."""
 
     def __str__(self):
-        return "The given atom type has no geometry description for clusters."
+        return 'The given atom type has no geometry description for clusters.'
 
 
 class MissingMandatoryParameterError(Exception):

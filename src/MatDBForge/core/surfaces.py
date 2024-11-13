@@ -7,7 +7,6 @@ import pickle
 import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
-from typing import Union
 
 import numpy as np
 from pymatgen.core.structure import Lattice, Structure
@@ -118,7 +117,7 @@ def adjust_vacuum(db_obj, slab: Slab, vacuum_size: float) -> Slab:
 
 
 def slab_to_bottom(
-    slab: Union[Slab, Structure],
+    slab: Slab | Structure,
     offset: int = 2,
     return_mdb_struct=True,
 ) -> Structure:
@@ -175,7 +174,7 @@ def slab_to_bottom(
 
 def check_correct_vacuum_size(
     db_obj,
-    slab: Union[Slab, Structure],
+    slab: Slab | Structure,
     vacuum_size: float,
     tolerance: float = 0.5,
 ) -> bool:
@@ -218,16 +217,16 @@ def get_miller_index_str(miller_source):
     elif isinstance(miller_source, (np.ndarray, tuple, list)):
         curr_miller = str(miller_source)
     elif isinstance(miller_source, list):
-        curr_miller = "".join(map(str, miller_source))
+        curr_miller = ''.join(map(str, miller_source))
     elif isinstance(miller_source, str):
         curr_miller = miller_source
     else:
         # Return None if the given structure is not a surface.
         return None
 
-    replace_chars = ["'", ",", " ", "(", ")", "[", "]"]
+    replace_chars = ["'", ',', ' ', '(', ')', '[', ']']
     for char in replace_chars:
-        curr_miller = curr_miller.replace(char, "")
+        curr_miller = curr_miller.replace(char, '')
 
     return curr_miller
 
@@ -283,10 +282,10 @@ def process_row_parallel(
     max_slab_num = min(max_slab_num, len(total_slabs))
     mdb_cud.custom_print(
         (
-            f"Generated {len(total_slabs)} slabs for {row.material_id}."
-            f" Limited to {max_slab_num} slabs."
+            f'Generated {len(total_slabs)} slabs for {row.material_id}.'
+            f' Limited to {max_slab_num} slabs.'
         ),
-        "debug",
+        'debug',
     )
     total_slabs_idx = rng.choice(range(len(total_slabs)), max_slab_num, replace=False)
     total_slabs = [total_slabs[idx] for idx in total_slabs_idx]
@@ -301,16 +300,16 @@ def process_row_parallel(
 
         # Preparing the structure name
         surf_name = (
-            f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
-            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
+            f'{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}'
+            f'_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at'
         )
 
         # Fix the bottom `fixed_layers` number of layers
         # TODO: Implement this feature and remove warning
         if fixed_layers and fix_layers_warn:
             mdb_cud.custom_print(
-                "`fixed_layers` specified, but not implemented yet.",
-                "debug",
+                '`fixed_layers` specified, but not implemented yet.',
+                'debug',
             )
             fix_layers_warn = False
             # slab = mdb_ut.fix_bottom_layers(slab, fixed_layers)
@@ -347,7 +346,9 @@ def process_row_parallel(
             )
 
             # Storing the supercells.
-            for supercell, _, sup_vec in zip(super_list, idx_list, supercells):
+            for supercell, _, sup_vec in zip(
+                super_list, idx_list, supercells, strict=False
+            ):
                 sup_len = len(supercell.sites)
                 if sup_len <= overwrite_max_num_atoms and sup_len >= min_num_atoms:
                     # Dragging the slab to the bottom
@@ -355,8 +356,8 @@ def process_row_parallel(
 
                     # Preparing the structure name
                     surf_name = (
-                        f"{row.material_id}_{phase.name}_pure_surface-"
-                        f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{sup_vec}"
+                        f'{row.material_id}_{phase.name}_pure_surface-'
+                        f'_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{sup_vec}'
                     )
 
                     # Creating a new surface from the supercell
@@ -377,7 +378,7 @@ def process_row_parallel(
 
     # Get replacements
     replacement_list = []
-    for structure_obj, supr_idx in zip(supercell_list, idx_list):
+    for structure_obj, supr_idx in zip(supercell_list, idx_list, strict=False):
         structure = structure_obj.structure
 
         # Replacing some atoms using symmetry
@@ -392,8 +393,8 @@ def process_row_parallel(
         subst_base_elem_perc = mdb_ut.gen_base_elem_perc(phase, num_replacements)
 
         mdb_cud.custom_print(
-            f"Random base element % for surface to gen: {subst_base_elem_perc*100}",
-            "debug",
+            f'Random base element % for surface to gen: {subst_base_elem_perc*100}',
+            'debug',
         )
 
         # Attempting to fix any percentages outside of the
@@ -408,7 +409,6 @@ def process_row_parallel(
         # for each percentage
         for str_ind, n_atoms in enumerate(n_at_replacement_upd):
             for repl in range(num_repeat_replace):
-
                 # Applying the replacement
                 new_structure = mdb_ut.apply_replacement(
                     structure=structure,
@@ -425,7 +425,7 @@ def process_row_parallel(
 
                 # Creating a new Bulk object for the structure with replacement
                 new_struct_symm = mdb_struct.Surface(
-                    material_name=f"{row.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
+                    material_name=f'{row.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}',
                     material_id=row.material_id,
                     targeted_modification=structure_obj.targeted_modification,
                     structure=new_structure,
@@ -463,24 +463,24 @@ def process_row_parallel(
     # Limiting the number of generated supercells to
     # the supercell limit.
     mdb_cud.custom_print(
-        f"Length of the supercell+replacement list: {len(generated_structures)}",
-        "debug",
+        f'Length of the supercell+replacement list: {len(generated_structures)}',
+        'debug',
     )
 
     if len(generated_structures) > limit_total_num_struct:
         mdb_cud.custom_print(
             (
-                f"Limiting the number of slabs ({len(generated_structures)})"
-                f" to {limit_total_num_struct}."
+                f'Limiting the number of slabs ({len(generated_structures)})'
+                f' to {limit_total_num_struct}.'
             ),
-            "debug",
+            'debug',
         )
 
         generated_structures = np.random.choice(
             generated_structures, size=limit_total_num_struct, replace=False
         )
 
-    with open(f"{temp_folder}/generated_structures_{row_idx}.pkl", "wb") as f:
+    with open(f'{temp_folder}/generated_structures_{row_idx}.pkl', 'wb') as f:
         pickle.dump(
             generated_structures,
             file=f,
@@ -493,7 +493,7 @@ def process_row_parallel(
 
 
 def gen_surfaces_diff_miller_parallel(
-    db_obj: "mdb_indb.InitialDatabase",
+    db_obj: 'mdb_indb.InitialDatabase',
     phase: mdb_pd.Phase,
     max_miller_index: int,
     min_miller_index: int = 2,
@@ -529,9 +529,9 @@ def gen_surfaces_diff_miller_parallel(
     # phase.
     if len(base_structs) == 0:
         err_msg = (
-            f"No base structure could be found for phase {phase.name}."
-            "\nThe database must contain base structures before "
-            "running this function."
+            f'No base structure could be found for phase {phase.name}.'
+            '\nThe database must contain base structures before '
+            'running this function.'
         )
 
         raise mdb_exc.BaseStructureNotFound(err_msg)
@@ -559,23 +559,23 @@ def gen_surfaces_diff_miller_parallel(
         n_workers = min(n_workers, len(base_structs))
 
     if phase.use_cache:
-        temp_dir = mdb_cud.get_cache_path() / "mdb"
-        temp_dir = temp_dir / f"mdb_gen_init_db_surface_{phase.name}"
+        temp_dir = mdb_cud.get_cache_path() / 'mdb'
+        temp_dir = temp_dir / f'mdb_gen_init_db_surface_{phase.name}'
         temp_dir.mkdir(parents=False, exist_ok=True)
     else:
         temp_dir = tempfile.mkdtemp(
-            prefix="mdb_gen_init_db_",
+            prefix='mdb_gen_init_db_',
         )
     mdb_cud.custom_print(
-        f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", "debug"
+        f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", 'debug'
     )
 
     generated_structures = []
-    if len(list(pl.Path(temp_dir).glob("*"))) == 0:
+    if len(list(pl.Path(temp_dir).glob('*'))) == 0:
         with progress.Progress(
-            "[progress.description]{task.description}",
+            '[progress.description]{task.description}',
             progress.BarColumn(),
-            "[progress.percentage]{task.percentage:>3.0f}%",
+            '[progress.percentage]{task.percentage:>3.0f}%',
             progress.MofNCompleteColumn(),
             progress.TimeRemainingColumn(),
             progress.TimeElapsedColumn(),
@@ -583,13 +583,12 @@ def gen_surfaces_diff_miller_parallel(
             transient=transient,
             disable=disable,
         ) as progress:
-
             futures = []
             overall_progress_task = progress.add_task(
-                "[green]Generating structures:", total=len(base_structs)
+                '[green]Generating structures:', total=len(base_structs)
             )
 
-            mdb_cud.custom_print(f"Using '{n_workers}' workers.", "debug")
+            mdb_cud.custom_print(f"Using '{n_workers}' workers.", 'debug')
 
             # TODO: Reenable this
             # iterate over the jobs we need to run
@@ -601,7 +600,6 @@ def gen_surfaces_diff_miller_parallel(
                     idx,
                     row,
                 ) in base_structs.iterrows():
-
                     # Prepare arguments for function call
                     args = (
                         row,
@@ -647,49 +645,47 @@ def gen_surfaces_diff_miller_parallel(
                 )
     else:
         mdb_cud.custom_print(
-            f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", "info"
+            f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", 'info'
         )
     # Reading stored temporary files
     for idx, _ in base_structs.iterrows():
-
         # Load the generated structures
         # with open(
         # f"/tmp/mdb_gen_init_db_sgem6zp2/generated_structures_{idx}.pkl", "rb"
         # ) as f:
-        with open(f"{temp_dir}/generated_structures_{idx}.pkl", "rb") as f:
+        with open(f'{temp_dir}/generated_structures_{idx}.pkl', 'rb') as f:
             generated_structures.append(pickle.load(f))
 
     # Concatenating lists
     generated_structures = np.concatenate(generated_structures)
 
-    mdb_cud.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+    mdb_cud.custom_print(f'Generated {len(generated_structures)} surfaces.', 'debug')
 
     # Saving the structures in the db.
     if save_in_db:
-        mdb_cud.custom_print("Saving replaced structures in dataframe.", "debug")
+        mdb_cud.custom_print('Saving replaced structures in dataframe.', 'debug')
         for slab in generated_structures:
             slab.save_to_db(db_obj=db_obj)
         mdb_cud.custom_print(
-            f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+            f'Dataframe shape after saving: {db_obj.df.shape}', 'debug'
         )
 
     # Removing temporary directory
     if not phase.use_cache:
-        mdb_cud.custom_print(f"Removing temporary directory: '{temp_dir}'.", "debug")
+        mdb_cud.custom_print(f"Removing temporary directory: '{temp_dir}'.", 'debug')
 
         # Removing contents
-        for file in pl.Path(temp_dir).glob("*"):
+        for file in pl.Path(temp_dir).glob('*'):
             file.unlink()
 
         # Removing directory
         pl.Path(temp_dir).rmdir()
 
-
     return generated_structures
 
 
 def apply_replacement_surface(
-    db_obj: "mdb_indb.InitialDatabase",
+    db_obj: 'mdb_indb.InitialDatabase',
     slabs_to_replace: list,
     save_in_db: bool = False,
     num_replacement_structs: int = 3,
@@ -697,7 +693,7 @@ def apply_replacement_surface(
     limit_replacements: int = None,
 ):
     mdb_cud.custom_print(
-        f"Applying replacements to {len(slabs_to_replace)} structures...", "debug"
+        f'Applying replacements to {len(slabs_to_replace)} structures...', 'debug'
     )
     rng = np.random.default_rng()
 
@@ -736,15 +732,15 @@ def apply_replacement_surface(
                 # Generating name
                 if gen_slab.supercell:
                     supercell_vec_str = get_miller_index_str(gen_slab.supercell)
-                    supercell_vec_str_name = f"super-{supercell_vec_str}_"
+                    supercell_vec_str_name = f'super-{supercell_vec_str}_'
                 else:
                     supercell_vec_str = gen_slab.surface_miller
                     supercell_vec_str_name = supercell_vec_str
 
                 mat_name = (
-                    f"{slab_phase.prototype}_{slab_phase.name}_surface"
-                    f"-{supercell_vec_str_name}-{str_ind+1}"
-                    f"_replacement-{repl + 1}"
+                    f'{slab_phase.prototype}_{slab_phase.name}_surface'
+                    f'-{supercell_vec_str_name}-{str_ind+1}'
+                    f'_replacement-{repl + 1}'
                 )
 
                 # Creating a new Surface object for the
@@ -767,7 +763,7 @@ def apply_replacement_surface(
                 replacement_list.append(new_struct_symm)
 
     mdb_cud.custom_print(
-        f"Generated {len(replacement_list)} replaced surfaces.", "debug"
+        f'Generated {len(replacement_list)} replaced surfaces.', 'debug'
     )
 
     # Limiting the number of replaced surfaces
@@ -777,15 +773,15 @@ def apply_replacement_surface(
         )
 
         mdb_cud.custom_print(
-            f"Limited number of replaced surfaces to {len(replacement_list)}.", "debug"
+            f'Limited number of replaced surfaces to {len(replacement_list)}.', 'debug'
         )
 
     if save_in_db:
-        mdb_cud.custom_print("Saving replaced surfaces in dataframe.", "debug")
+        mdb_cud.custom_print('Saving replaced surfaces in dataframe.', 'debug')
         for slab in replacement_list:
             slab.save_to_db(db_obj=db_obj)
         mdb_cud.custom_print(
-            f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+            f'Dataframe shape after saving: {db_obj.df.shape}', 'debug'
         )
 
     return replacement_list

@@ -5,7 +5,7 @@ import warnings
 
 from MatDBForge.core import exceptions as mdb_exc
 
-warnings.filterwarnings("ignore", module="paramiko")
+warnings.filterwarnings('ignore', module='paramiko')
 
 
 MDB_LOGO = """
@@ -33,14 +33,14 @@ def parse_input_toml(toml_dict: dict, type: str):
     MissingMandatoryParameterError
         If any mandatory keys are missing from the input TOML dictionary.
     """
-    if type == "active_learning":
-        mandatory_keys_list = ["active_learning", "md", "committee_eval", "dft"]
+    if type == 'active_learning':
+        mandatory_keys_list = ['active_learning', 'md', 'committee_eval', 'dft']
 
-    elif type == "generate_database":
-        mandatory_keys_list = ["database", "phase_diagram", "generation"]
+    elif type == 'generate_database':
+        mandatory_keys_list = ['database', 'phase_diagram', 'generation']
 
     for key in mandatory_keys_list:
         if key not in list(toml_dict.keys()):
             raise mdb_exc.MissingMandatoryParameterError(
-                f"Input toml file missing mandatory key: {key}."
+                f'Input toml file missing mandatory key: {key}.'
             )

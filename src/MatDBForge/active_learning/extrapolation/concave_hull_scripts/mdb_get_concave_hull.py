@@ -11,7 +11,7 @@ def get_concave_hull_julia(latent_space: np.ndarray) -> np.ndarray:
     from juliacall import convert as jl_convert
 
     # Load the required Julia modules.
-    jl.seval("using GMT")
+    jl.seval('using GMT')
 
     if len(latent_space.shape) > 2:
         latent_space = np.vstack(latent_space)
@@ -58,47 +58,47 @@ def check_atom_in_domain(
 def plot_concave_hull(
     concave_hull: np.ndarray,
     latent_space: np.ndarray,
-    filename: str = "concave_hull.png",
+    filename: str = 'concave_hull.png',
 ):
     # Plotting the concave hull in 2D space using lines
-    plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
+    plt.plot(concave_hull[:, 0], concave_hull[:, 1], 'r-')
     plt.plot(
         latent_space[:, 0],
         latent_space[:, 1],
-        "o",
+        'o',
         markersize=2,
         alpha=0.5,
-        label="Descriptor in database",
+        label='Descriptor in database',
         markeredgewidth=0,
-        color="#b16286",
+        color='#b16286',
     )
-    plt.title("Concave Hull")
-    plt.xlabel("x")
+    plt.title('Concave Hull')
+    plt.xlabel('x')
     plt.legend()
     plt.savefig(filename, dpi=300)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     plot_hull = True
-    latent_space_file = "latent_space.npy"
+    latent_space_file = 'latent_space.npy'
 
     # Gather the latent space from the autoencoder.
-    print("Reading latent space...")
+    print('Reading latent space...')
     latent_space = np.load(latent_space_file)
-    print("Latent space read.")
+    print('Latent space read.')
 
     # Compute the concave hull using Julia.
-    print("Computing concave hull...")
+    print('Computing concave hull...')
     concave_hull = get_concave_hull_julia(latent_space)
-    np.save("concave_hull", concave_hull)
+    np.save('concave_hull', concave_hull)
     print("Concave hull computed, saved to 'concave_hull.npy'.")
 
-    print("Plotting concave hull...")
+    print('Plotting concave hull...')
     if plot_hull:
         plot_concave_hull(
             concave_hull=concave_hull,
             latent_space=latent_space,
-            filename="concave_hull.png",
+            filename='concave_hull.png',
         )
-    print("Concave hull plotted.")
-    print("Calculation done.")
+    print('Concave hull plotted.')
+    print('Calculation done.')
