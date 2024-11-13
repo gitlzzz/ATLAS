@@ -157,3 +157,47 @@ message = "Body."
 type = "confirm"
 name = "show_message"
 message = "Do you want to add body message in commit?"
+
+
+[tool.ruff]
+# same as black
+line-length = 88
+indent-width = 4
+
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+lint.select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    "D",
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+lint.fixable = ["ALL"]
+lint.unfixable = []
+
+# Some settings to ignore:          # REMOVE # REMOVE # REMOVE
+lint.ignore = ["D417", "D401", "D205", "D102", "D103", "D105", "UP038"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 88
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 60
+indent-style = "space"
+quote-style = "single"
