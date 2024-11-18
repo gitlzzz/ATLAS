@@ -67,10 +67,17 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
     dyn.set_temperature(temperature_K=current_temperature)
 
 
-def generate_descriptors_mace(model_path: str, database):
+def generate_descriptors_mace(
+    model_path: str,
+    database,
+    descriptor_settings: dict,
+):
+    device = descriptor_settings.get("device", "cuda")
+    dtype = descriptor_settings.get("dtype", "float32")
     calculator = MACECalculator(
-        model_paths=model_path, device="cuda", default_dtype="float64"
+        model_paths=model_path, device=device, default_dtype=dtype
     )
+
     descriptor_dict = {}
     descriptor_list = []
     for struct in database:
@@ -91,7 +98,7 @@ def generate_descriptors_mace(model_path: str, database):
     return descriptor_dict, descriptor_arr
 
 
-def generate_descriptors_soap(database): ...
+def generate_descriptors_soap(database, descriptor_settings: dict): ...
 
 
 def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
