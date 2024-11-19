@@ -78,11 +78,16 @@ def generate_descriptors_mace(
         model_paths=model_path, device=device, default_dtype=dtype
     )
 
+
     descriptor_dict = {}
     descriptor_list = []
     for struct in database:
-        print("struct.info: ", struct.info)
-        descriptor_dict[struct.info["aiida_uuid"]] = {
+        if struct.info.get("aiida_uuid"):
+            struct_key = struct.info.get("aiida_uuid")
+        else:
+            struct_key = struct.info.get("mdb_id")
+
+        descriptor_dict[struct_key] = {
             "descriptors": [],
             "latent_space": [],
         }
@@ -90,7 +95,7 @@ def generate_descriptors_mace(
     for struct in database:
         curr_struct_descriptors = calculator.get_descriptors(struct)
         descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct.info["aiida_uuid"]]["descriptors"].append(
+        descriptor_dict[struct_key]["descriptors"].append(
             curr_struct_descriptors
         )
 
@@ -139,6 +144,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
 
     # Set the momenta corresponding to T=300K
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)
+    print('init_conf: ', init_conf)
 
     match thermostat:
         case "langevin":
@@ -153,6 +159,13 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
                 logfile=f"logs/md_info-{T_start}K.log",
             )
         case "nose-hoover":
+
+            # Change the simulation box to remove any small numbers not in the diagonal
+            # of the box matrix
+            box = init_conf.get_cell()
+            box[np.abs(box) < 1e-2] = 0
+            init_conf.set_cell(box)
+
             dyn = NPT(
                 atoms=init_conf,
                 timestep=timestep * (units.s * 1e-12),
