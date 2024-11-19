@@ -13,6 +13,7 @@ import warnings
 
 import numpy as np
 import torch
+from ase.calculators.calculator import PropertyNotImplementedError
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryReader, TrajectoryWriter
@@ -68,10 +69,15 @@ def gather_md_E_F_data(md_traj, res_folder, curr_temp):
     # Get the step, energy and forces and save into an array
     step_E_F_list = []
     for idx, frame in enumerate(md_traj):
-        print("frame: ", frame)
-        print("frame: ", frame.info)
-        e_pot = frame.get_potential_energy()
-        fmax = frame.get_forces().max()
+
+        try:
+            e_pot = frame.get_potential_energy()
+        except PropertyNotImplementedError:
+            e_pot = frame.calc.results["energy"]
+        try:
+            fmax = frame.get_forces().max()
+        except PropertyNotImplementedError:
+            fmax = frame.calc.results["forces"].max()
         step_E_F_list.append([idx, e_pot, fmax])
 
     step_E_F_arr = np.stack(step_E_F_list, axis=0)
@@ -140,7 +146,7 @@ if __name__ == "__main__":
     T_list = md_params["temperature_list_K"]
 
     # Logging CUDA information
-    if md_params.get("device") == 'cuda':
+    if md_params.get("device") == "cuda":
         mdb_cud.custom_print(
             (
                 f"CUDA INFO: available: {torch.cuda.is_available()}, "
@@ -176,6 +182,7 @@ if __name__ == "__main__":
             res_folder / f"md_traj_final_temp-{T_start}.traj",
             mode="w",
             atoms=init_conf,
+            properties=["energy", "forces", "REF_energy", "REF_forces"],
         )
         print()
         mdb_cud.custom_print(f"Running MD simulation for 'T={T_start} K'", "info")
