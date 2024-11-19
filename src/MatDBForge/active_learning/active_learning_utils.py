@@ -72,7 +72,7 @@ def generate_descriptors_mace(
     database,
     descriptor_settings: dict,
 ):
-    device = descriptor_settings.get("device", "cuda")
+    device = descriptor_settings.get("device", "cpu")
     dtype = descriptor_settings.get("dtype", "float32")
     calculator = MACECalculator(
         model_paths=model_path, device=device, default_dtype=dtype
