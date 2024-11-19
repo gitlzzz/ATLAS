@@ -332,7 +332,7 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
             report = f.read()
 
     ini_db_line = re.compile(r"initial database containing.*").findall(report)
-    ini_db_size = int(ini_db_line[0].split()[3])
+    ini_db_size = int(ini_db_line[0].split()[3].replace("'", ""))
 
     # Match all lines containing the seed_gen_db and train_db sizes
     seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
