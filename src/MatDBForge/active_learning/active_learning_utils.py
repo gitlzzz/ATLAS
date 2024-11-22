@@ -2,6 +2,7 @@
 
 import io
 import itertools as it
+import shutil
 import tempfile
 import time
 from contextlib import redirect_stdout
@@ -78,7 +79,6 @@ def generate_descriptors_mace(
         model_paths=model_path, device=device, default_dtype=dtype
     )
 
-
     descriptor_dict = {}
     descriptor_list = []
     for struct in database:
@@ -95,9 +95,7 @@ def generate_descriptors_mace(
     for struct in database:
         curr_struct_descriptors = calculator.get_descriptors(struct)
         descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct_key]["descriptors"].append(
-            curr_struct_descriptors
-        )
+        descriptor_dict[struct_key]["descriptors"].append(curr_struct_descriptors)
 
     descriptor_arr = np.vstack(descriptor_list)
     return descriptor_dict, descriptor_arr
@@ -144,7 +142,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
 
     # Set the momenta corresponding to T=300K
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)
-    print('init_conf: ', init_conf)
+    print("init_conf: ", init_conf)
 
     match thermostat:
         case "langevin":
@@ -316,7 +314,12 @@ def plot_al_loop_report(
     plt.clf()
 
 
-def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
+def gen_al_loop_report(
+    loop_id: int | str = None,
+    log_path: str = None,
+    get_error_plot: bool = False,
+    device="cpu",
+):
     import re
 
     from aiida.cmdline.utils.common import get_workchain_report
@@ -330,6 +333,12 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
     if log_path:
         with open(log_path) as f:
             report = f.read()
+        loop_id = re.compile(r".*ActiveLearningBaseWorkChain\|setup].*").findall(report)
+        loop_id = int(loop_id[0].split("|")[0].replace("[", "").strip())
+        try:
+            al_loop_node = orm.load_node(loop_id)
+        except Exception:
+            al_loop_node = loop_id
 
     ini_db_line = re.compile(r"initial database containing.*").findall(report)
     ini_db_size = int(ini_db_line[0].split()[3].replace("'", ""))
@@ -361,7 +370,116 @@ def gen_al_loop_report(loop_id: int | str = None, log_path: str = None):
         mace_f=mace_f,
         it_idx=it_idx,
     )
+
+    if get_error_plot:
+        generate_error_plot(al_loop_node=orm.load_node(1686780), device_str=device)
+
     custom_print("Report generation complete.", "done")
+
+
+def generate_error_plot(al_loop_node, device_str="cpu"):
+
+    from mace import data
+    from mace.tools import torch_geometric, torch_tools, utils
+
+    torch_tools.set_default_dtype("float32")
+    device = torch_tools.init_device(device_str)
+
+    # Create tmp folder in the current directory
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+        # Get last iteration from aiida
+        last_iter = [
+            stp
+            for stp in al_loop_node.called
+            if stp.process_type == "aiida.workflows:mdb-active-learning"
+        ][-1]
+
+        # Copy the training database to the tmp folder
+        training_db_path = Path(last_iter.inputs.training_db_path.value)
+        training_db_cp_path = shutil.copy(training_db_path, tmp_dir)
+        model_file: orm.SinglefileData = last_iter.outputs.m0_model_file
+        with model_file.as_path() as f:
+            model_path = shutil.copy(f, tmp_dir)
+
+        # Load the training database
+        train_db = ase_read(training_db_cp_path, format="extxyz", index=":")
+
+        # Load model
+        model = torch.load(f=model_path, map_location=device_str)
+        model = model.to(device_str)
+
+        for param in model.parameters():
+            param.requires_grad = False
+
+        z_table = utils.AtomicNumberTable([int(z) for z in model.atomic_numbers])
+
+        configs = [data.config_from_atoms(atoms) for atoms in train_db]
+        data_loader = torch_geometric.dataloader.DataLoader(
+            dataset=[
+                data.AtomicData.from_config(
+                    config, z_table=z_table, cutoff=float(model.r_max), heads=None
+                )
+                for config in configs
+            ],
+            batch_size=18,
+            shuffle=False,
+            drop_last=False,
+        )
+
+        E_nn_list = []
+        for idx, batch in enumerate(data_loader):
+            print(f"Current batch: {idx}/{len(data_loader)}", end="\r")
+            batch = batch.to(device)
+            output = model(batch.to_dict(), compute_stress=False)
+            E_nn_list.append(torch_tools.to_numpy(output["energy"]))
+
+        E_nn_list = np.concatenate(E_nn_list, axis=0)
+        E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
+
+        # Getting atom count
+        struct_len_list = np.array([len(atoms) for atoms in train_db])
+
+        # Getting energy per atom
+        E_nn_list /= struct_len_list
+        E_dft_list /= struct_len_list
+
+        # Get RMSD
+        rmsd = np.sqrt(np.mean((E_nn_list - E_dft_list) ** 2)) * 1000
+
+        # Get MAE
+        mae = np.mean(np.abs(E_nn_list - E_dft_list)) * 1000
+
+        tex_x_pos = min(E_dft_list) * 0.95
+        tex_y_pos = max(E_nn_list) * 1.10
+        plt.text(
+            x=tex_x_pos,
+            y=tex_y_pos,
+            s=f"MAE: {mae:.3f} meV/atom\nRMSD: {rmsd:.3f} meV/atom",
+        )
+
+        # Plot the energy comparison
+        plt.plot(
+            E_dft_list,
+            E_nn_list,
+            "o",
+            color="#458588",
+            alpha=0.5,
+            markeredgewidth=0.5,
+            markeredgecolor="#282828",
+            markersize=3,
+        )
+
+        # Plot a 1:1 line
+        plt.plot(E_dft_list, E_dft_list, color="#fb4934", linestyle="--")
+        plt.xlabel("DFT Energy [eV/atom]")
+        plt.ylabel("NN Energy [eV/atom]")
+        plt.title("Energy comparison")
+        plt.tight_layout()
+        plt.savefig("./energy_comparison.png", dpi=300)
+
+        plt.show()
+        quit()
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:

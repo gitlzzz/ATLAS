@@ -10,7 +10,7 @@ from argparse import RawTextHelpFormatter
 
 from MatDBForge.core.code_utils import check_mdb_version
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 
 def create_active_learning_builder(
@@ -35,120 +35,120 @@ def create_active_learning_builder(
 
     # Getting builder for workchain
     if simple:
-        al_calculation = WorkflowFactory('mdb-simple-active-learning-base')
+        al_calculation = WorkflowFactory("mdb-simple-active-learning-base")
     else:
-        al_calculation = WorkflowFactory('mdb-active-learning-base')
+        al_calculation = WorkflowFactory("mdb-active-learning-base")
     builder = al_calculation.get_builder()
 
     ## General AL settings
-    al_conf = toml_dict['active_learning']
+    al_conf = toml_dict["active_learning"]
 
     if toml_dict_path:
         builder.active_learning.toml_file = str(toml_dict_path)
 
-    builder.active_learning.run_name = al_conf['run_name']
-    builder.active_learning.load_init_models = al_conf.get('load_init_models')
+    builder.active_learning.run_name = al_conf["run_name"]
+    builder.active_learning.load_init_models = al_conf.get("load_init_models")
     builder.active_learning.init_db_path = str(
-        pl.Path(al_conf['init_db_path']).resolve()
+        pl.Path(al_conf["init_db_path"]).resolve()
     )
 
-    if al_conf.get('results_dir'):
-        results_dir = pl.Path(al_conf['results_dir']).resolve()
+    if al_conf.get("results_dir"):
+        results_dir = pl.Path(al_conf["results_dir"]).resolve()
     else:
-        results_dir = pl.Path('./results').resolve()
+        results_dir = pl.Path("./results").resolve()
     builder.active_learning.results_dir = str(results_dir)
 
-    if al_conf.get('log_path'):
-        log_path = pl.Path(al_conf['log_path']).resolve()
+    if al_conf.get("log_path"):
+        log_path = pl.Path(al_conf["log_path"]).resolve()
     else:
-        timestamp = time.strftime('%Y%m%d-%H%M%S')
-        log_path = pl.Path(f'mdb_output_{timestamp}.log').resolve()
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        log_path = pl.Path(f"mdb_output_{timestamp}.log").resolve()
     builder.log_path = str(log_path)
 
-    builder.active_learning.final_db_name = al_conf['final_db_name']
-    builder.active_learning.max_iterations = Int(int(al_conf['max_iterations']))
+    builder.active_learning.final_db_name = al_conf["final_db_name"]
+    builder.active_learning.max_iterations = Int(int(al_conf["max_iterations"]))
 
     # Getting extrapolation settings
     builder.active_learning.check_extrapolation_type = toml_dict.get(
-        'extrapolation', {}
-    ).get('check_extrapolation_type', 'advanced')
+        "extrapolation", {}
+    ).get("check_extrapolation_type", "advanced")
 
     ## AL seed settings
     builder.active_learning.seed_size_frac = float(
-        toml_dict['al_seed']['seed_size_frac']
+        toml_dict["al_seed"]["seed_size_frac"]
     )
     builder.active_learning.seed_min_num_structs = int(
-        toml_dict['al_seed']['seed_min_num_structs']
+        toml_dict["al_seed"]["seed_min_num_structs"]
     )
     builder.active_learning.seed_max_num_structs = int(
-        toml_dict['al_seed']['seed_max_num_structs']
+        toml_dict["al_seed"]["seed_max_num_structs"]
     )
 
-    builder.active_learning.seed_select_settings = toml_dict['al_seed'][
-        'seed_select_settings'
+    builder.active_learning.seed_select_settings = toml_dict["al_seed"][
+        "seed_select_settings"
     ]
 
     # Delete structures from MD seed if they are well represented
     # Default is True
-    builder.active_learning.delete_seed_structs = toml_dict.get('al_seed', {}).get(
-        'delete_seed_structs', True
+    builder.active_learning.delete_seed_structs = toml_dict.get("al_seed", {}).get(
+        "delete_seed_structs", True
     )
 
     builder.active_learning.committee_num_models = int(
-        toml_dict['committee_eval']['committee_num_models']
+        toml_dict["committee_eval"]["committee_num_models"]
     )
     builder.active_learning.model_acc_multiplier = float(
-        al_conf['model_acc_multiplier']
+        al_conf["model_acc_multiplier"]
     )
 
     ## MD settings
-    md_params = toml_dict['md']['parameters']
+    md_params = toml_dict["md"]["parameters"]
     builder.active_learning.al_keep_struct_every_n_ps = float(
-        md_params['al_keep_struct_every_n_ps']
+        md_params["al_keep_struct_every_n_ps"]
     )
-    builder.active_learning.md_temperature_list_K = md_params['temperature_list_K']
-    builder.active_learning.md_max_temp_multiplier = md_params['max_temp_multiplier']
-    builder.active_learning.md_num_steps = int(md_params['num_steps'])
+    builder.active_learning.md_temperature_list_K = md_params["temperature_list_K"]
+    builder.active_learning.md_max_temp_multiplier = md_params["max_temp_multiplier"]
+    builder.active_learning.md_num_steps = int(md_params["num_steps"])
     builder.active_learning.md_timestep_duration_ps = float(
-        md_params['timestep_duration_ps']
+        md_params["timestep_duration_ps"]
     )
     builder.active_learning.gather_traj_cnt_lattice = md_params[
-        'gather_traj_cnt_lattice'
+        "gather_traj_cnt_lattice"
     ]
-    builder.active_learning.use_kokkos = md_params['use_kokkos']
+    builder.active_learning.use_kokkos = md_params["use_kokkos"]
 
     # LAMMPS-MACE MD Settings
-    builder.active_learning.lammps_mace = Dict(value=toml_dict['md']['queue'])
+    builder.active_learning.lammps_mace = Dict(value=toml_dict["md"]["queue"])
 
     # MD filters
-    builder.active_learning.md_filters = Dict(value=toml_dict['md'].get('filters'))
+    builder.active_learning.md_filters = Dict(value=toml_dict["md"].get("filters"))
 
     ## MACE training settings
-    builder.active_learning.mace_train = Dict(value=toml_dict['mace_train'])
+    builder.active_learning.mace_train = Dict(value=toml_dict["mace_train"])
 
     ## Committee Evaluation Settings
-    builder.active_learning.committee_eval = Dict(value=toml_dict['committee_eval'])
+    builder.active_learning.committee_eval = Dict(value=toml_dict["committee_eval"])
 
     ## DFT method selection and settings
-    builder.active_learning.dft_method = al_conf['dft_method']
-    if al_conf['dft_method'] == 'vasp':
-        builder.active_learning.dft_settings = Dict(value=toml_dict['dft']['vasp'])
-    elif al_conf['dft_method'] == 'mace':
+    builder.active_learning.dft_method = al_conf["dft_method"]
+    if al_conf["dft_method"] == "vasp":
+        builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["vasp"])
+    elif al_conf["dft_method"] == "mace":
         # Make sure the path to the MACE potential is absolute
         mace_potential_path = pl.Path(
-            toml_dict['dft']['mace']['mace_potential_path']
+            toml_dict["dft"]["mace"]["mace_potential_path"]
         ).absolute()
-        toml_dict['dft']['mace']['mace_potential_path'] = str(mace_potential_path)
+        toml_dict["dft"]["mace"]["mace_potential_path"] = str(mace_potential_path)
 
         if not mace_potential_path.is_absolute():
             raise ValueError(
-                'The path to the MACE potential must be absolute.'
-                f'Current path: {mace_potential_path}'
+                "The path to the MACE potential must be absolute."
+                f"Current path: {mace_potential_path}"
             )
-        builder.active_learning.dft_settings = Dict(value=toml_dict['dft']['mace'])
+        builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["mace"])
 
     ## Descriptor settings
-    builder.active_learning.descriptor_settings = Dict(value=toml_dict['descriptors'])
+    builder.active_learning.descriptor_settings = Dict(value=toml_dict["descriptors"])
 
     return builder
 
@@ -157,7 +157,7 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     # Resume dictionary. This will be used to pass the last iteration and
     # the paths to the train_db and seed_db files to the base workchain
     # to resume the active learning loop from the beginning of the last iteration.
-    resume_dict = {'last_iteration': None, 'train_db_path': None, 'seed_db_path': None}
+    resume_dict = {"last_iteration": None, "train_db_path": None, "seed_db_path": None}
 
     wk_uuid = None
     wk_node = None
@@ -165,15 +165,15 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     # Get pk/uuid of the base workchain using one of two approaches:
     # 1. Get the pk/uuid from the prev_run_dir folder name
     with contextlib.suppress(Exception):
-        wk_uuid = prev_run_dir.stem.split('_')[-1]
+        wk_uuid = prev_run_dir.stem.split("_")[-1]
 
     # 2. Get the pk/uuid from the log file in the prev_run_dir folder
     if not wk_uuid:
         with contextlib.suppress(Exception):
-            for log in prev_run_dir.glob('*.log'):
+            for log in prev_run_dir.glob("*.log"):
                 with open(log) as f:
                     log_file = f.readlines()
-            wk_uuid = log_file[0].split('|')[0].strip('[')
+            wk_uuid = log_file[0].split("|")[0].strip("[")
 
     # Load aiida node if found
     with contextlib.suppress(Exception):
@@ -190,25 +190,25 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
         if not prev_run_dir.exists():
             raise FileNotFoundError(
                 f"The directory '{prev_run_dir}' does not exist. "
-                'Please make sure that is the correct path.'
+                "Please make sure that is the correct path."
             )
 
         # Read toml settings file
-        for toml in prev_run_dir.glob('*.toml'):
+        for toml in prev_run_dir.glob("*.toml"):
             toml_dict_path = toml
         toml_dict = read_toml_config(toml_dict_path)
 
         # Populating resume dictionary with last iteration
-        for it_file in (prev_run_dir / 'run_tmp_data').glob('*.pkl'):
-            last_iteration = int(it_file.stem.split('-')[-1])
-        resume_dict['last_iteration'] = last_iteration
+        for it_file in (prev_run_dir / "run_tmp_data").glob("*.pkl"):
+            last_iteration = int(it_file.stem.split("-")[-1])
+        resume_dict["last_iteration"] = last_iteration
 
         # Getting train_db and seed_db paths
-        for it_file in prev_run_dir.glob('*.xyz'):
-            if 'mdb_train_db' in it_file.stem:
-                resume_dict['train_db_path'] = str(it_file)
-            elif 'mdb_seed_db' in it_file.stem:
-                resume_dict['seed_db_path'] = str(it_file)
+        for it_file in prev_run_dir.glob("*.xyz"):
+            if "mdb_train_db" in it_file.stem:
+                resume_dict["train_db_path"] = str(it_file)
+            elif "mdb_seed_db" in it_file.stem:
+                resume_dict["seed_db_path"] = str(it_file)
 
     # Getting builder for workchain
     builder = create_active_learning_builder(
@@ -219,9 +219,9 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     # Setting resume dictionary and updating builder inputs
     builder.resume_dict = resume_dict
     builder.active_learning.run_name = (
-        builder.active_learning.run_name.value + '_resumed'
+        builder.active_learning.run_name.value + "_resumed"
     )
-    builder.active_learning.init_db_path = resume_dict['train_db_path']
+    builder.active_learning.init_db_path = resume_dict["train_db_path"]
 
     # Store resume dictionary and run name
     # TODO: Check if necessary to store manually in this case
@@ -232,11 +232,11 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     # Check for any model files in the folder and return an error if not found
     # builder.dft_settings["mace_potential_path"]
     mace_model_path = pl.Path(
-        builder.active_learning.dft_settings['mace_potential_path']
+        builder.active_learning.dft_settings["mace_potential_path"]
     )
     if not mace_model_path.exists():
         raise FileNotFoundError(
-            'No model files found in the run directory.\n'
+            "No model files found in the run directory.\n"
             f"Check that '{mace_model_path}' exists."
         )
 
@@ -245,47 +245,47 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
 
 def run_active_learning():
     parser = argparse.ArgumentParser(
-        prog='run_active_learning',
+        prog="run_active_learning",
         description=(
-            'Launch a MDB active learning loop.\n'
-            'Provide a TOML settings file to start the active learning loop, '
-            'or use any of the available commands.'
+            "Launch a MDB active learning loop.\n"
+            "Provide a TOML settings file to start the active learning loop, "
+            "or use any of the available commands."
         ),
         formatter_class=RawTextHelpFormatter,
     )
     parser.add_argument(
-        '-c',
-        '--config_file',
+        "-c",
+        "--config_file",
         help=(
-            'path pointing to a TOML settings file.\n'
-            'By default `active_learning_settings.toml` will be searched in the CWD.'
+            "path pointing to a TOML settings file.\n"
+            "By default `active_learning_settings.toml` will be searched in the CWD."
         ),
         type=pl.Path,
-        default='./active_learning_settings.toml',
+        default="./active_learning_settings.toml",
         # required=True,
-        metavar='PATH',
+        metavar="PATH",
     )
 
     parser.add_argument(
-        '--simple',
-        help='Use the simple active learning workchain.',
-        action='store_const',
+        "--simple",
+        help="Use the simple active learning workchain.",
+        action="store_const",
         const=True,
     )
 
     # Create a subparsers object
     subparsers = parser.add_subparsers(
-        dest='command', help='List of available commands'
+        dest="command", help="List of available commands"
     )
 
     # Create the subparser for the 'report' command
     report_parser = subparsers.add_parser(
-        'report',
-        help='Generate a report for an active learning loop.',
+        "report",
+        help="Generate a report for an active learning loop.",
         usage=(
-            'run_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)\n'
-            'Generate a report for an active learning loop by providing an AiiDA '
-            'PK/UUID or a log file path.'
+            "run_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)\n"
+            "Generate a report for an active learning loop by providing an AiiDA "
+            "PK/UUID or a log file path."
         ),
     )
 
@@ -294,82 +294,96 @@ def run_active_learning():
 
     # Add arguments specific to the 'report' subcommand
     report_group.add_argument(
-        '--loop_id',
-        '-i',
-        help=('AiiDA PK/UUID of the active learning loop.'),
-        metavar='<ID>',
+        "--loop_id",
+        "-i",
+        help=("AiiDA PK/UUID of the active learning loop."),
+        metavar="<ID>",
     )
     report_group.add_argument(
-        '--log_path',
-        '-log',
-        help=('MatDBForge log of the active learning loop.'),
-        metavar='<PATH>',
+        "--log_path",
+        "-log",
+        help=("MatDBForge log of the active learning loop."),
+        metavar="<PATH>",
+    )
+    report_group.add_argument(
+        "--device",
+        "-d",
+        help=("String representing a device to run inference on."),
+        metavar="<DEVICE>",
+        default="cpu",
+    )
+    report_group.add_argument(
+        "--get_eror_plot",
+        help=("Get error plot"),
+        action="store_const",
+        const=True,
+        default=False,
     )
 
     # Create the subparser for the 'resume' command
     resume_parser = subparsers.add_parser(
-        'resume',
-        help='Resume an active learning loop using a results folder.',
+        "resume",
+        help="Resume an active learning loop using a results folder.",
         usage=(
-            'run_active_learning resume [-h] --dir_resume <PATH> '
-            '[--config_file <PATH>]\n\n'
-            'Resume an active learning loop using a results folder.'
+            "run_active_learning resume [-h] --dir_resume <PATH> "
+            "[--config_file <PATH>]\n\n"
+            "Resume an active learning loop using a results folder."
         ),
     )
 
     resume_parser.add_argument(
-        '--dir_resume',
-        '-d',
-        help=('Path to the results directory of a previous active learning loop run.'),
-        metavar='<PATH>',
+        "--dir_resume",
+        "-d",
+        help=("Path to the results directory of a previous active learning loop run."),
+        metavar="<PATH>",
         required=True,
     )
 
     resume_parser.add_argument(
-        '--config_file',
-        '-c',
+        "--config_file",
+        "-c",
         help=(
-            'Path pointing to a TOML settings file.\n'
-            'Optional, as all calculation folders should contain A TOML file.'
+            "Path pointing to a TOML settings file.\n"
+            "Optional, as all calculation folders should contain A TOML file."
         ),
         type=pl.Path,
-        metavar='<PATH>',
+        metavar="<PATH>",
         required=False,
         default=None,
     )
 
     # Create the subparser for the 'gui' command
     gui_parser = subparsers.add_parser(
-        'gui', help='Launch a dashboard to keep track of the active learning loop'
+        "gui", help="Launch a dashboard to keep track of the active learning loop"
     )
 
     # Add arguments specific to the 'gui' subcommand
     gui_parser.add_argument(
-        '--update_interval',
-        help=('Refresh time interval in seconds'),
+        "--update_interval",
+        help=("Refresh time interval in seconds"),
         type=int,
         default=60,
-        metavar='n_sec',
+        metavar="n_sec",
     )
     gui_parser.add_argument(
-        '--port',
-        help=('Port to use for the webapp'),
+        "--port",
+        help=("Port to use for the webapp"),
         type=int,
         default=8000,
-        metavar='port',
+        metavar="port",
     )
 
     gui_parser.add_argument(
-        '--debug',
-        help=('Enable Flask debug'),
-        action='store_const',
+        "--debug",
+        help=("Enable Flask debug"),
+        action="store_const",
         const=True,
         default=False,
     )
     gui_parser.add_argument(
-        '--online',
-        help=('Enable online'),
-        action='store_const',
+        "--online",
+        help=("Enable online"),
+        action="store_const",
         const=True,
         default=False,
     )
@@ -380,13 +394,13 @@ def run_active_learning():
     # Checking version
     check_mdb_version()
 
-    if args.command == 'report':
+    if args.command == "report":
         from MatDBForge.active_learning.active_learning_utils import gen_al_loop_report
 
-        gen_al_loop_report(args.loop_id, args.log_path)
+        gen_al_loop_report(args.loop_id, args.log_path, device=args.device)
 
     # Resume a previous calculation
-    elif args.command == 'resume':
+    elif args.command == "resume":
         from aiida.engine import run
 
         # Getting path for config file if provided
@@ -411,11 +425,11 @@ def run_active_learning():
 
         try:
             # Loading default aiida profile
-            load_profile(profile=toml_dict['active_learning']['aiida_profile'])
+            load_profile(profile=toml_dict["active_learning"]["aiida_profile"])
         except Exception as e:
             from MatDBForge.core.code_utils import custom_print
 
-            custom_print(f"Error loading aiida profile: '{e}'", 'error')
+            custom_print(f"Error loading aiida profile: '{e}'", "error")
 
         # Parsing settings from TOML and creating builder for aiida
         builder = create_active_learning_builder(
@@ -424,7 +438,7 @@ def run_active_learning():
             simple=args.simple,
         )
 
-        if args.command != 'gui':
+        if args.command != "gui":
             node = run(builder)
         else:
             from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
@@ -443,12 +457,12 @@ def run_active_learning():
 
 def read_toml_config(config_file: pl.Path | str):
     try:
-        with open(config_file, 'rb') as f:
+        with open(config_file, "rb") as f:
             toml_dict = tomllib.load(f)
     except FileNotFoundError as e:
         error_message = (
             f"The config file '{config_file}' does not exist. "
-            'Please make sure that is the correct name or input a different path.'
+            "Please make sure that is the correct name or input a different path."
         )
         raise FileNotFoundError(error_message) from e
     return toml_dict
