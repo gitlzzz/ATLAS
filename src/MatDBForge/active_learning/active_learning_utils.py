@@ -334,8 +334,11 @@ def gen_al_loop_report(
         except Exception:
             al_loop_node = loop_id
 
-    ini_db_line = re.compile(r"initial database containing.*").findall(report)
-    ini_db_size = int(ini_db_line[0].split()[3].replace("'", ""))
+    try:
+        ini_db_line = re.compile(r"initial database containing.*").findall(report)
+        ini_db_size = int(ini_db_line[0].split()[3].replace("'", ""))
+    except IndexError:
+        ini_db_size = 0
 
     # Match all lines containing the seed_gen_db and train_db sizes
     seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
