@@ -305,19 +305,19 @@ def run_active_learning():
         help=("MatDBForge log of the active learning loop."),
         metavar="<PATH>",
     )
-    report_group.add_argument(
+    report_parser.add_argument(
         "--device",
         "-d",
         help=("String representing a device to run inference on."),
         metavar="<DEVICE>",
         default="cpu",
     )
-    report_group.add_argument(
-        "--get_eror_plot",
+    report_parser.add_argument(
+        "--get_error_plot",
         help=("Get error plot"),
         action="store_const",
         const=True,
-        default=False,
+        # default=False,
     )
 
     # Create the subparser for the 'resume' command
@@ -397,7 +397,12 @@ def run_active_learning():
     if args.command == "report":
         from MatDBForge.active_learning.active_learning_utils import gen_al_loop_report
 
-        gen_al_loop_report(args.loop_id, args.log_path, device=args.device)
+        gen_al_loop_report(
+            args.loop_id,
+            args.log_path,
+            device=args.device,
+            get_error_plot=args.get_error_plot,
+        )
 
     # Resume a previous calculation
     elif args.command == "resume":

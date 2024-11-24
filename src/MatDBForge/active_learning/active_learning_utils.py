@@ -193,7 +193,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
 
 
 def plot_al_loop_report(
-    ini_db_size, seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_idx
+    ini_db_size, seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_idx, ax
 ):
     # Get unix timestamp for filename
     timestamp = int(time.time())
@@ -207,9 +207,6 @@ def plot_al_loop_report(
         "#fb4934",
     ]
     line_color = "#28282855"
-
-    # Create a 2x2 figure
-    fig, ax = plt.subplots(2, 2, figsize=(12, 12))
 
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     width = 0.3
@@ -308,10 +305,7 @@ def plot_al_loop_report(
     ax[1, 0].text(x=1.5, y=chem_acc + 0.5, s="Chem. Acc.", color=line_color)
     ax[1, 1].set_title("Evolution of best MACE Model Force RMSE")
 
-    plt.tight_layout()
-    plt.savefig(filename, dpi=300)
-    custom_print(f"Saved report to '{filename}'.", "info")
-    plt.clf()
+    return ax, filename
 
 
 def gen_al_loop_report(
@@ -362,22 +356,35 @@ def gen_al_loop_report(
         mace_e.append(float(line.split()[10]))
         mace_f.append(float(line.split()[14]))
 
-    plot_al_loop_report(
+    if get_error_plot:
+        # Create a 2x2 figure
+        fig, ax = plt.subplots(2, 3, figsize=(18, 12))
+    else:
+        # Create a 2x2 figure
+        fig, ax = plt.subplots(2, 2, figsize=(12, 12))
+
+    ax, filename = plot_al_loop_report(
         ini_db_size=ini_db_size,
         seed_gen_db_sizes=seed_gen_db_sizes,
         train_db_sizes=train_db_sizes,
         mace_e=mace_e,
         mace_f=mace_f,
         it_idx=it_idx,
+        ax=ax,
     )
 
     if get_error_plot:
-        generate_error_plot(al_loop_node=orm.load_node(1686780), device_str=device)
+        generate_error_plot(al_loop_node=al_loop_node, device_str=device, ax=ax)
+
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300)
+    custom_print(f"Saved report to '{filename}'.", "info")
+    plt.clf()
 
     custom_print("Report generation complete.", "done")
 
 
-def generate_error_plot(al_loop_node, device_str="cpu"):
+def generate_error_plot(al_loop_node, device_str: str = "cpu", ax=None):
 
     from mace import data
     from mace.tools import torch_geometric, torch_tools, utils
@@ -441,45 +448,65 @@ def generate_error_plot(al_loop_node, device_str="cpu"):
         struct_len_list = np.array([len(atoms) for atoms in train_db])
 
         # Getting energy per atom
-        E_nn_list /= struct_len_list
-        E_dft_list /= struct_len_list
+        E_nn_list_per_at = E_nn_list / struct_len_list
+        E_dft_list_per_at = E_dft_list / struct_len_list
 
         # Get RMSD
-        rmsd = np.sqrt(np.mean((E_nn_list - E_dft_list) ** 2)) * 1000
+        rmsd = np.sqrt(np.mean((E_nn_list_per_at - E_dft_list_per_at) ** 2)) * 1000
 
         # Get MAE
-        mae = np.mean(np.abs(E_nn_list - E_dft_list)) * 1000
+        mae = np.mean(np.abs(E_nn_list_per_at - E_dft_list_per_at)) * 1000
 
-        tex_x_pos = min(E_dft_list) * 0.95
-        tex_y_pos = max(E_nn_list) * 1.10
-        plt.text(
+        # tex_x_pos = min(E_nn_list_per_at) * 0.95
+        # tex_y_pos = max(E_dft_list_per_at) * 1.10
+        tex_x_pos = 0.1
+        tex_y_pos = 0.80
+        ax[0, 2].text(
             x=tex_x_pos,
             y=tex_y_pos,
             s=f"MAE: {mae:.3f} meV/atom\nRMSD: {rmsd:.3f} meV/atom",
+            transform=ax[0, 2].transAxes,
         )
 
-        # Plot the energy comparison
-        plt.plot(
-            E_dft_list,
-            E_nn_list,
+        # else:
+        print("ax: ", ax)
+        print("ax: ", ax.shape)
+        ax[0, 2].plot(
+            E_nn_list_per_at,
+            E_dft_list_per_at,
             "o",
-            color="#458588",
+            color="#83a598",
             alpha=0.5,
             markeredgewidth=0.5,
             markeredgecolor="#282828",
             markersize=3,
         )
+        ax[0, 2].plot(
+            E_dft_list_per_at, E_dft_list_per_at, color="#b16286", linestyle="--"
+        )
+        ax[0, 2].set_xlabel("DFT Energy [meV/atom]")
+        ax[0, 2].set_ylabel("NN Energy [meV/atom]")
+        ax[0, 2].set_title("Energy comparison")
 
-        # Plot a 1:1 line
-        plt.plot(E_dft_list, E_dft_list, color="#fb4934", linestyle="--")
-        plt.xlabel("DFT Energy [eV/atom]")
-        plt.ylabel("NN Energy [eV/atom]")
-        plt.title("Energy comparison")
-        plt.tight_layout()
-        plt.savefig("./energy_comparison.png", dpi=300)
+        # Plotting the EDFT, ENN and their difference in a line plot, using the
+        # structure index as the x-axis.
+        ax[1, 2].plot(E_dft_list, color="#83a598", label="DFT Energy")
+        ax[1, 2].plot(E_nn_list, color="#b16286", label="NN Energy")
 
-        plt.show()
-        quit()
+        # Use secondary y-axis for the difference
+        ax_twin = ax[1, 2].twinx()
+        ax_twin.plot(
+            (E_nn_list_per_at - E_dft_list_per_at) * 1000,
+            color="#fb4934",
+            label="Difference",
+        )
+        ax_twin.set_ylabel("Energy difference [meV/atom]")
+
+        # Set labels and title
+        ax[1, 2].set_xlabel("Structure index")
+        ax[1, 2].set_ylabel("Energy [eV]")
+        ax[1, 2].set_title("Energy comparison")
+        ax[1, 2].legend()
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
