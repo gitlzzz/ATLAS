@@ -311,13 +311,43 @@ def run_active_learning():
         help=("String representing a device to run inference on."),
         metavar="<DEVICE>",
         default="cpu",
+        choices=["cpu", "cuda"],
     )
     report_parser.add_argument(
         "--get_error_plot",
         help=("Get error plot"),
         action="store_const",
         const=True,
-        # default=False,
+    )
+    report_parser.add_argument(
+        "--remove_outliers",
+        help=("Remove outliers from the error plot"),
+        action="store_const",
+        const=True,
+    )
+
+    report_parser.add_argument(
+        "--model",
+        help=("Path to the model file."),
+        metavar="<PATH>",
+        default=None,
+        required=False,
+    )
+
+    report_parser.add_argument(
+        "--database",
+        help=("Path to the database file."),
+        metavar="<PATH>",
+        default=None,
+        required=False,
+    )
+
+    report_parser.add_argument(
+        "--threshold_meV",
+        help=("Threshold to consider a structure as outlier, in meV. Default is 100."),
+        metavar="<FLOAT>",
+        default=100.0,
+        required=False,
     )
 
     # Create the subparser for the 'resume' command
@@ -402,6 +432,10 @@ def run_active_learning():
             args.log_path,
             device=args.device,
             get_error_plot=args.get_error_plot,
+            model_path=args.model,
+            database_path=args.database,
+            threshold_meV=float(args.threshold_meV),
+            remove_outliers=args.remove_outliers,
         )
 
     # Resume a previous calculation
