@@ -6,8 +6,8 @@ with an applied perturbation with respect to the temperature.
 
 # This needs to be here to avoid segfaults when using Julia
 # and pytorch.
-from juliacall import Main as jl  # noqa
-from juliacall import convert as jl_convert  # noqa
+#from juliacall import Main as jl  # noqa
+#from juliacall import convert as jl_convert  # noqa
 
 import itertools as it
 import lzma
