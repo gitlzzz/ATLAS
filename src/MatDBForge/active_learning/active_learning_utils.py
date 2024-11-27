@@ -2,6 +2,7 @@
 
 import io
 import itertools as it
+import os
 import shutil
 import tempfile
 import time
@@ -157,7 +158,6 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
                 logfile=f"logs/md_info-{T_start}K.log",
             )
         case "nose-hoover":
-
             # Change the simulation box to remove any small numbers not in the diagonal
             # of the box matrix
             box = init_conf.get_cell()
@@ -313,6 +313,10 @@ def gen_al_loop_report(
     log_path: str = None,
     get_error_plot: bool = False,
     device="cpu",
+    model_path: str | Path = None,
+    database_path: str | Path = None,
+    threshold_meV: float = None,
+    remove_outliers: bool = False,
 ):
     import re
 
@@ -377,7 +381,20 @@ def gen_al_loop_report(
     )
 
     if get_error_plot:
-        generate_error_plot(al_loop_node=al_loop_node, device_str=device, ax=ax)
+        custom_print(
+            "Generating database error plot." f"Remove outliers: {remove_outliers}",
+            "info",
+        )
+
+        generate_error_plot(
+            al_loop_node=al_loop_node,
+            device_str=device,
+            ax=ax,
+            database_path=database_path,
+            model_path=model_path,
+            threshold_meV=threshold_meV,
+            remove_outliers=remove_outliers,
+        )
 
     plt.tight_layout()
     plt.savefig(filename, dpi=300)
@@ -387,36 +404,55 @@ def gen_al_loop_report(
     custom_print("Report generation complete.", "done")
 
 
-def generate_error_plot(al_loop_node, device_str: str = "cpu", ax=None):
-
+def generate_error_plot(
+    al_loop_node,
+    device_str: str = "cpu",
+    ax=None,
+    database_path: str = None,
+    model_path: str = None,
+    threshold_meV: float = None,
+    remove_outliers: bool = False,
+):
     from mace import data
     from mace.tools import torch_geometric, torch_tools, utils
+    from rich.progress import track
 
     torch_tools.set_default_dtype("float32")
     device = torch_tools.init_device(device_str)
 
     # Create tmp folder in the current directory
     with tempfile.TemporaryDirectory() as tmp_dir:
-
         # Get last iteration from aiida
-        last_iter = [
-            stp
-            for stp in al_loop_node.called
-            if stp.process_type == "aiida.workflows:mdb-active-learning"
-        ][-1]
+        try:
+            last_iter = [
+                stp
+                for stp in al_loop_node.called
+                if stp.process_type == "aiida.workflows:mdb-active-learning"
+            ][-1]
+        except AttributeError:
+            last_iter = al_loop_node
+            custom_print(
+                "No nodes found for the AL loop. Is it stored in this machine?",
+                "warning",
+            )
 
         # Copy the training database to the tmp folder
-        training_db_path = Path(last_iter.inputs.training_db_path.value)
+        if database_path:
+            training_db_path = Path(database_path)
+        else:
+            training_db_path = Path(last_iter.inputs.training_db_path.value)
+
         training_db_cp_path = shutil.copy(training_db_path, tmp_dir)
-        model_file: orm.SinglefileData = last_iter.outputs.m0_model_file
-        with model_file.as_path() as f:
-            model_path = shutil.copy(f, tmp_dir)
+        if not model_path:
+            model_file: orm.SinglefileData = last_iter.outputs.m0_model_file
+            with model_file.as_path() as f:
+                model_path = shutil.copy(f, tmp_dir)
 
         # Load the training database
         train_db = ase_read(training_db_cp_path, format="extxyz", index=":")
 
         # Load model
-        model = torch.load(f=model_path, map_location=device_str)
+        model = torch.load(f=model_path, map_location=device_str, weights_only=False)
         model = model.to(device_str)
 
         for param in model.parameters():
@@ -432,19 +468,28 @@ def generate_error_plot(al_loop_node, device_str: str = "cpu", ax=None):
                 )
                 for config in configs
             ],
-            batch_size=18,
+            batch_size=12,
             shuffle=False,
             drop_last=False,
         )
 
         E_nn_list = []
-        for idx, batch in enumerate(data_loader):
-            print(f"Current batch: {idx}/{len(data_loader)}", end="\r")
-            batch = batch.to(device)
-            output = model(batch.to_dict(), compute_stress=False)
-            E_nn_list.append(torch_tools.to_numpy(output["energy"]))
+        # Iterate over the data loader to get the model energies
+        # Use a rich progress bar to show the progress
+        if "E_nn_list.npy" not in os.listdir():
+            for batch in track(
+                data_loader,
+                description="Evaluating structures...",
+            ):
+                batch = batch.to(device)
+                output = model(batch.to_dict(), compute_stress=False)
+                E_nn_list.append(torch_tools.to_numpy(output["energy"]))
 
-        E_nn_list = np.concatenate(E_nn_list, axis=0)
+            E_nn_list = np.concatenate(E_nn_list, axis=0)
+        else:
+            E_nn_list = np.load("E_nn_list.npy")
+
+        np.save("E_nn_list.npy", E_nn_list)
         E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
 
         # Getting atom count
@@ -454,16 +499,58 @@ def generate_error_plot(al_loop_node, device_str: str = "cpu", ax=None):
         E_nn_list_per_at = E_nn_list / struct_len_list
         E_dft_list_per_at = E_dft_list / struct_len_list
 
+        diff_list_meV = (E_nn_list_per_at - E_dft_list_per_at) * 1000
+
+        # Sort diff_list_meV, keeping the original indices
+        sorted_diff_list_meV = np.argsort(np.abs(diff_list_meV))
+
+        outlier_list = []
+        remove_indices = []
+        # Mark outliers, appending the E difference in meV to the structure info dict.
+        for val in sorted_diff_list_meV[::-1]:
+            if abs(diff_list_meV[val]) > threshold_meV:
+                struct = train_db[int(val)]
+                struct.info["E_dft_nn_diff_meV"] = diff_list_meV[val]
+                outlier_list.append(struct)
+
+                # Add outler indices to list for removal
+                if remove_outliers:
+                    remove_indices.append(val)
+
+        if remove_outliers:
+            train_db = [
+                struct
+                for struct in train_db
+                if train_db.index(struct) not in remove_indices
+            ]
+            diff_list_meV = np.delete(diff_list_meV, remove_indices)
+            E_nn_list_per_at = np.delete(E_nn_list_per_at, remove_indices)
+            E_dft_list_per_at = np.delete(E_dft_list_per_at, remove_indices)
+
+        # Save the outliers to a file,
+        if len(outlier_list) > 0:
+            ase_write("outliers.xyz", outlier_list)
+            custom_print(
+                (
+                    f"Saved {len(outlier_list)} outliers to 'outliers.xyz'. "
+                    f"Used {threshold_meV} meV as threshold."
+                ),
+                "info",
+            )
+
         # Get RMSD
-        rmsd = np.sqrt(np.mean((E_nn_list_per_at - E_dft_list_per_at) ** 2)) * 1000
+        rmsd = np.sqrt(np.mean(diff_list_meV**2))
 
         # Get MAE
-        mae = np.mean(np.abs(E_nn_list_per_at - E_dft_list_per_at)) * 1000
+        mae = np.mean(np.abs(diff_list_meV))
 
-        # tex_x_pos = min(E_nn_list_per_at) * 0.95
-        # tex_y_pos = max(E_dft_list_per_at) * 1.10
         tex_x_pos = 0.1
         tex_y_pos = 0.80
+        save_fig_now = False
+        if not ax:
+            save_fig_now = True
+            ax = plt.subplots(2, 3, figsize=(18, 12))[1]
+
         ax[0, 2].text(
             x=tex_x_pos,
             y=tex_y_pos,
@@ -471,12 +558,9 @@ def generate_error_plot(al_loop_node, device_str: str = "cpu", ax=None):
             transform=ax[0, 2].transAxes,
         )
 
-        # else:
-        print("ax: ", ax)
-        print("ax: ", ax.shape)
         ax[0, 2].plot(
-            E_nn_list_per_at,
             E_dft_list_per_at,
+            E_nn_list_per_at,
             "o",
             color="#83a598",
             alpha=0.5,
@@ -493,23 +577,29 @@ def generate_error_plot(al_loop_node, device_str: str = "cpu", ax=None):
 
         # Plotting the EDFT, ENN and their difference in a line plot, using the
         # structure index as the x-axis.
-        ax[1, 2].plot(E_dft_list, color="#83a598", label="DFT Energy")
-        ax[1, 2].plot(E_nn_list, color="#b16286", label="NN Energy")
+        ax[1, 2].plot(E_dft_list, color="#83a598", label="DFT Energy", alpha=0.5)
+        ax[1, 2].plot(E_nn_list, color="#b16286", label="NN Energy", alpha=0.5)
 
         # Use secondary y-axis for the difference
         ax_twin = ax[1, 2].twinx()
         ax_twin.plot(
-            (E_nn_list_per_at - E_dft_list_per_at) * 1000,
+            np.abs(diff_list_meV),
             color="#fb4934",
             label="Difference",
         )
-        ax_twin.set_ylabel("Energy difference [meV/atom]")
+        ax_twin.set_ylabel("Abs. Energy difference [meV/atom]")
 
         # Set labels and title
         ax[1, 2].set_xlabel("Structure index")
         ax[1, 2].set_ylabel("Energy [eV]")
         ax[1, 2].set_title("Energy comparison")
         ax[1, 2].legend()
+
+        if save_fig_now:
+            plt.tight_layout()
+            filename = Path("./energy_difference.png").resolve()
+            plt.savefig(filename, dpi=300)
+            custom_print(f"Saved report to '{filename}'.", "info")
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
@@ -728,6 +818,27 @@ def apply_filter_no_neighbors(struct):
     if isinstance(struct, pmg_struct):
         struct = AseAtomsAdaptor().get_atoms(structure=struct)
 
+    conn_matr, has_disconnected_atoms, coord_nums = get_coord_nums(struct)
+    has_disconnected_neighbors = check_disconn_neighbors(conn_matr, coord_nums)
+
+    return has_disconnected_atoms or has_disconnected_neighbors
+
+
+def check_disconn_neighbors(conn_matr, coord_nums, min_coord:int=3):
+    has_disconnected_neighbors = False
+    for at_id, coord_num in enumerate(coord_nums):
+        if coord_num <= min_coord:
+            conn_arr_curr_at = conn_matr[at_id]
+            neig_idxs = np.where(conn_arr_curr_at == 1)[0]
+            for nn_id in neig_idxs:
+                neigh_coord = coord_nums[nn_id]
+                if neigh_coord < min_coord:
+                    has_disconnected_neighbors = True
+                    break
+    return has_disconnected_neighbors
+
+
+def get_coord_nums(struct):
     cutoffs: list = natural_cutoffs(struct)
     nl = NeighborList(
         cutoffs,
@@ -743,7 +854,10 @@ def apply_filter_no_neighbors(struct):
 
     # Check if there is any row in conn_matr that has only zeros
     has_disconnected_atoms: bool = np.any(np.all(conn_matr == 0, axis=1))
-    return has_disconnected_atoms
+
+    # Get coordination numbers
+    coord_nums = np.sum(conn_matr, axis=1)
+    return conn_matr, has_disconnected_atoms, coord_nums
 
 
 def get_total_num_frames(len_traj, md_tstep_duration_ps, frame_interval):
