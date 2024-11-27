@@ -754,7 +754,7 @@ def select_dft_structures(struct_arr, frame_interval):
     return selected_high_error_idxs
 
 
-def get_max_layer_distance(struct):
+def get_max_layer_distance(struct: Atoms) -> float:
     """Get the maximum distance between layers in a structure."""
     # Get the layers and their distance with respect to the origin
     tags, levels = geometry.get_layers(atoms=struct, miller=(0, 0, 1), tolerance=0.1)
@@ -765,12 +765,12 @@ def get_max_layer_distance(struct):
         layer_height_diff = layer_height - levels[layer_index]
         layer_distances.append(layer_height_diff)
 
-    max_layer_distance = np.max(layer_distances)
+    max_layer_distance: float = np.max(layer_distances)
 
     return max_layer_distance
 
 
-def apply_layer_distance_filter(struct, max_layer_distance_ang):
+def apply_layer_distance_filter(struct: Atoms, max_layer_distance_ang: float) -> bool:
     """
     Evaluates whether the layer distace is above max_layer_distance_ang.
 
@@ -824,8 +824,32 @@ def apply_filter_no_neighbors(struct):
     return has_disconnected_atoms or has_disconnected_neighbors
 
 
-def check_disconn_neighbors(conn_matr, coord_nums, min_coord:int=3):
-    has_disconnected_neighbors = False
+def check_disconn_neighbors(
+    conn_matr: np.array, coord_nums: np.array, min_coord: int = 3
+) -> bool:
+    """
+    Check if there are disconnected atoms in the structure.
+
+    Uses the connectivity matrix and the coordination numbers to check if there are
+    atoms with disconnected neighbors. This is done by checking if the coordination
+    number of an atom is below a certain threshold and if any of its neighbors also
+    have a coordination number below the threshold.
+
+    Parameters
+    ----------
+    conn_matr : np.array
+        Connectivity matrix as given by the ASE NeighborList.
+    coord_nums : np.array
+        Array containing the coordination numbers of each atom.
+    min_coord : int, optional
+        Threshold for the coordination number, by default 3.
+
+    Returns
+    -------
+    bool
+        Whether there are disconnected atoms in the structure.
+    """
+    has_disconnected_neighbors: bool = False
     for at_id, coord_num in enumerate(coord_nums):
         if coord_num <= min_coord:
             conn_arr_curr_at = conn_matr[at_id]
@@ -838,7 +862,21 @@ def check_disconn_neighbors(conn_matr, coord_nums, min_coord:int=3):
     return has_disconnected_neighbors
 
 
-def get_coord_nums(struct):
+def get_coord_nums(struct: Atoms) -> tuple:
+    """
+    Get the connectivity matrix, check for disconnected atoms and get coord. numbers.
+
+    Parameters
+    ----------
+    struct : Atoms
+        Structure to check.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the connectivity matrix, a boolean indicating if there are
+        disconnected atoms and an array with the coordination numbers.
+    """
     cutoffs: list = natural_cutoffs(struct)
     nl = NeighborList(
         cutoffs,
