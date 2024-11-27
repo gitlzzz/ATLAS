@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.18.0 (2024-11-27)
+
+### Feature
+
+- **al_loop**: Included Maxwell-Boltzmann initialization of velocities for simple MD. ([#ffaa323](https://github.com/pol-sb/MatDBForge/commit/ffaa3236eba82f9af36804d363c3fe539d1dea7f))
+
+### Fix
+
+- **initial_db**: commented julia imports from beginning of file to avoid errors on installs not using julia. ([#3111077](https://github.com/pol-sb/MatDBForge/commit/3111077a6be9eb8c7f7731a60b76170d45ff9a86))
+- **al_loop**: allow to generate plot for resumed calculations ([#477619e](https://github.com/pol-sb/MatDBForge/commit/477619e3451404e9dc2b4da40ef72d1d117299dd))
+- **al_loop**: improved active learning report plot ([#64e3107](https://github.com/pol-sb/MatDBForge/commit/64e310768042010cdbf187a3211525f986c48bd8))
+- **al_loop**: removed hardcoded value in active_learning_utils ([#19186fe](https://github.com/pol-sb/MatDBForge/commit/19186feff4d9a1c7cf936942c0a79e3a26922a00))
+- **al_loop**: modified descriptor get settings ([#00dc19e](https://github.com/pol-sb/MatDBForge/commit/00dc19ef10ac28b400a52a906fb453d7a77c18d8))
+- **al_loop**: added alternative E and F gathering in gather_md_E_F_data ([#78fcc91](https://github.com/pol-sb/MatDBForge/commit/78fcc91b38079e5d709df603dcc8f1476b84ebb2))
+- **al_loop**: improved `active_learning_utils.py` so they are more general ([#247ce3f](https://github.com/pol-sb/MatDBForge/commit/247ce3f690ee55eed58e17b21dd220833f73e617))
+- **al_loop**: replaced hardcoded settings with parameter dict for descriptor gathering ([#25c1433](https://github.com/pol-sb/MatDBForge/commit/25c14339c0beab1765df0ea6c7d6aa49ec6fb885))
+- **al_loop**: changed parameter gathering so that `mdb_process_structure` works on non-gpu machines ([#fdccbc7](https://github.com/pol-sb/MatDBForge/commit/fdccbc79c4bf8b1cba33617e95f6456843df1cf3))
+
+### Misc
+
+- **al_loop**: add inputs for enhanced error plot generation ([#2190828](https://github.com/pol-sb/MatDBForge/commit/2190828a163dc0d0df8f86b8a6433dd0e5ff4cb9))
+- **al_loop**: improve error plot generation ([#96699bf](https://github.com/pol-sb/MatDBForge/commit/96699bf833f8b0880ebea0dc35a3c7f18e44c700))
+- **al_loop**: move error plot to default al_loop report plot ([#0577b60](https://github.com/pol-sb/MatDBForge/commit/0577b609ef17a1e90f26c2c3bba37baca6822112))
+- **docs**: update README.md ([#6b26420](https://github.com/pol-sb/MatDBForge/commit/6b26420067cc617686dba75957c67e7d099734bd))
+- **docs**: update install docs, bump up python version and add julia ([#e09ccc8](https://github.com/pol-sb/MatDBForge/commit/e09ccc81cccba2a295f74c6b26a8549549fdbdd7))
+- **core**: refactored all python scripts using new ruff settings ([#4d010b2](https://github.com/pol-sb/MatDBForge/commit/4d010b20fd31cf4d79ade6a66d9ed573577e6ebd))
+- **core**: moved ruff settings to pyproject.toml and updated precommit configuration ([#655b2fc](https://github.com/pol-sb/MatDBForge/commit/655b2fcde1218ab9f6229c8668e476868dbf3fac))
+
 ## 0.17.0 (2024-11-08)
 
 ### Feature

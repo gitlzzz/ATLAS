@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """AiiDA plugin for MACE calculations."""
 
-import json
 import shutil
 import tempfile
 import time
@@ -72,7 +71,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 'in the extxyz format.'
             ),
             required=True,
-            non_db=True,
+            # non_db=True,
         )
         spec.input(
             'model_file',
@@ -245,40 +244,37 @@ class ProcessMDSeedStructCalculationParser(Parser):
         rmse_f = None
 
         for child_file in retrieved_temporary_folder.rglob('*'):
-            # Create singlefile data for the model
 
-            # If swa was used, get the swa model preferentially
-            if 'swa.model' in child_file.name:
-                model_file = orm.SinglefileData(file=child_file)
+            # # If swa was used, get the swa model preferentially
+            # TODO
+            if 'nispero' in child_file.name:
+                extrapolating_structures = orm.SinglefileData(file=child_file)
                 continue
 
-            # If swa was not used, get the non-compiled model, as it can be
-            # used to get the descriptors.
-            if '.model' in child_file.name and 'compiled' not in child_file.name:
-                model_file = orm.SinglefileData(file=child_file)
-                continue
+            # # If swa was not used, get the non-compiled model, as it can be
+            # # used to get the descriptors.
+            # if '.model' in child_file.name and 'compiled' not in child_file.name:
+            #     model_file = orm.SinglefileData(file=child_file)
+            #     continue
 
-            # Get train statistics from the training output
-            if 'train.txt' in child_file.name:
-                # TODO: gather rmse_e, rmse_f
-                with open(child_file) as f:
-                    for line in f:
-                        line_dict = json.loads(line)
-                        if 'rmse_e' in line_dict:
-                            last_dict = line_dict
+            # # Get train statistics from the training output
+            # if 'train.txt' in child_file.name:
+            #     # TODO: gather rmse_e, rmse_f
+            #     with open(child_file) as f:
+            #         for line in f:
+            #             line_dict = json.loads(line)
+            #             if 'rmse_e' in line_dict:
+            #                 last_dict = line_dict
 
-                rmse_e = float(last_dict['rmse_e_per_atom']) * 1000  # meV / atom
-                rmse_f = float(last_dict['rmse_f']) * 1000  # meV / A
+            #     rmse_e = float(last_dict['rmse_e_per_atom']) * 1000  # meV / atom
+            #     rmse_f = float(last_dict['rmse_f']) * 1000  # meV / A
 
         # Return failed code
         if not rmse_e or not rmse_f or not model_file:
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
-        self.out('model_file', model_file)
-        self.out('m_rmse_e', orm.Float(rmse_e))
-        self.out('m_rmse_f', orm.Float(rmse_f))
-
+        self.out('extrapolating_structures', extrapolating_structures)
 
 class TrainMACEModelCalculationParser(Parser):
     """Parser for the retrieved files from a MACE training calculation job."""

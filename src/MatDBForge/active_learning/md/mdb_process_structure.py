@@ -149,7 +149,7 @@ if __name__ == "__main__":
     if md_params.get("device") == "cuda":
         mdb_cud.custom_print(
             (
-                f"CUDA INFO: available: {torch.cuda.is_available()}, "
+                f"CUDA INFO - available: {torch.cuda.is_available()}, "
                 f"device_count: {torch.cuda.device_count()}, "
                 f"current_device: {torch.cuda.current_device()}"
             ),
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         # TODO: Apply E/F extrapolation filters
         model_acc_multiplier = settings["active_learning"].get("model_acc_multiplier")
 
-        e_error_threshold = model_acc_multiplier * e_rmse * 0.001
+        e_error_threshold = model_acc_multiplier * e_rmse
         f_error_threshold = model_acc_multiplier * f_rmse
         maximum_value_e = 1000  # meV
         maximum_value_f = 1000  # meV
@@ -269,7 +269,8 @@ if __name__ == "__main__":
             e_f_extrapol.append(idx)
         extrapol_frames_idx.extend(set(e_f_extrapol))
 
-        # TODO: Apply MD filters
+        # Apply MD filters
+        # TODO: We should remove the extrapolating frames from the trajectory
         md_filters = settings.get("md", {}).get("filters", [])
         print("md_filters: ", md_filters)
         if "layer_distance" in md_filters:
@@ -280,14 +281,18 @@ if __name__ == "__main__":
                 )
                 if is_structure_wrong:
                     extrapol_frames_idx.append(idx)
-        print("layer distance extrapol_frames_idx: ", len(extrapol_frames_idx), "\n")
+        mdb_cud.custom_print(
+            f"After layer distance filter: {len(extrapol_frames_idx)}", "debug"
+        )
 
         if "check_atoms_no_neighbor" in md_filters:
             for idx, frame in enumerate(md_traj):
                 is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(struct=frame)
                 if is_structure_wrong:
                     extrapol_frames_idx.append(idx)
-        print("no neighbor extrapol_frames_idx: ", len(extrapol_frames_idx), "\n")
+        mdb_cud.custom_print(
+            f"After no neighbor filter: {len(extrapol_frames_idx)}", "debug"
+        )
 
         # Limit total number of frames
         md_traj_short, mask = limit_md_frames(md_traj, md_params)
