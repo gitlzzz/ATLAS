@@ -114,6 +114,7 @@ def simple_extrapolation_check(curr_it_db_max, curr_it_db_min, descriptor_dict):
 
 
 if __name__ == "__main__":
+
     # Load the rmse_arr.npy file and assign the values to the variables
     rmse_arr = np.load("rmse_arr.npy")
     e_rmse = rmse_arr[0]
@@ -136,6 +137,8 @@ if __name__ == "__main__":
     # Initialize random seed
     rng_seed = np.random.randint(0, int(1e15))
     mdb_cud.custom_print(f"Using random seed: '{rng_seed}'")
+
+    mdb_cud.custom_print("Starting process structure script...", 'info')
 
     # Read TOML file with settings
     with open("settings.toml", "rb") as f:
