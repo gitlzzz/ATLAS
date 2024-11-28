@@ -763,6 +763,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.m_rmse_f = self.ctx.m0_rmse_f
 
             # Optional input, advanced extrapolation might not be enabled.
+            print('self.ctx: ', self.ctx)
             if hasattr(self.ctx, "concave_hull_array"):
                 proc_seed_builder.concave_hull = self.ctx.concave_hull_array
 

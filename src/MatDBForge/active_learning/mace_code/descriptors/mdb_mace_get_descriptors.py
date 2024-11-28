@@ -27,6 +27,8 @@ def generate_descriptors(model_path: str, database):
 
 
 if __name__ == '__main__':
+    print('Running MACE descriptor generation script...')
+
     # As this code will be run as a script,
     # we can keep these variables as constant.
     DATABASE_PATH = 'current_db.xyz'
@@ -53,3 +55,5 @@ if __name__ == '__main__':
     # lists of descriptor values.
     with open('curr_it_db_descriptors.pkl', 'wb') as f:
         pickle.dump(descriptor_dict, f)
+
+    print('MACE descriptor generation script finished!')

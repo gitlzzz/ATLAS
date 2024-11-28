@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.18.1 (2024-11-28)
+
+### Fix
+
+- **al_loop**: moved juliacall deps. to `get_concave_hull_julia()` ([#9854aed](https://github.com/pol-sb/MatDBForge/commit/9854aedeb84e165b462759c40e5eb91495a8ac21))
+- **al_loop**: re-added wandb dependency for autoencoder training ([#ab9bddb](https://github.com/pol-sb/MatDBForge/commit/ab9bddb4014def18aa1da63ab2e4c8131f9193e9))
+
+### Misc
+
+- **al_loop**: added message marking start of procedure to `mdb_process_structure` script ([#04d617e](https://github.com/pol-sb/MatDBForge/commit/04d617e85d2fb143becec52d2964ba7bafbd7f5f))
+
 ## 0.18.0 (2024-11-27)
 
 ### Feature
