@@ -673,9 +673,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Get the calculation limit, from the computer metadata set to 0
         # if not present.
-        # `mdb_calc_limit` is a custom property set with:
+        # `mdb_calc_limit` is a custom property set using:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = code.computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = code_builder.metadata.computer.metadata.get("mdb_calc_limit", 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -684,6 +684,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             can_submit = can_submit_calculation(
                 code=code.label,
                 limit=calc_limit,
+                computer=code_builder.metadata.computer,
             )
 
         # If the calculation cannot be submitted, wait for a minute and check again
@@ -692,6 +693,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             can_submit = can_submit_calculation(
                 code=code.label,
                 limit=calc_limit,
+                computer=code_builder.metadata.computer,
             )
 
         future = self.submit(code_builder)
