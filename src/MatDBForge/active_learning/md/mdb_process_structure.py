@@ -115,8 +115,21 @@ def simple_extrapolation_check(curr_it_db_max, curr_it_db_min, descriptor_dict):
 
 if __name__ == "__main__":
 
+
+    # Initialize random seed
+    rng_seed = np.random.randint(0, int(1e15))
+    mdb_cud.custom_print(f"Using random seed: '{rng_seed}'")
+
+    mdb_cud.custom_print("Starting process structure script...", 'info')
+
+
+
+    # Check for the presence of docker_data folder
+    docker_data = pl.Path("./docker_data")
+    prepend_path = docker_data if docker_data.exists() else pl.Path(".")
+
     # Load the rmse_arr.npy file and assign the values to the variables
-    rmse_arr = np.load("rmse_arr.npy")
+    rmse_arr = np.load(prepend_path/"rmse_arr.npy")
     e_rmse = rmse_arr[0]
     f_rmse = rmse_arr[1]
 
@@ -126,7 +139,7 @@ if __name__ == "__main__":
     id_frames = []
 
     # Define results folder
-    res_folder = pl.Path("./results")
+    res_folder = pl.Path(prepend_path) / pl.Path("./results")
     res_folder.mkdir(exist_ok=True)
 
     # Initialize the logger
@@ -134,14 +147,9 @@ if __name__ == "__main__":
     log_folder.mkdir(exist_ok=True)
     logger = mdb_cud.init_logger(source="mdb", log_path=log_folder)
 
-    # Initialize random seed
-    rng_seed = np.random.randint(0, int(1e15))
-    mdb_cud.custom_print(f"Using random seed: '{rng_seed}'")
-
-    mdb_cud.custom_print("Starting process structure script...", 'info')
 
     # Read TOML file with settings
-    with open("settings.toml", "rb") as f:
+    with open(prepend_path/"settings.toml", "rb") as f:
         settings = tomllib.load(f)
 
     # Parse settings
@@ -175,7 +183,7 @@ if __name__ == "__main__":
             dim_red_settings = settings.get("descriptors", {}).get("pca", {})
 
     # Read the initial structure
-    init_conf_orig = ase_read("curr_structure.xyz", format="extxyz")
+    init_conf_orig = ase_read(prepend_path/"curr_structure.xyz", format="extxyz")
 
     ## Running MD simulations for given temperatures
     for T_start in T_list:
@@ -195,6 +203,7 @@ if __name__ == "__main__":
             T_start=T_start,
             traj_obj=traj_obj,
             init_conf=init_conf,
+            prepend_path=prepend_path,
         )
         mdb_cud.custom_print("MD simulation completed!", "done")
 
@@ -311,7 +320,7 @@ if __name__ == "__main__":
                 )
             case _:
                 descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
-                    model_path="curr_model.model",
+                    model_path=prepend_path/"curr_model.model",
                     database=md_traj_short,
                     descriptor_settings=settings["descriptors"],
                 )
@@ -333,7 +342,7 @@ if __name__ == "__main__":
         # Advanced extrapolation
         if extrap_type == "advanced":
             # Read the concave hull
-            concave_hull = np.load("concave_hull.npy")
+            concave_hull = np.load(prepend_path/"concave_hull.npy")
 
             mdb_cud.custom_print("Applying advanced extrapolation check...", "info")
             # Get latent space for the trajectory
@@ -346,7 +355,7 @@ if __name__ == "__main__":
                         "train_settings"
                     )
 
-                    model = torch.load(aut_t_params.get("model_path"))
+                    model = torch.load(prepend_path/aut_t_params.get("model_path"))
                     model.to(dtype=torch.float32)
 
                     descriptor_dict = mdb_ae.get_latent_space_autoencoder(
@@ -376,8 +385,8 @@ if __name__ == "__main__":
         elif extrap_type == "basic":
             # Read the minimum and maximum values for each descriptor
             # for the entire database
-            curr_it_db_max = np.load("curr_it_db_max.npy")
-            curr_it_db_min = np.load("curr_it_db_min.npy")
+            curr_it_db_max = np.load(prepend_path/"curr_it_db_max.npy")
+            curr_it_db_min = np.load(prepend_path/"curr_it_db_min.npy")
 
             simple_extrapolation_check(curr_it_db_max, curr_it_db_min, descriptor_dict)
 

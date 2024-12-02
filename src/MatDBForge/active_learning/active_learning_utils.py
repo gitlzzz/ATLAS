@@ -105,7 +105,7 @@ def generate_descriptors_mace(
 def generate_descriptors_soap(database, descriptor_settings: dict): ...
 
 
-def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
+def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path = "."):
     """
     Run MD simulations using ASE and MACE.
 
@@ -117,8 +117,10 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
         Dictionary containing the MD parameters.
     T_start : float
         Initial temperature of the MD simulation.
-    traj_obj :
-        _description_
+    traj_obj : ASE trajectory object
+        ASE trajectory object to store the MD simulation.
+    prepend_path : str, optional
+        Path to prepend to the model path, by default None
     """
     T_multiplier = md_params.get("max_temp_multiplier", 1.0)
     T_end = T_start * T_multiplier
@@ -134,8 +136,10 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
     md_params["write_interval"] = write_interval
 
     # Load the trained model as an ASE calculator and attach it to the atoms object
+    model_path = Path(prepend_path) / "curr_model.model"
+
     calculator = MACECalculator(
-        model_paths="curr_model.model",
+        model_paths=model_path,
         device=md_params.get("device", "cpu"),
         default_dtype=md_params.get("dtype", "float64"),
     )
@@ -143,6 +147,11 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
 
     # Set the momenta corresponding to T=300K
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)
+
+    # Creating the log folder (if it does not exist, this applies when running
+    # from a docker container)
+    log_folder = (Path(prepend_path) / "logs")
+    log_folder.mkdir(exist_ok=True)
     print("init_conf: ", init_conf)
 
     match thermostat:
@@ -155,7 +164,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
                 temperature_K=T_start,
                 friction=friction,
                 trajectory=traj_obj,
-                logfile=f"logs/md_info-{T_start}K.log",
+                logfile=log_folder / f"md_info-{T_start}K.log",
             )
         case "nose-hoover":
             # Change the simulation box to remove any small numbers not in the diagonal
@@ -172,7 +181,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj):
                 ttime=100 * units.fs,
                 pfactor=None,
                 trajectory=traj_obj,
-                logfile=f"logs/md_info-{T_start}K.log",
+                logfile=log_folder / f"md_info-{T_start}K.log",
             )
     mdb_cud.custom_print("Running MD simulation using settings:", "info")
     rprint(md_params)
