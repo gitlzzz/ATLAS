@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.2 (2024-12-02)
+
+### Fix
+
+- **al_loop**: add prepend_path to mdb_process_structure to allow compatibility with docker ([#80a1289](https://github.com/pol-sb/MatDBForge/commit/80a1289093b25f3a1e5e2db4499f6a0e9bdbd0ab))
+- **al_loop**: change `get_concave_hull` aiida computer definition in `SimpleActiveLearningWorkChain` ([#1f391b6](https://github.com/pol-sb/MatDBForge/commit/1f391b6283c428ab0e8c2c9bd5c2bc3c7d01711a))
+
 ## 0.18.1 (2024-11-28)
 
 ### Fix
