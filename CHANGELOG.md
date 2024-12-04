@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.3 (2024-12-04)
+
+### Fix
+
+- **al_loop**: reintroduced standard version of `TrainMACEModelCalculationParser()` ([#016279c](https://github.com/pol-sb/MatDBForge/commit/016279c7f51a6ac6777347442203418c014e93b9))
+
 ## 0.18.2 (2024-12-02)
 
 ### Fix
