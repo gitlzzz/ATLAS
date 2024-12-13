@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.19.0 (2024-12-14)
+
+### Feature
+
+- **gen_db**: new adsorbate placement strategy (thank you @lll0606) and several improvements to dastabase generation ([#315a42b](https://github.com/pol-sb/MatDBForge/commit/315a42b125cc6e4b01b3a17b8b091d0f5e26b518))
+- **dft**: added `mdb_run_dft_database` to entry points ([#5dfa2aa](https://github.com/pol-sb/MatDBForge/commit/5dfa2aa1c004694f4652d5f399f1b918f86065bc))
+- **dft**: introduced `mdb_run_dft_database` utility to run dft calculations for mdb databases ([#c342594](https://github.com/pol-sb/MatDBForge/commit/c3425944e872939d385c3ac6303c83a01b8bb3cd))
+
+### Fix
+
+- **core**: removed forced logger handler clearing from git tag gathering strategy ([#394a6b5](https://github.com/pol-sb/MatDBForge/commit/394a6b52e2807af1fd1e5d437929dcc90f696f14))
+
+### Misc
+
+- **core**: updated clarity of several exceptions ([#610d435](https://github.com/pol-sb/MatDBForge/commit/610d43579e545424f6f0436854899e8c4702ec0f))
+
 ## 0.18.3 (2024-12-04)
 
 ### Fix
