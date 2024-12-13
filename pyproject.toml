@@ -89,6 +89,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb_gen_init_db" = "MatDBForge.core.command_line.cli_generate_init_db:run_gen_initial_database"
 "mdb_init_setup" = "MatDBForge.core.command_line.cli_run_initial_config:run_initial_config"
 "mdb_train_autoencoder" = "MatDBForge.core.command_line.cli_train_autoencoder:run_train_autoencoder"
+"mdb_run_dft_database" = "MatDBForge.workflows.dft.vasp.aiida_run_vasp_dft_database:main"
 
 [tool.setuptools]
 include-package-data = true
