@@ -281,7 +281,7 @@ def get_mdb_version_info():
     return curr_version, last_tagged_version
 
 
-def check_mdb_version():
+def check_mdb_version(logger=None):
     """
     Check and print if the current version of MatDBForge is up-to-date.
 
@@ -293,7 +293,10 @@ def check_mdb_version():
     curr_version, last_tagged_version = get_mdb_version_info()
 
     print()
-    logger, _ = init_logger('mdb_version_check')
+    new_logger = False
+    if not logger:
+        new_logger = True
+        logger, _ = init_logger('mdb_version_check')
 
     if curr_version < last_tagged_version:
         custom_print(
@@ -310,6 +313,7 @@ def check_mdb_version():
     print()
 
     # Clearing version check logger
-    logger.handlers.clear()
+    if new_logger:
+        logger.handlers.clear()
 
     return curr_version, last_tagged_version
