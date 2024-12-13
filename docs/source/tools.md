@@ -124,6 +124,23 @@ Generates an initial database for MatDBForge. A `.toml` configuration is require
   - **Default**: `./database_generation_settings.toml`
 
 
+## Run DFT Database - `mdb_run_dft_database`
+
+Runs VASP DFT calculations for a database of structures using AiiDA-VASP. A .toml configuration file is required to specify the input settings for HPC and VASP. Refer to the [corresponding inputs section](input.md#database-batch-dft-execution) for more details about the available configuration options.
+
+**Usage**: `mdb_run_dft_database [-h] --db_file FILE --config FILE`
+
+- `--db_file FILE, -i FILE`
+  - **Description**: Path to the extxyz file containing the database of structures.
+  - **Type**: `Path`
+  - **Required**: Yes
+
+- `--config FILE, -c FILE`
+  - `Description`: Path to the TOML file with HPC and VASP input configuration.
+  - `Type`: `Path`
+  - `Required`: Yes
+
+
 ## Autoencoder for Dimensionality Reduction - `mdb_train_autoencoder`
 
 Train an autoencoder model for dimensionality reduction using the generated descriptors.

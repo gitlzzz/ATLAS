@@ -74,6 +74,7 @@ The goal of this library is to provide workflows, functions and utilities for st
 During the library installation, several entry points will be added so that the user can easily run the different utilities:
 
 - `mdb_init_setup`: Run initial configuration steps after installing MatDBForge.
+- `mdb_run_dft_database`: Run DFT calculations for a MatDBForge structure database.
 - `mdb_gen_configuration_file`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
 - `mdb_gen_init_db`: Generate a database containing structures for NNP training.
 - `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
@@ -138,7 +139,11 @@ The structures can be labelled automatically with VASP, or as a quick testing us
 mace_eval_configs  --configs ./unlabelled_db.xyz  --model /model/path cu_model_zan.model --output ./labelled_db.xyz --device cpu --batch_size 5
 ```
 
-- **(👷 WIP 🕒)** In order to use **VASP for structure labelling**, check the scripts in the [examples](./src/MatDBForge/examples/) directory.
+- In order to use **VASP for structure labelling**, run the `mdb_run_dft_database` command providing a configuration file (can be generated with `mdb_gen_configuration_file -t run_dft_database`) with the input settings and the path of the database:
+
+```bash
+mdb_run_dft_database  --db_file ./database.xyz  -c settings.toml
+```
 
 ### 3. Run active learning loop
 

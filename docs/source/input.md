@@ -533,3 +533,94 @@ General incar settings to be used as a template for all calculations. Different 
 
 ```{literalinclude} ../../src/MatDBForge/data/input_files/active_learning_settings.toml
 ```
+
+## Database Batch DFT Execution
+
+Run DFT calculations for batches of structures in MatDBForge databases using `mdb_run_dft_database`.
+
+### General Settings - [general]
+
+This section contains the general settings for the database batch DFT execution utility.
+
+- `log_path`: (str) Path where the logs will be stored. Default is /tmp/.
+- `aiida_group_name`: (str) Name of the AiiDA group for the calculations. Example: example_group.
+- `max_batch`: (int) Maximum number of structures to process in one batch. It will be capped to the number of structures in the source database. Example: 100.
+- `queue_check_interval_seconds` (int) Every how many seconds to check the queue to submit new calculations. Default is 240 seconds.
+- `start_on_struct_idx`: (int) Number of structures to skip before starting the calculations. Default is 0.
+- `dry_run`: (bool, optional) If true, a dry-run is performed, i.e., no calculations are submitted. Default is false.
+- `selected_structure_type`: (str, optional) String representing a type of structure to process out of: bulk, surface, or cluster. Only the structures of the selected type will be processed.
+
+### Calculation Settings - [calculation]
+
+This section defines the settings for the calculations.
+
+- `calc_type`: (str) Type of calculation. Different INCAR settings can be defined for the different structure types (bulk, surface, cluster) in the incar section. Default is static. Options:
+  - `static`: Single point calculation.
+  - `relaxation`: Geometry optimization.
+- `aiida_potential_family`: (str) AiiDA potential family name. Example: vasp-5.4-PBE-2023.
+- `potential_mapping`: (dict, optional) Mapping of elements to potential label. Example:`potential_mapping.Si = 'Si_GW'`.
+
+### K-point Settings - [kpoints]
+
+This section contains information related to the k-spacing for the calculations.
+
+- `kspacing`: (int | dict) K-spacing in $Å^{-1}$ for different phases or a single value for all structures. Example:
+
+```ini
+a-ir = 0.001
+ir6o = 0.005
+ir3o = 0.100
+ir2o = 0.001
+iro = 0.002
+```
+
+### Queue Settings - [queue]
+
+This section defines the settings for the queue and HPC resource allocation. Example options for SLURM:
+
+- `code_string`: (str) Name of the code as defined in AiiDA. Example: aiida-code-name.
+- `account`: (str) Account to be used for the calculations. Example: example_user.
+- `qos`: (str) Quality of service parameter. Example: example_qos.
+- `node_cpus`: (int) Number of CPUs per node. Example: 24.
+- `max_wallclock_seconds`: (int) Maximum wallclock time in seconds. Example: 16200 seconds.
+- `max_memory_kb`: (int) Maximum memory per node in KB. Example: 96000000.
+- `multiple`: (int) Whether to use multiple nodes. Example: 1.
+- `custom_scheduler_commands`: (str) Custom scheduler commands. Example: "" (empty string).
+
+#### Resources - [queue.options_resources]
+
+tot_num_mpiprocs (int): Total number of MPI processes. Example: 24.
+
+### INCAR Settings - [incar]
+
+This section provides INCAR settings for different structure types. Check the VASP manual for the meaning of the different tags.
+
+#### Bulk Structures - [incar.bulk]
+
+Contents of the INCAR file for bulk structures, specified as follows:
+
+```ini
+...
+SYSTEM = "Bulk structure"
+istart = 0
+icharg = 2
+gga = "Pe"
+ispin = 1
+encut = 450  # Electronic steps
+ediff = 1e-6
+ismear = 0
+...
+```
+
+#### Surface Structures - [incar.surface]
+
+Contents of the INCAR file for slab structures.
+
+#### Cluster Structures - [incar.cluster]
+
+Contents of the INCAR file for cluster structures.
+
+## Input Example: Database Batch DFT Execution
+
+```{literalinclude} ../../src/MatDBForge/data/input_files/dft_settings.toml
+```
