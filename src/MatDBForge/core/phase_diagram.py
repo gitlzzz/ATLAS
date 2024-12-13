@@ -10,7 +10,7 @@ from slugify import slugify
 from MatDBForge.core import exceptions as mdb_exc
 
 
-def PhaseDiagram(material: str, element_list: list, base_elem: str, *phases: 'Phase'):
+def PhaseDiagram(material: str, element_list: list, base_elem: str, *phases: "Phase"):
     """
     Factory method to return a BinaryPhaseDiagram or TernaryPhaseDiagram
     depending on the number of elements in the element_list.
@@ -36,7 +36,7 @@ def PhaseDiagram(material: str, element_list: list, base_elem: str, *phases: 'Ph
         return TernaryPhaseDiagram(material, element_list, base_elem, *phases)
     else:
         raise NotImplementedError(
-            'PhaseDiagram only supports binary or ternary diagrams.'
+            "PhaseDiagram only supports binary or ternary diagrams."
         )
 
 
@@ -62,7 +62,7 @@ class BasePhaseDiagram:
     """
 
     def __init__(
-        self, material: str, element_list: list, base_elem: str, *phases: 'Phase'
+        self, material: str, element_list: list, base_elem: str, *phases: "Phase"
     ):
         self.phases = []
         self.phase_names = []
@@ -101,7 +101,7 @@ class BasePhaseDiagram:
 
         self.phase_dict[phase.name] = phase
 
-    def get_phase(self, phase) -> 'Phase':
+    def get_phase(self, phase) -> "Phase":
         """Get a phase object from the phase diagram."""
         if isinstance(phase, Phase):
             return self.phase_dict[phase.name]
@@ -112,7 +112,7 @@ class BasePhaseDiagram:
             else:
                 return None
         else:
-            raise TypeError('The given phase object is not a Phase-like object.')
+            raise TypeError("The given phase object is not a Phase-like object.")
 
     def _calculate_centroid(self, vertices):
         """Calculte the centroid of a polygon.
@@ -137,14 +137,14 @@ class BasePhaseDiagram:
 
     def __repr__(self):
         description = f"{self.__class__.__name__} named '{self.material}', for elements"
-        description += f' {[str(ele) for ele in self.element_list]} and '
-        description += 'containing '
+        description += f" {[str(ele) for ele in self.element_list]} and "
+        description += "containing "
 
         if len(self.phases) == 0:
-            description += 'no phases (empty).'
+            description += "no phases (empty)."
         else:
             phase_list = [phase.name for phase in self.phases]
-            description += f'{len(phase_list)} phases:' f' {phase_list}'
+            description += f"{len(phase_list)} phases:" f" {phase_list}"
 
         return description
 
@@ -153,10 +153,10 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
     """Binary phase diagram class for two elements."""
 
     def __init__(
-        self, material: str, element_list: list, base_elem: str, *phases: 'Phase'
+        self, material: str, element_list: list, base_elem: str, *phases: "Phase"
     ):
         if len(element_list) != 2:
-            raise ValueError('BinaryPhaseDiagram requires exactly 2 elements.')
+            raise ValueError("BinaryPhaseDiagram requires exactly 2 elements.")
         super().__init__(material, element_list, base_elem, *phases)
 
     def plot_diagram(
@@ -227,8 +227,8 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
 
         # Plot the phases
         for idx, phase in enumerate(self.phases):
-            comp_min = phase.composition[str(self.base_elem)]['min'] * 100
-            comp_max = phase.composition[str(self.base_elem)]['max'] * 100
+            comp_min = phase.composition[str(self.base_elem)]["min"] * 100
+            comp_max = phase.composition[str(self.base_elem)]["max"] * 100
             arr = np.array(
                 [
                     (comp_min, max_temp_K),
@@ -240,7 +240,7 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
             patch = ax.fill(
                 arr[:, 0],
                 arr[:, 1],
-                ec='k',
+                ec="k",
                 fc=color_list[idx],
                 alpha=0.1,
                 zorder=ini_zorder - (idx * 0.1),
@@ -256,17 +256,17 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
                 centroid[0],
                 phase_label_heights[idx],
                 label,
-                ha='center',
-                va='center',
+                ha="center",
+                va="center",
                 transform=ax.transData,
                 rotation=25,
-                weight='bold',
+                weight="bold",
             )
 
         # Update the chart layout
-        ax.grid(which='both')
-        ax.set_xlabel(f'Composition at. % {self.base_elem}')
-        ax.set_ylabel('T [K]')
+        ax.grid(which="both")
+        ax.set_xlabel(f"Composition at. % {self.base_elem}")
+        ax.set_ylabel("T [K]")
         ax.set_xlim(-5, 105)
         ax.set_ylim(min_temp_K, max_temp_K)
         ax.set_title(f"'{self.material}' Binary Phase Diagram")
@@ -282,14 +282,14 @@ class TernaryPhaseDiagram(BasePhaseDiagram):
     """Ternary phase diagram class for three elements."""
 
     def __init__(
-        self, material: str, element_list: list, base_elem: str, *phases: 'Phase'
+        self, material: str, element_list: list, base_elem: str, *phases: "Phase"
     ):
         if len(element_list) != 3:
-            raise ValueError('TernaryPhaseDiagram requires exactly 3 elements.')
+            raise ValueError("TernaryPhaseDiagram requires exactly 3 elements.")
         super().__init__(material, element_list, base_elem, *phases)
 
     def plot_diagram(self):
-        ax = plt.subplot(projection='ternary', ternary_sum=100.0)
+        ax = plt.subplot(projection="ternary", ternary_sum=100.0)
 
         # Get the number of phases and create n colors from the viridis colormap
         color_list = plt.cm.viridis(np.linspace(0, 1, len(self.phases)))
@@ -298,7 +298,7 @@ class TernaryPhaseDiagram(BasePhaseDiagram):
         for idx, curr_phase in enumerate(self.phases):
             tn0, tn1, tn2 = np.array(curr_phase).T
             patch = ax.fill(
-                tn0, tn1, tn2, ec='k', fc=color_list[idx], alpha=0.1, zorder=2.1
+                tn0, tn1, tn2, ec="k", fc=color_list[idx], alpha=0.1, zorder=2.1
             )
             centroid = self._calculate_centroid(patch[0].get_xy())
 
@@ -308,8 +308,8 @@ class TernaryPhaseDiagram(BasePhaseDiagram):
                 centroid[0],
                 centroid[1],
                 label,
-                ha='center',
-                va='center',
+                ha="center",
+                va="center",
                 transform=ax.transData,
             )
 
@@ -321,15 +321,15 @@ class TernaryPhaseDiagram(BasePhaseDiagram):
         ax.laxis.set_minor_locator(AutoMinorLocator(2))
         ax.raxis.set_minor_locator(AutoMinorLocator(2))
 
-        ax.grid(which='both')
+        ax.grid(which="both")
 
-        ax.set_tlabel('Clay (%)')
-        ax.set_llabel('Sand (%)')
-        ax.set_rlabel('Silt (%)')
+        ax.set_tlabel("Clay (%)")
+        ax.set_llabel("Sand (%)")
+        ax.set_rlabel("Silt (%)")
 
-        ax.taxis.set_ticks_position('tick2')
-        ax.laxis.set_ticks_position('tick2')
-        ax.raxis.set_ticks_position('tick2')
+        ax.taxis.set_ticks_position("tick2")
+        ax.laxis.set_ticks_position("tick2")
+        ax.raxis.set_ticks_position("tick2")
 
 
 class Phase:
@@ -351,7 +351,10 @@ class Phase:
         The parent PhaseDiagram object that the phase belongs to.
     replace_dict: dict
         A dictionary of replacements for the prototype structure.
-
+    spacegroup: str
+        The spacegroup of the phase.
+    symbol: str
+        The symbol of the phase.
     """
 
     def __init__(
@@ -367,8 +370,12 @@ class Phase:
         base_elem: str = None,
         allow_modifications: bool = True,
         use_cache: bool = False,
+        spacegroup: str = None,
+        symbol: str = None,
     ):
         self.name = slugify(name)
+        self.spacegroup = spacegroup
+        self.symbol = symbol
         self.original_name = name
         self.phase_diagram = phase_diagram
         self.element_list = [Element(ele) for ele in sorted(element_list)]
@@ -378,7 +385,7 @@ class Phase:
         elif Element(base_elem) in self.element_list:
             self.base_elem = Element(base_elem)
         else:
-            raise mdb_exc.MissingElementError(base_elem, element_list)
+            raise mdb_exc.MissingElementError(base_elem, element_list, self.name)
 
         # cluster_elem should be the base_base element if not specified
         if cluster_elem is None:
@@ -386,16 +393,16 @@ class Phase:
         elif Element(cluster_elem) in self.element_list:
             self.cluster_elem = Element(cluster_elem)
         else:
-            raise mdb_exc.MissingElementError(cluster_elem, element_list)
+            raise mdb_exc.MissingElementError(cluster_elem, element_list, self.name)
 
         if set(composition.keys()) != set(element_list):
             raise mdb_exc.CompositionNotMatchingElementListError(
-                str(list(composition.keys())), str(element_list)
+                str(list(composition.keys())), str(element_list), self.name
             )
         self.composition = composition
 
-        self.base_elem_comp_max = float(self.composition[str(self.base_elem)]['max'])
-        self.base_elem_comp_min = float(self.composition[str(self.base_elem)]['min'])
+        self.base_elem_comp_max = float(self.composition[str(self.base_elem)]["max"])
+        self.base_elem_comp_min = float(self.composition[str(self.base_elem)]["min"])
 
         self.prototype = prototype
 
@@ -425,10 +432,10 @@ class Phase:
                 f" {self.composition[ele]['max']*100:.1f}%,"
             )
 
-        repr_string += ' |'
+        repr_string += " |"
         if self.phase_diagram is not None:
             repr_string += (
-                f' Belongs to {self.phase_diagram.__class__.__name__}, '
+                f" Belongs to {self.phase_diagram.__class__.__name__}, "
                 f"'{self.phase_diagram.material}'"
             )
 

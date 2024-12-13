@@ -11,7 +11,6 @@ import uuid
 import numpy as np
 import pandas as pd
 from ase import Atoms, visualize
-from ase.io import read as ase_read
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from pymatgen.core import Structure
@@ -24,10 +23,11 @@ import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 from MatDBForge.core.code_utils import custom_print, get_config_path
+from MatDBForge.core.surfaces import AdsorbateAdder
 
-LINE_UP = '\033[1A'
-LINE_CLEAR = '\x1b[2K'
-CONFIG_EXAMPLE = {'API_KEY': 'XXXXX...'}
+LINE_UP = "\033[1A"
+LINE_CLEAR = "\x1b[2K"
+CONFIG_EXAMPLE = {"API_KEY": "XXXXX..."}
 
 
 def clear_previous_print():
@@ -57,29 +57,29 @@ def gather_secrets():
     dict
         object containing the api key
     """
-    config_path = get_config_path() / 'mdb'
+    config_path = get_config_path() / "mdb"
 
-    if pathlib.Path('secrets.json').exists():
-        with open('secrets.json') as f:
+    if pathlib.Path("secrets.json").exists():
+        with open("secrets.json") as f:
             secrets = js.load(f)
 
-    elif pathlib.Path(config_path, 'secrets.json').exists():
-        path = pathlib.Path(config_path, 'secrets.json')
+    elif pathlib.Path(config_path, "secrets.json").exists():
+        path = pathlib.Path(config_path, "secrets.json")
         with open(path) as f:
             secrets = js.load(f)
-    elif os.environ.get('MP_API_KEY'):
-        secrets = {'API_KEY': os.environ.get('MP_API_KEY')}
+    elif os.environ.get("MP_API_KEY"):
+        secrets = {"API_KEY": os.environ.get("MP_API_KEY")}
 
     else:
         print()
         custom_print(
-            '[bold red blink]Materials Project secrets missing: '
+            "[bold red blink]Materials Project secrets missing: "
             "'secrets.json' not found![/]\n"
             "[bold red]Please, either run 'mdb_init_setup', set the 'MP_API_KEY'"
             " environment variable,\nor add a 'secrets.json' file in the"
             f" following directory: '{config_path}',\nwith the following format:[/]\n"
-            f'{CONFIG_EXAMPLE}',
-            'error',
+            f"{CONFIG_EXAMPLE}",
+            "error",
         )
         secrets = None
         sys.exit(420)
@@ -90,7 +90,7 @@ def gather_secrets():
 # TODO: Update or remove
 def check_incorrect_ratios(df, curr_phase_diag):
     for _id, row in df.iterrows():
-        if not row.base and not row.material_name.endswith('_symm'):
+        if not row.base and not row.material_name.endswith("_symm"):
             strct = row.structure.get_sorted_structure()
             name = row.material_name
             phase = curr_phase_diag.get_phase(row.phase)
@@ -98,19 +98,19 @@ def check_incorrect_ratios(df, curr_phase_diag):
             tot_atoms = len(strct.species)
             one_at_perc = 1 / tot_atoms
 
-            tot_cu = strct.species.count(Species('Cu')) + strct.species.count(
-                Element('Cu')
+            tot_cu = strct.species.count(Species("Cu")) + strct.species.count(
+                Element("Cu")
             )
-            tot_zn = strct.species.count(Species('Zn')) + strct.species.count(
-                Element('Zn')
+            tot_zn = strct.species.count(Species("Zn")) + strct.species.count(
+                Element("Zn")
             )
 
             # Checking the total atom number
             if tot_cu + tot_zn != tot_atoms:
                 raise ValueError(
-                    'Total count does not match.'
-                    f' tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}.'
-                    f' Species: {set(strct.species)}'
+                    "Total count does not match."
+                    f" tot_cu: {tot_cu}, tot_zn: {tot_zn}, total: {tot_atoms}."
+                    f" Species: {set(strct.species)}"
                 )
 
             perc = round(tot_zn / tot_atoms, 2)
@@ -132,10 +132,10 @@ def check_incorrect_ratios(df, curr_phase_diag):
                 ):
                     custom_print(
                         (
-                            f'{name}: {perc:.2f} Zn outside of ({offset_min:.2f} -'
-                            f' {offset_max:.2f}) range'
+                            f"{name}: {perc:.2f} Zn outside of ({offset_min:.2f} -"
+                            f" {offset_max:.2f}) range"
                         ),
-                        'error',
+                        "error",
                     )
                 else:
                     pass
@@ -172,7 +172,7 @@ def display_dataframe_ase(dataframe):
     """
     structures = dataframe.structure
 
-    data_dict = {'filename': dataframe.material_name}
+    data_dict = {"filename": dataframe.material_name}
     _display_indb_dataframe(structures, data=data_dict)
 
 
@@ -197,23 +197,23 @@ def similarity_check_list(
     db_obj, replaced_structures, r_cut=None, n_max=None, l_max=None, save_in_db=True
 ):
     custom_print(
-        f'Checking replacements for {len(replaced_structures)} structures.', 'debug'
+        f"Checking replacements for {len(replaced_structures)} structures.", "debug"
     )
 
     # Checking for similarity after replacement
     uuid_list = _check_repeat_struct_list(
         replaced_structures, r_cut=r_cut, l_max=2, n_max=2
     )
-    print('uuid_list: ', len(uuid_list))
+    print("uuid_list: ", len(uuid_list))
 
     # Deleting equivalent structures
     replaced_structures = _del_structure_list_by_uuid(replaced_structures, uuid_list)
     custom_print(
-        f'{len(replaced_structures)} structures after duplicate check', 'debug'
+        f"{len(replaced_structures)} structures after duplicate check", "debug"
     )
 
     if save_in_db:
-        custom_print('Saving to db...', 'debug')
+        custom_print("Saving to db...", "debug")
         for _idx, cluster in enumerate(replaced_structures):
             db_obj._save_row(structure=cluster)
 
@@ -242,7 +242,7 @@ def gauss_perturb(structure: Structure, center: float = 0.04):
 
 
 def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
-    print('r_cut: ', r_cut)
+    print("r_cut: ", r_cut)
 
     species_list = [el.Z for el in mdb_indb.CuZnInitialDatabase.ALLOY_SET]
 
@@ -270,7 +270,7 @@ def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
 
     # Calculating similarity with an average kernel and a gaussan metric. The
     # result will be a full similarity matrix.
-    kernel = AverageKernel(metric='rbf', gamma=1)
+    kernel = AverageKernel(metric="rbf", gamma=1)
     simi_matrix = kernel.create(soap_structs)
 
     # For every structure, check if it is repeated more than once (itself)
@@ -304,12 +304,12 @@ def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
     struct_size = len(pymg_structure_list[0].species)
     custom_print(
         (
-            f'Duplicate check for size {struct_size} - Total selected structures:'
-            f'  {len(structure_list)}'
-            f', equivalent: {len(repeat_struct_uuid)}'
-            f' ({(len(repeat_struct_uuid)/len(structure_list))*100:.2f}%)'
+            f"Duplicate check for size {struct_size} - Total selected structures:"
+            f"  {len(structure_list)}"
+            f", equivalent: {len(repeat_struct_uuid)}"
+            f" ({(len(repeat_struct_uuid)/len(structure_list))*100:.2f}%)"
         ),
-        'debug',
+        "debug",
     )
     return repeat_struct_uuid
 
@@ -395,7 +395,7 @@ def apply_replacement_no_db(
 
 
 def apply_central_atom_octahedral(
-    db_obj: 'mdb_indb.InitialDatabase',
+    db_obj: "mdb_indb.InitialDatabase",
     filter_phase_list: list[str],
     filter_struct_types: list[str],
     central_element: str | Element,
@@ -436,11 +436,11 @@ def apply_central_atom_octahedral(
             # Update structure attributes (targeted_modification, uuid?) and
             # add structure to db
             mdb_struct_row.structure = new_structure
-            mdb_struct_row.targeted_modification = 'central_atom_perturbation'
+            mdb_struct_row.targeted_modification = "central_atom_perturbation"
             mdb_struct_row.unique_id = str(uuid.uuid4())
             mdb_struct_row.base = row.base
             mdb_struct_row.material_name = (
-                f'{mdb_struct_row.material_name}_perturb_central_{repeat_idx}'
+                f"{mdb_struct_row.material_name}_perturb_central_{repeat_idx}"
             )
             modified_structs.append(mdb_struct_row)
 
@@ -456,7 +456,7 @@ def apply_central_atom_octahedral(
 
     # Use uuid to remove original structures from the database
     for curr_uuid in ids_to_remove:
-        db_obj.df = db_obj.df[db_obj.df['unique_id'] != str(curr_uuid)]
+        db_obj.df = db_obj.df[db_obj.df["unique_id"] != str(curr_uuid)]
 
     # Add modified structures to the database
     for struc in modified_structs:
@@ -473,7 +473,7 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
 
     remaining_df = filtered_df
 
-    custom_print(f'Applying filters: {filters}.', 'debug')
+    custom_print(f"Applying filters: {filters}.", "debug")
 
     # Applying filters. Filter lists are applied with an OR logic.
     if filters:
@@ -483,7 +483,7 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
             appl_filter_db_list.append(appl_filt)
             custom_print(
                 f"Applied filter: '{filt}' - {len(appl_filt)} structs filtered.",
-                'debug',
+                "debug",
             )
 
         filtered_df = pd.concat(appl_filter_db_list, axis=0)
@@ -502,24 +502,24 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
         else:
             if isinstance(phase, str):
                 phase = db_obj.phase_diagram.get_phase(phase)
-            custom_print(f'Using phase: {phase.name}.', 'debug')
+            custom_print(f"Using phase: {phase.name}.", "debug")
             phase_list = [phase.name]
 
-        custom_print(f'phase_list: {phase_list}.', 'debug')
+        custom_print(f"phase_list: {phase_list}.", "debug")
 
     # If no phase is given, getting the unique phases in the dataframe
     else:
         phase_list = filtered_df.phase.unique()
         custom_print(
-            (f'No phase given. ' f'Checking on all phases: {phase_list}.'),
-            'debug',
+            (f"No phase given. " f"Checking on all phases: {phase_list}."),
+            "debug",
         )
 
     # Getting the current phase structures
     # In order to access a method from an object saved in a df, we need to do a
     # check like the following:
     idxs_list = []
-    for idx, val in enumerate(filtered_df['phase']):
+    for idx, val in enumerate(filtered_df["phase"]):
         name = val if isinstance(val, str) else val.name
         if name in phase_list:
             idxs_list.append(idx)
@@ -530,12 +530,12 @@ def apply_filters_db(db_obj, filters, phase: mdb_pd.Phase | str | list = None):
     remaining_df = remaining_df.loc[remaining_df.index.difference(filtered_df.index)]
 
     custom_print(
-        f'Number of filtered structures: {filtered_df.shape[0]}',
-        'debug',
+        f"Number of filtered structures: {filtered_df.shape[0]}",
+        "debug",
     )
     custom_print(
-        f'Number of remaining unfiltered structures: {remaining_df.shape[0]}',
-        'debug',
+        f"Number of remaining unfiltered structures: {remaining_df.shape[0]}",
+        "debug",
     )
 
     return filtered_df, remaining_df, phase_list
@@ -577,7 +577,7 @@ def apply_replacement(
         n_target_at = 1
 
     curr_n_base_atoms = int(curr_comp[phase.base_elem])
-    replacement_type = 'add' if n_target_at > curr_n_base_atoms else 'sub'
+    replacement_type = "add" if n_target_at > curr_n_base_atoms else "sub"
 
     # Getting current structure composition information
     # The current procedure assumes that all of the atom species in the structure
@@ -599,7 +599,7 @@ def apply_replacement(
     #         other_elem = list(phase_diagram.alloy_set)[0]
 
     # Adding base atoms to match the target percentage
-    if replacement_type == 'add':
+    if replacement_type == "add":
         n_at_diff = n_target_at - curr_n_base_atoms
         spec_to_replace = Element(other_elem)
         replacing_elem = Element(base_elem)
@@ -630,7 +630,7 @@ def apply_replacement(
                 "Add one of the formula's elements to the current phase"
                 " 'replacements.element_list'."
             ),
-            'error',
+            "error",
         )
         sys.exit(1)
 
@@ -728,7 +728,7 @@ def create_symmetrical_prototype(
     structure: Structure,
     phase_diagram: mdb_pd.PhaseDiagram,
     phase: mdb_pd.Phase,
-    structure_obj: 'mdb_struct.Structure',
+    structure_obj: "mdb_struct.Structure",
 ):
     phase = structure_obj.phase
 
@@ -762,7 +762,7 @@ def create_symmetrical_prototype(
 
     # Generating the symmetrized structure
     new_struct_symm = mdb_struct.Structure(
-        material_name=f'{material_id_prefix}_{phase.name}_symm',
+        material_name=f"{material_id_prefix}_{phase.name}_symm",
         material_id=material_id_prefix,
         structure=new_structure,
         temperature=structure_obj.temperature,
@@ -785,8 +785,8 @@ def create_symmetrical_prototype(
         final_struct = new_struct_symm.to_cluster()
     else:
         raise NotImplementedError(
-            'Symmetrical prototype not implemented for'
-            'implemented for current structure type.'
+            "Symmetrical prototype not implemented for"
+            "implemented for current structure type."
         )
 
     # self.df = final_struct.save_to_db(self.df)
@@ -846,9 +846,9 @@ def find_supercell_indices(
 
     if verbose:
         custom_print(
-            f'Supercell generated {supercell_vec}'
-            f' - total atoms: {len(new_structure.species)}',
-            'debug',
+            f"Supercell generated {supercell_vec}"
+            f" - total atoms: {len(new_structure.species)}",
+            "debug",
         )
 
     if get_different_supercells:
@@ -888,10 +888,10 @@ def find_supercell_indices(
                     if verbose:
                         custom_print(
                             (
-                                f'Supercell generated (diff.) {supercell_vec} '
-                                f'- total atoms: {struct_size}'
+                                f"Supercell generated (diff.) {supercell_vec} "
+                                f"- total atoms: {struct_size}"
                             ),
-                            'debug',
+                            "debug",
                         )
 
     return structure_list, idx_list, supercell_vec_list
@@ -904,23 +904,23 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
     # Getting current row information
     row_kwargs_dict = {**row}
     for func_name in [
-        'from_db_row',
-        'material_name',
-        'perturb',
-        'from_bulk',
-        'structure',
-        'vacancy',
-        'base',
-        'from_surface',
-        'targeted_modification',
-        'from_cluster',
-        'displacement',
+        "from_db_row",
+        "material_name",
+        "perturb",
+        "from_bulk",
+        "structure",
+        "vacancy",
+        "base",
+        "from_surface",
+        "targeted_modification",
+        "from_cluster",
+        "displacement",
     ]:
         if func_name in row_kwargs_dict:
             row_kwargs_dict.pop(func_name)
 
     # Creating perturbed cluster object
-    mat_str = f'{row.unique_id}_{row.material_id}_perturb_gauss_{per_idx+1}'
+    mat_str = f"{row.unique_id}_{row.material_id}_perturb_gauss_{per_idx+1}"
     perturb_struct = mdb_struct.Structure(
         material_name=mat_str,
         structure=new_struct_perturb,
@@ -942,7 +942,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
 
 def apply_gauss_perturb_db(
     repeat: int,
-    db_obj: 'mdb_indb.InitialDatabase',
+    db_obj: "mdb_indb.InitialDatabase",
     filters: list,
     phase: mdb_pd.Phase,
     center: float = 0.04,
@@ -953,7 +953,7 @@ def apply_gauss_perturb_db(
     if not isinstance(db_obj, mdb_indb.InitialDatabase):
         raise TypeError(
             f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
-            f'database object, not a {type(db_obj)}.'
+            f"database object, not a {type(db_obj)}."
         )
 
     # Filtering structures to perturb
@@ -961,7 +961,7 @@ def apply_gauss_perturb_db(
 
     # Iterating over all filtered database rows to get the unperturbed surfaces
     custom_print(
-        f'Perturbation will be applied to: {filtered_df.shape[0]} structures.', 'debug'
+        f"Perturbation will be applied to: {filtered_df.shape[0]} structures.", "debug"
     )
     for _, row in filtered_df.iterrows():
         if row.perturb:
@@ -971,11 +971,11 @@ def apply_gauss_perturb_db(
 
             perturbed_structs.append(clust_obj)
 
-    custom_print(f'Total structs perturbed: {len(perturbed_structs)}', 'debug')
+    custom_print(f"Total structs perturbed: {len(perturbed_structs)}", "debug")
 
     if limit_num_structures:
         custom_print(
-            f'Limiting number of perturbations to  {limit_num_structures}', 'debug'
+            f"Limiting number of perturbations to  {limit_num_structures}", "debug"
         )
 
         limit_num_structures = np.min([limit_num_structures, len(perturbed_structs)])
@@ -985,17 +985,17 @@ def apply_gauss_perturb_db(
         )
 
     # Saving in database
-    custom_print('Saving perturbed surfaces in dataframe...', 'debug')
+    custom_print("Saving perturbed surfaces in dataframe...", "debug")
     for surface in perturbed_structs:
         db_obj._save_row(structure=surface)
-    custom_print(f'Dataframe shape after saving: {db_obj.df.shape}.', 'debug')
+    custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
 
     return perturbed_structs
 
 
 def limit_num_structures_phase(
-    db_obj: 'mdb_indb.InitialDatabase',
-    phase: 'mdb_pd.Phase',
+    db_obj: "mdb_indb.InitialDatabase",
+    phase: "mdb_pd.Phase",
     num_limit: int,
     rng_seed: int,
 ):
@@ -1003,14 +1003,14 @@ def limit_num_structures_phase(
     rng = np.random.default_rng(seed=rng_seed)
 
     # Getting the current phase structures (df_filtered)
-    df_filtered = db_obj.df.loc[db_obj.df['phase'] == phase.name]
+    df_filtered = db_obj.df.loc[db_obj.df["phase"] == phase.name]
 
     # Gathering the base structures incldued in the current phase
     df_filt_base = df_filtered.loc[df_filtered.base]
 
     # Getting the remaining structures after selecting
     # the phase (df_remaining)
-    df_remaining = db_obj.df.loc[db_obj.df['phase'] != phase.name]
+    df_remaining = db_obj.df.loc[db_obj.df["phase"] != phase.name]
 
     # Getting a num_limit size random sample of the structures from
     # the current phase (df_filt_sample)
@@ -1028,24 +1028,25 @@ def limit_num_structures_phase(
 
 def add_adsorbates(
     repeat: int,
-    db_obj: 'mdb_indb.InitialDatabase',
+    db_obj: "mdb_indb.InitialDatabase",
     filters: list,
     phase: mdb_pd.Phase,
     adsorbate_species: list[str],
     limit_num_structures: int = None,
 ):
-    from acat.build.adlayer import RandomPatternGenerator as RPG
-    from acat.settings import site_heights
+    from ase.geometry import get_layers
+    from rich.progress import track
 
     # Create temporary file to store the trajectory using tmpfile
-    tmp_file = tempfile.NamedTemporaryFile(suffix='.traj').name
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".traj").name
+    print("tmp_file: ", tmp_file)
 
     adsorb_structs = []
 
     if not isinstance(db_obj, mdb_indb.InitialDatabase):
         raise TypeError(
             f"'{apply_gauss_perturb_db.__name__}' expects a MatDBForge "
-            f'database object, not a {type(db_obj)}.'
+            f"database object, not a {type(db_obj)}."
         )
 
     # Filtering structures to perturb
@@ -1053,52 +1054,115 @@ def add_adsorbates(
 
     # Iterating over all filtered database rows to get desired surfaces
     custom_print(
-        f'Perturbation will be applied to: {filtered_df.shape[0]} structures.', 'debug'
+        f"Perturbation will be applied to: {filtered_df.shape[0]} structures.", "debug"
     )
-    for _, row in filtered_df.iterrows():
+
+    target_structs = filtered_df.iterrows()
+
+    if limit_num_structures:
+
+        limit_num_structures = np.min(
+            [limit_num_structures // repeat, filtered_df.shape[0] // repeat]
+        )
+
+        custom_print(
+            f"Limiting number of structures to  {limit_num_structures}", "info"
+        )
+
+        target_structs = np.random.choice(
+            range(limit_num_structures), limit_num_structures, replace=False
+        )
+
+        target_structs = [filtered_df.iloc[struct] for struct in target_structs]
+
+    # for _, row in filtered_df.iterrows():
+    adsorb_structs_l = []
+    for row in track(target_structs, description="Placing adsorbates..."):
+        print("row: ", row)
         struct = row.structure
         if not isinstance(row.structure, Atoms):
             struct = AseAtomsAdaptor().get_atoms(row.structure)
 
-        print('struct: ', type(struct))
-        # Add more heights to the CHOO*
-        heights = {k: v + 0.5 for k, v in site_heights.items()}
+        # TODO: test miller index. Get actual miller from row
+        miller = row.surface_miller
 
-        # TODO: Change surface to the correct one
-        for spec in adsorbate_species:
-            gen = RPG(
-                images=struct,
-                adsorbate_species=spec,
-                min_adsorbate_distance=1.5,
-                surface='fcc111',
-                heights=heights,
-                # species_forbidden_sites={'CHOO': ['ontop','bridge']},
-                trajectory=tmp_file,
-            )
-            gen.run(num_gen=repeat, action='add', num_act=5)
-            atoms = ase_read(tmp_file)
-            adsorb_structs.append(atoms)
-            visualize(atoms)
+        # Getting the layers of the structure
+        layer_num = len(np.unique(get_layers(struct, miller, tolerance=0.3)[0]))
+        print('layer_num: ', layer_num)
 
-    if limit_num_structures:
-        custom_print(
-            f'Limiting number of structures to  {limit_num_structures}', 'debug'
-        )
+        # cust_crystal = crystal(
+        #     symbols=struct,
+        #     spacegroup=phase.spacegroup,
+        #     cell=struct.cell,
+        # )
 
-        limit_num_structures = np.min([limit_num_structures, len(adsorb_structs)])
+        # ase_surf = surface(cust_crystal, miller, layers=1, vacuum=15)
+        # print('ase_surf: ', ase_surf)
 
-        adsorb_structs = np.random.choice(
-            adsorb_structs, limit_num_structures, replace=False
-        )
+        # Getting the layers of the structure
+        # _, layer_levels_sf = get_layers(ase_surf, miller, tolerance=0.1)
+        # layer_num_sf = len(layer_levels_sf)
+
+        # cust_surf = CustomSurface(struct, n_layers=4)
+        # cust_surf = CustomSurface(struct)
+        # print('cust_surf: ', dir(cust_surf))
+        # print('struct: ', struct)
+
+        # sas = SlabAdsorptionSites(
+        #     struct,
+        #     surface=cust_surf,
+        #     composition_effect=True,
+        #     #   ignore_sites=['4fold'],
+        #     label_sites=True,
+        # )
+        # # print("sas: ", sas)
+
+        # # Add more height
+        # print('sas: ', sas)
+        # heights = {k: v + 0.5 for k, v in site_heights.items()}
+
+        # # TODO: Change surface to the correct one
+        # # for spec in adsorbate_species:
+
+        # # print("spec: ", spec)
+        # print('repeat: ', repeat)
+        # gen = RPG(
+        #     images=struct,
+        #     adsorbate_species=adsorbate_species,
+        #     min_adsorbate_distance=1.5,
+        #     surface=cust_surf,
+        #     heights=heights,
+        #     # species_forbidden_sites={'CHOO': ['ontop','bridge']},
+        #     trajectory=tmp_file,
+        #     adsorption_sites=sas,
+        #     append_trajectory=True,
+        # )
+        # gen.run(num_gen=repeat, action="add")
+        # atoms = ase_read(tmp_file)
+        # adsorb_structs.append(atoms)
+            # visualize(atoms)
+
+        # Make this general
+        adder = AdsorbateAdder(cutoff=1.5, coverage=1)
+        ir_sites, o_sites = adder.find_surface_atoms(struct)
+        print(f"Found {len(ir_sites)} exposed Ir atoms")
+        print(f"Found {len(o_sites)} exposed O atoms")
+
+        structures = adder.add_adsorbates(struct, ir_sites, o_sites)
+        adsorb_structs.extend(structures)
+
+    surfaces = [tupl[2] for tupl in adsorb_structs_l]
+    # REMOVE
+    visualize.view(surfaces)
 
     # Saving in database
-    custom_print('Saving surfaces with adsorbates in dataframe...', 'debug')
-    for surface in adsorb_structs:
-        db_obj._save_row(structure=surface)
-    custom_print(f'Dataframe shape after saving: {db_obj.df.shape}.', 'debug')
+    custom_print("Saving surfaces with adsorbates in dataframe...", "debug")
+    for surf in surfaces:
+        db_obj._save_row(structure=surf)
+    custom_print(f"Dataframe shape after saving: {db_obj.df.shape}.", "debug")
 
     # Deleting temporary file
-    os.remove(tmp_file)
+    # os.remove(tmp_file)
 
     return adsorb_structs
 
@@ -1130,8 +1194,8 @@ def fix_bottom_layers(structure: Structure, n_layers: int) -> Structure:
 
     structure_with_constraints = structure.copy()
     structure_with_constraints.add_site_property(
-        'selective_dynamics', selective_dynamics
+        "selective_dynamics", selective_dynamics
     )
 
-    print('structure_with_constraints: ', structure_with_constraints.site_properties)
+    print("structure_with_constraints: ", structure_with_constraints.site_properties)
     return structure_with_constraints

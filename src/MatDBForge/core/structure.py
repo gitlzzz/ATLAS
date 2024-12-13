@@ -429,6 +429,9 @@ class Surface(Structure):
         self.cluster = False
         self.bulk = False
 
+        # Converting surface miller to a list of integers
+        if isinstance(self.surface_miller, str):
+            self.surface_miller = [int(idx) for idx in self.surface_miller]
 
 class Cluster(Structure):
     """Class for cluster structures."""
