@@ -1,0 +1,121 @@
+# General settings for the script
+[general]
+
+# (str) Path where the logs will be stored
+log_path = "/tmp/"
+
+# (str) Name of the AiiDA group for the calculations
+aiida_group_name = "example_group"
+
+# (int) Maximum number of structures to process in one batch.
+# It will be capped to the number of structures in the source database.
+max_batch = 100
+
+# (int) Every how many seconds to check the queue to submit new calculations
+queue_check_interval_seconds = 240
+
+# (int) Number of structures to skip before starting the calculations.
+start_on_struct_idx = 0
+
+# (bool, optional) If True, a dry-run is performed, i.e., no calculations are submitted,
+# By default false.
+dry_run = false
+
+# (str, optional) String representing a type of structure to process out of: 'bulk', 'surface' or 'cluster'.
+# Only the structures of the selected type will be processed.
+# selected_structure_type = "bulk"
+
+
+# Calculation settings
+[calculation]
+
+# (str) Type of calculation. Options:
+# - static: single point calculation
+# - relaxation: geometry optimization
+# Different INCAR settings can be defined for the different structure
+# types (bulk, surface, cluster) in the [incar] section.
+calc_type = "static"
+
+# (str) AiiDA potential family name
+aiida_potential_family = "vasp-5.4-PBE-2023"
+
+# (dict, optional) Mapping of elements to potential label
+# potential_mapping.Si = 'Si_GW' # Potential label for Si
+
+
+# K-point settings
+[kpoints]
+
+# (int | dict) K-spacing in Å^-1 for different phases or a single value for all structures
+[kpoints.kspacing]
+
+a-ir = 0.125
+ir6o = 0.125
+ir3o = 0.125
+ir2o = 0.125
+iro = 0.125
+ir2o3 = 0.125
+ir3o5 = 0.125
+rutile = 0.125
+original-ir = 0.125
+original-iro2 = 0.125
+original-iro3 = 0.125
+0 = 0.125
+
+# Queue settings (example for SLURM)
+[queue]
+
+# (str) Name of the code as defined in AiiDA
+code_string = "aiida-code-name"
+
+# (str) Account to be used for the calculations
+account = "example_user"
+
+# (str) Quality of service parameter
+qos = "example_qos"
+
+# (int) Number of CPUs per node
+node_cpus = 24
+
+# (int) Maximum wallclock time in seconds
+max_wallclock_seconds = 16200
+
+# (int) Maximum memory per node in KB
+max_memory_kb = 96000000
+
+# (int) Whether to use multiple nodes
+multiple = 1
+
+# (int) Custom scheduler commands
+custom_scheduler_commands = ""
+
+[queue.options_resources]
+
+# (int) Total number of MPI processes
+tot_num_mpiprocs = 24
+
+
+# INCAR settings for different structure types
+# Check the VASP manual for the meaning of the different tags
+[incar.bulk]
+
+SYSTEM = "Bulk structure"
+istart = 0
+icharg = 2
+gga = "Pe"
+ispin = 1
+encut = 450  # Electronic steps
+
+
+[incar.surface]
+
+SYSTEM = "Surface structure"
+# PREC = "Accurate"            # Precision setting
+
+[incar.cluster]
+
+SYSTEM = "Cluster structure"
+# ENCUT = 450                  # Energy cutoff in eV
+# ISMEAR = -5                  # Gaussian smearing for clusters
+# SIGMA = 0.05                 # Smearing width
+# PREC = "Accurate"            # Precision setting
