@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.1 (2024-12-14)
+
+### Fix
+
+- **dft**: added `update_db_with_dft_results` function to save DFT simulation results into an output file ([#f701b81](https://github.com/pol-sb/MatDBForge/commit/f701b819f1b4064297b5c3c7237f07c5c0252708))
+
 ## 0.19.0 (2024-12-14)
 
 ### Feature
