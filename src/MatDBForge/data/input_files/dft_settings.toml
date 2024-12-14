@@ -4,6 +4,10 @@
 # (str) Path where the logs will be stored
 log_path = "/tmp/"
 
+# (str) Path for the results file.
+# It will be saved in the extxyz format.
+result_file_path = "dft_calculation_results"
+
 # (str) Name of the AiiDA group for the calculations
 aiida_group_name = "example_group"
 
@@ -104,7 +108,7 @@ istart = 0
 icharg = 2
 gga = "Pe"
 ispin = 1
-encut = 450  # Electronic steps
+encut = 450               # Electronic steps
 
 
 [incar.surface]

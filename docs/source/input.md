@@ -542,7 +542,8 @@ Run DFT calculations for batches of structures in MatDBForge databases using `md
 
 This section contains the general settings for the database batch DFT execution utility.
 
-- `log_path`: (str) Path where the logs will be stored. Default is /tmp/.
+- `log_path`: (str) Path where the logs will be stored. Default is `tmp/`.
+- `result_file_path`: (str, optional) Path for the results file. The file will be saved in the extxyz format. Default is `./dft_calculation_results`.
 - `aiida_group_name`: (str) Name of the AiiDA group for the calculations. Example: example_group.
 - `max_batch`: (int) Maximum number of structures to process in one batch. It will be capped to the number of structures in the source database. Example: 100.
 - `queue_check_interval_seconds` (int) Every how many seconds to check the queue to submit new calculations. Default is 240 seconds.

@@ -19,6 +19,7 @@ from aiida.orm.nodes.data.array.kpoints import KpointsData
 from aiida.plugins import WorkflowFactory
 from aiida_vasp.utils.aiida_utils import get_data_node
 from ase import Atoms
+from ase.io import write as ase_write
 from pymatgen.core.surface import Slab
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.io.vasp import Poscar
@@ -710,6 +711,54 @@ def can_submit_calculation(
     return len(scheduler.get_jobs()) < limit
 
 
+def update_db_with_dft_results(sel_struct_db, queue):
+    """
+    Update the original database with the results from the calculations.
+
+    Parameters
+    ----------
+    sel_struct_db : list[Atoms]
+        List of structures to be updated.
+    queue : list[aiida.orm.nodes.process.workflow.workchain.WorkChainNode]
+        List of AiiDA workchain nodes with the results of the calculations.
+    """
+    from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
+
+    for node in queue:
+        # Skipping if the calculation is not finished
+        if not node.is_finished:
+            continue
+
+        # Getting the unique_id of the calculation
+        unique_id = node.extras.get("mdb_calc_uuid")
+
+        # Getting the index of the calculation in the database
+        last_calcjob = [
+            chld.pk
+            for chld in node.called_descendants
+            if isinstance(chld, orm.CalcJobNode)
+        ][-1]
+
+        # Getting index of the matching structure
+        # There should be only one.
+        # Find a corner to cry if there is more than one.
+        idx = [
+            str_tupl[0]
+            for str_tupl in enumerate(sel_struct_db)
+            if str_tupl[1].info["mdb_id"] == unique_id
+        ][0]
+
+        # Getting the calculation results
+        results_dict = mdb_al_ut.gather_dft_calcs_vasp([last_calcjob])
+
+        # Updating the database with the results
+        sel_struct_db[idx].info["calc_type"] = "vasp_dft"
+        sel_struct_db[idx].info["REF_energy"] = results_dict[0]["info"]["energy"]
+        sel_struct_db[idx].info["REF_stress"] = results_dict[0]["info"]["stress"]
+        sel_struct_db[idx].arrays["REF_forces"] = np.array(results_dict[0]["forces"])
+        sel_struct_db[idx].arrays["positions"] = np.array(results_dict[0]["positions"])
+
+
 def run_dataframe_vasp_aiida_queue(
     initial_db: "mdb_indb.InitialDatabase | list[Atoms]",
     config_dict: dict,
@@ -717,6 +766,14 @@ def run_dataframe_vasp_aiida_queue(
 ):
 
     group_name: str = config_dict.get("general", {}).get("aiida_group_name")
+    results_path: str = pl.Path(
+        config_dict.get("general", {}).get("result_file_path", "dft_results.xyz")
+    )
+
+    # Adding xyz suffix if not present
+    if results_path.suffix != ".xyz":
+        results_path.with_suffix(".xyz")
+
     kspacing_dict: dict | float = config_dict.get("kpoints", {}).get("kspacing")
     dry_run: bool = config_dict.get("general", {}).get("dry_run", False)
     max_batch: int = config_dict.get("general", {}).get("max_batch", 1)
@@ -818,6 +875,7 @@ def run_dataframe_vasp_aiida_queue(
             "info",
         )
         # Check all calculations and remove any that are finished.
+        # chunk_status contains True for finished calculations
         chunk_status = []
         for nod in queue:
             chunk_status.append(nod.is_finished)
@@ -825,6 +883,11 @@ def run_dataframe_vasp_aiida_queue(
 
         # Removing the finished ones from the queue and current chunk
         if not first_step:
+            # Return results database with the dft results
+            update_db_with_dft_results(sel_struct_db, queue)
+            ase_write(results_path, sel_struct_db, format="extxyz")
+
+            # Removing the finished calculations from the queue
             queue = list(np.array(queue)[~chunk_status_arr])
             chunk_status_arr = chunk_status_arr[~chunk_status_arr]
 
