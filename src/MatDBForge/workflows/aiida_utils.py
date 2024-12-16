@@ -753,10 +753,22 @@ def update_db_with_dft_results(sel_struct_db, queue):
 
         # Updating the database with the results
         sel_struct_db[idx].info["calc_type"] = "vasp_dft"
-        sel_struct_db[idx].info["REF_energy"] = results_dict[0]["info"]["energy"]
-        sel_struct_db[idx].info["REF_stress"] = results_dict[0]["info"]["stress"]
-        sel_struct_db[idx].arrays["REF_forces"] = np.array(results_dict[0]["forces"])
-        sel_struct_db[idx].arrays["positions"] = np.array(results_dict[0]["positions"])
+        try:
+            sel_struct_db[idx].info["REF_energy"] = results_dict[0]["info"]["energy"]
+            sel_struct_db[idx].info["REF_stress"] = results_dict[0]["info"]["stress"]
+            sel_struct_db[idx].arrays["REF_forces"] = np.array(
+                results_dict[0]["forces"]
+            )
+            sel_struct_db[idx].arrays["positions"] = np.array(
+                results_dict[0]["positions"]
+            )
+        except IndexError:
+            sel_struct_db[idx].info["REF_energy"] = results_dict["info"]["energy"]
+            sel_struct_db[idx].info["REF_stress"] = results_dict["info"]["stress"]
+            sel_struct_db[idx].arrays["REF_forces"] = np.array(results_dict["forces"])
+            sel_struct_db[idx].info["REF_energy"] = results_dict["info"]["energy"]
+            sel_struct_db[idx].arrays["REF_forces"] = np.array(results_dict["forces"])
+            sel_struct_db[idx].arrays["positions"] = np.array(results_dict["positions"])
 
 
 def run_dataframe_vasp_aiida_queue(
