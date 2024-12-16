@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.2 (2024-12-16)
+
+### Fix
+
+- **dft**: added try block for different result gathering structures ([#dabc40f](https://github.com/pol-sb/MatDBForge/commit/dabc40fdc67d4224b54eb5ddf5e32d3259298076))
+
 ## 0.19.1 (2024-12-14)
 
 ### Fix
