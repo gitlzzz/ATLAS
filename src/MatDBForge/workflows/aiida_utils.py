@@ -469,7 +469,7 @@ def submit_aiida_vasp_calculation(
         mdb_cud.custom_print(
             (
                 f"Launched workchain for structure {index}:"
-                f" '{struct_formula}' ({phase}) - node id: {node.id}"
+                f" '{struct_formula}' ({phase}) - node pk: {node.pk}"
             ),
             "debug",
         )
@@ -620,7 +620,7 @@ def run_dataframe_vasp_simulations_aiida(
                 for nod in chunk_node_list:
                     mdb_cud.custom_print(
                         (
-                            f"VaspCalculation {nod.id} finished: "
+                            f"VaspCalculation '{nod.pk}' finished: "
                             f"{nod.exit_status} - {nod.exit_message}"
                         ),
                         "debug",
@@ -726,7 +726,11 @@ def update_db_with_dft_results(sel_struct_db, queue):
 
     for node in queue:
         # Skipping if the calculation is not finished
-        if not node.is_finished:
+        node: orm.CalcJobNode
+        if not node.is_finished_ok:
+            mdb_cud.custom_print(
+                f"Calculation {node.pk} has status {node.exit_status}.", "warning"
+            )
             continue
 
         # Getting the unique_id of the calculation
