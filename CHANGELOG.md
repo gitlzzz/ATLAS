@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.4 (2024-12-17)
+
+### Fix
+
+- **dft**: changed logic for broken calculations in `update_db_with_dft_results()` ([#f717470](https://github.com/pol-sb/MatDBForge/commit/f717470f51276b6082f2fd8ccad00afcd4cdc646))
+
 ## 0.19.3 (2024-12-17)
 
 ### Fix
