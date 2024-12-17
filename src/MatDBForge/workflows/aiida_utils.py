@@ -264,7 +264,7 @@ def choose_queue(node_type: int, tot_procs: int = None):
     return OPTIONS, CODE_STRING
 
 
-def choose_queue_from_struct(queue_data: dict):
+def choose_queue_from_struct(queue_data: dict, computer: orm.Computer):
     """
     Choose scheduler options for aiida.
 
@@ -308,10 +308,11 @@ def choose_queue_from_struct(queue_data: dict):
     mult_nodes = queue_data["multiple"]
 
     # Specific settings for slurm scheduler
-    if queue_data.get("type") == "slurm":
+    if computer.scheduler_type == "core.slurm":
         options["resources"]["num_cores_per_machine"] = node_cpus
-
-    options["resources"]["tot_num_mpiprocs"] = node_cpus * mult_nodes
+        options["resources"]["num_cores_per_mpiproc"] = 1
+        options["resources"]["num_mpiprocs_per_machine"] = node_cpus
+    options["resources"]["tot_num_mpiprocs"] = node_cpus
 
     return options, code_string, mult_nodes
 
@@ -402,12 +403,20 @@ def submit_aiida_vasp_calculation(
         dynamics_list = target_structure.site_properties.get("selective_dynamics")
         selective_dynamics = {"positions_dof": List(dynamics_list)}
 
+    # Setting code
+    code_string = queue_dict["code_string"]
+    code = orm.load_code(code_string)
+
+    # Getting comptuer from code
+    curr_computer = code.computer
+
     # Jobfile equivalent
     # In options, we typically set scheduler options. See:
     # https://aiida.readthedocs.io/projects/aiida-core/en/latest/scheduler/index.html
     options, code_string, mult = choose_queue_from_struct(
         # structure=target_structure, assign_dict=queue_dict
-        queue_data=queue_dict
+        queue_data=queue_dict,
+        computer=curr_computer,
     )
 
     # Defining the vasp.relax workchain object
@@ -418,8 +427,7 @@ def submit_aiida_vasp_calculation(
     builder = workchain.get_builder()
 
     # Passing the all inputs to the builder object
-    builder["code"] = orm.load_code(code_string)
-    # builder["converge"] = CONVERGE
+    builder["code"] = code
 
     if selective_dynamics:
         builder["dynamics"] = selective_dynamics
@@ -724,17 +732,22 @@ def update_db_with_dft_results(sel_struct_db, queue):
     """
     from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
+    # Going over every calculation in the queue
     for node in queue:
+
         # Skipping if the calculation is not finished
-        node: orm.CalcJobNode
-        if not node.is_finished_ok:
-            mdb_cud.custom_print(
-                f"Calculation {node.pk} has status {node.exit_status}.", "warning"
-            )
+        if not node.is_finished:
+
+            # Skipping failed calculations, and printing a warning.
+            if node.is_excepted:
+                mdb_cud.custom_print(
+                    f"Calculation {node.pk} has status {node.exit_status}.", "warning"
+                )
+
             continue
 
         # Getting the unique_id of the calculation
-        unique_id = node.extras.get("mdb_calc_uuid")
+        unique_id = node.base.extras.all.get("mdb_calc_uuid")
 
         # Getting the index of the calculation in the database
         last_calcjob = [
@@ -1182,7 +1195,7 @@ def add_aiida_group_to_db(db_obj: str, group_identifier, copy=False):
     group = orm.load_group(identifier=group_identifier)
 
     for node in group.nodes:
-        node_calc_uuid = node.extras.get("mdb_calc_uuid", None)
+        node_calc_uuid = node.base.extras.all.get("mdb_calc_uuid", None)
 
         called_nodes = []
         for called in node.called_descendants:
