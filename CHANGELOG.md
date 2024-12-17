@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.3 (2024-12-17)
+
+### Fix
+
+- **dft**: changed `finished` with `finished_ok` in `update_db_with_dft_results` check ([#1128626](https://github.com/pol-sb/MatDBForge/commit/1128626d7fecdeb0cf031a85efcd289220b28f7b))
+
 ## 0.19.2 (2024-12-16)
 
 ### Fix
