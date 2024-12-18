@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.5 (2024-12-18)
+
+### Fix
+
+- **dft**: simplified calculation skipping logic in `update_db_with_dft_results()` and added try/except block to active_learning_utils ([#87267a3](https://github.com/pol-sb/MatDBForge/commit/87267a3a78c29d817413503d309c686303030ab5))
+
 ## 0.19.4 (2024-12-17)
 
 ### Fix
