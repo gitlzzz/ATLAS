@@ -736,14 +736,12 @@ def update_db_with_dft_results(sel_struct_db, queue):
     for node in queue:
 
         # Skipping if the calculation is not finished
-        if not node.is_finished:
+        if not node.is_finished_ok:
 
             # Skipping failed calculations, and printing a warning.
-            if node.is_excepted:
-                mdb_cud.custom_print(
-                    f"Calculation {node.pk} has status {node.exit_status}.", "warning"
-                )
-
+            mdb_cud.custom_print(
+                f"Calculation {node.pk} has status {node.exit_status}.", "warning"
+            )
             continue
 
         # Getting the unique_id of the calculation
@@ -770,6 +768,7 @@ def update_db_with_dft_results(sel_struct_db, queue):
 
         # Updating the database with the results
         sel_struct_db[idx].info["calc_type"] = "vasp_dft"
+        sel_struct_db[idx].info["calc_performed"] = True
         try:
             sel_struct_db[idx].info["REF_energy"] = results_dict[0]["info"]["energy"]
             sel_struct_db[idx].info["REF_stress"] = results_dict[0]["info"]["stress"]

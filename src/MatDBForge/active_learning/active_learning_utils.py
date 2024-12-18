@@ -105,7 +105,7 @@ def generate_descriptors_mace(
 def generate_descriptors_soap(database, descriptor_settings: dict): ...
 
 
-def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path = "."):
+def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path="."):
     """
     Run MD simulations using ASE and MACE.
 
@@ -150,7 +150,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path = ".")
 
     # Creating the log folder (if it does not exist, this applies when running
     # from a docker container)
-    log_folder = (Path(prepend_path) / "logs")
+    log_folder = Path(prepend_path) / "logs"
     log_folder.mkdir(exist_ok=True)
     print("init_conf: ", init_conf)
 
@@ -1384,14 +1384,14 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
                 finished_dft_calc
             )
 
+            # Gathering extra DFT calculation information from vasprun.xml
+            calc_info_dict = mdb_conv.gather_calc_data_from_node(
+                finished_dft_calc, units="mace"
+            )
+
         except Exception:
             # If the calculation fails for any reason, skip this calculation
             continue
-
-        # Gathering extra DFT calculation information from vasprun.xml
-        calc_info_dict = mdb_conv.gather_calc_data_from_node(
-            finished_dft_calc, units="mace"
-        )
 
         # Adding forces manually as an array into the atoms object.
         # This is needed for the atoms object to be able to include the forces in the
