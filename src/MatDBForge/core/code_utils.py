@@ -63,6 +63,7 @@ def init_logger(source, log_path=None):
     logger.addHandler(fh)
 
     logging.addLevelName(10, '[...]')
+    logging.addLevelName(19, '     ')
     logging.addLevelName(20, '[ i ]')
     logging.addLevelName(25, '[ ✔ ]')
     logging.addLevelName(30, '[ ! ]')
@@ -117,6 +118,15 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
             msg=f'{prefix}{normal}{extra_tab}{string}',
             extra={'shortmsg': string},
         )
+    if print_type in ['none', 'clean', 'clear', 'empty']:
+        # prefix = ""
+        # logger.info(f'{prefix}{normal}{extra_tab}{string}',
+        # extra={'shortmsg': string})
+        logger.log(
+            level=15,
+            msg=f'{prefix}{normal}{extra_tab}{string}',
+            extra={'shortmsg': string},
+        )
     elif print_type in ['done', 'ok']:
         # prefix = "\u001b[38;5;46m [ ✔ ]"
         # logger.info(
@@ -134,9 +144,6 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
             msg=f'{prefix}{normal}{extra_tab}{string}',
             extra={'shortmsg': string},
         )
-    if print_type in ['none', 'clean', 'clear']:
-        # prefix = ""
-        logger.info(f'{prefix}{normal}{extra_tab}{string}', extra={'shortmsg': string})
 
 
 def deprecated(reason, since_ver=None):
