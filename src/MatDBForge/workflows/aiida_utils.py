@@ -947,6 +947,18 @@ def run_dataframe_vasp_aiida_queue(
                     curr_phase,
                 ) = gather_calc_data_from_row(target_row)
 
+            structure_already_calculated = target_row.info.get("calc_performed", False)
+            if structure_already_calculated:
+                mdb_cud.custom_print(
+                    (
+                        f"Skipping structure {current_row_index} as it has already "
+                        "been calculated."
+                    ),
+                    "info",
+                )
+                current_row_index += 1
+                continue
+
             calc_type: mdb_aut.CalcType = config_dict.get("calculation", {}).get(
                 "calc_type"
             )
