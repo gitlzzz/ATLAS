@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.6 (2024-12-19)
+
+### Fix
+
+- **dft**: enable usage of `calc_performed` to skip completed structures ([#28ec65e](https://github.com/pol-sb/MatDBForge/commit/28ec65e4a5b62fb6edc3ff7df0822896b4be5379))
+
 ## 0.19.5 (2024-12-18)
 
 ### Fix
