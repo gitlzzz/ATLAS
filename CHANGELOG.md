@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.7 (2024-12-20)
+
+### Fix
+
+- **dft**: fixed unfinished loops and changed logging information during dft calculations ([#36262e3](https://github.com/pol-sb/MatDBForge/commit/36262e36b0b0fa69134a916b16d04072078c9b24))
+
+### Misc
+
+- **core**: reenabled 'empty' custom print type ([#236570a](https://github.com/pol-sb/MatDBForge/commit/236570a56181501556c84f1f4540f4f5a32d65c0))
+
 ## 0.19.6 (2024-12-19)
 
 ### Fix
