@@ -108,7 +108,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.19.7"
+version = "0.19.8"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [

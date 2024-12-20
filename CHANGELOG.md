@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.8 (2024-12-20)
+
+### Fix
+
+- **dft**: fix issue with phase collection ([#8dac04a](https://github.com/pol-sb/MatDBForge/commit/8dac04a08a45b391552fc5199a829bb5e1095e10))
+
+### Misc
+
+- **dft**: reformatted `conversion.py` and updated call to extras on `get_struct_type()` ([#4434341](https://github.com/pol-sb/MatDBForge/commit/44343413a799a6d52cea571a90a29c122ecc4796))
+
 ## 0.19.7 (2024-12-20)
 
 ### Fix
