@@ -339,6 +339,9 @@ def submit_aiida_vasp_calculation(
         target_structure = AseAtomsAdaptor.get_structure(target_structure)
 
     struct_formula = target_structure.formula.replace(' ', '')
+
+    # Converting phase name to string to avoid all number structure
+    phase = str(phase)
     kspacing = kspacing_dict[phase]
 
     if incar_settings_dict:
