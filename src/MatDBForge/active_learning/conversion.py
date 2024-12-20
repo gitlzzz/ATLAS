@@ -32,7 +32,7 @@ class Units(Enum):
 
 
 def mdb_database_to_mace_train(
-    mdb_database: 'mdb_indb.InitialDatabase',
+    mdb_database: "mdb_indb.InitialDatabase",
     path: str | pathlib.Path,
     skip_dipole=True,
     skip_stress=True,
@@ -69,11 +69,11 @@ def mdb_database_to_mace_train(
     )
 
 
-def _vasprun_to_extended_xyz(structure: 'mdb_strc.Structure'):
+def _vasprun_to_extended_xyz(structure: "mdb_strc.Structure"):
     raise NotImplementedError
 
 
-def _structure_to_extended_xyz(structure: 'mdb_strc.Structure'):
+def _structure_to_extended_xyz(structure: "mdb_strc.Structure"):
     raise NotImplementedError
 
 
@@ -99,15 +99,15 @@ def _add_entry_to_mace_input(
 
     name = node.label
     if not name:
-        name = 'unknown'
+        name = "unknown"
 
     # Adding structure type information to the dataset
-    if 'mdb_struct_type' not in vasprun.info:
-        vasprun.info['mdb_struct_type'] = get_struct_type(vasprun)
-    if 'struct_name' not in vasprun.info:
-        vasprun.info['struct_name'] = name
-    if 'aiida_uuid' not in vasprun.info:
-        vasprun.info['aiida_uuid'] = node.uuid
+    if "mdb_struct_type" not in vasprun.info:
+        vasprun.info["mdb_struct_type"] = get_struct_type(vasprun)
+    if "struct_name" not in vasprun.info:
+        vasprun.info["struct_name"] = name
+    if "aiida_uuid" not in vasprun.info:
+        vasprun.info["aiida_uuid"] = node.uuid
 
     # HACK: This aseio writer writes all the properties from
     # vasprun, included dipole_moments. However, some calculations
@@ -115,20 +115,20 @@ def _add_entry_to_mace_input(
     # dipole, which leads to an error in training.
     # One solution is to remove dipole and stress if not needed.
     if vasprun.calc:
-        if remove_dipole and 'dipole' in vasprun.calc.results:
-            vasprun.calc.results.pop('dipole')
-        if remove_stress and 'stress' in vasprun.calc.results:
-            vasprun.calc.results.pop('stress')
+        if remove_dipole and "dipole" in vasprun.calc.results:
+            vasprun.calc.results.pop("dipole")
+        if remove_stress and "stress" in vasprun.calc.results:
+            vasprun.calc.results.pop("stress")
 
         # HACK: Removing energy (without entropy, as it is not used to calculate
         # the forces) and kinetic energy.
         # if remove_energy and "energy" in vasprun.calc.results.keys():
         #     vasprun.calc.results.pop("energy")
-        if remove_kinetic and 'kinetic_energy' in vasprun.calc.results:
-            vasprun.calc.results.pop('kinetic_energy')
+        if remove_kinetic and "kinetic_energy" in vasprun.calc.results:
+            vasprun.calc.results.pop("kinetic_energy")
 
     if to_file:
-        aseio.write(buffer, images=vasprun, format='extxyz')
+        aseio.write(buffer, images=vasprun, format="extxyz")
     else:
         return vasprun
 
@@ -141,30 +141,30 @@ def _gather_mace_req_calc_data_from_node(node):
     retrieved: orm.NodeRepository = node.outputs.retrieved
 
     # Reading the file from the buffer and closing it
-    with retrieved.open('vasprun.xml', 'rb') as f:
-        vasprun = aseio.read(f, format='vasp-xml', index='-1')
+    with retrieved.open("vasprun.xml", "rb") as f:
+        vasprun = aseio.read(f, format="vasp-xml", index="-1")
     return vasprun
 
 
-def gather_calc_data_from_node(node, units='atomic'):
+def gather_calc_data_from_node(node, units="atomic"):
     """Get data from a vasp calulation node to be used in a training set."""
-    if units == 'atomic':
+    if units == "atomic":
         length_unit = Units.Ang2Bohr.value
         energy_unit = Units.eV2Eh.value
-    elif units == 'mace':
+    elif units == "mace":
         length_unit = 1
         energy_unit = 1
 
     # Getting calculation name
-    name = node.label + '_aiida-uuid_' + node.uuid
+    name = node.label + "_aiida-uuid_" + node.uuid
 
     # Writing the vasprun.xml file to a buffer.
     retrieved = node.outputs.retrieved
-    vasprun_f = retrieved.get_object_content('vasprun.xml', 'rb')
+    vasprun_f = retrieved.get_object_content("vasprun.xml", "rb")
     buffer = BytesIO(vasprun_f)
 
     # Reading the file from the buffer and closing it
-    vasprun = aseio.read(buffer, format='vasp-xml', index='-1')
+    vasprun = aseio.read(buffer, format="vasp-xml", index="-1")
     buffer.close()
 
     # Getting properties from the vasprun
@@ -202,20 +202,20 @@ def gather_calc_data_from_node(node, units='atomic'):
     # training.
     # TODO: Re-add dipole and potential_energy.
     data_dict = {
-        'name': name,
-        'lattice': lattice,
-        'positions': structure,
-        'symbols': symbols,
-        'numbers': numbers,
+        "name": name,
+        "lattice": lattice,
+        "positions": structure,
+        "symbols": symbols,
+        "numbers": numbers,
         # "pot_energy": pot_energy,
-        'energy': tot_energy,
-        'charge': charge,
-        'pbc': pbc,
-        'stress': stress,
+        "energy": tot_energy,
+        "charge": charge,
+        "pbc": pbc,
+        "stress": stress,
         # "dipole": dipole,
-        'forces': forces,
-        'atoms_obj': vasprun,
-        'struct_type': struct_type,
+        "forces": forces,
+        "atoms_obj": vasprun,
+        "struct_type": struct_type,
     }
 
     return data_dict
@@ -225,20 +225,21 @@ def get_struct_type(vasprun, dft_calc_node):
     """Return the structure type of a calculation from calc settings."""
     try:
         # Using a calc type identifier in aiida dft calculations.
-        struct_type = dft_calc_node.caller.extras['mdb_struct_type']
+        struct_type = dft_calc_node.caller.base.extras.all["mdb_struct_type"]
     except Exception:
         # Here structure type is now inferred from calc settings.
-        # Settings won't be always like this
+        # HACK
+        # Settings won't be always like this, so this is a temporary solution.
         run_params = vasprun.calc.parameters
 
-        if not run_params['ldipol']:
-            struct_type = 'bulk'
-        elif run_params['dipol'] == [0.5, 0.5, 0.5]:
-            struct_type = 'cluster'
-        elif run_params['idipol'] == 3:
-            struct_type = 'surface'
+        if not run_params["ldipol"]:
+            struct_type = "bulk"
+        elif run_params["dipol"] == [0.5, 0.5, 0.5]:
+            struct_type = "cluster"
+        elif run_params["idipol"] == 3:
+            struct_type = "surface"
         else:
-            struct_type = 'unknown'
+            struct_type = "unknown"
 
     return struct_type
 
@@ -248,15 +249,15 @@ def _gather_result_nodes_aiida(path, aiida_group_list, filter_dict):
     load_profile()
 
     # Gathering nodes from the given group
-    mdb_cud.custom_print('Getting nodes...')
+    mdb_cud.custom_print("Getting nodes...")
 
     # Preparing a query in the aiida db for every group
     result_nodes_list = []
     for _idx, group in enumerate(aiida_group_list):
         # Querying for WorkChainNode objects
         qb = orm.QueryBuilder()
-        qb.append(orm.Group, filters={'label': group}, tag='group')
-        qb.append(orm.WorkChainNode, with_group='group', filters=filter_dict)
+        qb.append(orm.Group, filters={"label": group}, tag="group")
+        qb.append(orm.WorkChainNode, with_group="group", filters=filter_dict)
         result_nodes = qb.all(flat=True)
 
         # Old versions will result in VaspCalculations being stored in the
@@ -264,13 +265,13 @@ def _gather_result_nodes_aiida(path, aiida_group_list, filter_dict):
         # In those cases, an additional query for VaspCalculations is prepared.
         if len(result_nodes) == 0:
             qb = orm.QueryBuilder()
-            qb.append(orm.Group, filters={'label': group}, tag='group')
-            qb.append(VaspCalculation, with_group='group', filters=filter_dict)
+            qb.append(orm.Group, filters={"label": group}, tag="group")
+            qb.append(VaspCalculation, with_group="group", filters=filter_dict)
             result_nodes = qb.all(flat=True)
 
         result_nodes_list.extend(result_nodes)
 
-    mdb_cud.custom_print(f'{len(result_nodes_list)} nodes found.', 'info')
+    mdb_cud.custom_print(f"{len(result_nodes_list)} nodes found.", "info")
 
     return result_nodes_list
 
@@ -289,15 +290,15 @@ def gen_mace_train_aiida(
     # Handling path
     path = pathlib.Path(path) if path and isinstance(path, str) else pathlib.Path()
 
-    ctime = time.strftime('%Y%m%dT%H%M%S')
+    ctime = time.strftime("%Y%m%dT%H%M%S")
 
     # Adding input.data filename to path
-    path = path / f'mace_training_data_{ctime}.xyz'
+    path = path / f"mace_training_data_{ctime}.xyz"
 
     # Writing the file
-    with open(path, 'w') as curr_f:
+    with open(path, "w") as curr_f:
         # Checking every node
-        for node in riprg.track(result_nodes, description=' [ ⧖ ]  Writing info...'):
+        for node in riprg.track(result_nodes, description=" [ ⧖ ]  Writing info..."):
             # Gathering the information from each node
             vasprun = _gather_mace_req_calc_data_from_node(node=node)
 
@@ -313,7 +314,7 @@ def gen_mace_train_aiida(
         final_size = curr_f.tell() * 1e-06
 
     mdb_cud.custom_print(
-        f"All calculations saved in '{path}' ({final_size:.2f} MB).", 'done'
+        f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
     )
 
 
@@ -323,23 +324,23 @@ def _add_entry_to_n2p2_input(buffer: TextIOWrapper, data_dict: dict):
         f'{data_dict.get("struct_type", "unkw")}'
         f'_{data_dict.get("name", "no name found")}'
     )
-    buffer.write('begin\n')
-    buffer.write(f'comment {write_name}\n')
+    buffer.write("begin\n")
+    buffer.write(f"comment {write_name}\n")
 
     # Getting lattice parameters and converting them to Bohr
-    lat_x = data_dict['lattice'][0]
-    lat_y = data_dict['lattice'][1]
-    lat_z = data_dict['lattice'][2]
+    lat_x = data_dict["lattice"][0]
+    lat_y = data_dict["lattice"][1]
+    lat_z = data_dict["lattice"][2]
 
     # Writing lattice parameters
-    buffer.write(f'lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n')
-    buffer.write(f'lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n')
-    buffer.write(f'lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n')
+    buffer.write(f"lattice {lat_x[0]:.6f} {lat_x[1]:.6f} {lat_x[2]:.6f}\n")
+    buffer.write(f"lattice {lat_y[0]:.6f} {lat_y[1]:.6f} {lat_y[2]:.6f}\n")
+    buffer.write(f"lattice {lat_z[0]:.6f} {lat_z[1]:.6f} {lat_z[2]:.6f}\n")
 
     # Writing information for every atom. Every atom line must contain:
     # atom <x1> <y1> <z1> <e1> <c1> <n1> <fx1> <fy1> <fz1>
     for idx, (at, frc) in enumerate(
-        zip(data_dict['positions'], data_dict['forces'], strict=False)
+        zip(data_dict["positions"], data_dict["forces"], strict=False)
     ):
         # Preparing and writing the line
         buffer.write(
@@ -354,7 +355,7 @@ def _add_entry_to_n2p2_input(buffer: TextIOWrapper, data_dict: dict):
     buffer.write(f'charge {data_dict["charge"]:.6f}\n')
 
     # writing end keyword
-    buffer.write('end\n')
+    buffer.write("end\n")
 
 
 def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = None):
@@ -365,15 +366,15 @@ def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
     # Handling path
     path = pathlib.Path(path) if path and isinstance(path, str) else pathlib.Path()
 
-    ctime = time.strftime('%Y%m%dT%H%M%S')
+    ctime = time.strftime("%Y%m%dT%H%M%S")
 
     # Adding input.data filename to path
-    path = path / f'n2p2_training_data_{ctime}.input'
+    path = path / f"n2p2_training_data_{ctime}.input"
 
     # Writing the file
-    with open(path, 'w') as curr_f:
+    with open(path, "w") as curr_f:
         # Checking every node
-        for node in riprg.track(result_nodes, description=' [ ⧖ ]  Writing info...'):
+        for node in riprg.track(result_nodes, description=" [ ⧖ ]  Writing info..."):
             # Gathering the information from each node
             data_dict = gather_calc_data_from_node(node=node)
 
@@ -383,7 +384,7 @@ def gen_n2p2_train_aiida(aiida_group_list: list, filter_dict: dict, path: str = 
         final_size = curr_f.tell() * 1e-06
 
     mdb_cud.custom_print(
-        f"All calculations saved in '{path}' ({final_size:.2f} MB).", 'done'
+        f"All calculations saved in '{path}' ({final_size:.2f} MB).", "done"
     )
 
 
@@ -421,54 +422,54 @@ def gen_mace_train_structure_list(
 
             dict_keys_set = set(list(struct.keys()))
             try:
-                info_keys_set = set(list(struct['info'].keys()))
+                info_keys_set = set(list(struct["info"].keys()))
             except KeyError:
                 info_keys_set = {}
             dict_to_array_set = set(
                 [
-                    'pbc',
-                    'cell',
-                    'forces',
-                    'positions',
-                    'energy',
-                    'numbers',
+                    "pbc",
+                    "cell",
+                    "forces",
+                    "positions",
+                    "energy",
+                    "numbers",
                 ]
             )
 
             # List containing possible keys in atoms.info
             info_list = [
-                'stress',
-                'dipole',
-                'struct_name',
-                'energy',
-                'aiida_uuid',
-                'mdb_struct_type',
+                "stress",
+                "dipole",
+                "struct_name",
+                "energy",
+                "aiida_uuid",
+                "mdb_struct_type",
             ]
 
             # Whether to keep or remove stress, dipole and energy
             if skip_stress:
-                info_list.remove('stress')
-            if skip_free_energy and 'free_energy' in info_list:
-                info_list.remove('free_energy')
+                info_list.remove("stress")
+            if skip_free_energy and "free_energy" in info_list:
+                info_list.remove("free_energy")
             if skip_dipole:
-                info_list.remove('dipole')
+                info_list.remove("dipole")
             info_to_array_set = set(info_list)
 
             for arr_key in dict_to_array_set.intersection(dict_keys_set):
                 new_struct[arr_key] = np.array(struct.get(arr_key))
 
             # Storing keys in atoms.info
-            new_struct['info'] = {}
+            new_struct["info"] = {}
             for arr_key in info_to_array_set.intersection(info_keys_set):
-                value = struct.get('info').get(arr_key)
+                value = struct.get("info").get(arr_key)
 
                 # If not converted to array will be written incorrectly
-                if arr_key in ['stress', 'dipole']:
+                if arr_key in ["stress", "dipole"]:
                     value = np.array(value)
 
-                new_struct['info'][arr_key] = value
+                new_struct["info"][arr_key] = value
 
             ase_structs.append(Atoms.fromdict(new_struct))
 
         # Writing the file
-        aseio.write(path, ase_structs, 'extxyz')
+        aseio.write(path, ase_structs, "extxyz")
