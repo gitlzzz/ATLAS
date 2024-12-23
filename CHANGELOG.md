@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.9 (2024-12-23)
+
+### Fix
+
+- **core**: reformat `aiida_utils` and fix errors: - address indexing error when skipping completed calculations - create new structure and assign to list when updating in `update_db_with_dft_results` ([#4049eff](https://github.com/pol-sb/MatDBForge/commit/4049effdbc861d27ded9037b207795446b76d575))
+- **core**: add tags argument to  git fetch command for update checker ([#30b3d4f](https://github.com/pol-sb/MatDBForge/commit/30b3d4fc219e9057685a1d03017e896d97500bba))
+
 ## 0.19.8 (2024-12-20)
 
 ### Fix

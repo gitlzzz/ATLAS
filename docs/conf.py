@@ -24,7 +24,7 @@ copyright = '2024, Pol Sanz'
 author = 'Pol Sanz'
 
 # The full version, including alpha/beta/rc tags
-release = '0.19.8'
+release = '0.19.9'
 
 
 # -- General configuration ---------------------------------------------------
