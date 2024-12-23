@@ -183,6 +183,7 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
 
     # Node found, reading settings from aiida node
     if wk_node:
+        # TODO: Implement this part
         ...
     # Node not found, using file-based approach
     else:
