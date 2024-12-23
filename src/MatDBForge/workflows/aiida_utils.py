@@ -786,12 +786,8 @@ def update_db_with_dft_results(sel_struct_db, queue):
         try:
             new_struct.info["REF_energy"] = results_dict[0]["info"]["energy"]
             new_struct.info["REF_stress"] = results_dict[0]["info"]["stress"]
-            new_struct.arrays["REF_forces"] = np.array(
-                results_dict[0]["forces"]
-            )
-            new_struct.arrays["positions"] = np.array(
-                results_dict[0]["positions"]
-            )
+            new_struct.arrays["REF_forces"] = np.array(results_dict[0]["forces"])
+            new_struct.arrays["positions"] = np.array(results_dict[0]["positions"])
         except IndexError:
             new_struct.info["REF_energy"] = results_dict["info"]["energy"]
             new_struct.info["REF_stress"] = results_dict["info"]["stress"]
@@ -806,7 +802,8 @@ def update_db_with_dft_results(sel_struct_db, queue):
 
     if len(running_calcs) > 0:
         mdb_cud.custom_print(
-            f"Currently running calculations: {running_calcs}...", "info"
+            f"Currently running {len(running_calcs)} calculations: {running_calcs}...",
+            "info",
         )
 
 
@@ -939,7 +936,6 @@ def run_dataframe_vasp_aiida_queue(
             ase_write(results_path, sel_struct_db, format="extxyz")
 
             # Removing the finished calculations from the queue
-
             if len(chunk_status_arr) == 0:
                 calcs_remaining = False
                 break
