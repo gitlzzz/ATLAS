@@ -258,7 +258,7 @@ def get_last_tagged_version():
     os.chdir(MDB_ROOT_DIR)
 
     # Run the git fetch to get the last tagged version
-    _ = sb.check_output(['git', 'fetch', '--quiet'])
+    _ = sb.check_output(['git', 'fetch', '--tags', '--quiet'])
 
     # Getting a sorted tag list
     output = (
