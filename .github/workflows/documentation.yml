@@ -30,6 +30,17 @@ jobs:
       - name: Sphinx build
         run: |
           sphinx-multiversion docs _build
+      - name: Create index.html pointing to master
+        run: |
+          echo '<!DOCTYPE html>
+          <html>
+          <head>
+            <title>Redirecting to master branch</title>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=./master/index.html">
+            <link rel="canonical" href="https://pol-sb.github.io/MatDBForge/master/index.html">
+          </head>
+          </html>' > _build/index.html
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
