@@ -592,6 +592,62 @@ This section defines the settings for the queue and HPC resource allocation. Exa
 
 tot_num_mpiprocs (int): Total number of MPI processes. Example: 24.
 
+### AiiDA-VASP Settings - [aiida_vasp]
+
+This section defines settings for the AiiDA-VASP plugin. Contains subsections that act as dicts that get passed to the `builder['settings']` object.
+The keys from these dictionaries must be as defined in the AiiDA-VASP documentation: <https://aiida-vasp.readthedocs.io/en/latest/concepts/parsing.html>
+
+#### AiiDA-VASP Parser Settings - [aiida_vasp.parser_settings]
+
+Contains settings for the calculation parser. At the time of writing defaults are:
+
+```toml
+add_trajectory = False
+add_bands = False
+add_charge_density = False
+add_dos = False
+add_kpoints = False
+add_energies = False
+add_misc = True
+add_structure = False
+add_projectors = False
+add_born_charges = False
+add_dielectrics = False
+add_hessian = False
+add_dynmat = False
+add_wavecar = False
+add_forces = False
+add_stress = False
+```
+
+##### AiiDA-VASP Critical Notifications - [aiida_vasp.parser_settings.critical_notifications]
+
+Some warnings/error messages that are not fatal and can be used to stop VASP calculations. **By default, everything is disabled**. At the time of writing, available options are:
+
+```toml
+add_brmix = True
+add_cnormn = True
+add_denmp = True
+add_dentet = True
+add_edddav_zhegv = True
+add_eddrmm_zhegv = True
+add_edwav = True
+add_fexcp = True
+add_fock_acc = True
+add_non_collinear = True
+add_not_hermitian = True
+add_psmaxn = True
+add_pzstein = True
+add_real_optlay = True
+add_rhosyg = True
+add_rspher = True
+add_set_indpw_full = True
+add_sgrcon = True
+add_no_potimm = True
+add_magmom = True
+add_bandocc = True
+```
+
 ### INCAR Settings - [incar]
 
 This section provides INCAR settings for different structure types. Check the VASP manual for the meaning of the different tags.

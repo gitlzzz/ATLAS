@@ -332,6 +332,7 @@ def submit_aiida_vasp_calculation(
     dry_run,
     return_builder,
     group,
+    aiida_vasp_settings=None,
 ):
     mdb_cud.custom_print(f"Row {index} - '{unique_id}'.", "debug")
 
@@ -455,9 +456,15 @@ def submit_aiida_vasp_calculation(
 
     # Setting parser options
     builder["settings"] = Dict(PARSER_DICT)
-    builder["settings"]["parser_settings"]["critical_notifications"][
-        "add_bandocc"
-    ] = False
+
+    # Setting custom settings for the critical notifications
+    custom_parser_settings = aiida_vasp_settings.get("parser_settings", {})
+    for key, value in custom_parser_settings.items():
+        builder["settings"]["parser_settings"][key] = value
+
+    critical_notifications = custom_parser_settings.get("critical_notifications", {})
+    for key, value in critical_notifications.items():
+        builder["settings"]["parser_settings"]["critical_notifications"][key] = value
 
     if calc_type.value.lower() == "sp":
         builder["perform_static"] = Bool(True)
@@ -739,6 +746,9 @@ def update_db_with_dft_results(sel_struct_db, queue):
     """
     from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
+    num_error = 0
+    num_correct = 0
+
     running_calcs = []
 
     # Going over every calculation in the queue
@@ -755,6 +765,7 @@ def update_db_with_dft_results(sel_struct_db, queue):
                     f" '{node.exit_status}'.[/]",
                     "warning",
                 )
+                num_error += 1
             else:
                 mdb_cud.custom_print(f"Calculation '{node.pk}' running...", "debug")
                 running_calcs.append(node.pk)
@@ -799,12 +810,14 @@ def update_db_with_dft_results(sel_struct_db, queue):
         sel_struct_db[idx] = new_struct
 
         mdb_cud.custom_print(f"Calculation '{node.pk}' completed!", "done")
+        num_correct += 1
 
     if len(running_calcs) > 0:
         mdb_cud.custom_print(
             f"Currently running {len(running_calcs)} calculations: {running_calcs}...",
             "info",
         )
+    return num_correct, num_error
 
 
 def run_dataframe_vasp_aiida_queue(
@@ -813,9 +826,15 @@ def run_dataframe_vasp_aiida_queue(
     log_file_path: str,
 ):
     group_name: str = config_dict.get("general", {}).get("aiida_group_name")
-    results_path: str = pl.Path(
-        config_dict.get("general", {}).get("result_file_path", "dft_results.xyz")
+    results_path: pl.Path = pl.Path(
+        config_dict.get("general", {}).get("result_file_path", "dft_results")
     )
+
+    # Getting current time
+    ctime = time.strftime("%Y%m%dT%H%M%S")
+
+    # Adding the current time to the results path
+    results_path = results_path.with_stem(f"mdb_dft_{ctime}_" + results_path.stem)
 
     # Adding xyz suffix if not present
     if results_path.suffix != ".xyz":
@@ -841,9 +860,7 @@ def run_dataframe_vasp_aiida_queue(
         "potential_mapping", {}
     )
     queue_dict: dict = config_dict.get("queue")
-
-    # Getting current time
-    ctime = time.strftime("%Y%m%dT%H%M%S")
+    aiida_vasp_settings: dict = config_dict.get("aiida_vasp", {})
 
     # Print for dry runs
     if dry_run:
@@ -897,6 +914,8 @@ def run_dataframe_vasp_aiida_queue(
 
     queue = []
     total_loops = 1
+    correct_calcs = 0
+    error_calcs = 0
 
     # The potential mapping selects which potential to use
     # This could for instance be {'Si': 'Si_GW'} to use the GW ready potential
@@ -932,24 +951,73 @@ def run_dataframe_vasp_aiida_queue(
         # Removing the finished ones from the queue and current chunk
         if not first_step:
             # Return results database with the dft results
-            update_db_with_dft_results(sel_struct_db, queue)
-            ase_write(results_path, sel_struct_db, format="extxyz")
+            num_performed_calcs = sum(
+                [True for cal in sel_struct_db if cal.info.get("calc_performed", False)]
+            )
+            mdb_cud.custom_print(
+                f"num_performed_calcs before updating: {num_performed_calcs}.", "debug"
+            )
 
-            # Removing the finished calculations from the queue
+            # Updating the database with the results and counting the number of
+            # correct and error calculations
+            n_correct, n_error = update_db_with_dft_results(sel_struct_db, queue)
+            correct_calcs += n_correct
+            error_calcs += n_error
+            mdb_cud.custom_print(
+                f"Total count of calculations finished correctly: {correct_calcs}.",
+                "info",
+            )
+            mdb_cud.custom_print(
+                f"Total count of calculations finished with errors: {error_calcs}.",
+                "info",
+            )
+
+            # Writing the results to the results file
+            ase_write(filenames=results_path, images=sel_struct_db, format="extxyz")
+            num_performed_calcs = sum(
+                [True for cal in sel_struct_db if cal.info.get("calc_performed", False)]
+            )
+            mdb_cud.custom_print(
+                f"num_performed_calcs after updating: {num_performed_calcs}.", "debug"
+            )
+
             if len(chunk_status_arr) == 0:
+                print()
+                mdb_cud.custom_print(
+                    f"len(chunk_status_arr) == 0: {len(chunk_status_arr) == 0}", "debug"
+                )
                 calcs_remaining = False
                 break
 
+            # Removing the finished calculations from the queue
             queue = list(np.array(queue)[~chunk_status_arr])
             chunk_status_arr = chunk_status_arr[~chunk_status_arr]
 
         # Update the queue while the length of the queue is smaller
         # than the maximum allowed number of calculations.
+        mdb_cud.custom_print("Before entering while loop to fill up queue", "debug")
+        mdb_cud.custom_print(f"current_row_index: {current_row_index}.", "debug")
+        mdb_cud.custom_print(f"total_loops: {total_loops}.", "debug")
+        mdb_cud.custom_print(f"len(queue): {len(queue)}.", "debug")
+        mdb_cud.custom_print(
+            f"len(queue) < max_batch: {len(queue) < max_batch}.", "debug"
+        )
         while (
             len(queue) < max_batch
             and total_loops < len(sel_struct_db)
             and current_row_index < len(sel_struct_db)
         ):
+            # DEBUG
+            mdb_cud.custom_print("Running while loop to fill up queue", "debug")
+            mdb_cud.custom_print(f"current_row_index: {current_row_index}.", "debug")
+            mdb_cud.custom_print(f"total_loops: {total_loops}.", "debug")
+            mdb_cud.custom_print(f"len(queue): {len(queue)}.", "debug")
+            mdb_cud.custom_print(f"len(sel_struct_db): {len(sel_struct_db)}.", "debug")
+            mdb_cud.custom_print(
+                f"len(queue) < max_batch: {len(queue) < max_batch}.", "debug"
+            )
+
+            # Choosing current structure and gathering information
             if isinstance(sel_struct_db, list):
                 target_row = sel_struct_db[current_row_index]
                 curr_structure = target_row
@@ -974,6 +1042,7 @@ def run_dataframe_vasp_aiida_queue(
                     curr_phase,
                 ) = gather_calc_data_from_row(target_row)
 
+            # Skipping structures that have already been calculated
             structure_already_calculated = target_row.info.get("calc_performed", False)
             if structure_already_calculated:
                 mdb_cud.custom_print(
@@ -1021,6 +1090,7 @@ def run_dataframe_vasp_aiida_queue(
                 queue_dict=queue_dict,
                 potential_family=aiida_potential_family,
                 potential_mapping=potential_mapping_dict,
+                aiida_vasp_settings=aiida_vasp_settings,
                 dry_run=dry_run,
                 group=group,
             )
@@ -1040,7 +1110,12 @@ def run_dataframe_vasp_aiida_queue(
         first_step = False
         total_loops += 1
 
+        mdb_cud.custom_print(f"current_row_index: {current_row_index}", "debug")
+        mdb_cud.custom_print(f"len(sel_struct_db): {len(sel_struct_db)}", "debug")
+        mdb_cud.custom_print(f"len(queue): {len(queue)}", "debug")
+        mdb_cud.custom_print(f"total_loops: {total_loops}", "debug")
         if current_row_index >= len(sel_struct_db) and len(queue) == 0:
+            mdb_cud.custom_print("Setting calcs_remaining to False", "debug")
             calcs_remaining = False
 
     mdb_cud.custom_print("All calculations finished!", "done")
