@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.10 (2024-12-28)
+
+### Fix
+
+- **dft**: add `aiida_vasp.parser_settings` as input. Improve logging. ([#ff6f05a](https://github.com/pol-sb/MatDBForge/commit/ff6f05a2b9fd4d2fa93f0774b8b4c5f4f73bdd0d))
+
+### Misc
+
+- **dft**: add structure count to  running calculations print statement ([#c63939d](https://github.com/pol-sb/MatDBForge/commit/c63939dac44b644c13a6c084ba496d7cb44253b3))
+
 ## 0.19.9 (2024-12-23)
 
 ### Fix
