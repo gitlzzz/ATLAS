@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.12 (2024-12-28)
+
+### Misc
+
+- **core**: updated documentation.yml for gh-actions ([#2b1106b](https://github.com/pol-sb/MatDBForge/commit/2b1106b7c34cb717367b06e9e3015e8d54745322))
+
 ## 0.19.11 (2024-12-28)
 
 ### Misc
