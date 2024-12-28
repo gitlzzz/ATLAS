@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.11 (2024-12-28)
+
+### Misc
+
+- **core**: add versioning information to sphinx documentation ([#036379d](https://github.com/pol-sb/MatDBForge/commit/036379dad1aedcb158d6258a6a5f456cf0db7708))
+
 ## 0.19.10 (2024-12-28)
 
 ### Fix
