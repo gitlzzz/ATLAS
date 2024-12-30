@@ -973,7 +973,7 @@ def run_dataframe_vasp_aiida_queue(
             )
 
             # Writing the results to the results file
-            ase_write(filenames=results_path, images=sel_struct_db, format="extxyz")
+            ase_write(filename=results_path, images=sel_struct_db, format="extxyz")
             num_performed_calcs = sum(
                 [True for cal in sel_struct_db if cal.info.get("calc_performed", False)]
             )
