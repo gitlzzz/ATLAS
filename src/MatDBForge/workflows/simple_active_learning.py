@@ -158,19 +158,27 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # It will get the descriptors for the entire database and use
             # the concave hull as the extrapolation mechanism.
             if_(cls.check_extrapolation_enabled)(
+                # REMOVE
                 # Generate MACE descriptors for the current seed.
                 # Dimensionality reduction is used if specified,
                 # returning an embedded/latent space.
-                cls.generate_descriptors,
-                # Gather the descriptors from the calcjob and store them
-                # in the workchain context.
-                cls.get_mace_descriptors_output,
-                if_(cls.can_do_advanced_extrapolation)(
-                    # Get the concave hull of the training database
-                    cls.get_concave_hull,
-                    # Gather the concave hull results
-                    cls.get_concave_hull_output,
-                ),
+                # cls.generate_descriptors,
+                # # Gather the descriptors from the calcjob and store them
+                # # in the workchain context.
+                # cls.get_mace_descriptors_output,
+                # if_(cls.can_do_advanced_extrapolation)(
+                #     # Get the concave hull of the training database
+                #     cls.get_concave_hull,
+                #     # Gather the concave hull results
+                #     cls.get_concave_hull_output,
+                # ),
+                # TODO: Implement this new version
+                # Generate descriptors for the current seed.
+                # Dimensionality reduction is used if specified,
+                # returning an embedded/latent space.
+                # If advanced extrapolation is enabled, the latent space
+                # will be used to generate the concave hull.
+                cls.gen_descriptors_and_concave_hull,
             ),
             # All of the structures in the seed will be run using the MD
             # code selected, using the main model (M0)
@@ -444,6 +452,92 @@ class SimpleActiveLearningWorkChain(WorkChain):
     def can_do_advanced_extrapolation(self):
         """Check if the advanced extrapolation can be done."""
         return self.has_latent_space() and self.is_advanced_extrapolation()
+
+    def gen_descriptors_and_concave_hull(self):
+
+        self.report("Generating descriptors and latent space + concave hull...")
+        # Run training and save new model file
+        descr_train = CalculationFactory("mdb-descriptors-combined")
+        desc_builder = descr_train.get_builder()
+
+        # Getting the current seed structures
+        mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
+            result_dir_path=self.inputs.results_dir.value,
+            final_db_name=self.inputs.final_db_name.value,
+            node=self.node,
+        )
+        desc_builder.training_database_path = str(mace_train_file_path)
+
+        if not desc_builder.training_database_path.is_stored:
+            desc_builder.training_database_path.store()
+
+        # Getting the best model file
+        desc_builder.best_model = self.ctx.best_model_file
+
+        # Getting settings file path
+        settings_file_pth = self.inputs.toml_file
+        desc_builder.settings_file_path = settings_file_pth
+
+        # Get portable code
+        descriptor_code_path = Path(
+            f"{MDB_ROOT_DIR}/active_learning/mace_code/combined"
+        )
+        prepend_text = (
+            self.inputs.descriptor_settings["metadata"]["prepend_text"]
+            + "\nPATH=$PATH:."
+        )
+        portable_code = orm.PortableCode(
+            label="mdb-descriptors-combined",
+            filepath_files=descriptor_code_path,
+            filepath_executable="check_descr_combined.py",
+            prepend_text=prepend_text,
+        )
+        desc_builder.code = portable_code
+        desc_builder.metadata.options.parser_name = "mdb-descriptors-combined-parser"
+
+        # Loading computer and removing it from the input dictionary
+        mace_eval_aiida_settings_dict = self.inputs.descriptor_settings["metadata"][
+            "options"
+        ]
+        computer = orm.load_computer(
+            self.inputs.descriptor_settings["metadata"]["computer"]
+        )
+        desc_builder.metadata.computer = computer
+        # mace_eval_aiida_settings_dict.pop("computer", None)
+
+        # Load scheduler and resources options
+        desc_builder.metadata.options = mace_eval_aiida_settings_dict
+
+        # Get the calculation limit, from the computer metadata set to 0
+        # if not present.
+        # `mdb_calc_limit` is a custom property set with:
+        # computer.set_property(name='mdb_calc_limit', value=366)
+        calc_limit = desc_builder.metadata.computer.metadata.get("mdb_calc_limit", 0)
+
+        # Check if the calculation can be submitted
+        if calc_limit == 0:
+            can_submit = True
+        else:
+            can_submit = can_submit_calculation(
+                computer=computer,
+                code=desc_builder.code.label,
+                limit=calc_limit,
+            )
+
+        # If the calculation cannot be submitted, wait for a minute and check again
+        while not can_submit:
+            time.sleep(60)
+            can_submit = can_submit_calculation(
+                computer=computer,
+                code=desc_builder.code.label,
+                limit=calc_limit,
+            )
+
+        future = self.submit(desc_builder)
+        print("future: ", future)
+        # future.base.extras.set("unique_id", row[1]["unique_id"])
+        # future.base.extras.set("md_temperature", row[1]["md_temperature"])
+        self.to_context(committee_results=append_(future))
 
     def generate_descriptors(self):
         """Generate descriptors for the current seed using the best model.
@@ -765,7 +859,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.m_rmse_f = self.ctx.m0_rmse_f
 
             # Optional input, advanced extrapolation might not be enabled.
-            print('self.ctx: ', self.ctx)
             if hasattr(self.ctx, "concave_hull_array"):
                 proc_seed_builder.concave_hull = self.ctx.concave_hull_array
 

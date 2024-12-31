@@ -232,7 +232,6 @@ class ProcessMDSeedStructCalculation(CalcJob):
         return calcinfo
 
 
-
 class ProcessMDSeedStructCalculationParser(Parser):
     """Parser for the retrieved files from a MACE training calculation job."""
 
@@ -1006,6 +1005,237 @@ class CheckMACECommiteeResultsCalculationParser(Parser):
 
         self.out("energy_result_dict", orm.Dict(result_model_energies))
         self.out("forces_result_dict", orm.Dict(result_model_forces))
+
+
+class GetDescriptorsCombinedCalculationParser(Parser):
+    """
+    Parser for a descriptor and extrapolation gathering job.
+
+    Methods
+    -------
+    parse(**kwargs)
+        Parses the temporarily retrieved files.
+        Outputs are stored in AiiDA SinglefileData objects.
+    """
+
+    def parse(self, **kwargs):
+        """
+        Parse the retrieved files of the calculation job.
+
+        Returns
+        -------
+        descriptor_max : aiida.orm.SinglefileData
+            File containing the maximum values for the descriptors.
+        descriptor_min : aiida.orm.SinglefileData
+            File containing the minimum values for the descriptors.
+        concave_hull : aiida.orm.SinglefileData, optional
+            File containing the concave hull of the latent space as an array.
+        latent_space : aiida.orm.SinglefileData, optional
+            File containing the latent space represented as an array.
+        """
+        # str that represents the absolute filepath to the temporary folder
+        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+
+        descriptor_max = None
+        descriptor_min = None
+        concave_hull = None
+        latent_space = None
+        extrapolation_plot = None
+
+        # Gathering results from the temporary folder
+        for child_file in retrieved_temporary_folder.iterdir():
+            match child_file.name:
+                # case "curr_it_db_descriptors.pkl":
+                # descriptor_arr_file = orm.SinglefileData(file=child_file.absolute())
+                case "curr_it_db_max.npy":
+                    descriptor_max = orm.SinglefileData(file=child_file.absolute())
+                case "curr_it_db_min.npy":
+                    descriptor_min = orm.SinglefileData(file=child_file.absolute())
+                case "concave_hull.npy":
+                    concave_hull = orm.SinglefileData(file=child_file.absolute())
+                case "latent_space.npy":
+                    latent_space = orm.SinglefileData(file=child_file.absolute())
+                case "concave_hull.png":
+                    extrapolation_plot = orm.SinglefileData(file=child_file.absolute())
+
+        # Return failed code if the mandatory outputs are missing
+        if not all((descriptor_max, descriptor_min)):
+            return self.exit_codes.ERROR_OUTPUT_NOT_FOUND
+
+        # Return CalcJob outputs
+        self.out("descriptor_max", orm.SinglefileData(descriptor_max))
+        self.out("descriptor_min", orm.SinglefileData(descriptor_min))
+
+        if latent_space:
+            self.out("latent_space", orm.SinglefileData(latent_space))
+        if concave_hull:
+            self.out("concave_hull", orm.SinglefileData(concave_hull))
+        if extrapolation_plot:
+            self.out("extrapolation_plot", orm.SinglefileData(extrapolation_plot))
+
+
+# entry-point: mdb-descriptors-combined
+class GetDescriptorsCombinedCalculation(CalcJob):
+    """CalcJob to check the E and F of structures using a committee of MACE models.
+
+    Define the input and output specifications for the CalcJob.
+
+    Parameters
+    ----------
+    spec : aiida.engine.processes.ports.PortNamespace
+        The process specification to define the inputs, outputs, and exit codes.
+
+    Inputs
+    ------
+    commitee_models : PortNamespace
+        A namespace to hold an arbitrary number of committee MACE potentials.
+    settings_file_path : orm.Str
+        Path to the MDB settings file in the .toml format.
+    training_database_path : orm.Str
+        Path to the configurations to evaluate, provided in the extxyz format.
+    latent_space : orm.SinglefileData, optional
+        File containing the latent space represented as an array.
+        If not provided, the latent space is computed.
+
+    Outputs
+    -------
+    descriptor_max : orm.SinglefileData
+        File containing the maximum values for the descriptors.
+    descriptor_min : orm.SinglefileData
+        File containing the minimum values for the descriptors.
+    concave_hull : orm.SinglefileData, optional
+        File containing the concave hull of the latent space as an array.
+    extrapolation_plot : orm.SinglefileData, optional
+        Figure showing the extrapolation for the current database.
+
+    Exit Codes
+    ----------
+    420 : ERROR_OUT_OF_VRAM
+        CUDA out of GPU memory.
+    421 : ERROR_OUTPUT_NOT_FOUND
+        Missing output file.
+    """
+
+    @classmethod
+    def define(cls, spec):  # noqa: D102
+        super().define(spec)
+
+        # Namespace that will hold an arbitrary number of committee MACE potentials
+        spec.input(
+            "best_model",
+            valid_type=orm.SinglefileData,
+            non_db=True,
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "settings_file_path",
+            valid_type=orm.Str,
+            help="Path to the MDB settings file in the toml format.",
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "training_database_path",
+            valid_type=orm.Str,
+            help="Path with the configurations to evaluate in extxyz format.",
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
+            "latent_space",
+            valid_type=orm.SinglefileData,
+            help="File containing the latent space as an array.",
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=None,
+            non_db=True,
+        )
+        spec.output(
+            "concave_hull",
+            valid_type=orm.SinglefileData,
+            help="File containing the concave hull of the latent space as an array.",
+            required=False,
+        )
+        spec.output(
+            "extrapolation_plot",
+            valid_type=orm.SinglefileData,
+            help="Figure showing the extrapolation for the current database.",
+            required=False,
+        )
+        spec.output(
+            "descriptor_max",
+            valid_type=orm.SinglefileData,
+            help="File containing the maximum values for the descriptors.",
+        )
+        spec.output(
+            "descriptor_min",
+            valid_type=orm.SinglefileData,
+            help="File containing the minimum values for the descriptors.",
+        )
+        spec.exit_code(420, "ERROR_OUT_OF_VRAM", "CUDA out of GPU memory.")
+        spec.exit_code(421, "ERROR_OUTPUT_NOT_FOUND", "Missing output file.")
+
+    def prepare_for_submission(self, folder):
+        """Write the input files that are required for the code to run.
+
+        :param folder: an `Folder` to temporarily write files on disk
+        :return: `CalcInfo` instance
+        """
+        # Copying configuration to temporary folder
+        # print('self.commitee_models: ', self.commitee_models)
+        with self.inputs.best_model.as_path() as model_path:
+            folder.insert_path(
+                src=model_path,
+                dest_name="curr_iter_best.model",
+            )
+
+        # Copying settings file
+        toml_settings = self.inputs.settings_file_path.value
+        folder.insert_path(
+            src=toml_settings,
+            dest_name="settings.toml",
+        )
+
+        # Copying database file
+        train_db_path = self.inputs.training_database_path.value
+        folder.insert_path(
+            src=train_db_path,
+            dest_name="training_db.xyz",
+        )
+
+        # Copying configuration to temporary folder
+        print('self.inputs.latent_space: ', self.inputs.latent_space)
+        if self.inputs.latent_space:
+            with self.inputs.latent_space.as_path() as latent_space_path:
+                folder.insert_path(
+                    src=latent_space_path,
+                    dest_name="latent_space.npy",
+                )
+
+        codeinfo = CodeInfo()
+        codeinfo.code_uuid = self.inputs.code.uuid
+
+        calcinfo = CalcInfo()
+        calcinfo.codes_info = [codeinfo]
+        calcinfo.local_copy_list = []
+        calcinfo.provenance_exclude_list = []
+        calcinfo.remote_copy_list = []
+
+        # Gathering files.
+        calcinfo.retrieve_list = [
+            "results.out",
+        ]
+
+        # They won't be added to the repository,
+        # and instead kept into a temporary folder.
+        calcinfo.retrieve_temporary_list = [
+            "*_output.out",
+            "./results/*.png",
+            "./results/*.pkl",
+            "./results/curr_it_db*",
+            "./results/concave_hull.npy",
+            "./results/latent_space.npy",
+        ]
+
+        return calcinfo
 
 
 class LAMMPSMACERawParser(Parser):

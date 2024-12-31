@@ -5,26 +5,8 @@ import pickle
 
 import numpy as np
 from ase.io import read as ase_read
-from mace.calculators import MACECalculator
 
-
-def generate_descriptors(model_path: str, database):
-    calculator = MACECalculator(
-        model_paths=model_path, device='cpu', default_dtype='float32'
-    )
-    descriptor_dict = {}
-    descriptor_list = []
-    for struct in database:
-        descriptor_dict[struct.info['aiida_uuid']] = []
-
-    for struct in database:
-        curr_struct_descriptors = calculator.get_descriptors(struct)
-        descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct.info['aiida_uuid']].append(curr_struct_descriptors)
-
-    descriptor_arr = np.vstack(descriptor_list)
-    return descriptor_dict, descriptor_arr
-
+from MatDBForge.active_learning.active_learning_utils import generate_descriptors
 
 if __name__ == '__main__':
     print('Running MACE descriptor generation script...')

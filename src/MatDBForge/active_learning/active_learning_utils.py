@@ -69,6 +69,34 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
     dyn.set_temperature(temperature_K=current_temperature)
 
 
+# TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
+def generate_descriptors(model_path: str, database, device="cpu", dtype="float32"):
+
+    # Initialize the MACE calculator
+    calculator = MACECalculator(
+        model_paths=model_path, device=device, default_dtype=dtype
+    )
+
+    # Generate descriptors for all structures in the database
+    descriptor_dict = {}
+    descriptor_list = []
+    for struct in database:
+        descriptor_dict[struct.info["aiida_uuid"]] = {
+            "descriptors": [],
+            "latent_space": [],
+        }
+
+    for struct in database:
+        curr_struct_descriptors = calculator.get_descriptors(struct)
+        descriptor_list.append(curr_struct_descriptors)
+        descriptor_dict[struct.info["aiida_uuid"]]["descriptors"].append(
+            curr_struct_descriptors
+        )
+
+    descriptor_arr = np.vstack(descriptor_list)
+    return descriptor_dict, descriptor_arr
+
+
 def generate_descriptors_mace(
     model_path: str,
     database,

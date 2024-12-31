@@ -189,7 +189,7 @@ def run_training(args):
         Autoencoder model trained for dimensionality reduction.
     """
     # Set device if no device is given
-    if not args.device or args.device == "auto":
+    if not hasattr(args,'device') or args.device == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = args.device
@@ -206,7 +206,7 @@ def run_training(args):
         args.verbose = True
 
     # Setting dtype
-    if not args.dtype:
+    if not hasattr(args,'dtype'):
         args.dtype = torch.float32
     else:
         match args.dtype:
@@ -219,7 +219,7 @@ def run_training(args):
     mdb_cud.custom_print(f"Using dtype: '{args.dtype}'", "info")
 
     # If no seed is given, generate a random seed
-    if not args.rng_seed:
+    if not hasattr(args, 'rng_seed'):
         args.rng_seed = np.random.randint(1, int(1e15))
     mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
 
@@ -384,7 +384,7 @@ def run_training(args):
         scheduler.step(metrics=val_loss)
 
     mdb_cud.custom_print("Training complete!", "done")
-    if args.model_path:
+    if hasattr(args,"model_path"):
         # Save the model
         # torch.save(model.state_dict(), args.model_path)
         torch.save(model, args.model_path)
