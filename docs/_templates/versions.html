@@ -3,7 +3,7 @@
     <span class="fa fa-book"> Other Versions</span>
     {%- if current_version.name == 'master' %}
     v: {{ current_version.name }} (#{{ commit_hash }})
-    {%- if current_version.name == 'main' %}
+    {%- elif current_version.name == 'main' %}
     v: {{ current_version.name }} (#{{ commit_hash }})
     {% else %}
     v: {{ current_version.name }}
