@@ -1,8 +1,13 @@
-{%- if current_version %}
 <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
   <span class="rst-current-version" data-toggle="rst-current-version">
     <span class="fa fa-book"> Other Versions</span>
+    {%- if current_version.name == 'master' %}
+    v: {{ current_version.name }} (#{{ commit_hash }})
+    {%- if current_version.name == 'main' %}
+    v: {{ current_version.name }} (#{{ commit_hash }})
+    {% else %}
     v: {{ current_version.name }}
+    {%- endif %}
     <span class="fa fa-caret-down"></span>
   </span>
   <div class="rst-other-versions">
@@ -18,10 +23,15 @@
     <dl>
       <dt>Branches</dt>
       {%- for item in versions.branches %}
+      {%- if item.name == 'master' %}
+      <dd><a href="{{ item.url }}">{{ item.name }} (#{{ commit_hash }})</a></dd>
+      {%- elif item.name == 'main' %}
+      <dd><a href="{{ item.url }}">{{ item.name }} (#{{ commit_hash }})</a></dd>
+      {% else %}
       <dd><a href="{{ item.url }}">{{ item.name }}</a></dd>
+      {%- endif %}
       {%- endfor %}
     </dl>
     {%- endif %}
   </div>
 </div>
-{%- endif %}

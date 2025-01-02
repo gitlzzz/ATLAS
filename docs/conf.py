@@ -6,14 +6,30 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+
+import pathlib as pl
+import subprocess
+import sys
+
+
+def get_git_commit_hash():
+    try:
+        commit_hash = (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+            .strip()
+            .decode("utf-8")
+        )
+    except subprocess.CalledProcessError:
+        commit_hash = "unknown"
+    return commit_hash
+
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import pathlib as pl
-import sys
 
 sys.path.insert(0, pl.Path("../src/MatDBForge").absolute())
 
@@ -95,3 +111,5 @@ html_context = {
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
     "display_lower_left": True,
 }
+
+html_context["commit_hash"] = get_git_commit_hash()
