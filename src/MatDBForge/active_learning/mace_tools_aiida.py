@@ -34,7 +34,9 @@ class ProcessMDSeedStructCalculation(CalcJob):
     md_structure : orm.SinglefileData
         File containing the structure to be used for the MD, in the extxyz format.
     model_file : orm.SinglefileData
-        Best MACE model from the current iteration.
+        Best NNP model from the current iteration.
+    autoencoder_model : orm.SinglefileData, optional
+        File containing the autoencoder model.
     m_rmse_e : orm.Float
         Validation RMSE of the best model for the energy, in meV / atom.
     m_rmse_f : orm.Float
@@ -77,14 +79,24 @@ class ProcessMDSeedStructCalculation(CalcJob):
         spec.input(
             "model_file",
             valid_type=orm.SinglefileData,
-            help="Best MACE model from the current iteration.",
+            help="Best NNP model from the current iteration.",
             serializer=orm.to_aiida_type,
         )
+        spec.input(
+            "autoencoder_model",
+            valid_type=orm.SinglefileData,
+            help="File containing the autoencoder model.",
+            required=False,
+            # non_db=True,
+            default=None,
+        )
+
         spec.input(
             "m_rmse_e",
             valid_type=orm.Float,
             help="Validation RMSE of the best model for the energy, in meV / atom.",
         )
+
         spec.input(
             "m_rmse_f",
             valid_type=orm.Float,
@@ -100,7 +112,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 "extrapolation check."
             ),
             required=False,
-            non_db=True,
+            # non_db=True,
             default=None,
         )
         spec.input(
@@ -132,6 +144,11 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 "File containing all structures that were found to be extrapolating. "
                 "Uses the the extxyz format."
             ),
+        )
+        spec.output(
+            "extrapolation_plot",
+            valid_type=orm.SinglefileData,
+            help=("File containing a figure showing the extrapolation results."),
         )
         spec.exit_code(420, "ERROR_INVALID_OUTPUT", "structure could not be processed")
 
@@ -180,6 +197,14 @@ class ProcessMDSeedStructCalculation(CalcJob):
                     dest_name="concave_hull.npy",
                 )
 
+        # Copying concave hull for extrapolation
+        if self.inputs.autoencoder_model:
+            with self.inputs.autoencoder_model.as_path() as autoencoder_path:
+                folder.insert_path(
+                    src=autoencoder_path,
+                    dest_name="autoencoder_model.pth",
+                )
+
         # Copying descriptors max and min
         desc_max_arr: orm.ArrayData = self.inputs.desc_max_arr.get_array()
         with tempfile.NamedTemporaryFile(
@@ -226,6 +251,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         calcinfo.retrieve_temporary_list = [
             # self.metadata.options.output_filename,
             "./results/*.xyz",
+            "./results/*.png",
             "./logs/*",
         ]
 
@@ -248,14 +274,17 @@ class ProcessMDSeedStructCalculationParser(Parser):
             # If swa was used, get the swa model preferentially
             if "extrapolating_frames.xyz" in child_file.name:
                 extrapolating_structures = orm.SinglefileData(file=child_file)
-                continue
+            if ".png" in child_file.name:
+                extrapolation_plot = orm.SinglefileData(file=child_file)
 
+        print("#@# extrapolating_structures: ", extrapolating_structures)
         # Return failed code
         if not extrapolating_structures:
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
         self.out("extrapolating_structures", extrapolating_structures)
+        self.out("extrapolation_plot", extrapolation_plot)
 
 
 class TrainMACEModelCalculationParser(Parser):
@@ -286,7 +315,6 @@ class TrainMACEModelCalculationParser(Parser):
 
             # Get train statistics from the training output
             if "train.txt" in child_file.name:
-                # TODO: gather rmse_e, rmse_f
                 with open(child_file) as f:
                     for line in f:
                         line_dict = json.loads(line)
@@ -296,12 +324,16 @@ class TrainMACEModelCalculationParser(Parser):
                 rmse_e = float(last_dict["rmse_e_per_atom"]) * 1000  # meV / atom
                 rmse_f = float(last_dict["rmse_f"]) * 1000  # meV / A
 
+            if "train_" in child_file.name:
+                train_file = orm.SinglefileData(file=child_file)
+
         # Return failed code
-        if not rmse_e or not rmse_f or not model_file:
+        if not rmse_e or not rmse_f or not model_file or not train_file:
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
         # Return CalcJob outputs
         self.out("model_file", model_file)
+        self.out("train_file", train_file)
         self.out("m_rmse_e", orm.Float(rmse_e))
         self.out("m_rmse_f", orm.Float(rmse_f))
 
@@ -326,7 +358,9 @@ class TrainMACEModelCalculation(CalcJob):
     Outputs
     -------
     model_file : orm.SinglefileData
-        Path of the trained MACE model
+        Trained MACE model.
+    train_file : orm.SinglefileData
+        Log file containing training information.
     m_rmse_e : orm.Float
         Validation RMSE for the energy, in meV / atom.
     m_rmse_f : orm.Float
@@ -379,7 +413,12 @@ class TrainMACEModelCalculation(CalcJob):
         spec.output(
             "model_file",
             valid_type=orm.SinglefileData,
-            help="Path of the trained MACE model.",
+            help="Trained MACE model.",
+        )
+        spec.output(
+            "train_file",
+            valid_type=orm.SinglefileData,
+            help="Log file containing training information.",
         )
         spec.output(
             "m_rmse_e",
@@ -442,6 +481,7 @@ class TrainMACEModelCalculation(CalcJob):
             self.metadata.options.output_filename,
             "./*.model",
             "./results/*",
+            "./train_*",
         ]
 
         return calcinfo
@@ -1007,7 +1047,8 @@ class CheckMACECommiteeResultsCalculationParser(Parser):
         self.out("forces_result_dict", orm.Dict(result_model_forces))
 
 
-class GetDescriptorsCombinedCalculationParser(Parser):
+# mdb-descriptors-combined-parser
+class GetDescriptorsCombinedParser(Parser):
     """
     Parser for a descriptor and extrapolation gathering job.
 
@@ -1041,37 +1082,47 @@ class GetDescriptorsCombinedCalculationParser(Parser):
         concave_hull = None
         latent_space = None
         extrapolation_plot = None
+        autoencoder_model = None
 
         # Gathering results from the temporary folder
-        for child_file in retrieved_temporary_folder.iterdir():
+        # for child_file in retrieved_temporary_folder.iterdir():
+        for child_file in retrieved_temporary_folder.rglob("*"):
             match child_file.name:
                 # case "curr_it_db_descriptors.pkl":
                 # descriptor_arr_file = orm.SinglefileData(file=child_file.absolute())
                 case "curr_it_db_max.npy":
-                    descriptor_max = orm.SinglefileData(file=child_file.absolute())
+                    descriptor_max = orm.ArrayData(
+                        arrays=np.load(child_file.absolute())
+                    )
                 case "curr_it_db_min.npy":
-                    descriptor_min = orm.SinglefileData(file=child_file.absolute())
+                    descriptor_min = orm.ArrayData(
+                        arrays=np.load(child_file.absolute())
+                    )
                 case "concave_hull.npy":
-                    concave_hull = orm.SinglefileData(file=child_file.absolute())
+                    concave_hull = orm.ArrayData(arrays=np.load(child_file.absolute()))
                 case "latent_space.npy":
-                    latent_space = orm.SinglefileData(file=child_file.absolute())
+                    latent_space = orm.ArrayData(arrays=np.load(child_file.absolute()))
                 case "concave_hull.png":
                     extrapolation_plot = orm.SinglefileData(file=child_file.absolute())
+                case "autoencoder_model.pth":
+                    autoencoder_model = orm.SinglefileData(file=child_file.absolute())
 
         # Return failed code if the mandatory outputs are missing
         if not all((descriptor_max, descriptor_min)):
             return self.exit_codes.ERROR_OUTPUT_NOT_FOUND
 
         # Return CalcJob outputs
-        self.out("descriptor_max", orm.SinglefileData(descriptor_max))
-        self.out("descriptor_min", orm.SinglefileData(descriptor_min))
+        self.out("descriptor_max", descriptor_max)
+        self.out("descriptor_min", descriptor_min)
 
         if latent_space:
-            self.out("latent_space", orm.SinglefileData(latent_space))
+            self.out("latent_space", latent_space)
         if concave_hull:
-            self.out("concave_hull", orm.SinglefileData(concave_hull))
+            self.out("concave_hull", concave_hull)
         if extrapolation_plot:
-            self.out("extrapolation_plot", orm.SinglefileData(extrapolation_plot))
+            self.out("extrapolation_plot", extrapolation_plot)
+        if autoencoder_model:
+            self.out("autoencoder_model", autoencoder_model)
 
 
 # entry-point: mdb-descriptors-combined
@@ -1099,14 +1150,18 @@ class GetDescriptorsCombinedCalculation(CalcJob):
 
     Outputs
     -------
-    descriptor_max : orm.SinglefileData
+    descriptor_max : orm.ArrayData
         File containing the maximum values for the descriptors.
-    descriptor_min : orm.SinglefileData
+    descriptor_min : orm.ArrayData
         File containing the minimum values for the descriptors.
-    concave_hull : orm.SinglefileData, optional
+    latent_space : orm.ArrayData, optional
+        File containing the latent space as an array.
+    concave_hull : orm.ArrayData, optional
         File containing the concave hull of the latent space as an array.
     extrapolation_plot : orm.SinglefileData, optional
         Figure showing the extrapolation for the current database.
+    autoencoder_model : orm.SinglefileData, optional
+        File containing the autoencoder model.
 
     Exit Codes
     ----------
@@ -1141,7 +1196,7 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
         spec.input(
             "latent_space",
-            valid_type=orm.SinglefileData,
+            valid_type=orm.ArrayData,
             help="File containing the latent space as an array.",
             serializer=orm.to_aiida_type,
             required=False,
@@ -1150,8 +1205,14 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
         spec.output(
             "concave_hull",
-            valid_type=orm.SinglefileData,
-            help="File containing the concave hull of the latent space as an array.",
+            valid_type=orm.ArrayData,
+            help="Array containing the concave hull of the latent space.",
+            required=False,
+        )
+        spec.output(
+            "latent_space",
+            valid_type=orm.ArrayData,
+            help="Array containing the latent space.",
             required=False,
         )
         spec.output(
@@ -1162,14 +1223,21 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
         spec.output(
             "descriptor_max",
-            valid_type=orm.SinglefileData,
+            valid_type=orm.ArrayData,
             help="File containing the maximum values for the descriptors.",
         )
         spec.output(
             "descriptor_min",
-            valid_type=orm.SinglefileData,
+            valid_type=orm.ArrayData,
             help="File containing the minimum values for the descriptors.",
         )
+        spec.output(
+            "autoencoder_model",
+            valid_type=orm.SinglefileData,
+            help="File containing the autoencoder model.",
+            required=False,
+        )
+
         spec.exit_code(420, "ERROR_OUT_OF_VRAM", "CUDA out of GPU memory.")
         spec.exit_code(421, "ERROR_OUTPUT_NOT_FOUND", "Missing output file.")
 
@@ -1202,7 +1270,7 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
 
         # Copying configuration to temporary folder
-        print('self.inputs.latent_space: ', self.inputs.latent_space)
+        print("#@# self.inputs.latent_space: ", self.inputs.latent_space)
         if self.inputs.latent_space:
             with self.inputs.latent_space.as_path() as latent_space_path:
                 folder.insert_path(
@@ -1221,18 +1289,25 @@ class GetDescriptorsCombinedCalculation(CalcJob):
 
         # Gathering files.
         calcinfo.retrieve_list = [
-            "results.out",
+            # "results.out",
+            # "./results/curr_it_db*",
+            # "./results/*.png",
+            # "./results/*.npy",
+            "./logs/*",
         ]
 
         # They won't be added to the repository,
         # and instead kept into a temporary folder.
         calcinfo.retrieve_temporary_list = [
             "*_output.out",
-            "./results/*.png",
-            "./results/*.pkl",
-            "./results/curr_it_db*",
-            "./results/concave_hull.npy",
-            "./results/latent_space.npy",
+            "results/*.pkl",
+            "results/curr_it_db*",
+            "results/*.png",
+            "results/*.npy",
+            "results/concave_hull.npy",
+            "results/latent_space.npy",
+            "results/*.pth",
+            "*.pth",
         ]
 
         return calcinfo
