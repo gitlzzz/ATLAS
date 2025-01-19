@@ -101,6 +101,8 @@ html_logo = "../media/logo_dark.png"
 html_theme_options = {
     "logo_only": True,
     "version_selector": True,
+    "display_version": True,
+    "github_url": "https://github.com/pol-sb/MatDBForge"
 }
 
 html_context = {
