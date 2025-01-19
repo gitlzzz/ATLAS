@@ -2131,8 +2131,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.report(f"Logging in '{log_path}'.")
 
     def log_mdb_version(self):
-        curr_version, _ = get_mdb_version_info()
-        self.report(f"Using MatDBForge version: '{curr_version}'.")
+        curr_version, _, hash_str = get_mdb_version_info()
+        self.report(f"Using MatDBForge version: '{curr_version}' ({hash_str[:7]}).")
 
     def get_database(self):
         """Loading initial database."""
