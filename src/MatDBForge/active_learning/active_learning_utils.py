@@ -886,6 +886,9 @@ def check_disconn_neighbors(
     bool
         Whether there are disconnected atoms in the structure.
     """
+    if len(coord_nums) <= min_coord:
+        min_coord -= 1
+
     has_disconnected_neighbors: bool = False
     for at_id, coord_num in enumerate(coord_nums):
         if coord_num <= min_coord:
