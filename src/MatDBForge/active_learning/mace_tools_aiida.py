@@ -33,8 +33,8 @@ class ProcessMDSeedStructCalculation(CalcJob):
     ----------
     md_structure : orm.SinglefileData
         File containing the structure to be used for the MD, in the extxyz format.
-    model_file : orm.SinglefileData
-        Best NNP model from the current iteration.
+    commitee_models : PortNamespace
+        A namespace to hold an arbitrary number of committee MACE potentials.
     autoencoder_model : orm.SinglefileData, optional
         File containing the autoencoder model.
     m_rmse_e : orm.Float
@@ -66,6 +66,19 @@ class ProcessMDSeedStructCalculation(CalcJob):
     def define(cls, spec):
         """Define the input and output specifications for the CalcJob."""
         super().define(spec)
+        # Namespace that will hold an arbitrary number of committee MACE potentials
+        spec.input_namespace(
+            "commitee_models",
+            dynamic=True,
+            valid_type=orm.SinglefileData,
+            non_db=True,
+        )
+        spec.input(
+            "best_model_name",
+            valid_type=orm.Str,
+            help="Name of the best model.",
+            required=True,
+        )
         spec.input(
             "md_structure",
             valid_type=orm.SinglefileData,
@@ -75,12 +88,6 @@ class ProcessMDSeedStructCalculation(CalcJob):
             ),
             required=True,
             # non_db=True,
-        )
-        spec.input(
-            "model_file",
-            valid_type=orm.SinglefileData,
-            help="Best NNP model from the current iteration.",
-            serializer=orm.to_aiida_type,
         )
         spec.input(
             "autoencoder_model",
@@ -225,12 +232,23 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 dest_name="curr_it_db_min.npy",
             )
 
-        model_file = self.inputs.model_file
-        with model_file.as_path() as model_file_path:
-            folder.insert_path(
-                src=model_file_path,
-                dest_name="curr_model.model",
-            )
+
+        # Copying configuration to temporary folder
+        best_model_name = self.inputs.best_model_name.value.replace("-", "_")
+        for model_str, model_singlefile in self.inputs.commitee_models.items():
+            # If the best model is in the name, use it as the current model
+            if model_str in best_model_name:
+                with model_singlefile.as_path() as model_path:
+                    folder.insert_path(
+                        src=model_path,
+                        dest_name="curr_model.model",
+                    )
+            else:
+                with model_singlefile.as_path() as model_path:
+                    folder.insert_path(
+                        src=model_path,
+                        dest_name=f"{model_str}.model",
+                    )
 
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
@@ -277,7 +295,6 @@ class ProcessMDSeedStructCalculationParser(Parser):
             if ".png" in child_file.name:
                 extrapolation_plot = orm.SinglefileData(file=child_file)
 
-        print("#@# extrapolating_structures: ", extrapolating_structures)
         # Return failed code
         if not extrapolating_structures:
             return self.exit_codes.ERROR_INVALID_OUTPUT
@@ -1270,7 +1287,6 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
 
         # Copying configuration to temporary folder
-        print("#@# self.inputs.latent_space: ", self.inputs.latent_space)
         if self.inputs.latent_space:
             with self.inputs.latent_space.as_path() as latent_space_path:
                 folder.insert_path(
