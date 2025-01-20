@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 
 
 def create_active_learning_builder(
-    toml_dict: dict, toml_dict_path: pl.Path = None, simple=False
+    toml_dict: dict, toml_dict_path: pl.Path = None, complete=False
 ):
     """
     Create builder object for the ActiveLearningWorkChain.
@@ -34,10 +34,10 @@ def create_active_learning_builder(
     from aiida.plugins import WorkflowFactory
 
     # Getting builder for workchain
-    if simple:
-        al_calculation = WorkflowFactory("mdb-simple-active-learning-base")
-    else:
+    if complete:
         al_calculation = WorkflowFactory("mdb-active-learning-base")
+    else:
+        al_calculation = WorkflowFactory("mdb-simple-active-learning-base")
     builder = al_calculation.get_builder()
 
     ## General AL settings
@@ -268,8 +268,8 @@ def run_active_learning():
     )
 
     parser.add_argument(
-        "--simple",
-        help="Use the simple active learning workchain.",
+        "--complete",
+        help="Use the old version of the active learning workchain.",
         action="store_const",
         const=True,
     )
@@ -475,7 +475,7 @@ def run_active_learning():
         builder = create_active_learning_builder(
             toml_dict,
             toml_dict_path=pl.Path(args.config_file).resolve(),
-            simple=args.simple,
+            complete=args.complete,
         )
 
         if args.command != "gui":
