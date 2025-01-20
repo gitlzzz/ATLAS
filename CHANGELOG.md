@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.20.0 (2025-01-20)
+
+### Feature
+
+- **al_loop**: add `mdb_check_descr_combined.py` script for descriptor gathering and extrapolation check for simple active learning loop: - Introduced `mdb_check_descr_combined.py`, a comprehensive script for checking extrapolation in the current iteration. - Implements descriptor generation using MACE and optional dimensionality reduction via an autoencoder. - Supports advanced extrapolation checks, including concave hull computation and visualization using `GMT.jl` and `ConcaveHull.jl`. ([#784ecdc](https://github.com/pol-sb/MatDBForge/commit/784ecdc85a11691dbe426e3e90b9e4284ed930b7))
+- **autoencoder**: Make autoencoder training compatible with on the fly active learning loop and provide improved path handling and error checks: ([#2b07fcb](https://github.com/pol-sb/MatDBForge/commit/2b07fcb9f256bbd2d610203fe234faaa5d7d73ba))
+- **al_loop**: Enhance MD structure processing in `mdb_process_structure.py` ([#4f3a44b](https://github.com/pol-sb/MatDBForge/commit/4f3a44b0939d2586ea72da93da790ff361e4ecae))
+- **al_loop**: Add combined descriptor generation and concave hull analysis to simplified active learning loop ([#2943d0c](https://github.com/pol-sb/MatDBForge/commit/2943d0cd681472581322d9f6c50939e2b8fffd2a))
+
+### Fix
+
+- **md**: add minimum number of atoms safeguard to `check_disconn_neighbors` md filter. ([#82caa11](https://github.com/pol-sb/MatDBForge/commit/82caa11a679dcd38d39e31fab4dbc6d45aae181c))
+- **core**: improve version check ([#6e94117](https://github.com/pol-sb/MatDBForge/commit/6e941170f2589137c6cbc2a6dfcbb618b8988e7d))
+- **al_loop**: Working ver. for `ProcessMDSeedStructCalculation` and `GetDescriptorsCombined` aling their parsers. ([#2947e88](https://github.com/pol-sb/MatDBForge/commit/2947e889d9853da9835ebdbadadb7299b226c6ef))
+- **docs**: fixed versions.html jinja template with missing elif statement ([#c53bfca](https://github.com/pol-sb/MatDBForge/commit/c53bfca9fafd4d1f26b75677a392e55531e716c3))
+- **docs**: updated README.md documentation links to master branch of documentation ([#9232175](https://github.com/pol-sb/MatDBForge/commit/9232175caace654ed2634a5910d3157aba83d4f5))
+- **dft**: fixed typo in `run_dataframe_vasp_aiida_queue` ([#e92dd82](https://github.com/pol-sb/MatDBForge/commit/e92dd82e70f77ca963103ce6ab495d3a332d1cc7))
+
+### Misc
+
+- **docs**: update docs templates and config ([#2713b52](https://github.com/pol-sb/MatDBForge/commit/2713b5264ba07c2cda68638dec16b26ef1ef9703))
+- **docs**: add short commit hash to master/main branch in documentation ([#e541bfe](https://github.com/pol-sb/MatDBForge/commit/e541bfee1ad73029a71419777af371d1b39a40ce))
+- **dft**: added aiida-vasp parsing settings to `dft_settings.toml` ([#2f07c1c](https://github.com/pol-sb/MatDBForge/commit/2f07c1c04040d85fce9886b825f136f6479e0e11))
+- **core**: updated documentation.yml for gh-actions ([#1c63ed7](https://github.com/pol-sb/MatDBForge/commit/1c63ed707e60050491902582d9ddadc2ceca04ed))
+- **core**: updated documentation.yml for gh-actions ([#7ba647a](https://github.com/pol-sb/MatDBForge/commit/7ba647a6b7e43fb1e5b4b331d336200353d0ed68))
+- **core**: add documentation badge to README ([#631f5af](https://github.com/pol-sb/MatDBForge/commit/631f5af320e69866aa1b33aa7fc41095f1efe502))
+- **core**: updated documentation.yml for gh-actions ([#30b0c89](https://github.com/pol-sb/MatDBForge/commit/30b0c89f26e2af57cafdca0c721fac338c4d5740))
+
 ## 0.19.12 (2024-12-28)
 
 ### Misc
