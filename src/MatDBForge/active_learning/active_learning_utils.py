@@ -70,8 +70,7 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
 
 
 # TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
-def generate_descriptors(model_path: str, database, device="cpu", dtype="float32"):
-
+def generate_descriptors(model_path: str, database, device='cpu', dtype='float32'):
     # Initialize the MACE calculator
     calculator = MACECalculator(
         model_paths=model_path, device=device, default_dtype=dtype
@@ -80,18 +79,20 @@ def generate_descriptors(model_path: str, database, device="cpu", dtype="float32
     # Generate descriptors for all structures in the database
     descriptor_dict = {}
     descriptor_list = []
-    for struct in database:
-        descriptor_dict[struct.info["aiida_uuid"]] = {
-            "descriptors": [],
-            "latent_space": [],
-        }
 
     for struct in database:
+        if struct.info.get('mdb_id'):
+            struct_key = struct.info.get('mdb_id')
+        else:
+            struct_key = struct.info.get('aiida_uuid')
+
+        descriptor_dict[struct_key] = {
+            'descriptors': [],
+            'latent_space': [],
+        }
         curr_struct_descriptors = calculator.get_descriptors(struct)
         descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct.info["aiida_uuid"]]["descriptors"].append(
-            curr_struct_descriptors
-        )
+        descriptor_dict[struct_key]['descriptors'].append(curr_struct_descriptors)
 
     descriptor_arr = np.vstack(descriptor_list)
     return descriptor_dict, descriptor_arr
@@ -102,8 +103,8 @@ def generate_descriptors_mace(
     database,
     descriptor_settings: dict,
 ):
-    device = descriptor_settings.get("device", "cpu")
-    dtype = descriptor_settings.get("dtype", "float32")
+    device = descriptor_settings.get('device', 'cpu')
+    dtype = descriptor_settings.get('dtype', 'float32')
     calculator = MACECalculator(
         model_paths=model_path, device=device, default_dtype=dtype
     )
@@ -111,20 +112,20 @@ def generate_descriptors_mace(
     descriptor_dict = {}
     descriptor_list = []
     for struct in database:
-        if struct.info.get("aiida_uuid"):
-            struct_key = struct.info.get("aiida_uuid")
+        if struct.info.get('aiida_uuid'):
+            struct_key = struct.info.get('aiida_uuid')
         else:
-            struct_key = struct.info.get("mdb_id")
+            struct_key = struct.info.get('mdb_id')
 
         descriptor_dict[struct_key] = {
-            "descriptors": [],
-            "latent_space": [],
+            'descriptors': [],
+            'latent_space': [],
         }
 
     for struct in database:
         curr_struct_descriptors = calculator.get_descriptors(struct)
         descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct_key]["descriptors"].append(curr_struct_descriptors)
+        descriptor_dict[struct_key]['descriptors'].append(curr_struct_descriptors)
 
     descriptor_arr = np.vstack(descriptor_list)
     return descriptor_dict, descriptor_arr
@@ -133,7 +134,7 @@ def generate_descriptors_mace(
 def generate_descriptors_soap(database, descriptor_settings: dict): ...
 
 
-def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path="."):
+def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
     """
     Run MD simulations using ASE and MACE.
 
@@ -150,26 +151,26 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path="."):
     prepend_path : str, optional
         Path to prepend to the model path, by default None
     """
-    T_multiplier = md_params.get("max_temp_multiplier", 1.0)
+    T_multiplier = md_params.get('max_temp_multiplier', 1.0)
     T_end = T_start * T_multiplier
-    timestep = md_params["timestep_duration_ps"]
-    friction = md_params["timestep_duration_ps"] * 100
-    num_steps = md_params["num_steps"]
-    write_interval = md_params.get("md_write_interval", 1)
-    thermostat = md_params.get("md_thermostat", "langevin")
+    timestep = md_params['timestep_duration_ps']
+    friction = md_params['timestep_duration_ps'] * 100
+    num_steps = md_params['num_steps']
+    write_interval = md_params.get('md_write_interval', 1)
+    thermostat = md_params.get('md_thermostat', 'langevin')
 
-    md_params["T_start"] = T_start
-    md_params["T_end"] = T_end
-    md_params["friction"] = friction
-    md_params["write_interval"] = write_interval
+    md_params['T_start'] = T_start
+    md_params['T_end'] = T_end
+    md_params['friction'] = friction
+    md_params['write_interval'] = write_interval
 
     # Load the trained model as an ASE calculator and attach it to the atoms object
-    model_path = Path(prepend_path) / "curr_model.model"
+    model_path = Path(prepend_path) / 'curr_model.model'
 
     calculator = MACECalculator(
         model_paths=model_path,
-        device=md_params.get("device", "cpu"),
-        default_dtype=md_params.get("dtype", "float64"),
+        device=md_params.get('device', 'cpu'),
+        default_dtype=md_params.get('dtype', 'float64'),
     )
     init_conf.calc = calculator
 
@@ -178,12 +179,12 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path="."):
 
     # Creating the log folder (if it does not exist, this applies when running
     # from a docker container)
-    log_folder = Path(prepend_path) / "logs"
+    log_folder = Path(prepend_path) / 'logs'
     log_folder.mkdir(exist_ok=True)
-    print("init_conf: ", init_conf)
+    print('init_conf: ', init_conf)
 
     match thermostat:
-        case "langevin":
+        case 'langevin':
             # Define the Langevin dynamics
             dyn = Langevin(
                 atoms=init_conf,
@@ -192,9 +193,9 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path="."):
                 temperature_K=T_start,
                 friction=friction,
                 trajectory=traj_obj,
-                logfile=log_folder / f"md_info-{T_start}K.log",
+                logfile=log_folder / f'md_info-{T_start}K.log',
             )
-        case "nose-hoover":
+        case 'nose-hoover':
             # Change the simulation box to remove any small numbers not in the diagonal
             # of the box matrix
             box = init_conf.get_cell()
@@ -209,9 +210,9 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path="."):
                 ttime=100 * units.fs,
                 pfactor=None,
                 trajectory=traj_obj,
-                logfile=log_folder / f"md_info-{T_start}K.log",
+                logfile=log_folder / f'md_info-{T_start}K.log',
             )
-    mdb_cud.custom_print("Running MD simulation using settings:", "info")
+    mdb_cud.custom_print('Running MD simulation using settings:', 'info')
     rprint(md_params)
 
     # Attach the thermostat function to increase the temperature
@@ -234,16 +235,16 @@ def plot_al_loop_report(
 ):
     # Get unix timestamp for filename
     timestamp = int(time.time())
-    filename = Path(f"seed_train_db_sizes_{timestamp}.png").resolve()
+    filename = Path(f'seed_train_db_sizes_{timestamp}.png').resolve()
 
     # Define colors from the gruvbox palette
     colors = [
-        "#83a598",
-        "#b16286",
-        "#98971a",
-        "#fb4934",
+        '#83a598',
+        '#b16286',
+        '#98971a',
+        '#fb4934',
     ]
-    line_color = "#28282855"
+    line_color = '#28282855'
 
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     width = 0.3
@@ -255,27 +256,27 @@ def plot_al_loop_report(
     seed_gen_db_sizes = [ini_db_size] + seed_gen_db_sizes
 
     # Plotting seed and train db sizes
-    ax[0, 0].bar(ind, train_db_sizes, width=width, label="train_db", color=colors[0])
+    ax[0, 0].bar(ind, train_db_sizes, width=width, label='train_db', color=colors[0])
     ax[0, 0].bar(
         ind + width,
         seed_gen_db_sizes,
         width=width,
-        label="seed_gen_db",
+        label='seed_gen_db',
         color=colors[1],
     )
     ax[0, 0].set_xticks(ind + width / 2, ind)
-    ax[0, 0].set_xlabel("AL Loop Step")
-    ax[0, 0].set_ylabel("Number of structures")
+    ax[0, 0].set_xlabel('AL Loop Step')
+    ax[0, 0].set_ylabel('Number of structures')
     ax[0, 0].legend()
-    ax[0, 0].set_title("Seed and Train Database Evolution")
+    ax[0, 0].set_title('Seed and Train Database Evolution')
 
     # Add text labels to top left figure bars
     for idx, seed, train in zip(
         it_idx, seed_gen_db_sizes, train_db_sizes, strict=False
     ):
-        ax[0, 0].text(idx, train / 2, train, ha="center", va="bottom", rotation=90)
+        ax[0, 0].text(idx, train / 2, train, ha='center', va='bottom', rotation=90)
         ax[0, 0].text(
-            idx + width, seed / 2, seed, ha="center", va="bottom", rotation=90
+            idx + width, seed / 2, seed, ha='center', va='bottom', rotation=90
         )
 
     # Plot seed size delta as a bar chart over every iteration
@@ -298,49 +299,49 @@ def plot_al_loop_report(
             continue
 
         # Add sign
-        seed_txt = f"{seed}" if seed < 0 else f"+{seed}"
-        train_txt = f"{train}" if train < 0 else f"+{train}"
+        seed_txt = f'{seed}' if seed < 0 else f'+{seed}'
+        train_txt = f'{train}' if train < 0 else f'+{train}'
 
-        ax[0, 1].text(idx, train / 2, train_txt, ha="center", va="bottom", rotation=90)
+        ax[0, 1].text(idx, train / 2, train_txt, ha='center', va='bottom', rotation=90)
         ax[0, 1].text(
-            idx + width, seed / 2, seed_txt, ha="center", va="bottom", rotation=90
+            idx + width, seed / 2, seed_txt, ha='center', va='bottom', rotation=90
         )
 
-    ax[0, 1].bar(ind, train_db_diff, width=width, label="train_db", color=colors[0])
+    ax[0, 1].bar(ind, train_db_diff, width=width, label='train_db', color=colors[0])
     ax[0, 1].bar(
         ind + width,
         seed_gen_db_diff,
         width=width,
-        label="seed_gen_db",
+        label='seed_gen_db',
         color=colors[1],
     )
-    ax[0, 1].axhline(y=0, color=line_color, linestyle="--")
+    ax[0, 1].axhline(y=0, color=line_color, linestyle='--')
     ax[0, 1].set_xticks(ind + width / 2, ind)
-    ax[0, 1].set_xlabel("AL Loop Step")
-    ax[0, 1].set_ylabel(r"$\Delta$ Number of structures")
-    ax[0, 1].set_title("Structure count change over iteration")
+    ax[0, 1].set_xlabel('AL Loop Step')
+    ax[0, 1].set_ylabel(r'$\Delta$ Number of structures')
+    ax[0, 1].set_title('Structure count change over iteration')
     ax[0, 1].legend()
 
     # Plot MACE model energy performance
     ind = np.arange(len(mace_e)) + 1
-    ax[1, 0].plot(ind, mace_e, label="MACE Energy", color=colors[2], marker="o")
+    ax[1, 0].plot(ind, mace_e, label='MACE Energy', color=colors[2], marker='o')
     ax[1, 0].set_xticks(ind, ind)
-    ax[1, 0].set_xlabel("AL Loop Step")
-    ax[1, 0].set_ylabel("RMSE E per atom [meV]")
-    ax[1, 0].set_title("Evolution of best MACE Model Energy RMSE")
+    ax[1, 0].set_xlabel('AL Loop Step')
+    ax[1, 0].set_ylabel('RMSE E per atom [meV]')
+    ax[1, 0].set_title('Evolution of best MACE Model Energy RMSE')
 
     # Plot MACE model force performance
-    ax[1, 1].plot(ind, mace_f, label="MACE Forces", color=colors[3], marker="o")
+    ax[1, 1].plot(ind, mace_f, label='MACE Forces', color=colors[3], marker='o')
     ax[1, 1].set_xticks(ind, ind)
-    ax[1, 1].set_xlabel("AL Loop Step")
-    ax[1, 1].set_ylabel("RMSE F [meV / A]")
+    ax[1, 1].set_xlabel('AL Loop Step')
+    ax[1, 1].set_ylabel('RMSE F [meV / A]')
 
     # Add a horizontal line to mark chemical accuracy for energy and forces
     chem_acc = 43.37  # meV
 
-    ax[1, 0].axhline(y=chem_acc, color=line_color, linestyle="--")
-    ax[1, 0].text(x=1.5, y=chem_acc + 0.5, s="Chem. Acc.", color=line_color)
-    ax[1, 1].set_title("Evolution of best MACE Model Force RMSE")
+    ax[1, 0].axhline(y=chem_acc, color=line_color, linestyle='--')
+    ax[1, 0].text(x=1.5, y=chem_acc + 0.5, s='Chem. Acc.', color=line_color)
+    ax[1, 1].set_title('Evolution of best MACE Model Force RMSE')
 
     return ax, filename
 
@@ -349,7 +350,7 @@ def gen_al_loop_report(
     loop_id: int | str = None,
     log_path: str = None,
     get_error_plot: bool = False,
-    device="cpu",
+    device='cpu',
     model_path: str | Path = None,
     database_path: str | Path = None,
     threshold_meV: float = None,
@@ -360,40 +361,40 @@ def gen_al_loop_report(
     from aiida.cmdline.utils.common import get_workchain_report
 
     # Init logger
-    init_logger(source="al_loop_report_gen")
+    init_logger(source='al_loop_report_gen')
 
     if loop_id:
         al_loop_node = orm.load_node(loop_id)
-        report = get_workchain_report(al_loop_node, levelname="REPORT")
+        report = get_workchain_report(al_loop_node, levelname='REPORT')
     if log_path:
         with open(log_path) as f:
             report = f.read()
-        loop_id = re.compile(r".*ActiveLearningBaseWorkChain\|setup].*").findall(report)
-        loop_id = int(loop_id[0].split("|")[0].replace("[", "").strip())
+        loop_id = re.compile(r'.*ActiveLearningBaseWorkChain\|setup].*').findall(report)
+        loop_id = int(loop_id[0].split('|')[0].replace('[', '').strip())
         try:
             al_loop_node = orm.load_node(loop_id)
         except Exception:
             al_loop_node = loop_id
 
     try:
-        ini_db_line = re.compile(r"initial database containing.*").findall(report)
-        ini_db_size = int(ini_db_line[0].split()[3].replace("'", ""))
+        ini_db_line = re.compile(r'initial database containing.*').findall(report)
+        ini_db_size = int(ini_db_line[0].split()[3].replace("'", ''))
     except IndexError:
         ini_db_size = 0
 
     # Match all lines containing the seed_gen_db and train_db sizes
     seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
-    db_lines_re = re.compile(r"Iteration \d\d?: seed_gen_db.*").findall(report)
+    db_lines_re = re.compile(r'Iteration \d\d?: seed_gen_db.*').findall(report)
 
     # Prepare a list of all seed_gen_db and train_db sizes from db_lines
     for line in db_lines_re:
-        it_idx.append(int(line.split()[1].replace(":", "")))
-        seed_gen_db_sizes.append(int(line.split()[3].replace(",", "")))
-        train_db_sizes.append(int(line.split()[5].replace(",", "")))
+        it_idx.append(int(line.split()[1].replace(':', '')))
+        seed_gen_db_sizes.append(int(line.split()[3].replace(',', '')))
+        train_db_sizes.append(int(line.split()[5].replace(',', '')))
 
     # Match all lines containing the M0 model performance
     mace_e, mace_f = [], []
-    lammps_lines = re.compile(r"Generated LAMMPS potential using.*").findall(report)
+    lammps_lines = re.compile(r'Generated LAMMPS potential using.*').findall(report)
 
     # Prepare a list of all mace models generated from lammps_lines
     for line in lammps_lines:
@@ -419,8 +420,8 @@ def gen_al_loop_report(
 
     if get_error_plot:
         custom_print(
-            "Generating database error plot." f"Remove outliers: {remove_outliers}",
-            "info",
+            'Generating database error plot.' f'Remove outliers: {remove_outliers}',
+            'info',
         )
 
         generate_error_plot(
@@ -435,15 +436,15 @@ def gen_al_loop_report(
 
     plt.tight_layout()
     plt.savefig(filename, dpi=300)
-    custom_print(f"Saved report to '{filename}'.", "info")
+    custom_print(f"Saved report to '{filename}'.", 'info')
     plt.clf()
 
-    custom_print("Report generation complete.", "done")
+    custom_print('Report generation complete.', 'done')
 
 
 def generate_error_plot(
     al_loop_node,
-    device_str: str = "cpu",
+    device_str: str = 'cpu',
     ax=None,
     database_path: str = None,
     model_path: str = None,
@@ -454,7 +455,7 @@ def generate_error_plot(
     from mace.tools import torch_geometric, torch_tools, utils
     from rich.progress import track
 
-    torch_tools.set_default_dtype("float32")
+    torch_tools.set_default_dtype('float32')
     device = torch_tools.init_device(device_str)
 
     # Create tmp folder in the current directory
@@ -464,13 +465,13 @@ def generate_error_plot(
             last_iter = [
                 stp
                 for stp in al_loop_node.called
-                if stp.process_type == "aiida.workflows:mdb-active-learning"
+                if stp.process_type == 'aiida.workflows:mdb-active-learning'
             ][-1]
         except AttributeError:
             last_iter = al_loop_node
             custom_print(
-                "No nodes found for the AL loop. Is it stored in this machine?",
-                "warning",
+                'No nodes found for the AL loop. Is it stored in this machine?',
+                'warning',
             )
 
         # Copy the training database to the tmp folder
@@ -486,7 +487,7 @@ def generate_error_plot(
                 model_path = shutil.copy(f, tmp_dir)
 
         # Load the training database
-        train_db = ase_read(training_db_cp_path, format="extxyz", index=":")
+        train_db = ase_read(training_db_cp_path, format='extxyz', index=':')
 
         # Load model
         model = torch.load(f=model_path, map_location=device_str, weights_only=False)
@@ -513,21 +514,21 @@ def generate_error_plot(
         E_nn_list = []
         # Iterate over the data loader to get the model energies
         # Use a rich progress bar to show the progress
-        if "E_nn_list.npy" not in os.listdir():
+        if 'E_nn_list.npy' not in os.listdir():
             for batch in track(
                 data_loader,
-                description="Evaluating structures...",
+                description='Evaluating structures...',
             ):
                 batch = batch.to(device)
                 output = model(batch.to_dict(), compute_stress=False)
-                E_nn_list.append(torch_tools.to_numpy(output["energy"]))
+                E_nn_list.append(torch_tools.to_numpy(output['energy']))
 
             E_nn_list = np.concatenate(E_nn_list, axis=0)
         else:
-            E_nn_list = np.load("E_nn_list.npy")
+            E_nn_list = np.load('E_nn_list.npy')
 
-        np.save("E_nn_list.npy", E_nn_list)
-        E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
+        np.save('E_nn_list.npy', E_nn_list)
+        E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
 
         # Getting atom count
         struct_len_list = np.array([len(atoms) for atoms in train_db])
@@ -547,7 +548,7 @@ def generate_error_plot(
         for val in sorted_diff_list_meV[::-1]:
             if abs(diff_list_meV[val]) > threshold_meV:
                 struct = train_db[int(val)]
-                struct.info["E_dft_nn_diff_meV"] = diff_list_meV[val]
+                struct.info['E_dft_nn_diff_meV'] = diff_list_meV[val]
                 outlier_list.append(struct)
 
                 # Add outler indices to list for removal
@@ -566,13 +567,13 @@ def generate_error_plot(
 
         # Save the outliers to a file,
         if len(outlier_list) > 0:
-            ase_write("outliers.xyz", outlier_list)
+            ase_write('outliers.xyz', outlier_list)
             custom_print(
                 (
                     f"Saved {len(outlier_list)} outliers to 'outliers.xyz'. "
-                    f"Used {threshold_meV} meV as threshold."
+                    f'Used {threshold_meV} meV as threshold.'
                 ),
-                "info",
+                'info',
             )
 
         # Get RMSD
@@ -591,52 +592,52 @@ def generate_error_plot(
         ax[0, 2].text(
             x=tex_x_pos,
             y=tex_y_pos,
-            s=f"MAE: {mae:.3f} meV/atom\nRMSD: {rmsd:.3f} meV/atom",
+            s=f'MAE: {mae:.3f} meV/atom\nRMSD: {rmsd:.3f} meV/atom',
             transform=ax[0, 2].transAxes,
         )
 
         ax[0, 2].plot(
             E_dft_list_per_at,
             E_nn_list_per_at,
-            "o",
-            color="#83a598",
+            'o',
+            color='#83a598',
             alpha=0.5,
             markeredgewidth=0.5,
-            markeredgecolor="#282828",
+            markeredgecolor='#282828',
             markersize=3,
         )
         ax[0, 2].plot(
-            E_dft_list_per_at, E_dft_list_per_at, color="#b16286", linestyle="--"
+            E_dft_list_per_at, E_dft_list_per_at, color='#b16286', linestyle='--'
         )
-        ax[0, 2].set_xlabel("DFT Energy [meV/atom]")
-        ax[0, 2].set_ylabel("NN Energy [meV/atom]")
-        ax[0, 2].set_title("Energy comparison")
+        ax[0, 2].set_xlabel('DFT Energy [meV/atom]')
+        ax[0, 2].set_ylabel('NN Energy [meV/atom]')
+        ax[0, 2].set_title('Energy comparison')
 
         # Plotting the EDFT, ENN and their difference in a line plot, using the
         # structure index as the x-axis.
-        ax[1, 2].plot(E_dft_list, color="#83a598", label="DFT Energy", alpha=0.5)
-        ax[1, 2].plot(E_nn_list, color="#b16286", label="NN Energy", alpha=0.5)
+        ax[1, 2].plot(E_dft_list, color='#83a598', label='DFT Energy', alpha=0.5)
+        ax[1, 2].plot(E_nn_list, color='#b16286', label='NN Energy', alpha=0.5)
 
         # Use secondary y-axis for the difference
         ax_twin = ax[1, 2].twinx()
         ax_twin.plot(
             np.abs(diff_list_meV),
-            color="#fb4934",
-            label="Difference",
+            color='#fb4934',
+            label='Difference',
         )
-        ax_twin.set_ylabel("Abs. Energy difference [meV/atom]")
+        ax_twin.set_ylabel('Abs. Energy difference [meV/atom]')
 
         # Set labels and title
-        ax[1, 2].set_xlabel("Structure index")
-        ax[1, 2].set_ylabel("Energy [eV]")
-        ax[1, 2].set_title("Energy comparison")
+        ax[1, 2].set_xlabel('Structure index')
+        ax[1, 2].set_ylabel('Energy [eV]')
+        ax[1, 2].set_title('Energy comparison')
         ax[1, 2].legend()
 
         if save_fig_now:
             plt.tight_layout()
-            filename = Path("./energy_difference.png").resolve()
+            filename = Path('./energy_difference.png').resolve()
             plt.savefig(filename, dpi=300)
-            custom_print(f"Saved report to '{filename}'.", "info")
+            custom_print(f"Saved report to '{filename}'.", 'info')
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
@@ -674,12 +675,12 @@ def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
         padded_list = []
         for sublist in res_model_list:
             # Pad the energy lists with np.nan
-            if dict_type == "energy":
+            if dict_type == 'energy':
                 nan_list = list(it.repeat(np.nan, (max_len - len(sublist))))
                 padded_sublist = list(sublist) + nan_list
                 padded_list.append(padded_sublist)
             # Pad the forces arrays with (n_at, 3) arrays filled with np.nan
-            elif dict_type == "forces":
+            elif dict_type == 'forces':
                 nan_list = list(
                     it.repeat(
                         object=np.full(shape=sublist[0].shape, fill_value=np.nan),
@@ -697,7 +698,7 @@ def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:
 
 def get_model_forces_variance(forces_dict: dict) -> np.ndarray:
     """Get the variance of the forces for each structure in the dict."""
-    forces_model_list = model_res_dict_to_arr(forces_dict, dict_type="forces")
+    forces_model_list = model_res_dict_to_arr(forces_dict, dict_type='forces')
     forces_var = forces_model_list.var(axis=0)
 
     return forces_var
@@ -705,7 +706,7 @@ def get_model_forces_variance(forces_dict: dict) -> np.ndarray:
 
 def get_model_energies_variance(energies_dict: dict) -> np.ndarray:
     """Get the variance of the energies for each structure in the dict."""
-    energies_model_list = model_res_dict_to_arr(energies_dict, dict_type="energy")
+    energies_model_list = model_res_dict_to_arr(energies_dict, dict_type='energy')
     energies_var = energies_model_list.var(axis=0)
 
     return energies_var
@@ -713,7 +714,7 @@ def get_model_energies_variance(energies_dict: dict) -> np.ndarray:
 
 def get_model_forces_std(forces_dict: dict) -> np.ndarray:
     """Get the standard deviation of the forces for each structure in the dict."""
-    forces_model_list = model_res_dict_to_arr(forces_dict, dict_type="forces")
+    forces_model_list = model_res_dict_to_arr(forces_dict, dict_type='forces')
 
     # Calculate the sample standard deviation of the energies
     # for each structure
@@ -725,7 +726,7 @@ def get_model_forces_std(forces_dict: dict) -> np.ndarray:
 def get_model_energies_std(energies_dict: dict) -> np.ndarray:
     """Get the standard deviation of the energies for each structure in the dict."""
     energies_model_list: np.ndarray = model_res_dict_to_arr(
-        energies_dict, dict_type="energy"
+        energies_dict, dict_type='energy'
     )
 
     # Calculate the sample standard deviation of the energies
@@ -739,8 +740,8 @@ def load_database(path: str) -> list[Atoms]:
     """Load an extended xyz file (database) from a given path as a list of ASE Atoms."""
     database = ase_read(
         filename=path,
-        format="extxyz",
-        index=":",
+        format='extxyz',
+        index=':',
     )
     return database
 
@@ -861,6 +862,31 @@ def apply_filter_no_neighbors(struct):
     return has_disconnected_atoms or has_disconnected_neighbors
 
 
+# def create_shared_directory_and_upload_files(
+#     computer, shared_dir_path: Path, node_list: list[orm.SinglefileData]
+# ):
+#     """Create a directory on the remote machine to store common files."""
+#     # Create a shared directory on the remote machine
+#     from aiida.transports.plugins.ssh import SshTransport
+
+#     transport: SshTransport = computer.get_transport()
+#     with transport:
+#         # Creating temporary folder
+#         transport.makedirs(str(shared_dir_path))
+
+#         # Upload common files to the shared directory
+#         for node in node_list:
+#             if isinstance(node, (str, int)):
+#                 node = orm.load_node(node)
+
+#             r_file_path = str(shared_dir_path / node.filename)
+
+#             with node.as_path() as file_path:
+#                 transport.putfile(
+#                     localpath=file_path, remotepath=r_file_path, overwrite=True
+#                 )
+
+
 def check_disconn_neighbors(
     conn_matr: np.array, coord_nums: np.array, min_coord: int = 3
 ) -> bool:
@@ -886,6 +912,9 @@ def check_disconn_neighbors(
     bool
         Whether there are disconnected atoms in the structure.
     """
+    if len(coord_nums) <= min_coord:
+        min_coord -= 1
+
     has_disconnected_neighbors: bool = False
     for at_id, coord_num in enumerate(coord_nums):
         if coord_num <= min_coord:
@@ -981,7 +1010,8 @@ def get_dft_calc_builder_vasp(
     dft_settings: dict,
 ):
     """Generate a aiida-vasp calculation builder for a given structure and row."""
-    struct_type = row["mdb_struct_type"]
+    struct_type = row['mdb_struct_type']
+    struct_type = mdb_aut.CalcType.from_string('single_point_' + struct_type)
 
     # Gathering row information
     (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
@@ -994,9 +1024,9 @@ def get_dft_calc_builder_vasp(
     # Updating general INCAR with calc type specific options
     specific_options = dft_settings.get(struct_type)
     if specific_options:
-        specific_options = specific_options.get("incar")
+        specific_options = specific_options.get('incar')
         for setting, val in specific_options.items():
-            dft_settings["incar"][setting] = val
+            dft_settings['incar'][setting] = val
 
     builder = mdb_aut.submit_aiida_vasp_calculation(
         index=calc_idx,
@@ -1004,15 +1034,16 @@ def get_dft_calc_builder_vasp(
         phase=curr_phase,
         material_name=curr_material_name,
         unique_id=curr_unique_id,
-        kspacing_dict=dft_settings["kspacing"],
+        kspacing_dict=dft_settings['kspacing'],
         calc_type=struct_type,
-        queue_dict=dft_settings["queue"],
-        potential_family=dft_settings["potential_family"],
+        queue_dict=dft_settings['queue'],
+        potential_family=dft_settings['potential_family'],
         potential_mapping=potential_mapping,
         return_builder=True,
         dry_run=False,
-        incar_settings_dict=dft_settings["incar"],
+        incar_settings_dict=dft_settings['incar'],
         group=group,
+        aiida_vasp_settings=dft_settings.get('aiida_vasp', {}),
     )
     return builder
 
@@ -1032,9 +1063,12 @@ def get_dft_calc_builder_mace_list(
         (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
             mdb_aut.gather_calc_data_from_row(row, curr_structure=curr_struct)
         )
-        struct_ase = AseAtomsAdaptor().get_atoms(curr_struct)
-        struct_ase.info["mdb_md_node"] = row["mdb_md_node"]
-        updated_struct_list.append(struct_ase)
+
+        if not isinstance(curr_struct, Atoms):
+            curr_struct = AseAtomsAdaptor().get_atoms(curr_struct)
+
+        curr_struct.info['mdb_md_node'] = row['mdb_md_node']
+        updated_struct_list.append(curr_struct)
 
     # Write xyz file into a string captured in the stdout,
     # write it to a temporary file.
@@ -1042,13 +1076,13 @@ def get_dft_calc_builder_mace_list(
 
     # Prepare GetMACEDescriptorsCalculation
     # Generate builder
-    mace_descr_calc = CalculationFactory("mace-eval")
+    mace_descr_calc = CalculationFactory('mace-eval')
     mace_builder = mace_descr_calc.get_builder()
 
-    mace_builder.mace_settings_dict = dft_settings["settings"]
+    mace_builder.mace_settings_dict = dft_settings['settings']
 
     # Load model from absolute path
-    mace_model_path = Path(dft_settings["mace_potential_path"]).absolute()
+    mace_model_path = Path(dft_settings['mace_potential_path']).absolute()
     model = orm.SinglefileData(file=mace_model_path)
     mace_builder.model_file = model
 
@@ -1056,11 +1090,11 @@ def get_dft_calc_builder_mace_list(
     mace_builder.configuration_to_evaluate = mace_xyz_file
 
     # Get code and remove from settings dict
-    mace_builder.code = orm.load_code(dft_settings["options"]["code_string"])
-    dft_settings["options"].pop("code_string")
+    mace_builder.code = orm.load_code(dft_settings['options']['code_string'])
+    dft_settings['options'].pop('code_string')
 
     # Load scheduler and resources options
-    mace_builder.metadata.options = dft_settings["options"]
+    mace_builder.metadata.options = dft_settings['options']
 
     struct_name = curr_material_name
     mace_builder.metadata.label = struct_name
@@ -1073,8 +1107,8 @@ def gen_xyz_file_from_traj(struct_list):
     f = io.StringIO()
     with redirect_stdout(f):
         ase_write(
-            filename="-",
-            format="extxyz",
+            filename='-',
+            format='extxyz',
             images=struct_list,
         )
     xyz_string = f.getvalue()
@@ -1082,7 +1116,7 @@ def gen_xyz_file_from_traj(struct_list):
     # Generating tmp file
     mace_xyz_file = orm.SinglefileData(
         file=io.BytesIO(str.encode(xyz_string)),
-        filename="mace_structures.xyz",
+        filename='mace_structures.xyz',
     )
 
     return mace_xyz_file
@@ -1106,10 +1140,10 @@ def generate_model_name():
     r = ww.RandomWord()
     randint = np.random.randint(low=1, high=10000)
 
-    adj = r.word(include_parts_of_speech=["adjective"])
-    noun = r.word(include_parts_of_speech=["noun"])
-    verb = r.word(include_parts_of_speech=["verb"])
-    model_name = slugify.slugify(f"{adj}-{noun}-{verb}-{randint}".replace(" ", "_"))
+    adj = r.word(include_parts_of_speech=['adjective'])
+    noun = r.word(include_parts_of_speech=['noun'])
+    verb = r.word(include_parts_of_speech=['verb'])
+    model_name = slugify.slugify(f'{adj}-{noun}-{verb}-{randint}'.replace(' ', '_'))
 
     return model_name
 
@@ -1118,14 +1152,14 @@ def get_final_db_path(result_dir_path, final_db_name, node):
     """Get the path to the final database file."""
     result_dir_path = Path(result_dir_path)
     caller_uuid = process_call_root(node) if not isinstance(node, str) else node
-    curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
+    curr_run_dir: Path = result_dir_path / f'run_{caller_uuid}'
 
     if not curr_run_dir.exists():
         curr_run_dir.mkdir()
 
     # Adding the final database path and the 'mdb_train_db_' prefix
     # used to identifd the final database.
-    final_db_path = curr_run_dir / f"mdb_train_db_{final_db_name}.xyz"
+    final_db_path = curr_run_dir / f'mdb_train_db_{final_db_name}.xyz'
     return final_db_path, curr_run_dir
 
 
@@ -1134,12 +1168,12 @@ def get_results_dir_path(result_dir_path, node, check_temp_dir=True):
     result_dir_path = Path(result_dir_path)
 
     caller_uuid = process_call_root(node) if not isinstance(node, str) else node
-    curr_run_dir: Path = result_dir_path / f"run_{caller_uuid}"
+    curr_run_dir: Path = result_dir_path / f'run_{caller_uuid}'
 
     if not curr_run_dir.exists():
         curr_run_dir.mkdir()
-    if check_temp_dir and not (curr_run_dir / "run_tmp_data").exists():
-        (curr_run_dir / "run_tmp_data").mkdir()
+    if check_temp_dir and not (curr_run_dir / 'run_tmp_data').exists():
+        (curr_run_dir / 'run_tmp_data').mkdir()
 
     return curr_run_dir
 
@@ -1164,7 +1198,7 @@ def process_call_root(process):
 def prepare_output_dataframe(md_seed_results_df):
     """Prepare the output dataframe for the active learning workflow."""
     md_seed_results_df.index = md_seed_results_df.index.map(str)
-    training_df = orm.Dict(md_seed_results_df.to_dict(orient="index"))
+    training_df = orm.Dict(md_seed_results_df.to_dict(orient='index'))
     return training_df
 
 
@@ -1187,15 +1221,15 @@ def update_mace_train_settings_dict(
     elif isinstance(train_data_path, str):
         train_data_path: Path = Path(train_data_path)
 
-    settings_dict["train_file"] = str(train_data_path.name)
+    settings_dict['train_file'] = str(train_data_path.name)
 
     # Updating name to include model and iteration number
-    curr_name = settings_dict["name"]
+    curr_name = settings_dict['name']
 
     # For very small datasets (testing), the batch size must be lower than the
     # database size
-    if db_size < settings_dict.get("batch_size", 0):
-        settings_dict["batch_size"] = db_size // 2
+    if db_size < settings_dict.get('batch_size', 0):
+        settings_dict['batch_size'] = db_size // 2
 
     if isinstance(curr_model, orm.Str):
         curr_model = curr_model.value
@@ -1203,8 +1237,8 @@ def update_mace_train_settings_dict(
     if isinstance(curr_iter, orm.Int):
         curr_iter = curr_iter.value
 
-    settings_dict["name"] = (
-        str(curr_model) + "_" + curr_name + "_al-iteration_" + str(curr_iter)
+    settings_dict['name'] = (
+        str(curr_model) + '_' + curr_name + '_al-iteration_' + str(curr_iter)
     )
 
     return orm.Dict(settings_dict)
@@ -1227,13 +1261,13 @@ def create_mace_lammps_model(model_file: orm.SinglefileData):
     """
     with model_file.as_path() as model_path:
         # Loading model
-        model = torch.load(model_path, map_location=torch.device("cpu"))
-        model = model.double().to("cpu")
+        model = torch.load(model_path, map_location=torch.device('cpu'))
+        model = model.double().to('cpu')
         lammps_model = LAMMPS_MACE(model)
         lammps_model_compiled = jit.compile(lammps_model)
 
         # Creating new path
-        new_model_path = str(model_path) + "-lammps.pt"
+        new_model_path = str(model_path) + '-lammps.pt'
 
         # Saving LAMMPS model
         lammps_model_compiled.save(new_model_path)
@@ -1265,7 +1299,7 @@ def check_atom_in_domain(
             all_points_in_out.append(False)
 
     return orm.Dict(
-        {"inside": point_inside, "outside": point_outside, "all": all_points_in_out}
+        {'inside': point_inside, 'outside': point_outside, 'all': all_points_in_out}
     )
 
 
@@ -1275,7 +1309,7 @@ def plot_concave_hull(
     point_inside: np.ndarray,
     point_outside: np.ndarray,
     latent_space: np.ndarray,
-    filename: str = "concave_hull.png",
+    filename: str = 'concave_hull.png',
 ):
     # Getting arrays from ArrayData objects
     concave_hull = concave_hull.get_array()
@@ -1284,60 +1318,60 @@ def plot_concave_hull(
     point_outside = point_outside.get_array()
 
     # Plotting the concave hull in 2D space using lines
-    plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
+    plt.plot(concave_hull[:, 0], concave_hull[:, 1], 'r-')
     plt.plot(
         latent_space[:, 0],
         latent_space[:, 1],
-        "o",
+        'o',
         markersize=2,
         alpha=0.5,
-        label="Descriptor in database",
+        label='Descriptor in database',
         markeredgewidth=0,
-        color="#b16286",
+        color='#b16286',
     )
     plt.plot(
         point_inside[:, 0],
         point_inside[:, 1],
-        "s",
-        label="structure in domain",
-        color="#8ec07c",
+        's',
+        label='structure in domain',
+        color='#8ec07c',
         markersize=5,
         markeredgewidth=1.5,
-        markeredgecolor="#282828",
+        markeredgecolor='#282828',
     )
     plt.plot(
         point_outside[:, 0],
         point_outside[:, 1],
-        "s",
-        label="structure out of domain",
-        color="#fb4934",
+        's',
+        label='structure out of domain',
+        color='#fb4934',
         markersize=5,
         markeredgewidth=1.5,
-        markeredgecolor="#282828",
+        markeredgecolor='#282828',
     )
-    plt.title("Concave Hull")
-    plt.xlabel("x")
+    plt.title('Concave Hull')
+    plt.xlabel('x')
     plt.legend()
 
     # Create tmp file
-    with tempfile.NamedTemporaryFile(suffix=".png") as f:
+    with tempfile.NamedTemporaryFile(suffix='.png') as f:
         plt.savefig(f.name, dpi=300)
         plt.close()
-        return {"plot": orm.SinglefileData(file=f.name, filename=filename)}
+        return {'plot': orm.SinglefileData(file=f.name, filename=filename)}
 
 
 def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
     """Convert a serialized Atoms dictionary to an Atoms object."""
-    struct_dict["pbc"] = np.array([bool(boo) for boo in struct_dict["pbc"]])
+    struct_dict['pbc'] = np.array([bool(boo) for boo in struct_dict['pbc']])
 
     for key, val in struct_dict.items():
-        if key != "pbc" and isinstance(val, list):
+        if key != 'pbc' and isinstance(val, list):
             struct_dict[key] = np.array(val)
 
-    if "info" in struct_dict:
-        for key, val in struct_dict["info"].items():
-            if key != "pbc" and isinstance(val, list):
-                struct_dict["info"][key] = np.array(val)
+    if 'info' in struct_dict:
+        for key, val in struct_dict['info'].items():
+            if key != 'pbc' and isinstance(val, list):
+                struct_dict['info'][key] = np.array(val)
 
     return Atoms.fromdict(struct_dict)
 
@@ -1347,10 +1381,10 @@ def serialize_ase(curr_s: dict | Atoms) -> dict:
     if not isinstance(curr_s, dict):
         curr_s = curr_s.todict()
 
-    curr_s["pbc"] = [bool(boo) for boo in curr_s["pbc"]]
+    curr_s['pbc'] = [bool(boo) for boo in curr_s['pbc']]
 
     for key, val in curr_s.items():
-        if key != "forces" and isinstance(val, np.ndarray):
+        if key != 'forces' and isinstance(val, np.ndarray):
             curr_s[key] = list(val)
 
     return curr_s
@@ -1414,7 +1448,7 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
 
             # Gathering extra DFT calculation information from vasprun.xml
             calc_info_dict = mdb_conv.gather_calc_data_from_node(
-                finished_dft_calc, units="mace"
+                finished_dft_calc, units='mace'
             )
 
         except Exception:
@@ -1424,10 +1458,10 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
         # Adding forces manually as an array into the atoms object.
         # This is needed for the atoms object to be able to include the forces in the
         # extxyz format `Properties` tag.
-        if "forces" not in vasprun.arrays:
+        if 'forces' not in vasprun.arrays:
             vasprun.new_array(
-                name="forces",
-                a=np.array(calc_info_dict["forces"]),
+                name='forces',
+                a=np.array(calc_info_dict['forces']),
             )
 
         # if "stress" not in vasprun.arrays.keys():
@@ -1440,7 +1474,7 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
         struct_type = mdb_conv.get_struct_type(
             vasprun=vasprun, dft_calc_node=finished_dft_calc
         )
-        calc_info_dict["mdb_struct_type"] = struct_type
+        calc_info_dict['mdb_struct_type'] = struct_type
         vasprun = vasprun_add_info_dict(vasprun, calc_info_dict)
 
         # Generate a structure name and gathering the aiida_uuid
@@ -1459,6 +1493,26 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
     return return_list
 
 
+def write_gathered_dft_calcs_to_file(dft_calc_list: orm.List, results_dir: str):
+    # Write the results to a temporary file in the calculation directory
+    if isinstance(results_dir, orm.Str):
+        results_dir = Path(results_dir.value)
+    elif isinstance(results_dir, str):
+        results_dir = Path(results_dir)
+
+    results_file_path = results_dir / 'run_tmp_data' / 'gathered_dft_calcs.xyz'
+    print('results_file_path: ', results_file_path)
+
+    if isinstance(dft_calc_list[0], dict):
+        ase_atoms_list = []
+        for calc in dft_calc_list:
+            ase_atoms_list.append(aiida_serialized_ase_dict_to_atoms(calc))
+        dft_calc_list = ase_atoms_list
+
+    ase_write(filename=results_file_path, images=dft_calc_list)
+    return results_file_path, results_dir
+
+
 @calcfunction
 def gather_dft_calcs_mace(
     dft_calc_list: list, results_dir: str, workchain=None
@@ -1474,12 +1528,21 @@ def gather_dft_calcs_mace(
         try:
             # Gathering the calculation data from a extxyz stored
             # as a orm.SinglefileData.
-            struct_file: orm.SinglefileData = (
-                calc_node.outputs.configuration_result_file
-            )
+            # Depending on the calculation, the output file may be stored
+            # in different nodes.
+            if hasattr(calc_node.outputs, 'configuration_result_file'):
+                struct_file: orm.SinglefileData = (
+                    calc_node.outputs.configuration_result_file
+                )
+            elif hasattr(calc_node.outputs, 'extrapolating_structures'):
+                struct_file: orm.SinglefileData = (
+                    calc_node.outputs.extrapolating_structures
+                )
+
+            # Reading the extxyz file and getting all structures
             with struct_file.as_path() as struct_file_path:
                 result_structures = ase_read(
-                    struct_file_path, format="extxyz", index=":"
+                    struct_file_path, format='extxyz', index=':'
                 )
 
         # If parsing the calculation fails for any reason, skip it.
@@ -1490,24 +1553,38 @@ def gather_dft_calcs_mace(
         for structure in result_structures:
             # Gathering extra DFT calculation information from calculation
             # and its extras
+            if calc_node.base.extras.all.get('mdb_struct_type'):
+                mdb_struct_type = calc_node.base.extras.all.get('mdb_struct_type')
+            else:
+                mdb_struct_type = structure.info.get('mdb_struct_type', 'unknown')
+
+            if calc_node.base.extras.all.get('mdb_calc_uuid'):
+                aiida_uuid = calc_node.base.extras.all.get('mdb_calc_uuid')
+            else:
+                aiida_uuid = structure.info.get('aiida_uuid', 'unknown')
+
             calc_info_dict = {
-                "struct_name": calc_node.label,
-                "dft_calc_uuid": calc_node.uuid,
-                "aiida_uuid": calc_node.base.extras.all["mdb_calc_uuid"],
-                "mdb_struct_type": calc_node.base.extras.all["mdb_struct_type"],
+                'struct_name': calc_node.label,
+                'dft_calc_uuid': calc_node.uuid,
+                'aiida_uuid': aiida_uuid,
+                'mdb_struct_type': mdb_struct_type,
                 # "mdb_md_node": calc_node.uuid,
             }
 
             for key, val in calc_info_dict.items():
                 structure.info[key] = val
 
-            # Renaming energy key
-            structure.info["REF_energy"] = structure.info.pop("mdb_mace_eval_energy")
+            # Renaming temporary energy key
+            if 'mdb_mace_eval_energy' in structure.info:
+                structure.info['REF_energy'] = structure.info.pop(
+                    'mdb_mace_eval_energy'
+                )
 
             # Renaming forces dict
-            structure.arrays["REF_forces"] = structure.arrays.pop(
-                "mdb_mace_eval_forces"
-            )
+            if 'mdb_mace_eval_forces' in structure.arrays:
+                structure.arrays['REF_forces'] = structure.arrays.pop(
+                    'mdb_mace_eval_forces'
+                )
 
             # result_list.append(structure)
             curr_struct_res.append(structure)
@@ -1563,22 +1640,18 @@ def gather_dft_calcs_mace(
         node = orm.load_node(workchain.value)
         node.logger.log(
             level=LOG_LEVEL_REPORT,
-            msg=f"[{node.pk}|{node.process_label}|gather_dft_calcs_mace]:"
-            f" Removed {len(outlier_list)} outliers.",
+            msg=f'[{node.pk}|{node.process_label}|gather_dft_calcs_mace]:'
+            f' Removed {len(outlier_list)} outliers.',
         )
 
-    # Write the results to a temporary file in the calculation directory
-    if isinstance(results_dir, orm.Str):
-        results_dir = Path(results_dir.value)
-    elif isinstance(results_dir, str):
-        results_dir = Path(results_dir)
+    results_file_path, results_dir = write_gathered_dft_calcs_to_file(
+        dft_calc_list=dft_calc_list,
+        results_dir=results_dir,
+    )
 
-    results_file_path = results_dir / "run_tmp_data" / "gathered_dft_calcs.xyz"
-    ase_write(filename=results_file_path, images=result_list)
-
-    # DEBUG: Remove after checking outliers
+    # Saving outliers
     if outlier_list:
-        outliers_file_path = results_dir / "outliers.extxyz"
+        outliers_file_path = results_dir / 'outliers.extxyz'
         ase_write(filename=outliers_file_path, images=outlier_list)
 
     # Return the path to the temporary file
@@ -1625,33 +1698,33 @@ def iqr_outlier_check(res_list: list) -> np.ndarray:
 def vasprun_add_info_dict(vasprun_dict: dict, calc_info_dict: dict) -> dict:
     """Add calculation information to the vasprun dictionary."""
     info_list = [
-        "stress",
-        "dipole",
-        "forces",
-        "struct_name",
-        "energy",
-        "aiida_uuid",
-        "free_energy",
-        "mdb_struct_type",
+        'stress',
+        'dipole',
+        'forces',
+        'struct_name',
+        'energy',
+        'aiida_uuid',
+        'free_energy',
+        'mdb_struct_type',
     ]
 
     # If forces already in the arrays dictionary, it is not needed in
     # atoms.info
-    if "forces" in vasprun_dict.arrays:
-        calc_info_dict.pop("forces")
+    if 'forces' in vasprun_dict.arrays:
+        calc_info_dict.pop('forces')
 
     if not isinstance(vasprun_dict, dict):
         vasprun_dict = Atoms.todict(vasprun_dict)
 
-    if not vasprun_dict.get("info"):
-        vasprun_dict["info"] = {}
+    if not vasprun_dict.get('info'):
+        vasprun_dict['info'] = {}
 
     for key, val in calc_info_dict.items():
-        if key not in vasprun_dict["info"] and key in info_list:
-            if key == "free_energy":
-                key.replace("free_", "")
+        if key not in vasprun_dict['info'] and key in info_list:
+            if key == 'free_energy':
+                key.replace('free_', '')
 
-            vasprun_dict["info"][key] = val
+            vasprun_dict['info'][key] = val
     return vasprun_dict
 
 
@@ -1691,14 +1764,18 @@ def remove_structs_from_seed_gen_db(
     for curr_uuid in delete_indices:
         for del_idx, struct in enumerate(seed_gen_db):
             struct: Atoms = struct.todict()
-            struct_uuid = struct["info"]["aiida_uuid"]
+
+            struct_uuid = struct.get('info', {}).get('mdb_id')
+            if not struct_uuid:
+                struct_uuid = struct.get('info', {}).get('aiida_uuid')
+
             if curr_uuid == struct_uuid:
                 del seed_gen_db[del_idx]
 
     ase_write(
         filename=seed_gen_path.value,
         images=seed_gen_db,
-        format="extxyz",
+        format='extxyz',
     )
 
 
@@ -1720,7 +1797,17 @@ def check_md_seed_agreement(return_list_path: str) -> orm.Bool:
         on the current AL iteration. False if there is no agreement on
         on all structures.
     """
-    if len(return_list_path.value) > 0:
+    # If no DFT calculations were found, because all calcs have failed,
+    # the predictions are considered to be in disagreement.
+    if not return_list_path:
+        return orm.Bool(False)
+
+    # Loading the list of structures
+    return_structs = ase_read(filename=return_list_path, format='extxyz', index=':')
+
+    # If there are structures, the predictions are considered to be in
+    # disagreement
+    if len(return_structs) > 0:
         return orm.Bool(False)
     else:
         return orm.Bool(True)

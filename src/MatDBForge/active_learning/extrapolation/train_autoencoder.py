@@ -1,5 +1,7 @@
 """Train an autoencoder for dimensionality reduction."""
 
+import pathlib as pl
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -84,7 +86,7 @@ def load_dataset(
     if not rng_seed:
         rng_seed = np.random.randint(1, int(1e15))
 
-    if isinstance(data, str):
+    if isinstance(data, (str, pl.Path)):
         point_arr = np.load(data)
     elif isinstance(data, np.ndarray):
         point_arr = data
@@ -189,7 +191,7 @@ def run_training(args):
         Autoencoder model trained for dimensionality reduction.
     """
     # Set device if no device is given
-    if not hasattr(args,'device') or args.device == "auto":
+    if not hasattr(args, "device") or args.device == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = args.device
@@ -206,7 +208,7 @@ def run_training(args):
         args.verbose = True
 
     # Setting dtype
-    if not hasattr(args,'dtype'):
+    if not hasattr(args, "dtype"):
         args.dtype = torch.float32
     else:
         match args.dtype:
@@ -219,7 +221,7 @@ def run_training(args):
     mdb_cud.custom_print(f"Using dtype: '{args.dtype}'", "info")
 
     # If no seed is given, generate a random seed
-    if not hasattr(args, 'rng_seed'):
+    if not hasattr(args, "rng_seed"):
         args.rng_seed = np.random.randint(1, int(1e15))
     mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
 
@@ -384,11 +386,15 @@ def run_training(args):
         scheduler.step(metrics=val_loss)
 
     mdb_cud.custom_print("Training complete!", "done")
-    if hasattr(args,"model_path"):
+
+    if hasattr(args, "model_path"):
         # Save the model
         # torch.save(model.state_dict(), args.model_path)
-        torch.save(model, args.model_path)
+        save_path = pl.Path(args.model_path).absolute()
+        torch.save(model, save_path)
 
-        mdb_cud.custom_print(f"Model saved to '{args.model_path}'.", "info")
+        mdb_cud.custom_print(f"Autoencoder model saved to '{save_path}'.", "info")
+    else:
+        mdb_cud.custom_print("Autoencoder model not saved.", "info")
 
     return model

@@ -67,7 +67,6 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 [project.entry-points."aiida.workflows"]
 "mdb-active-learning" = "MatDBForge.workflows.active_learning:ActiveLearningWorkChain"
 "mdb-active-learning-base" = "MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain"
-
 "mdb-simple-active-learning" = "MatDBForge.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
 "mdb-simple-active-learning-base" = "MatDBForge.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
 
@@ -82,7 +81,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mace-committee-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
 "mace-lammps-raw-parser" = "MatDBForge.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
 "mdb-process-md-seed-struct-parser" = "MatDBForge.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculationParser"
-"mdb-descriptors-combined-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetDescriptorsCombinedCalculationParser"
+"mdb-descriptors-combined-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetDescriptorsCombinedParser"
 
 [project.scripts]
 "mdb_active_learning" = "MatDBForge.core.command_line.cli_active_learning:run_active_learning"

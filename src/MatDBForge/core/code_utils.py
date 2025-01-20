@@ -64,6 +64,7 @@ def init_logger(source, log_path=None):
 
     logging.addLevelName(10, '[...]')
     logging.addLevelName(19, '     ')
+    logging.addLevelName(15, '     ')
     logging.addLevelName(20, '[ i ]')
     logging.addLevelName(25, '[ ✔ ]')
     logging.addLevelName(30, '[ ! ]')
@@ -119,7 +120,7 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
             extra={'shortmsg': string},
         )
     if print_type in ['none', 'clean', 'clear', 'empty']:
-        # prefix = ""
+        prefix = ''
         # logger.info(f'{prefix}{normal}{extra_tab}{string}',
         # extra={'shortmsg': string})
         logger.log(
@@ -250,6 +251,8 @@ def get_last_tagged_version():
     -------
     str
         Last tagged version in the repository
+    str
+        Hash of the current commit
     """
     # Save the current directory path
     cwd = os.getcwd()
@@ -273,19 +276,35 @@ def get_last_tagged_version():
     # Get the newest tag (first in the sorted list)
     newest_tag = tags[0] if tags else None
 
+    # Get the current commit hash
+    current_hash = sb.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+
     # Go back to the original directory
     os.chdir(cwd)
-    return newest_tag
+    return newest_tag, current_hash
 
 
 def get_mdb_version_info():
+    """
+    Get the current version of MatDBForge and the last tagged version in the repository.
+
+    Returns
+    -------
+    Version
+        Current version of MatDBForge
+    Version
+        Last tagged version in the repository
+    str
+        Hash of the current commit
+    """
     # Check the current version of MatDBForge
     curr_version = Version(__version__)
 
     # Check the last tagged version in the repository
-    last_tagged_version = Version(get_last_tagged_version())
+    ver, hash_str = get_last_tagged_version()
+    last_tagged_version = Version(ver)
 
-    return curr_version, last_tagged_version
+    return curr_version, last_tagged_version, hash_str
 
 
 def check_mdb_version(logger=None):
@@ -297,7 +316,7 @@ def check_mdb_version(logger=None):
     tuple[Version, Version]
         Current version of MatDBForge and the last tagged version in the repository.
     """
-    curr_version, last_tagged_version = get_mdb_version_info()
+    curr_version, last_tagged_version, hash_str = get_mdb_version_info()
 
     print()
     new_logger = False
@@ -307,13 +326,19 @@ def check_mdb_version(logger=None):
 
     if curr_version < last_tagged_version:
         custom_print(
-            f'Current version of MatDBForge ({curr_version}) is outdated. '
-            f'Please update to the latest version ({last_tagged_version}).',
+            (
+                f'Current version of MatDBForge ({curr_version}, {hash_str[:7]}) '
+                'is outdated. Please update to the latest '
+                f'version ({last_tagged_version}).'
+            ),
             'warn',
         )
     else:
         custom_print(
-            f'Current version of MatDBForge ({curr_version}) is up-to-date.',
+            (
+                f'Current version of MatDBForge ({curr_version}, {hash_str[:7]}) '
+                'is up-to-date.'
+            ),
             'done',
         )
 

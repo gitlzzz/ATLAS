@@ -36,8 +36,6 @@ model_acc_multiplier = 10
 # (bool) Whether to check for extrapolation using the MACE descriptors
 check_extrapolation = true
 
-# (str) Selection of DFT calculator.
-dft_method = "vasp" # Options: "vasp", "mace"
 
 # (optional, list[int]) Load initial models from several aiida uuids/pk.
 load_init_models = []
@@ -306,6 +304,13 @@ wandb = false
 
 # DFT Settings
 [dft]
+
+# (str, optional) Selection of DFT calculator.
+dft_method = "mace" # Options: "vasp", "mace". Default 'mace'.
+
+# (int, optional) Maximum number of DFT calculations to perform per AL step.
+# dft_calc_limit = 100
+
 
 # MACE Settings as DFT calculator. Ignored if dft_method = "vasp" 
 [dft.mace]
