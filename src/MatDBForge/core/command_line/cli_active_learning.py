@@ -130,10 +130,11 @@ def create_active_learning_builder(
     builder.active_learning.committee_eval = Dict(value=toml_dict["committee_eval"])
 
     ## DFT method selection and settings
-    builder.active_learning.dft_method = al_conf["dft_method"]
-    if al_conf["dft_method"] == "vasp":
+    dft_method = toml_dict["dft"].get("dft_method", 'mace')
+    builder.active_learning.dft_method = dft_method
+    if dft_method == "vasp":
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["vasp"])
-    elif al_conf["dft_method"] == "mace":
+    elif dft_method == "mace":
         # Make sure the path to the MACE potential is absolute
         mace_potential_path = pl.Path(
             toml_dict["dft"]["mace"]["mace_potential_path"]
@@ -146,6 +147,8 @@ def create_active_learning_builder(
                 f"Current path: {mace_potential_path}"
             )
         builder.active_learning.dft_settings = Dict(value=toml_dict["dft"]["mace"])
+
+    builder.active_learning.dft_calc_limit = toml_dict["dft"].get("dft_calc_limit")
 
     ## Descriptor settings
     builder.active_learning.descriptor_settings = Dict(value=toml_dict["descriptors"])

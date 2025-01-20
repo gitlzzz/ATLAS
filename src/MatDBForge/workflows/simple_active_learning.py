@@ -6,11 +6,10 @@ import os
 import pickle
 import shutil
 import time
-from contextlib import redirect_stdout, suppress
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from aiida import orm
 from aiida.engine import (
     BaseRestartWorkChain,
@@ -23,8 +22,6 @@ from aiida.plugins import CalculationFactory
 from ase import Atoms
 from ase.io import read as ase_read
 from ase.io import write as ase_write
-from pymatgen.core.trajectory import Trajectory
-from pymatgen.io.ase import AseAtomsAdaptor
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -49,103 +46,110 @@ class SimpleActiveLearningWorkChain(WorkChain):
         """Specify inputs and outputs."""
         super().define(spec)
 
-        spec.input("init_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("toml_file", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("final_db_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("run_name", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('init_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('toml_file', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('run_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "load_init_models",
+            'load_init_models',
             valid_type=(orm.List, type(None)),
             serializer=orm.to_aiida_type,
             default=None,
         )
-        spec.input("results_dir", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('results_dir', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "al_loop_iteration", valid_type=orm.Int, serializer=orm.to_aiida_type
+            'al_loop_iteration', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "seed_min_num_structs",
+            'seed_min_num_structs',
             valid_type=orm.Int,
             serializer=orm.to_aiida_type,
             required=False,
         )
-        spec.input("seed_size_frac", valid_type=orm.Float, serializer=orm.to_aiida_type)
+        spec.input('seed_size_frac', valid_type=orm.Float, serializer=orm.to_aiida_type)
         spec.input(
-            "seed_max_num_structs", valid_type=orm.Int, serializer=orm.to_aiida_type
+            'seed_max_num_structs', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "seed_select_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
+            'seed_select_settings', valid_type=orm.Dict, serializer=orm.to_aiida_type
         )
         spec.input(
-            "delete_seed_structs", valid_type=orm.Bool, serializer=orm.to_aiida_type
+            'delete_seed_structs', valid_type=orm.Bool, serializer=orm.to_aiida_type
         )
         spec.input(
-            "committee_num_models", valid_type=orm.Int, serializer=orm.to_aiida_type
+            'committee_num_models', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
         spec.input(
-            "model_acc_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
+            'model_acc_multiplier', valid_type=orm.Float, serializer=orm.to_aiida_type
         )
         spec.input(
-            "descriptor_settings", valid_type=orm.Dict, serializer=orm.to_aiida_type
+            'descriptor_settings', valid_type=orm.Dict, serializer=orm.to_aiida_type
         )
         spec.input(
-            "md_temperature_list_K", valid_type=orm.List, serializer=orm.to_aiida_type
+            'md_temperature_list_K', valid_type=orm.List, serializer=orm.to_aiida_type
         )
-        spec.input("md_num_steps", valid_type=orm.Int, serializer=orm.to_aiida_type)
+        spec.input('md_num_steps', valid_type=orm.Int, serializer=orm.to_aiida_type)
         spec.input(
-            "md_max_temp_multiplier", valid_type=orm.Float, serializer=orm.to_aiida_type
+            'md_max_temp_multiplier', valid_type=orm.Float, serializer=orm.to_aiida_type
         )
         spec.input(
-            "md_filters",
+            'md_filters',
             valid_type=(orm.Dict, type(None)),
             serializer=orm.to_aiida_type,
             required=False,
             default=None,
         )
         spec.input(
-            "md_timestep_duration_ps",
+            'md_timestep_duration_ps',
             valid_type=orm.Float,
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "al_keep_struct_every_n_ps",
+            'al_keep_struct_every_n_ps',
             valid_type=orm.Float,
             serializer=orm.to_aiida_type,
         )
 
         spec.input(
-            "current_md_seed_structs_path",
+            'current_md_seed_structs_path',
             valid_type=orm.Str,
             serializer=orm.to_aiida_type,
         )
-        spec.input("seed_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("training_db_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('seed_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('training_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "current_md_seed_structs_idx",
+            'current_md_seed_structs_idx',
             valid_type=orm.List,
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "train_seed_group",
+            'train_seed_group',
             valid_type=orm.Str,
             serializer=orm.to_aiida_type,
         )
         spec.input(
-            "mace_train",
+            'mace_train',
             valid_type=orm.Dict,
             serializer=orm.to_aiida_type,
         )
-        spec.input("lammps_mace", valid_type=orm.Dict)
-        spec.input("dft_method", valid_type=orm.Str, serializer=orm.to_aiida_type)
-        spec.input("dft_settings", valid_type=orm.Dict)
-        spec.input("committee_eval", valid_type=orm.Dict, serializer=orm.to_aiida_type)
+        spec.input('lammps_mace', valid_type=orm.Dict)
+        spec.input('dft_method', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
-            "check_extrapolation_type", valid_type=orm.Str, serializer=orm.to_aiida_type
+            'dft_calc_limit',
+            valid_type=orm.Int,
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=None,
+        )
+        spec.input('dft_settings', valid_type=orm.Dict)
+        spec.input('committee_eval', valid_type=orm.Dict, serializer=orm.to_aiida_type)
+        spec.input(
+            'check_extrapolation_type', valid_type=orm.Str, serializer=orm.to_aiida_type
         )
         spec.input(
-            "gather_traj_cnt_lattice", valid_type=orm.Bool, serializer=orm.to_aiida_type
+            'gather_traj_cnt_lattice', valid_type=orm.Bool, serializer=orm.to_aiida_type
         )
-        spec.input("use_kokkos", valid_type=orm.Bool, serializer=orm.to_aiida_type)
+        spec.input('use_kokkos', valid_type=orm.Bool, serializer=orm.to_aiida_type)
 
         spec.outline(
             # Training the main mace model (M0) and the committee models
@@ -158,58 +162,36 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # It will get the descriptors for the entire database and use
             # the concave hull as the extrapolation mechanism.
             if_(cls.check_extrapolation_enabled)(
-                # REMOVE
-                # Generate MACE descriptors for the current seed.
-                # Dimensionality reduction is used if specified,
-                # returning an embedded/latent space.
-                # cls.generate_descriptors,
-                # # Gather the descriptors from the calcjob and store them
-                # # in the workchain context.
-                # cls.get_mace_descriptors_output,
-                # if_(cls.can_do_advanced_extrapolation)(
-                #     # Get the concave hull of the training database
-                #     cls.get_concave_hull,
-                #     # Gather the concave hull results
-                #     cls.get_concave_hull_output,
-                # ),
-                # TODO: Implement this new version
-                # Generate descriptors for the current seed.
-                # Dimensionality reduction is used if specified,
-                # returning an embedded/latent space.
+                # Generate descriptors for the current seed
+                # and apply dimensionality reduction if specified.
                 # If advanced extrapolation is enabled, the latent space
                 # will be used to generate the concave hull.
                 cls.gen_descriptors_and_concave_hull,
+                cls.get_descriptor_results,
             ),
             # All of the structures in the seed will be run using the MD
-            # code selected, using the main model (M0)
-            cls.run_md_seed,
+            # code selected, using the main model (M0).
+            # Then, the trajectories produced with the M0 model will be evaluated
+            # using the committee models.
             # Structures and energy predictions will be gathered and prepared
-            # into a dataframe
-            # cls.gather_m0_md_results,
-            # The structures from M0 will be evaluated using the committee models.
-            # cls.check_committee_results_calcjob,
-            # cls.gather_committee_results,
-            # if_(cls.check_extrapolation_enabled)(
-            # Getting MACE descriptors for the structures obtained with MD.
-            # cls.get_descriptors_from_md_results,
-            # ),
             # According to the difference in error between the models either:
             # The original structure will be removed from D0, or
             # The problematic structure will be calcualated using DFT
+            cls.run_md_seed,
             # This uses extrapolation (if enabled), and an energy/force check.
-            # cls.send_calc_or_remove_structures,
+            cls.send_calc_or_remove_structures,
             # Return the generated DFT calculations to the workchain as an output
             cls.return_seed_dft_and_model,
             # TODO: If high error (define this) is found on a training seed,
             # do not change seed until the error is decreased
             # cls.choose_next_seed,
         )
-        spec.output("dft_calcs_path", valid_type=orm.Str, required=False)
-        spec.output("m0_model_file", valid_type=orm.SinglefileData)
-        spec.output("stop_md_seed_no_disagreement", valid_type=orm.Bool)
+        spec.output('dft_calcs_path', valid_type=orm.Str, required=False)
+        spec.output('m0_model_file', valid_type=orm.SinglefileData)
+        spec.output('stop_md_seed_no_disagreement', valid_type=orm.Bool)
 
         spec.exit_code(
-            420, "ERROR_SCHEDULER_MACE", "error when submitting a MACE calculation."
+            420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
 
     def train_mace_model(self):
@@ -230,7 +212,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             The function does not return a value but updates the workchain context with
             futures of the submitted TrainMACEModelCalculation jobs for later reference.
         """
-        self.report("Generating new training database file.")
+        self.report('Generating new training database file.')
 
         # Adding workchain uuid input.data filename to path
         updated_path, _ = mdb_al_ut.get_final_db_path(
@@ -252,14 +234,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # and used to drive the MD simulations. The remaining models will act as
         # committee models and will only be used to evaluate energies.
         self.report(
-            f"Training {self.inputs.committee_num_models.value} models using "
-            "current iteration data."
+            f'Training {self.inputs.committee_num_models.value} models using '
+            'current iteration data.'
         )
 
         # Stop the calculation if initial models must be loaded
         if self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0:
             self.report(
-                "Loading models from nodes:"
+                'Loading models from nodes: '
                 f"'{self.inputs.load_init_models.get_list()}'."
             )
             return
@@ -269,7 +251,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # Load training settings from inputs and update path and model names.
             mace_train_settings: orm.Dict = mdb_al_ut.update_mace_train_settings_dict(
-                settings_dict=self.inputs.mace_train.get("train_settings"),
+                settings_dict=self.inputs.mace_train.get('train_settings'),
                 train_data_path=str(updated_path),
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
@@ -277,7 +259,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
 
             # Run training and save new model file
-            mace_train = CalculationFactory("mace-train")
+            mace_train = CalculationFactory('mace-train')
             mace_builder = mace_train.get_builder()
 
             mace_builder.model_name = model_name
@@ -289,16 +271,16 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 node=self.node,
             )
             mace_builder.mace_train_file_path = str(mace_train_file_path)
-            code_str = self.inputs.mace_train.get_dict()["code"]
+            code_str = self.inputs.mace_train.get_dict()['code']
             code = orm.load_code(code_str)
             computer = code.computer
             mace_builder.code = code
             mace_builder.metadata.options.withmpi = True
             mace_builder.metadata.options = self.inputs.mace_train.get_dict()[
-                "metadata"
-            ].get("options")
+                'metadata'
+            ].get('options')
             mace_builder.metadata.options.output_filename = (
-                f"train_{model_name}_iter-{self.inputs.al_loop_iteration.value}"
+                f'train_{model_name}_iter-{self.inputs.al_loop_iteration.value}'
             )
             mace_builder.metadata.label = model_name
 
@@ -306,7 +288,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # if not present.
             # `mdb_calc_limit` is a custom property set with:
             # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = computer.metadata.get("mdb_calc_limit", 0)
+            calc_limit = computer.metadata.get('mdb_calc_limit', 0)
 
             # Check if the calculation can be submitted
             if calc_limit == 0:
@@ -374,7 +356,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Adding E + F multiplied by a weight value, in order to consider
             # forces when deciding which model to keep
             force_weight = self.inputs.mace_train.get(
-                "result_force_weight",
+                'result_force_weight',
                 0.1,
             )
             weighted_E_F_sum = curr_calc.outputs.m_rmse_e.value + (
@@ -394,7 +376,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Skipping model if training hasn't finished correctly.
             if curr_calc.exit_status != 0:
                 self.report(
-                    f"Skipping MACE model that finished with errors (pk: {calc.pk})."
+                    f'Skipping MACE model that finished with errors (pk: {calc.pk}).'
                 )
                 continue
 
@@ -422,15 +404,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
                 self.report(
                     f"Generated LAMMPS potential using '{model_name}' as M0 - "
-                    f"RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, "
-                    f"RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å"
+                    f'RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, '
+                    f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
                 )
-                self.out("m0_model_file", model_file)
+                self.out('m0_model_file', model_file)
             else:
                 self.report(
                     f"Trained committee model '{model_name}' - "
-                    f"RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV/at, "
-                    f"RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV/Å"
+                    f'RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV/at, '
+                    f'RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV/Å'
                 )
                 commitee_models_tupl_name_uuid.append((model_name, model_file.uuid))
 
@@ -443,22 +425,26 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
     def is_advanced_extrapolation(self):
         """Check if the advanced extrapolation check is enabled."""
-        return self.inputs.check_extrapolation_type.value == "advanced"
+        return self.inputs.check_extrapolation_type.value == 'advanced'
 
     def has_latent_space(self):
         """Check if the latent space was computed for the current iteration."""
-        return hasattr(self.ctx, "latent_space")
+        return hasattr(self.ctx, 'latent_space')
 
     def can_do_advanced_extrapolation(self):
         """Check if the advanced extrapolation can be done."""
         return self.has_latent_space() and self.is_advanced_extrapolation()
 
     def gen_descriptors_and_concave_hull(self):
-
-        self.report("Generating descriptors and latent space + concave hull...")
+        self.report('Generating descriptors and latent space + concave hull...')
         # Run training and save new model file
-        descr_train = CalculationFactory("mdb-descriptors-combined")
-        desc_builder = descr_train.get_builder()
+        desc_calc = CalculationFactory('mdb-descriptors-combined')
+        desc_builder = desc_calc.get_builder()
+
+        # Add current iteration to the process label
+        desc_builder.metadata.label = (
+            f'descriptors-combined_iter-{self.inputs.al_loop_iteration.value}'
+        )
 
         # Getting the current seed structures
         mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
@@ -480,39 +466,61 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Get portable code
         descriptor_code_path = Path(
-            f"{MDB_ROOT_DIR}/active_learning/mace_code/combined"
+            f'{MDB_ROOT_DIR}/active_learning/mace_code/combined'
         )
-        prepend_text = (
-            self.inputs.descriptor_settings["metadata"]["prepend_text"]
-            + "\nPATH=$PATH:."
-        )
-        portable_code = orm.PortableCode(
-            label="mdb-descriptors-combined",
-            filepath_files=descriptor_code_path,
-            filepath_executable="check_descr_combined.py",
-            prepend_text=prepend_text,
-        )
-        desc_builder.code = portable_code
-        desc_builder.metadata.options.parser_name = "mdb-descriptors-combined-parser"
 
-        # Loading computer and removing it from the input dictionary
-        mace_eval_aiida_settings_dict = self.inputs.descriptor_settings["metadata"][
-            "options"
-        ]
         computer = orm.load_computer(
-            self.inputs.descriptor_settings["metadata"]["computer"]
+            self.inputs.descriptor_settings['metadata']['computer']
         )
         desc_builder.metadata.computer = computer
+
+        # TODO: add settings for this
+        containerized = False
+        if containerized:
+            prepend_text = (
+                self.inputs.descriptor_settings['metadata']['prepend_text']
+                + '\nmodule load singularity'
+                + '\nexport PATH=$PATH:.'
+            )
+            code = orm.ContainerizedCode(
+                computer=desc_builder.metadata.computer,
+                image_name='/gpfs/projects/iciq72/psanz/containers/mdb.sif',
+                filepath_executable='mdb_check_descr_combined.py',
+                engine_command=(
+                    'singularity exec --bind .:/mdb_data --nv '
+                    '--contain --writable-tmpfs {image_name}'
+                ),
+                prepend_text=prepend_text,
+            )
+        else:
+            prepend_text = (
+                self.inputs.descriptor_settings['metadata']['prepend_text']
+                + '\nexport PATH=$PATH:.'
+            )
+            code = orm.PortableCode(
+                label='mdb-descriptors-combined',
+                filepath_files=descriptor_code_path,
+                filepath_executable='mdb_check_descr_combined.py',
+                prepend_text=prepend_text,
+            )
+
+        desc_builder.code = code
+
+        # Loading computer and removing it from the input dictionary
+        mace_eval_aiida_settings_dict = self.inputs.descriptor_settings['metadata'][
+            'options'
+        ]
         # mace_eval_aiida_settings_dict.pop("computer", None)
 
         # Load scheduler and resources options
         desc_builder.metadata.options = mace_eval_aiida_settings_dict
+        desc_builder.metadata.options.parser_name = 'mdb-descriptors-combined-parser'
 
-        # Get the calculation limit, from the computer metadata set to 0
+        # Get the calculation limit, from the 1mputer metadata set to 0
         # if not present.
         # `mdb_calc_limit` is a custom property set with:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = desc_builder.metadata.computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = desc_builder.metadata.computer.metadata.get('mdb_calc_limit', 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -534,10 +542,27 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
 
         future = self.submit(desc_builder)
-        print("future: ", future)
         # future.base.extras.set("unique_id", row[1]["unique_id"])
         # future.base.extras.set("md_temperature", row[1]["md_temperature"])
-        self.to_context(committee_results=append_(future))
+        self.to_context(descrptor_results=append_(future))
+
+    def get_descriptor_results(self):
+        """Get descriptor results from the calculation and store them in the context."""
+        # Get combined descriptor calculation node
+        curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
+
+        # Loading descriptor min and max into context as numpy arrays
+        self.ctx.descriptors_max_array = curr_calc.outputs.descriptor_max
+        self.ctx.descriptors_min_array = curr_calc.outputs.descriptor_min
+
+        # Checking if outputs contains the concave hull and if so,
+        # storing it in the context
+        if hasattr(curr_calc.outputs, 'concave_hull'):
+            self.ctx.concave_hull = curr_calc.outputs.concave_hull
+
+        # Get the autoencoder model file
+        if hasattr(curr_calc.outputs, 'autoencoder_model'):
+            self.ctx.autoencoder_model_file = curr_calc.outputs.autoencoder_model
 
     def generate_descriptors(self):
         """Generate descriptors for the current seed using the best model.
@@ -555,17 +580,17 @@ class SimpleActiveLearningWorkChain(WorkChain):
         `descriptor_results` for their use in the next steps.
         """
         dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-            "dimensionality_reduction_method"
+            'dimensionality_reduction_method'
         )
-        if dimensionality_reduction_method == "autoencoder":
-            descr_calc = CalculationFactory("mdb-get-latent-space")
+        if dimensionality_reduction_method == 'autoencoder':
+            descr_calc = CalculationFactory('mdb-get-latent-space')
             self.report(
                 f"Generating descriptors using model '{self.ctx.best_model_name}'"
-                f" and latent space using autoencoder..."
+                f' and latent space using autoencoder...'
             )
         else:
             # Prepare GetMACEDescriptorsCalculation
-            descr_calc = CalculationFactory("mace-get-descriptors")
+            descr_calc = CalculationFactory('mace-get-descriptors')
             self.report(
                 f"Generating descriptors using model '{self.ctx.best_model_name}'..."
             )
@@ -586,35 +611,35 @@ class SimpleActiveLearningWorkChain(WorkChain):
             code_builder.mace_train_file_path.store()
 
         prepend_text = (
-            self.inputs.descriptor_settings["metadata"]["prepend_text"]
-            + "\nPATH=$PATH:."
+            self.inputs.descriptor_settings['metadata']['prepend_text']
+            + '\nPATH=$PATH:.'
         )
 
         # Set metadata options
-        code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
-            "options"
+        code_builder.metadata.options = self.inputs.descriptor_settings['metadata'][
+            'options'
         ]
 
         # Set the computer
         computer = orm.load_computer(
-            self.inputs.descriptor_settings["metadata"]["computer"]
+            self.inputs.descriptor_settings['metadata']['computer']
         )
         code_builder.metadata.computer = computer
 
         # Get latent space of the descriptors using the autoencoder.
-        if dimensionality_reduction_method == "autoencoder":
-            train_settings = self.inputs.descriptor_settings["autoencoder"][
-                "train_settings"
+        if dimensionality_reduction_method == 'autoencoder':
+            train_settings = self.inputs.descriptor_settings['autoencoder'][
+                'train_settings'
             ]
             # Preparing inputs
             # Add RNG seed if not present
-            if not train_settings.get("rng_seed"):
+            if not train_settings.get('rng_seed'):
                 rng_seed = np.random.randint(1, int(1e15))
-                train_settings["rng_seed"] = rng_seed
+                train_settings['rng_seed'] = rng_seed
 
             # Overwriting `model_path` in the settings dict
-            train_settings["model_path"] = "autoencoder_model.pth"
-            train_settings["dataset"] = "all_descriptors.npy"
+            train_settings['model_path'] = 'autoencoder_model.pth'
+            train_settings['dataset'] = 'all_descriptors.npy'
 
             # Set the settings dict
             code_builder.settings_dict = train_settings
@@ -622,37 +647,37 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Generate aiida code using the script in
             # the `descriptor_code_path` folder.
             descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts"
+                f'{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts'
             )
             code = orm.PortableCode(
-                label="mdb_get_latent_space",
+                label='mdb_get_latent_space',
                 filepath_files=descriptor_code_path,
-                filepath_executable="mdb_autoencoder_get_latent_space.py",
+                filepath_executable='mdb_autoencoder_get_latent_space.py',
                 prepend_text=prepend_text,
             )
-            code_builder.metadata.options.parser_name = "mdb-get-latent-space-parser"
-            code_builder.metadata.label = self.ctx.best_model_name + "_latent_space"
+            code_builder.metadata.options.parser_name = 'mdb-get-latent-space-parser'
+            code_builder.metadata.label = self.ctx.best_model_name + '_latent_space'
 
         # Get descriptors coming directly from MACE.
         else:
             self.report(
-                "No dimensionality reduction method specified."
-                " Getting MACE descriptors..."
+                'No dimensionality reduction method specified.'
+                ' Getting MACE descriptors...'
             )
             descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
+                f'{MDB_ROOT_DIR}/active_learning/mace_code/descriptors'
             )
             code = orm.PortableCode(
-                label="mace_get_descriptors",
+                label='mace_get_descriptors',
                 filepath_files=descriptor_code_path,
-                filepath_executable="mdb_mace_get_descriptors.py",
+                filepath_executable='mdb_mace_get_descriptors.py',
                 prepend_text=prepend_text,
             )
-            code_builder.metadata.options.parser_name = "mace-descriptors-parser"
-            code_builder.metadata.label = self.ctx.best_model_name + "_descriptors"
+            code_builder.metadata.options.parser_name = 'mace-descriptors-parser'
+            code_builder.metadata.label = self.ctx.best_model_name + '_descriptors'
             code_builder.metadata.options.output_filename = (
-                f"descriptors_{self.ctx.best_model_name}_"
-                f"iter-{self.inputs.al_loop_iteration.value}"
+                f'descriptors_{self.ctx.best_model_name}_'
+                f'iter-{self.inputs.al_loop_iteration.value}'
             )
 
         code_builder.code = code
@@ -661,7 +686,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # if not present.
         # `mdb_calc_limit` is a custom property set with:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = computer.metadata.get('mdb_calc_limit', 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -703,29 +728,29 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Getting latent space and autoencoder model from the
             # autoencoder calculation
             dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-                "dimensionality_reduction_method"
+                'dimensionality_reduction_method'
             )
-            if dimensionality_reduction_method == "autoencoder":
-                with curr_calc.outputs.descriptors_file.open(mode="rb") as f:
+            if dimensionality_reduction_method == 'autoencoder':
+                with curr_calc.outputs.descriptors_file.open(mode='rb') as f:
                     db_descriptor_dict = pickle.load(f)
 
                 db_latent_space = np.vstack(
-                    [strc["latent_space"] for strc in db_descriptor_dict.values()]
+                    [strc['latent_space'] for strc in db_descriptor_dict.values()]
                 )
                 self.ctx.latent_space = db_latent_space
                 self.ctx.autoencoder_model_file = (
                     curr_calc.outputs.autoencoder_model_file
                 )
                 self.report(
-                    "Gathered descriptor ranges, latent space, and autoencoder model"
-                    " for training database."
+                    'Gathered descriptor ranges, latent space, and autoencoder model'
+                    ' for training database.'
                 )
             else:
-                self.report("Gathered descriptor ranges for training database.")
+                self.report('Gathered descriptor ranges for training database.')
 
     def get_concave_hull(self):
-        self.report("Getting concave hull...")
-        descr_calc = CalculationFactory("mdb-get-concave-hull")
+        self.report('Getting concave hull...')
+        descr_calc = CalculationFactory('mdb-get-concave-hull')
 
         code_builder = descr_calc.get_builder()
 
@@ -735,33 +760,33 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # Adding the CWD to the path in the script, so that the script can be
         # run from aiida.
         prepend_text = (
-            self.inputs.descriptor_settings["metadata"]["prepend_text"]
-            + "\nPATH=$PATH:."
+            self.inputs.descriptor_settings['metadata']['prepend_text']
+            + '\nPATH=$PATH:.'
         )
 
         # Set metadata options
-        code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
-            "options"
+        code_builder.metadata.options = self.inputs.descriptor_settings['metadata'][
+            'options'
         ]
 
         # Set the computer
         code_builder.metadata.computer = orm.load_computer(
-            self.inputs.descriptor_settings["metadata"]["computer"]
+            self.inputs.descriptor_settings['metadata']['computer']
         )
 
         # Generate aiida code using the script in the `descriptor_code_path` folder.
         descriptor_code_path = Path(
-            f"{MDB_ROOT_DIR}/active_learning/extrapolation/concave_hull_scripts"
+            f'{MDB_ROOT_DIR}/active_learning/extrapolation/concave_hull_scripts'
         )
 
         code = orm.PortableCode(
-            label="mdb_get_concave_hull",
+            label='mdb_get_concave_hull',
             filepath_files=descriptor_code_path,
-            filepath_executable="mdb_get_concave_hull.py",
+            filepath_executable='mdb_get_concave_hull.py',
             prepend_text=prepend_text,
         )
-        code_builder.metadata.options.parser_name = "mdb-get-concave-hull-parser"
-        code_builder.metadata.label = self.ctx.best_model_name + "_concave_hull"
+        code_builder.metadata.options.parser_name = 'mdb-get-concave-hull-parser'
+        code_builder.metadata.label = self.ctx.best_model_name + '_concave_hull'
 
         code_builder.code = code
 
@@ -769,7 +794,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # if not present.
         # `mdb_calc_limit` is a custom property set using:
         # computer.set_property(name='mdb_calc_limit', value=366)
-        calc_limit = code_builder.metadata.computer.metadata.get("mdb_calc_limit", 0)
+        calc_limit = code_builder.metadata.computer.metadata.get('mdb_calc_limit', 0)
 
         # Check if the calculation can be submitted
         if calc_limit == 0:
@@ -805,15 +830,33 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 curr_calc.outputs.concave_hull_array.get_array()
             )
 
-            self.report("Gathered concave hull for training database.")
+            self.report('Gathered concave hull for training database.')
 
     def run_md_seed(self):
-        with open(self.inputs.current_md_seed_structs_path.value, "rb") as f:
+        with open(self.inputs.current_md_seed_structs_path.value, 'rb') as f:
             current_md_seed_structs = pickle.load(f)
+
+        # # DEBUG: Testing shared directory for inputs
+        # metadata_dict = self.inputs.descriptor_settings['metadata']
+        # computer = orm.load_computer(metadata_dict['computer'])
+        # shared_dir_path = tempfile.mkdtemp()
+        # node_list = []
+        # for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
+        #     # Only alphanumeric and underscores are allowed as links
+        #     model_name = model_name.replace('-', '_')
+        #     # model = orm.load_node(model)
+        #     node_list.append(model)
+        # mdb_al_ut.create_shared_directory(
+        #     computer=computer,
+        #     node_list=node_list,
+        #     shared_dir_path=Path(shared_dir_path),
+        # )
+
+        # quit()
 
         for _, curr_structure in enumerate(current_md_seed_structs):
             # Run training and save new model file
-            proc_seed = CalculationFactory("mdb-process-md-seed-struct")
+            proc_seed = CalculationFactory('mdb-process-md-seed-struct')
             proc_seed_builder = proc_seed.get_builder()
 
             # Input committee models to `commitee_models` namespace as a dict like:
@@ -822,25 +865,34 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # Converting to ase.Atoms()
             for key in [
-                "pbc",
-                "cell",
-                "numbers",
-                "positions",
-                "forces",
-                "REF_forces",
-                "MACE_forces",
+                'pbc',
+                'cell',
+                'numbers',
+                'positions',
+                'forces',
+                'REF_forces',
+                'MACE_forces',
+                'momenta',
+                'initial_magmoms',
+                'bulk_equivalent',
+                'bulk_wyckoff',
             ]:
                 if curr_structure.get(key):
                     curr_structure[key] = np.array(curr_structure[key])
-            curr_structure = Atoms.fromdict(curr_structure)
+
+            # DEBUG: Check the keys in curr_structure and if they are arrays.
+            # breakpoint()
+
+            if isinstance(curr_structure, dict):
+                curr_structure = Atoms.fromdict(curr_structure)
 
             # Write xyz file into a string captured in the stdout,
             # write it to a temporary file.
             f = io.StringIO()
             with redirect_stdout(f):
                 ase_write(
-                    filename="-",
-                    format="extxyz",
+                    filename='-',
+                    format='extxyz',
                     images=curr_structure,
                 )
             xyz_string = f.getvalue()
@@ -848,69 +900,90 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Generating tmp file
             md_xyz_file = orm.SinglefileData(
                 file=io.BytesIO(str.encode(xyz_string)),
-                filename="md_db.xyz",
+                filename='md_db.xyz',
             )
             md_xyz_file.store()
 
-            # Add inputs
+            # Add inputs to builder
             proc_seed_builder.md_structure = md_xyz_file
-            proc_seed_builder.model_file = self.ctx.best_model_file
+            proc_seed_builder.best_model_name = self.ctx.best_model_name
             proc_seed_builder.m_rmse_e = self.ctx.m0_rmse_e
             proc_seed_builder.m_rmse_f = self.ctx.m0_rmse_f
 
             # Optional input, advanced extrapolation might not be enabled.
-            if hasattr(self.ctx, "concave_hull_array"):
-                proc_seed_builder.concave_hull = self.ctx.concave_hull_array
+            if hasattr(self.ctx, 'concave_hull'):
+                proc_seed_builder.concave_hull = self.ctx.concave_hull
+            if hasattr(self.ctx, 'autoencoder_model_file'):
+                proc_seed_builder.autoencoder_model = self.ctx.autoencoder_model_file
 
-            desc_max_arr = orm.ArrayData(self.ctx.descriptors_min_array)
-            desc_max_arr.store()
-            proc_seed_builder.desc_max_arr = desc_max_arr
-
-            desc_min_arr = orm.ArrayData(self.ctx.descriptors_max_array)
-            desc_min_arr.store()
-            proc_seed_builder.desc_min_arr = desc_min_arr
-
-            # settings_file_pth = orm.Str(self.inputs.toml_file)
-            # settings_file_pth.store()
-            # print('settings_file_pth: ', settings_file_pth)
+            proc_seed_builder.desc_max_arr = self.ctx.descriptors_max_array
+            proc_seed_builder.desc_min_arr = self.ctx.descriptors_min_array
             proc_seed_builder.settings_file_pth = self.inputs.toml_file
 
+            # Preparing comitee dict
+            commitee_dict = {}
+            for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
+                # Only alphanumeric and underscores are allowed as links
+                model_name = model_name.replace('-', '_')
+
+                model = orm.load_node(model)
+                if not isinstance(model, orm.SinglefileData):
+                    commitee_dict[model_name] = orm.SinglefileData(model)
+                else:
+                    commitee_dict[model_name] = model
+
+            if not commitee_dict:
+                self.report(
+                    'Committee dict is empty: no committee models trained. '
+                    'Using main model only. Check model training step for errors.'
+                )
+
+            # Adding the best model to the committee models
+            # Only alphanumeric and underscores are allowed as links
+            best_model_name_clean = self.ctx.best_model_name.replace('-', '_')
+            commitee_dict[best_model_name_clean] = self.ctx.best_model_file
+
+            proc_seed_builder.commitee_models = commitee_dict
+
             # Get portable code
-            code_path = Path(f"{MDB_ROOT_DIR}/active_learning/md")
+            code_path = Path(f'{MDB_ROOT_DIR}/active_learning/md')
             # TODO: This should not be `descriptor_settings`` after the simple
             # loop is introduced. A new section containing all settings
             # should be included, and this should be changed to the section
             # name.
-            metadata_dict = self.inputs.descriptor_settings["metadata"]
-            num_threads = self.inputs.descriptor_settings.get("num_cpus", 1)
+            metadata_dict = self.inputs.descriptor_settings['metadata']
+            num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
             prepend_text = (
-                metadata_dict["prepend_text"]
-                + "\nPATH=$PATH:."
-                + f"\nOMP_NUM_THREADS={num_threads}"
+                metadata_dict['prepend_text']
+                + '\nexport PATH=$PATH:.'
+                + f'\nexport OMP_NUM_THREADS={num_threads}'
             )
             portable_code = orm.PortableCode(
-                label="mdb_process_md_seed_struct",
+                label='mdb_process_md_seed_struct',
                 filepath_files=code_path,
-                filepath_executable="mdb_process_structure.py",
+                filepath_executable='mdb_process_structure.py',
                 prepend_text=prepend_text,
             )
             proc_seed_builder.code = portable_code
 
             # Loading computer and removing it from the input dictionary
-            options_dict = metadata_dict["options"]
-            computer = orm.load_computer(metadata_dict["computer"])
+            options_dict = metadata_dict['options']
+            computer = orm.load_computer(metadata_dict['computer'])
             proc_seed_builder.metadata.computer = computer
             # options_dict.pop('computer', None)
 
             # Load scheduler and resources options
             proc_seed_builder.metadata.options = options_dict
+            proc_seed_builder.metadata.options.parser_name = (
+                'mdb-process-md-seed-struct-parser'
+            )
 
             # Get the calculation limit, from the computer metadata set to 0
             # if not present.
             # `mdb_calc_limit` is a custom property set with:
             # computer.set_property(name='mdb_calc_limit', value=366)
             calc_limit = proc_seed_builder.metadata.computer.metadata.get(
-                "mdb_calc_limit", 0
+                'mdb_calc_limit', 0
             )
 
             # Check if the calculation can be submitted
@@ -932,995 +1005,204 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     limit=calc_limit,
                 )
             future = self.submit(proc_seed_builder)
-            future.base.extras.set("unique_id", curr_structure.info["aiida_uuid"])
+
+            if curr_structure.info.get('aiida_uuid'):
+                future.base.extras.set('unique_id', curr_structure.info['aiida_uuid'])
+            elif curr_structure.info.get('mdb_id'):
+                future.base.extras.set('unique_id', curr_structure.info['mdb_id'])
+
+            future.base.extras.set('mdb_db_index', curr_structure.info['mdb_db_index'])
             # future.base.extras.set("md_temperature", temp_val)
-            self.to_context(committee_results=append_(future))
+            self.to_context(process_committee_results=append_(future))
 
-        self.report(f"Processing {len(self.ctx.committee_results)} structures...")
-
-    def gather_m0_md_results(self):
-        """
-        Gather MD simulation results for all structures in the current seed.
-
-        This function collects the results from MD simulations of each structure within
-        the current training seed.
-        It extracts trajectories, energies, and forces from each simulation's output and
-        aggregates these into a structured format. The collected data is then organized
-        into a pandas DataFrame, which is stored in the workflow's context.
-        """
-        self.report("Gathering best model MD results for the current seed...")
-        new_rows = []
-
-        # Gathering all results
-        for md_calc_wkch in self.ctx.md_seed_workchains:
-            # Skipping MD calc if it hasn't finished correctly.
-            if md_calc_wkch.exit_status != 0:
-                continue
-
-            md_wkch_res = md_calc_wkch.outputs.retrieved
-            steps_E_F_arr = self.gather_energies_from_workchain(md_wkch_res)
-            traj, forces = self.gather_traj_from_workchain(md_wkch_res)
-            traj: Trajectory
-
-            # Instead of keeping all frames, select some of them
-            # Get 1 frame every n picoseconds of MD simulation
-            traj, steps_E_F_arr, forces = mdb_al_ut.select_md_frames_to_keep(
-                frame_interval=self.inputs.al_keep_struct_every_n_ps,
-                md_tstep_duration_ps=self.inputs.md_timestep_duration_ps.value,
-                traj=traj,
-                steps_E_F_arr=steps_E_F_arr,
-                forces=forces,
-            )
-
-            energies = steps_E_F_arr[:, 1]
-
-            # Use several filters to identify incorrect frames from MD trajectories.
-            filters_structure_wrong_list = []
-
-            # Using distance between layers to filter structures
-            if self.inputs.md_filters and "layer_distance" in self.inputs.md_filters:
-                structure_wrong_list = []
-                max_dist = self.inputs.md_filters["layer_distance"][
-                    "max_layer_distance_ang"
-                ]
-                for frame in traj:
-                    is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
-                        struct=frame, max_layer_distance_ang=max_dist
-                    )
-                    structure_wrong_list.append(is_structure_wrong)
-
-                filters_structure_wrong_list.append(structure_wrong_list)
-
-            # Checking if there are atoms with no neighbors (isolated atoms)
-            if (
-                self.inputs.md_filters
-                and "check_atoms_no_neighbor" in self.inputs.md_filters
-            ):
-                structure_wrong_list = []
-                for frame in traj:
-                    is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(
-                        struct=frame
-                    )
-                    structure_wrong_list.append(is_structure_wrong)
-
-                filters_structure_wrong_list.append(structure_wrong_list)
-
-            # Combine all filters to get the final list of wrong structures
-            filters_structure_wrong_list = np.array(filters_structure_wrong_list)
-            filters_structure_wrong_list = np.logical_or.reduce(
-                filters_structure_wrong_list
-            )
-
-            # Removing incorrect structures from the trajectory by removing frames,
-            # energies, and forces from the row to add to the DataFrame.
-            if np.all(filters_structure_wrong_list):
-                self.report(
-                    "Completely removing trajectory as all frames are incorrect."
-                )
-                continue
-            if np.any(filters_structure_wrong_list):
-                self.report(
-                    f"Removing {len(np.nonzero(filters_structure_wrong_list)[0])} "
-                    "incorrect MD frames."
-                )
-
-                # Getting frames to keep
-                traj_nones = [
-                    1 if not is_wrong else None
-                    for i, is_wrong in enumerate(filters_structure_wrong_list)
-                ]
-                frames_to_keep = np.nonzero(traj_nones)
-
-                # Removing energies
-                energies = [
-                    energies[i] if not is_wrong else None
-                    for i, is_wrong in enumerate(filters_structure_wrong_list)
-                ]
-                energies = list(np.array(energies)[frames_to_keep])
-
-                # Removing forces
-                forces = [
-                    forces[i] if not is_wrong else np.full([len(traj[i]), 3], np.nan)
-                    for i, is_wrong in enumerate(filters_structure_wrong_list)
-                ]
-                forces = list(np.array(forces)[frames_to_keep])
-
-                # Removing frames from trajectory
-                new_traj = [traj.get_structure(int(i)) for i in frames_to_keep[0]]
-                traj = Trajectory.from_structures(new_traj)
-
-            new_rows.append(
-                {
-                    "trajectory": traj,
-                    "energy": {self.ctx.best_model_name: energies},
-                    "forces": {self.ctx.best_model_name: forces},
-                    "al_step": self.inputs.al_loop_iteration.value,
-                    "index_in_db": md_calc_wkch.base.extras.all["index_in_db"],
-                    "mdb_struct_type": md_calc_wkch.base.extras.all["mdb_struct_type"],
-                    "material_name": md_calc_wkch.base.extras.all["struct_name"],
-                    "unique_id": md_calc_wkch.base.extras.all["aiida_uuid"],
-                    "mdb_md_node": str(md_calc_wkch.uuid),
-                    "md_temperature": md_calc_wkch.base.extras.all["md_temperature"],
-                    "extrapolation": np.nan,
-                }
-            )
-
-        # Creating a DataFrame with all the results
-        md_seed_results_df = pd.DataFrame(new_rows)
-
-        self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
-            result_dir_path=self.inputs.results_dir.value, node=self.node
+        self.report(
+            f'Processing {len(self.ctx.process_committee_results)} structures...'
         )
-        # Saving the DataFrame into the result directory as a file.
-        self.ctx.md_seed_results_df_path = (
-            f"{self.ctx.results_dir}/run_tmp_data/md_seed_results_df_step-"
-            f"{self.inputs.al_loop_iteration.value}.pkl"
-        )
-        md_seed_results_df.to_pickle(path=str(self.ctx.md_seed_results_df_path))
-
-    def gather_energies_from_workchain(self, workchain_results):
-        """
-        Extracts energy, force, and step information from a 'lammps.out' output file
-        contained within a workchain result.
-
-        This function parses the 'lammps.out' output file from a given set of workchain
-        results. It specifically looks for lines starting with 'thermo ', then extracts
-        step number, energy, and force values from these lines. The extracted values are
-        compiled into a numpy array with each column representing steps, energies, and
-        forces, respectively.
-
-        Parameters
-        ----------
-        workchain_results : object
-            An object containing the results of a workchain. It is expected to have
-            a method `get_object_content` which can retrieve the content of 'lammps.out'
-
-        Returns
-        -------
-        numpy.ndarray
-            A 2D numpy array where each row corresponds to a step in the workchain.
-            The columns represent step number, energy, and force, respectively.
-
-        Notes
-        -----
-        - The function assumes that the 'lammps.out' file has a specific format where
-          relevant data is prefixed with 'thermo '.
-        - The function starts processing from the second occurrence of lines starting
-          with 'thermo '.
-        - The function assumes that the step number is at index 1, energy at index 4,
-          and force at index 6 of each relevant line.
-
-        Examples
-        --------
-        >>> for workchain in self.ctx.md_seed_workchains:
-        >>>     workchain_results = workchain.outputs.retrieved
-        >>>     step_E_F_arr = gather_energies_from_workchain(workchain_results)
-        >>>     print(step_E_F_arr)
-        [[1, energy1, force1],
-        [2, energy2, force2],
-        ...]
-
-        """
-        # Loading lammps output
-        output = workchain_results.get_object_content("lammps.out")
-        # Generating list with the logged steps data
-        steps = [line for line in output.splitlines() if line.startswith("thermo ")]
-
-        energy_array = []
-        force_array = []
-        step_array = []
-
-        for step in steps:
-            split = step.split()
-
-            # Getting current step results.
-            # If an IndexError is raised, probably one of the results is missing,
-            # most likely because the program was stopped mid-step (maximum run time
-            # exceeded), and thus the current step must not be gathered.
-            # This allows for the AL # loop to keep running even if there are MD
-            # calculations that don't run to completion.
-            try:
-                curr_step = int(split[1])
-                curr_energy = float(split[4])
-                curr_force = float(split[7])
-            except IndexError as e:
-                parent_calc = workchain_results.creator.pk
-                self.report(
-                    f"Error while gathering MD calculation results {parent_calc} - {e}."
-                )
-                break
-
-            step_array.append(curr_step)
-            energy_array.append(curr_energy)
-            force_array.append(curr_force)
-
-        step_E_F_arr = np.stack((step_array, energy_array, force_array), axis=1)
-        return step_E_F_arr
-
-    def gather_traj_from_workchain(
-        self, workchain_results: orm.FolderData
-    ) -> Trajectory:
-        """
-        Extracts trajectory data from a `LammpsRawCalculation` as pymatgen Trajectory.
-
-        This function parses `structure.lammpstrj.gz` from the given workchain
-        results using ase.
-        It then constructs a sequence of pymatgen Structure objects
-        representing each frame of the trajectory which are combined
-        into a pymatgen Trajectory object.
-
-        Parameters
-        ----------
-        workchain_results : orm.FolderData
-            A orm.FolderData containing the results of a workchain, expected to have
-            a method `get_object_content` to retrieve the contents of
-            `structure.lammpstrj.gz`.
-
-        Returns
-        -------
-        Trajectory
-            A pymatgen Trajectory object representing the structure over time.
-        np.array
-            A (n_frames x n x 3) numpy array containing the
-            forces of every atom.
-
-        Notes
-        -----
-        The user can change the `gather_traj_cnt_lattice` input to True/False to
-        select if the lattice changes during the simulation.
-        """
-        # This flag selects if a constant lattice volume is assumed
-        # for all frames.
-        cnt_lat_setting = True
-
-        # Get trajectory file from aiida repo node and
-        # parse it file using ase
-        with workchain_results.as_path() as results_path:
-            ase_traj = ase_read(
-                filename=Path(results_path) / "structure.lammpstrj.gz",
-                format="lammps-dump-text",
-                index=":",
-            )
-
-        # Gather the forces
-        forces_list = [atm.get_forces() for atm in ase_traj]
-
-        # Convert ase atoms to pymatgen structures
-        struct_list = [AseAtomsAdaptor().get_structure(atm) for atm in ase_traj]
-
-        traj = Trajectory.from_structures(
-            struct_list,
-            constant_lattice=cnt_lat_setting,
-            time_step=0.003,
-        )
-
-        return traj, np.array(forces_list)
-
-    def check_committee_results_calcjob(self):
-        """Gets predictions of all the committee models for the MD trajectories."""
-        self.report("Evaluating trajectories with committee models...")
-
-        # Gather all commitee models
-        # Prepare all committee information in a dict
-        commitee_dict = {}
-        for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
-            # Only alphanumeric and underscores are allowed as links
-            model_name = model_name.replace("-", "_")
-
-            model = orm.load_node(model)
-            if not isinstance(model, orm.SinglefileData):
-                commitee_dict[model_name] = orm.SinglefileData(model)
-            else:
-                commitee_dict[model_name] = model
-
-        if not commitee_dict:
-            self.report(
-                "Committee dict is empty: no committee models trained. "
-                "Using main model only. Check model training step for errors."
-            )
-            # Only alphanumeric and underscores are allowed as links
-            best_model_name_clean = self.ctx.best_model_name.replace("-", "_")
-            commitee_dict[best_model_name_clean] = self.ctx.best_model_file
-
-        # Reading md seed results DataFrame
-        md_seed_results_df: pd.DataFrame = pd.read_pickle(
-            self.ctx.md_seed_results_df_path
-        )
-
-        # Checking committee predictions for every trajectory
-        for row in md_seed_results_df.iterrows():
-            curr_traj = row[1]["trajectory"]
-
-            # Run training and save new model file
-            mace_train = CalculationFactory("mace-committee-eval")
-            mace_builder = mace_train.get_builder()
-
-            # Input committee models to `commitee_models` namespace as a dict like:
-            # {"model_1": "/path/to/model_1/", "model_2": ...}
-            mace_builder.commitee_models = commitee_dict
-
-            curr_traj_frames_atoms = []
-
-            # Converting all framesto ase.Atoms()
-            for frame in curr_traj:
-                curr_traj_frames_atoms.append(AseAtomsAdaptor.get_atoms(frame))
-
-            # Write xyz file into a string captured in the stdout,
-            # write it to a temporary file.
-            f = io.StringIO()
-            with redirect_stdout(f):
-                ase_write(
-                    filename="-",
-                    format="extxyz",
-                    images=curr_traj_frames_atoms,
-                )
-            xyz_string = f.getvalue()
-
-            # Generating tmp file
-            md_xyz_file = orm.SinglefileData(
-                file=io.BytesIO(str.encode(xyz_string)),
-                filename="md_db.xyz",
-            )
-
-            # Input configurations to evaluate
-            mace_builder.configurations_to_evaluate = md_xyz_file
-
-            # Input number of threads to use
-            mace_builder.num_threads = int(self.inputs.committee_eval["openmp_threads"])
-
-            # Gather mace evaluation settings
-            mace_builder.mace_settings_dict = orm.Dict(
-                self.inputs.committee_eval["mace"]
-            )
-
-            # Get portable code
-            descriptor_code_path = Path(
-                f"{MDB_ROOT_DIR}/active_learning/mace_code/committee"
-            )
-            prepend_text = (
-                self.inputs.descriptor_settings["metadata"]["prepend_text"]
-                + "\nPATH=$PATH:."
-            )
-            portable_code = orm.PortableCode(
-                label="mace_get_descriptors",
-                filepath_files=descriptor_code_path,
-                filepath_executable="mdb_mace_eval_committee_configs.py",
-                prepend_text=prepend_text,
-            )
-            mace_builder.code = portable_code
-
-            # Loading computer and removing it from the input dictionary
-            mace_eval_aiida_settings_dict = self.inputs.committee_eval["metadata"][
-                "options"
-            ]
-            computer = orm.load_computer(mace_eval_aiida_settings_dict["computer"])
-            mace_builder.metadata.computer = computer
-            mace_eval_aiida_settings_dict.pop("computer", None)
-
-            # Load scheduler and resources options
-            mace_builder.metadata.options = mace_eval_aiida_settings_dict
-
-            # Get the calculation limit, from the computer metadata set to 0
-            # if not present.
-            # `mdb_calc_limit` is a custom property set with:
-            # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = mace_builder.metadata.computer.metadata.get(
-                "mdb_calc_limit", 0
-            )
-
-            # Check if the calculation can be submitted
-            if calc_limit == 0:
-                can_submit = True
-            else:
-                can_submit = can_submit_calculation(
-                    computer=computer,
-                    code=mace_builder.code.label,
-                    limit=calc_limit,
-                )
-
-            # If the calculation cannot be submitted, wait for a minute and check again
-            while not can_submit:
-                time.sleep(60)
-                can_submit = can_submit_calculation(
-                    computer=computer,
-                    code=mace_builder.code.label,
-                    limit=calc_limit,
-                )
-
-            future = self.submit(mace_builder)
-            future.base.extras.set("unique_id", row[1]["unique_id"])
-            future.base.extras.set("md_temperature", row[1]["md_temperature"])
-            self.to_context(committee_results=append_(future))
-
-    def gather_committee_results(self):
-        """Gather committee results for all trajectories."""
-        self.report("Gathering committee E and F evaluation...")
-
-        # # REMOVE: Testing only
-        # md_seed_results_df.to_pickle("/tmp/md_seed_results_df")
-
-        # Reading md seed results DataFrame
-        md_seed_results_df: pd.DataFrame = pd.read_pickle(
-            self.ctx.md_seed_results_df_path
-        )
-
-        for curr_calc in self.ctx.committee_results:
-            # Skipping calculation if training hasn't finished correctly.
-            if curr_calc.exit_status != 0:
-                self.report(
-                    f"Skipping calculation [{curr_calc.pk}]"
-                    f" - exit status: {curr_calc.exit_status}"
-                )
-                continue
-
-            # Gather extras to identify the current calc
-            curr_unique_id = curr_calc.base.extras.all["unique_id"]
-            curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
-
-            # Find row matching the calculation using curr_unique_id and
-            # current_temperature
-            row_index = md_seed_results_df[
-                md_seed_results_df.unique_id == curr_unique_id
-            ][md_seed_results_df.md_temperature == curr_md_temperature].index[0]
-
-            # Collect energies from dict using model name
-            energies_dict = curr_calc.outputs.energy_result_dict.get_dict()
-
-            for model_name, energies_list in energies_dict.items():
-                # Convering list of eneries into 1D ndarray
-                energies = np.array(energies_list)
-
-                # Updating current energy dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "energy"][row_index][
-                    model_name
-                ] = energies
-
-            # Collect forces from dict using model name
-            forces_collection = curr_calc.outputs.forces_result_dict.get_dict()
-            for model_name, forces_model_list in forces_collection.items():
-                forces_list = [forces for forces in forces_model_list]
-
-                # Updating current forces dict with the new results from every model
-                md_seed_results_df.loc[[row_index], "forces"][row_index][model_name] = (
-                    np.array(forces_list)
-                )
-
-        # Updating md seed results DataFrame
-        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
-
-    def get_descriptors_from_md_results(self):
-        """Get descriptors for the MD generated structures using the best model."""
-        # Get the dimensionality reduction method
-        dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-            "dimensionality_reduction_method"
-        )
-
-        if dimensionality_reduction_method == "autoencoder":
-            descr_calc = CalculationFactory("mdb-get-latent-space")
-            self.report(
-                "Getting latent space of descriptors for MD generated structures..."
-            )
-        else:
-            # Prepare GetMACEDescriptorsCalculation
-            descr_calc = CalculationFactory("mace-get-descriptors")
-            self.report("Getting descriptors for MD generated structures...")
-
-        code_builder = descr_calc.get_builder()
-        code_builder.model_file = self.ctx.best_model_file
-
-        # Reading md seed results DataFrame
-        md_seed_results_df: pd.DataFrame = pd.read_pickle(
-            self.ctx.md_seed_results_df_path
-        )
-
-        # Store all frames from the trajectory into a list
-        for _, row in md_seed_results_df.iterrows():
-            # all_frames_list = []
-            curr_traj = row["trajectory"]
-            traj_frames = []
-
-            for frame in curr_traj:
-                curr_frame: Atoms = AseAtomsAdaptor.get_atoms(frame)
-                curr_frame.info["aiida_uuid"] = row["unique_id"]
-                curr_frame.info["md_temperature"] = row["md_temperature"]
-                traj_frames.append(curr_frame)
-
-            # Write xyz file into a string captured in the stdout,
-            # write it to a temporary file.
-            f = io.StringIO()
-            with redirect_stdout(f):
-                ase_write(
-                    filename="-",
-                    format="extxyz",
-                    images=traj_frames,
-                )
-            xyz_string = f.getvalue()
-
-            # Generating tmp file
-            md_xyz_file = orm.SinglefileData(
-                file=io.BytesIO(str.encode(xyz_string)),
-                filename="md_db.xyz",
-            )
-
-            prepend_text = (
-                self.inputs.descriptor_settings["metadata"]["prepend_text"]
-                + "\nPATH=$PATH:."
-            )
-
-            # Set metadata options
-            code_builder.metadata.options = self.inputs.descriptor_settings["metadata"][
-                "options"
-            ]
-
-            # Set the computer
-            computer = orm.load_computer(
-                self.inputs.descriptor_settings["metadata"]["computer"]
-            )
-            code_builder.metadata.computer = computer
-
-            code_builder.model_file = self.ctx.best_model_file
-            code_builder.mace_train_file_path = md_xyz_file
-            code_builder.mace_train_file_path.store()
-
-            # Get latent space of the descriptors using the autoencoder.
-            if dimensionality_reduction_method == "autoencoder":
-                # Get autoencoder model
-                code_builder.trained_autoencoder_model = self.ctx.autoencoder_model_file
-
-                # Generate aiida code using the script in
-                # the `descriptor_code_path` folder.
-                descriptor_code_path = Path(
-                    f"{MDB_ROOT_DIR}/active_learning/extrapolation/autoencoder_scripts"
-                )
-                code = orm.PortableCode(
-                    label="mdb_get_latent_space",
-                    filepath_files=descriptor_code_path,
-                    filepath_executable="mdb_autoencoder_get_latent_space.py",
-                    prepend_text=prepend_text,
-                )
-                code_builder.metadata.options.parser_name = (
-                    "mdb-get-latent-space-parser"
-                )
-                code_builder.metadata.label = self.ctx.best_model_name + "_latent_space"
-
-            else:
-                # Prepare GetMACEDescriptorsCalculation
-                descriptor_code_path = Path(
-                    f"{MDB_ROOT_DIR}/active_learning/mace_code/descriptors"
-                )
-
-                code = orm.PortableCode(
-                    label="mace_get_descriptors",
-                    filepath_files=descriptor_code_path,
-                    filepath_executable="mdb_mace_get_descriptors.py",
-                    prepend_text=prepend_text,
-                )
-
-                code_builder.metadata.options.parser_name = "mace-descriptors-parser"
-
-                code_builder.metadata.label = (
-                    row["unique_id"][:8]
-                    + "_md_descriptors_"
-                    + f"{row['md_temperature']}_K"
-                )
-
-                code_builder.metadata.options.output_filename = (
-                    f"descriptors_{self.ctx.best_model_name}_iter"
-                    f"-{self.inputs.al_loop_iteration.value}"
-                )
-
-            code_builder.code = code
-
-            # Get the calculation limit, from the computer metadata set to 0
-            # if not present.
-            # `mdb_calc_limit` is a custom property set with:
-            # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = computer.metadata.get("mdb_calc_limit", 0)
-
-            # Check if the calculation can be submitted
-            if calc_limit == 0:
-                can_submit = True
-            else:
-                can_submit = can_submit_calculation(
-                    computer=computer,
-                    code=code.label,
-                    limit=calc_limit,
-                )
-
-            # If the calculation cannot be submitted, wait for a minute and check again
-            while not can_submit:
-                time.sleep(60)
-                can_submit = can_submit_calculation(
-                    computer=computer,
-                    code=code.label,
-                    limit=calc_limit,
-                )
-
-            future = self.submit(code_builder)
-            future.base.extras.set("unique_id", row["unique_id"])
-            future.base.extras.set("md_temperature", row["md_temperature"])
-
-            self.to_context(md_descriptor_results=append_(future))
 
     def send_calc_or_remove_structures(self):
         """Decide which structures to keep and send to DFT or remove from db."""
-        self.report("Deciding which structures to keep...")
+        self.report('Deciding which structures to keep...')
 
-        model_acc_multiplier = self.inputs.model_acc_multiplier.value
-        e_rmse = self.ctx.m0_rmse_e.value
-        e_error_threshold = model_acc_multiplier * e_rmse
+        # Get all of the processed structures
+        processed_structures = self.ctx.process_committee_results
 
-        f_rmse = self.ctx.m0_rmse_f.value
-        f_error_threshold = model_acc_multiplier * f_rmse
-
-        maximum_value_e = 1000  # meV
-        maximum_value_f = 1000  # meV
-
+        mace_calcs_struct_list = []
+        mace_calcs_idx_list = []
+        calcs_to_submit = []
         delete_indices = []
-        dft_structures = []
 
-        # Reading md seed results DataFrame
-        md_seed_results_df: pd.DataFrame = pd.read_pickle(
-            self.ctx.md_seed_results_df_path
-        )
+        # Selecting which structures to send to DFT and
+        # which to remove from the database.
+        proc_calcjob: orm.CalcJobNode
+        for proc_calcjob in processed_structures:
+            # Skip calculation if it didn't finish correctly
+            if proc_calcjob.exit_status != 0:
+                self.report(
+                    'Skipping struct. processing that finished with errors '
+                    f'(pk: {proc_calcjob.pk}).'
+                )
+                continue
 
-        # Gathering MD descriptor results and adding them to dataframe
-        if self.inputs.check_extrapolation_type.value:
-            for curr_calc in self.ctx.md_descriptor_results:
-                # Ignore failed calculations
-                if not curr_calc.is_finished_ok:
-                    continue
+            # Getting unique_id from extras
+            orig_str_uuid = proc_calcjob.base.extras.all.get('unique_id')
 
-                curr_unique_id = curr_calc.base.extras.all["unique_id"]
-                curr_md_temperature = curr_calc.base.extras.all["md_temperature"]
-
-                dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-                    "dimensionality_reduction_method"
+            # Loading extrapolating structures
+            extrap_strc_file: orm.SinglefileData = (
+                proc_calcjob.outputs.extrapolating_structures
+            )
+            with extrap_strc_file.as_path() as file_path:
+                extrap_structs = ase_read(
+                    filename=file_path, format='extxyz', index=':'
                 )
 
-                # Find row matching the calculation using curr_unique_id and
-                # current_temperature
-                row_index = md_seed_results_df[
-                    md_seed_results_df.unique_id == curr_unique_id
-                ][md_seed_results_df.md_temperature == curr_md_temperature].index[0]
+            for struct in extrap_structs:
+                struct.info['mdb_md_node'] = proc_calcjob.uuid
+                struct.info['mdb_db_index'] = proc_calcjob.base.extras.get(
+                    'mdb_db_index'
+                )
 
-                # Creating context manager to load descriptor result files
-                # descr_file
-                with (
-                    curr_calc.outputs.descriptors_file.as_path() as md_descr_file_path,
-                    open(md_descr_file_path, "rb") as descr_file,  # noqa: E501
-                ):
-                    md_descr_dict: list[list[list]] = pickle.load(descr_file)
+            # If no extrapolating structures, mark for removal from database
+            # using orig_str_uuid
+            if len(extrap_structs) == 0:
+                delete_indices.append(orig_str_uuid)
+            # If extrapolating structures, send to DFT using the selected
+            # method.
+            else:
+                calcs_to_submit.extend(extrap_structs)
 
-                # Gather latent space
-                if dimensionality_reduction_method == "autoencoder":
-                    # Get latent space
-                    desc_f_curr_row: dict = md_descr_dict[curr_unique_id]
-                    latent_space = desc_f_curr_row["latent_space"]
+        # Limit number of DFT calculations to be submitted using the
+        # `dft_calc_limit` key in the dft settings section. Ommit if not present.
+        if self.inputs.dft_calc_limit:
+            dft_calc_limit = self.inputs.dft_calc_limit.value
 
-                    # Overwrite row in dataframe
-                    md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
-                        [latent_space],
-                        index=md_seed_results_df.index[[row_index]],
-                    )
+            if len(calcs_to_submit) > dft_calc_limit:
+                step = len(calcs_to_submit) / dft_calc_limit
+                sampled_indices = [int(i * step) for i in range(dft_calc_limit)]
+                calcs_to_submit = [calcs_to_submit[idx] for idx in sampled_indices]
 
-                # Gather descriptors
-                else:
-                    # Assign matching descriptors to the extrapolation column
-                    desc_f_curr_row: list = md_descr_dict[curr_unique_id]
+        for struct in calcs_to_submit:
+            # Get row and index
+            struct_uuid = struct.info.get('mdb_id')
+            if not struct_uuid:
+                struct_uuid = struct.info.get('aiida_uuid')
+            calc_idx = struct.info.get('mdb_db_index')
 
-                    # Assign matching descriptors to the extrapolation column
-                    # Overwrite row in dataframe
-                    md_seed_results_df.loc[[row_index], "extrapolation"] = pd.Series(
-                        [desc_f_curr_row],
-                        index=md_seed_results_df.index[[row_index]],
-                    )
+            if self.inputs.dft_method == 'vasp':
+                row = struct.info
 
-        # Updating md seed results DataFrame
-        md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
+                builder = mdb_al_ut.get_dft_calc_builder_vasp(
+                    struct=struct,
+                    row=row,
+                    calc_idx=calc_idx,
+                    group=None,
+                    dft_settings=self.inputs.dft_settings.get_dict(),
+                )
 
-        # Every row contains the results of MD for a single structure, which are:
-        # trajectory, energies, forces, al_step, index_in_db, mdb_struct_type,
-        # cluster, material_name, unique_id
-        submitted_dft_cnt = 0
-        for _, row in md_seed_results_df.iterrows():
-            # Make len(traj) sized array filled with False.
-            total_point_inside, total_point_outside = [], []
-            extrapolating_frames = np.zeros(shape=len(row["trajectory"]))
-
-            # Use extrapolation based on descriptor ranges
-            if self.inputs.check_extrapolation_type.value == "basic":
-                curr_struct_descr = row["extrapolation"]
-
-                # TODO: Check if this can be avoided
-                # Safeguard check for filtered trajectories.
-                # In some cases curr_struct_descr might be an np.nan value, which
-                # will raise an error when trying to iterate over it.
-                if isinstance(curr_struct_descr, float):
-                    extrapolating_frames = np.zeros(shape=1)
-                # If the current structure has no extrapolation data, fill the
-                # extrapolating_frames array with zeros.
-                else:
-                    if len(extrapolating_frames) < len(curr_struct_descr):
-                        extrapolating_frames = np.zeros(shape=len(row["extrapolation"]))
-
+                # Get the calculation limit, from the computer metadata set to 0
+                # if not present.
+                # `mdb_calc_limit` is a custom property set with:
+                # computer.set_property(name='mdb_calc_limit', value=366)
                 try:
-                    # Checking if the frames for the current structure are extrapolating
-                    for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
-                        below_min = frame_descriptors < self.ctx.descriptors_min_array
-                        above_max = frame_descriptors > self.ctx.descriptors_max_array
-                        is_frame_extrapolating = np.any(
-                            np.logical_or(below_min, above_max)
-                        )
-
-                        # Change to True the ones that are extrapolating.
-                        if is_frame_extrapolating:
-                            extrapolating_frames[frame_idx] = 1
-                except TypeError as e:
-                    self.report(e)
-                    pass
-
-            # Use advanced extrapolation
-            elif self.inputs.check_extrapolation_type.value == "advanced":
-                curr_struct_descr = row["extrapolation"]
-
-                for frame_idx, frame_descriptors in enumerate(curr_struct_descr):
-                    # print("type frame_descriptors: ", type(frame_descriptors))
-                    in_domain_check_Dict: orm.Dict = mdb_al_ut.check_atom_in_domain(
-                        concave_hull=self.ctx.concave_hull_array,
-                        descriptors=frame_descriptors,
+                    calc_limit = builder.metadata.computer.metadata.get(
+                        'mdb_calc_limit', 0
                     )
-                    point_inside = in_domain_check_Dict.get_dict()["inside"]
-                    point_outside = in_domain_check_Dict.get_dict()["outside"]
-                    total_point_inside.extend(point_inside)
-                    total_point_outside.extend(point_outside)
+                except AttributeError:
+                    calc_limit = builder.code.computer.metadata.get('mdb_calc_limit', 0)
+                except Exception:
+                    calc_limit = 0
 
-                    # If there are any points outside the domain, the frame is
-                    # considered extrapolating.
-                    is_frame_extrapolating = len(point_outside) > 0
+                # Check if the calculation can be submitted
+                if calc_limit == 0:
+                    can_submit = True
+                else:
+                    can_submit = can_submit_calculation(
+                        code=builder.code.label,
+                        limit=calc_limit,
+                    )
 
-                    # Change to True the ones that are extrapolating.
-                    if is_frame_extrapolating:
-                        extrapolating_frames[frame_idx] = 1
+                # If the calculation cannot be submitted,
+                # wait for a minute and check again
+                while not can_submit:
+                    time.sleep(60)
+                    can_submit = can_submit_calculation(
+                        code=builder.code.label,
+                        limit=calc_limit,
+                    )
 
-            self.report(
-                f"Out of {len(extrapolating_frames)} frames, "
-                f"{len(np.nonzero(extrapolating_frames)[0])} were found "
-                "to be extrapolating."
+                # Submitting current calculation
+                future = self.submit(builder)
+
+                unique_id = row.get('unique_id')
+                if not unique_id:
+                    unique_id = row.get('aiida_uuid')
+                struct_name = row.get('material_name')
+                if not struct_name:
+                    struct_name = row.get('struct_name')
+
+                future.base.extras.set('mdb_calc_uuid', unique_id)
+                future.base.extras.set('mdb_struct_type', row['mdb_struct_type'])
+                future.base.extras.set('struct_name', struct_name)
+                self.to_context(dft_struct_seed_calcs=append_(future))
+
+                if self.inputs.train_seed_group.value:
+                    group = orm.load_group(self.inputs.train_seed_group.value)
+                    group.add_nodes(future)
+
+            elif self.inputs.dft_method == 'mace':
+                mace_calcs_struct_list.append(struct)
+                mace_calcs_idx_list.append(calc_idx)
+
+        if self.inputs.dft_method == 'mace' and len(mace_calcs_struct_list) > 0:
+            builder = mdb_al_ut.get_dft_calc_builder_mace_list(
+                struct_list=mace_calcs_struct_list,
+                row=struct.info,
+                dft_settings=self.inputs.dft_settings.get_dict(),
             )
 
-            # Getting all energy predictions
-            # TODO - Select std or variance
-            model_energies_dict = row["energy"]
+            # Get the calculation limit, from the computer metadata set to 0
+            # if not present.
+            # `mdb_calc_limit` is a custom property set with:
+            # computer.set_property(name='mdb_calc_limit', value=366)
+            calc_limit = builder.code.computer.metadata.get('mdb_calc_limit', 0)
 
-            energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
-
-            # Checking if the energies are over the error threshold
-            error_e_structures_sm = np.ma.make_mask(
-                energies_stat >= e_error_threshold,
-                shrink=False,
-            )
-            error_e_structures_bg = np.ma.make_mask(
-                energies_stat < maximum_value_e,
-                shrink=False,
-            )
-
-            # Any True value in this array is over the energy error threshold
-            # and must be sent to calculate with DFT.
-            error_e_structures = np.logical_and(
-                error_e_structures_sm, error_e_structures_bg
-            )
-
-            model_forces_dict = row["forces"]
-            forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
-            forces_std_norm = np.linalg.norm(forces_std, axis=2)
-            forces_std_norm_max = np.amax(forces_std_norm, axis=1)
-
-            # Checking if the forces are over the error threshold
-            err_f_struct_sm = np.ma.make_mask(
-                forces_std_norm_max >= f_error_threshold,
-                shrink=False,
-            )
-            err_f_struct_bg = np.ma.make_mask(
-                forces_std_norm_max < maximum_value_f,
-                shrink=False,
-            )
-
-            # Any True value in this array is over the force error threshold
-            # and must be sent to calculate with DFT.
-            error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
-
-            # Pad the extrapolating_frames array with zeros to match the
-            # length of the error arrays
-            # This prevents broadcasting errors when joining the arrays,
-            # as they must have the same shape.
-            # TODO: Find a safer way of doing this, probably once the final
-            # extrapolation method is defined.
-            if len(extrapolating_frames) < len(error_f_structures) or len(
-                extrapolating_frames
-            ) < len(error_e_structures):
-                extrapolating_frames = np.pad(
-                    extrapolating_frames,
-                    (0, len(error_f_structures) - len(extrapolating_frames)),
-                    "constant",
-                    constant_values=(0),
+            # Check if the calculation can be submitted
+            if calc_limit == 0:
+                can_submit = True
+            else:
+                can_submit = can_submit_calculation(
+                    computer=builder.code.computer,
+                    code=builder.code.label,
+                    limit=calc_limit,
                 )
 
-            # Joining both error masks to get a single True/False array marking
-            # structures to be computed with True
-            error_all_structures = np.logical_or(
-                np.logical_or(error_e_structures, error_f_structures),
-                extrapolating_frames,
+            # If the calculation cannot be submitted,
+            # wait for a minute and check again
+            while not can_submit:
+                time.sleep(60)
+                can_submit = can_submit_calculation(
+                    computer=builder.code.computer,
+                    code=builder.code.label,
+                    limit=calc_limit,
+                )
+
+            # Submitting current calculation
+            future = self.submit(builder)
+            future.base.extras.set('mdb_calc_uuid', struct.info.get('aiida_uuid'))
+            future.base.extras.set(
+                'mdb_struct_type', struct.info.get('mdb_struct_type')
             )
+            future.base.extras.set('struct_name', struct.info.get('struct_name'))
+            future.base.extras.set('mdb_md_node', struct.info.get('mdb_md_node'))
 
-            # If all values in error_all_structures are false, delete the main
-            # structure from D0.
-            flag_no_error_structs = np.all(error_all_structures == 0)
+            self.to_context(dft_struct_seed_calcs=append_(future))
 
-            # The index of the structure to delete will
-            # be added to a list, which will be used as a mask to select
-            # which structures to remove outside of the loop.
-            if flag_no_error_structs:
-                delete_indices.append(row["unique_id"])
-            elif not flag_no_error_structs:
-                # If there are some structures to submit, select some of them and
-                # mark them for DFT.
-                struct_arr = error_all_structures
-
-                if isinstance(error_all_structures, np.bool_):
-                    struct_arr = np.ones_like(energies_stat)
-
-                selected_high_error = np.nonzero(struct_arr)[0]
-
-                dft_structures = []
-                for struct in selected_high_error:
-                    # Safeguard check for filtered trajectories. In some cases
-                    # the selected structure might be out of bounds for the
-                    # trajectory array if frames are removed.
-                    with suppress(IndexError):
-                        dft_structures.append(row["trajectory"][int(struct)])
-
-                # REMOVE: For testing purposes.
-                # TESTING
-                # dft_structures = [row["trajectory"][0]]
-                # print('dft_structures: ', dft_structures)
-
-                mace_calcs_struct_list = []
-                mace_calcs_idx_list = []
-
-                for calc_idx, dft_struct in enumerate(dft_structures):
-                    if self.inputs.dft_method == "vasp":
-                        builder = mdb_al_ut.get_dft_calc_builder_vasp(
-                            dft_struct,
-                            row,
-                            calc_idx,
-                            self.inputs.train_seed_group.value,
-                            dft_settings=self.inputs.dft_settings.get_dict(),
-                        )
-
-                        # Get the calculation limit, from the computer metadata set to 0
-                        # if not present.
-                        # `mdb_calc_limit` is a custom property set with:
-                        # computer.set_property(name='mdb_calc_limit', value=366)
-                        calc_limit = builder.metadata.computer.metadata.get(
-                            "mdb_calc_limit", 0
-                        )
-
-                        # Check if the calculation can be submitted
-                        if calc_limit == 0:
-                            can_submit = True
-                        else:
-                            can_submit = can_submit_calculation(
-                                code=builder.code.label,
-                                limit=calc_limit,
-                            )
-
-                        # If the calculation cannot be submitted,
-                        # wait for a minute and check again
-                        while not can_submit:
-                            time.sleep(60)
-                            can_submit = can_submit_calculation(
-                                code=builder.code.label,
-                                limit=calc_limit,
-                            )
-
-                        # Submitting current calculation
-                        future = self.submit(builder)
-                        future.base.extras.set("mdb_calc_uuid", row["unique_id"])
-                        future.base.extras.set(
-                            "mdb_struct_type", row["mdb_struct_type"]
-                        )
-                        future.base.extras.set("struct_name", row["material_name"])
-                        self.to_context(dft_struct_seed_calcs=append_(future))
-
-                        if self.inputs.train_seed_group.value:
-                            group = orm.load_group(self.inputs.train_seed_group.value)
-                            group.add_nodes(future)
-
-                    elif self.inputs.dft_method == "mace":
-                        mace_calcs_struct_list.append(dft_struct)
-                        mace_calcs_idx_list.append(calc_idx)
-
-                    submitted_dft_cnt += 1
-
-                if self.inputs.dft_method == "mace" and len(mace_calcs_struct_list) > 0:
-                    builder = mdb_al_ut.get_dft_calc_builder_mace_list(
-                        struct_list=mace_calcs_struct_list,
-                        row=row,
-                        dft_settings=self.inputs.dft_settings.get_dict(),
-                    )
-
-                    # Get the calculation limit, from the computer metadata set to 0
-                    # if not present.
-                    # `mdb_calc_limit` is a custom property set with:
-                    # computer.set_property(name='mdb_calc_limit', value=366)
-                    calc_limit = builder.code.computer.metadata.get("mdb_calc_limit", 0)
-
-                    # Check if the calculation can be submitted
-                    if calc_limit == 0:
-                        can_submit = True
-                    else:
-                        can_submit = can_submit_calculation(
-                            computer=builder.code.computer,
-                            code=builder.code.label,
-                            limit=calc_limit,
-                        )
-
-                    # If the calculation cannot be submitted,
-                    # wait for a minute and check again
-                    while not can_submit:
-                        time.sleep(60)
-                        can_submit = can_submit_calculation(
-                            computer=builder.code.computer,
-                            code=builder.code.label,
-                            limit=calc_limit,
-                        )
-
-                    # Submitting current calculation
-                    future = self.submit(builder)
-                    future.base.extras.set("mdb_calc_uuid", row["unique_id"])
-                    future.base.extras.set("mdb_struct_type", row["mdb_struct_type"])
-                    future.base.extras.set("struct_name", row["material_name"])
-                    future.base.extras.set("mdb_md_node", row["mdb_md_node"])
-
-                    self.to_context(dft_struct_seed_calcs=append_(future))
-
-                    if self.inputs.train_seed_group.value:
-                        group = orm.load_group(self.inputs.train_seed_group.value)
-                        group.add_nodes(future)
-
-        if self.inputs.check_extrapolation_type.value == "advanced":
-            self.report("Plotting extrapolation check results...")
-            mdb_al_ut.plot_concave_hull(
-                point_inside=np.array(total_point_inside),
-                point_outside=np.array(total_point_outside),
-                concave_hull=self.ctx.concave_hull_array,
-                latent_space=self.ctx.latent_space,
-            )
+            if self.inputs.train_seed_group.value:
+                group = orm.load_group(self.inputs.train_seed_group.value)
+                group.add_nodes(future)
 
         self.report(
-            f"Committee decision: {submitted_dft_cnt} get info / "
-            f"{len(delete_indices)} delete."
+            f'Committee decision: {len(calcs_to_submit)} get info / '
+            f'{len(delete_indices)} delete.'
         )
 
         # Deleting well represented structures from seed_gen_db (Ds), if
@@ -1929,8 +1211,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         delete_seed_structs: bool = self.inputs.delete_seed_structs.value
         if len(delete_indices) > 0 and delete_seed_structs:
             self.report(
-                f"Deleting {len(delete_indices)} structures from seed"
-                " generating DB (Ds)"
+                f'Deleting {len(delete_indices)} structures from seed'
+                ' generating DB (Ds)'
             )
 
             mdb_al_ut.remove_structs_from_seed_gen_db(
@@ -1939,7 +1221,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # If no structure is well represented, nothing will be deleted.
         else:
-            self.report("Nothing removed from DB.")
+            self.report('Nothing removed from DB.')
 
     def return_seed_dft_and_model(self):
         """
@@ -1951,25 +1233,42 @@ class SimpleActiveLearningWorkChain(WorkChain):
         MACE models, and this check also outputted to the workchain using the
         namespace `stop_md_seed_no_disagreement`.
         """
-        # TODO: Adapt for VASP usage
-        if self.inputs.dft_method == "vasp":
+        # Getting the results directory if not in the context
+        if not hasattr(self.ctx, 'results_dir'):
+            self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
+                result_dir_path=self.inputs.results_dir.value,
+                node=self.node,
+            )
+        if self.inputs.dft_method == 'vasp':
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(f"Gathered {dft_calcs} VASP DFT calculations.")
-
-                mdb_al_ut.gather_dft_calcs_vasp(
-                    [node.uuid for node in self.ctx.dft_struct_seed_calcs]
-                )
+                self.report(f'Gathered {dft_calcs} VASP DFT calculations.')
+                dft_calcs_ok = [
+                    node.uuid
+                    for node in self.ctx.dft_struct_seed_calcs
+                    if node.is_finished_ok
+                ]
+                if len(dft_calcs_ok) == 0:
+                    self.report('No VASP DFT calculations finished correctly.')
+                    return_list_path = ''
+                else:
+                    dft_calc_list = mdb_al_ut.gather_dft_calcs_vasp(dft_calcs_ok)
+                    return_list_path, results_dir = (
+                        mdb_al_ut.write_gathered_dft_calcs_to_file(
+                            dft_calc_list=dft_calc_list,
+                            results_dir=str(self.ctx.results_dir),
+                        )
+                    )
 
             except AttributeError:
-                orm.List([])
-
-        elif self.inputs.dft_method == "mace":
+                return_list_path = None
+        elif self.inputs.dft_method == 'mace':
+            if hasattr(self.ctx, 'dft_struct_seed_calcs'):
+                dft_calcs = self.ctx.dft_struct_seed_calcs
             try:
-                dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(f"Gathered {dft_calcs} MACE evaluations.")
+                self.report(f'Gathered {len(dft_calcs)} MACE evaluations.')
 
-                calc_list = [node.uuid for node in self.ctx.dft_struct_seed_calcs]
+                calc_list = [node.uuid for node in dft_calcs]
 
                 # Gather all MACE evaluations, storing results into a file,
                 # stored in `result_list_path`.
@@ -1980,19 +1279,20 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     results_dir=str(self.ctx.results_dir),
                     workchain=self.node.uuid,
                 )
-
             except AttributeError:
-                return_list_path = ""
+                return_list_path = None
 
         # File containing structures
         if return_list_path:
-            self.out("dft_calcs_path", return_list_path)
+            if isinstance(return_list_path, Path):
+                return_list_path = orm.Str(return_list_path)
+            self.out('dft_calcs_path', return_list_path)
 
         # orm.SinglefileData for the MACE model with the best performance
-        self.out("m0_model_file", self.ctx.best_model_file)
+        self.out('m0_model_file', self.ctx.best_model_file)
 
         self.out(
-            "stop_md_seed_no_disagreement",
+            'stop_md_seed_no_disagreement',
             mdb_al_ut.check_md_seed_agreement(return_list_path),
         )
 
@@ -2034,24 +1334,24 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         spec.expose_inputs(
             SimpleActiveLearningWorkChain,
-            namespace="active_learning",
+            namespace='active_learning',
             exclude=[
-                "current_md_seed_structs_path",
-                "current_md_seed_structs_idx",
-                "al_loop_iteration",
-                "train_seed_group",
-                "seed_gen_db",
-                "seed_size",
-                "seed_db_path",
-                "training_db_path",
-                "database_training",
+                'current_md_seed_structs_path',
+                'current_md_seed_structs_idx',
+                'al_loop_iteration',
+                'train_seed_group',
+                'seed_gen_db',
+                'seed_size',
+                'seed_db_path',
+                'training_db_path',
+                'database_training',
             ],
         )
-        spec.input("log_path", valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
 
         # Optional input to resume the workchain from a previous state.
         spec.input(
-            "resume_dict",
+            'resume_dict',
             valid_type=orm.Dict,
             serializer=orm.to_aiida_type,
             required=False,
@@ -2094,17 +1394,17 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cls.results_final,
         )
         spec.output(
-            "final_training_db",
+            'final_training_db',
             valid_type=orm.SinglefileData,
         )
-        spec.output("final_model_file", valid_type=orm.SinglefileData)
+        spec.output('final_model_file', valid_type=orm.SinglefileData)
 
     def setup_textfile_logging(self):
         # Get log path
         log_path = self.inputs.log_path.value
 
         # Getting aiida logger
-        aiida_logger = logging.getLogger("aiida")
+        aiida_logger = logging.getLogger('aiida')
         cli_handler = aiida_logger.handlers[0]
         aiida_logger.removeHandler(cli_handler)
 
@@ -2114,45 +1414,55 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         aiida_logger.addHandler(file_handler)
 
         # Adding console logger
-        console = Console(color_system="truecolor")
+        console = Console(color_system='truecolor')
         ch = RichHandler(
             markup=True,
             show_path=False,
-            log_time_format="[%m/%d/%y %H:%M:%S]",
+            log_time_format='[%m/%d/%y %H:%M:%S]',
             omit_repeated_times=False,
             console=console,
         )
         ch.setLevel(23)
-        formatter_con = logging.Formatter("%(message)s")
+        formatter_con = logging.Formatter('%(message)s')
         ch.setFormatter(formatter_con)
         aiida_logger.addHandler(ch)
 
-        self.report("Started Simple Active Learning!")
+        self.report('Started Simple Active Learning!')
         self.report(f"Logging in '{log_path}'.")
 
     def log_mdb_version(self):
-        curr_version, _ = get_mdb_version_info()
-        self.report(f"Using MatDBForge version: '{curr_version}'.")
+        curr_version, _, hash_str = get_mdb_version_info()
+        self.report(f"Using MatDBForge version: '{curr_version}' ({hash_str[:7]}).")
 
     def get_database(self):
         """Loading initial database."""
-        self.report("Reading database file...")
+        self.report('Reading database file...')
 
         # The training database (Dt) from which copies are made
         # for further processing. New structures will be added here.
         if self.inputs.resume_dict:
             database_training = ase_read(
-                filename=self.inputs.resume_dict["train_db_path"],
-                format="extxyz",
-                index=":",
+                filename=self.inputs.resume_dict['train_db_path'],
+                format='extxyz',
+                index=':',
             )
         else:
             database_training = ase_read(
                 filename=self.inputs.active_learning.init_db_path.value,
-                format="extxyz",
-                index=":",
+                format='extxyz',
+                index=':',
             )
 
+        # Adding the database indexes to the info dict of the structures
+        for idx, struct in enumerate(database_training):
+            struct.info['mdb_db_index'] = idx
+            database_training[idx] = struct
+
+        ase_write(
+            filename=self.inputs.active_learning.init_db_path.value,
+            format='extxyz',
+            images=database_training,
+        )
         # Create files for database_training and seed_gen_db
         results_dir_path = Path(self.inputs.active_learning.results_dir.value)
         if not results_dir_path.exists():
@@ -2168,12 +1478,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # A copy of the initial database, (Ds)
         # used specifically for generating MD seeds and running the MDs.
         # New structures will be added and well represented configs removed from here.
-        self.ctx.seed_db_path = curr_run_results_dir / "mdb_seed_db.xyz"
+        self.ctx.seed_db_path = curr_run_results_dir / 'mdb_seed_db.xyz'
 
         # Copying the seed database from the initial database if new run,
         # otherwise copy from the previous run.
         if self.inputs.resume_dict:
-            shutil.copy(self.inputs.resume_dict["seed_db_path"], self.ctx.seed_db_path)
+            shutil.copy(self.inputs.resume_dict['seed_db_path'], self.ctx.seed_db_path)
         else:
             shutil.copy(
                 self.inputs.active_learning.init_db_path.value, self.ctx.seed_db_path
@@ -2200,10 +1510,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.training_db_path = final_db_path
         if self.inputs.resume_dict:
             shutil.copy(
-                self.inputs.resume_dict["train_db_path"], self.ctx.training_db_path
+                self.inputs.resume_dict['train_db_path'], self.ctx.training_db_path
             )
             self.report(
-                "Loaded initial database from previous run containing "
+                'Loaded initial database from previous run containing '
                 f"'{len(database_training)}' structures."
             )
         else:
@@ -2212,7 +1522,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 self.ctx.training_db_path,
             )
             self.report(
-                "Loaded initial database containing "
+                'Loaded initial database containing '
                 f"'{len(database_training)}' structures."
             )
 
@@ -2227,7 +1537,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
     def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
         if self.inputs.resume_dict:
-            last_iteration = self.inputs.resume_dict["last_iteration"]
+            last_iteration = self.inputs.resume_dict['last_iteration']
             node = self.ctx.children[self.ctx.iteration - (last_iteration - 1) - 2]
         else:
             node = self.ctx.children[self.ctx.iteration - 1]
@@ -2236,7 +1546,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # outputs = self._attach_outputs(node)
         # Sending seed disagreement flag to context
         self.ctx.stop_md_seed_no_disagreement = node.outputs[
-            "stop_md_seed_no_disagreement"
+            'stop_md_seed_no_disagreement'
         ]
         self.ctx.last_workchain_completed = node
         return None
@@ -2256,7 +1566,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             training_db = mdb_al_ut.load_database(self.ctx.training_db_path)
             last_wc = self.ctx.last_workchain_completed
             dft_calcs = ase_read(
-                last_wc.outputs["dft_calcs_path"].value, format="extxyz", index=":"
+                last_wc.outputs['dft_calcs_path'].value, format='extxyz', index=':'
             )
 
             cnt_dft_calcs = len(dft_calcs)
@@ -2265,7 +1575,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cnt_dft_calcs = 0
 
         if cnt_dft_calcs > 0:
-            self.report(f"Adding {cnt_dft_calcs} DFT calculations to DB.")
+            self.report(f'Adding {cnt_dft_calcs} DFT calculations to DB.')
 
             # Adding calculations to training database and seed_generation database
             for dft_calc in dft_calcs:
@@ -2277,31 +1587,31 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 training_db.append(dft_calc)
 
             # Updating final and seed database.
-            self.report("Updating database files...")
+            self.report('Updating database files...')
 
             ase_write(
                 filename=self.ctx.training_db_path,
                 images=training_db,
-                format="extxyz",
+                format='extxyz',
             )
             ase_write(
                 filename=self.ctx.seed_db_path,
                 images=seed_gen_db,
-                format="extxyz",
+                format='extxyz',
             )
 
-            self.report("Database files updated.")
+            self.report('Database files updated.')
 
-            tmp_folder_path: Path = self.ctx.results_dir / "run_tmp_data"
+            tmp_folder_path: Path = self.ctx.results_dir / 'run_tmp_data'
 
             # Saving current step database
             curr_it_db_path = (
-                tmp_folder_path / f"train_db_it_{self.ctx.iteration}.xyz.xz"
+                tmp_folder_path / f'train_db_it_{self.ctx.iteration}.xyz.xz'
             )
             ase_write(
                 filename=curr_it_db_path,
                 images=seed_gen_db,
-                format="extxyz",
+                format='extxyz',
             )
 
             # Removing teporary files from the AL loop step.
@@ -2309,13 +1619,13 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # this will be added if the library is updated to Python 3.12
             for _, _, files in os.walk(top=tmp_folder_path):
                 for file in files:
-                    if "md_seed_structures" not in file:
+                    if 'md_seed_structures' not in file:
                         (tmp_folder_path / file).unlink(missing_ok=True)
 
         self.report(
-            f"Iteration {self.ctx.iteration}: "
-            f"seed_gen_db {len(seed_gen_db)}, "
-            f"training_db: {len(training_db)} entries"
+            f'Iteration {self.ctx.iteration}: '
+            f'seed_gen_db {len(seed_gen_db)}, '
+            f'training_db: {len(training_db)} entries'
         )
 
     def get_al_loop_break_conditions(self):
@@ -2347,7 +1657,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.
         """
-        self.report("Starting Workchain setup.")
+        self.report('Starting Workchain setup.')
         super().setup()
 
         # Update the iteration counter if resuming from a previous run
@@ -2356,16 +1666,16 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 "Resuming from previous run, stopped at iteration: "
                 f"'{self.inputs.resume_dict['last_iteration']}'."
             )
-            self.ctx.iteration = self.inputs.resume_dict["last_iteration"]
+            self.ctx.iteration = self.inputs.resume_dict['last_iteration']
 
         self.ctx.inputs = self.exposed_inputs(
-            SimpleActiveLearningWorkChain, "active_learning"
+            SimpleActiveLearningWorkChain, 'active_learning'
         )
 
         # Creating aiida orm.Group to store all calculations
-        ctime = time.strftime("%Y%m%dT%H%M%S")
+        ctime = time.strftime('%Y%m%dT%H%M%S')
         seed_group = orm.Group(
-            label=f"{self.inputs.active_learning.run_name.value}_train_md_seed_{ctime}"
+            label=f'{self.inputs.active_learning.run_name.value}_train_md_seed_{ctime}'
         )
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
@@ -2383,20 +1693,20 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
 
-        self.report("Workchain setup finished.")
+        self.report('Workchain setup finished.')
 
     def get_input_report(self):
-        console = Console(color_system="truecolor")
+        console = Console(color_system='truecolor')
 
         input_dict = {}
         for i in self.ctx.inputs:
-            if i != "metadata":
+            if i != 'metadata':
                 if self.ctx.inputs[i]:
                     if isinstance(self.ctx.inputs[i], orm.Dict):
                         input_dict[i] = {}
                         curr_dict = self.ctx.inputs[i].get_dict()
                         for key, val in curr_dict.items():
-                            if key not in ["metadata", "options", "prepend_text"]:
+                            if key not in ['metadata', 'options', 'prepend_text']:
                                 input_dict[i][key] = val
                     elif isinstance(self.ctx.inputs[i], orm.List):
                         input_dict[i] = self.ctx.inputs[i].get_list()
@@ -2411,15 +1721,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Hacky way of logging the inputs to both the console and the log file
         # in different formats.
-        aiida_logger = logging.getLogger("aiida")
+        aiida_logger = logging.getLogger('aiida')
         ini_level = aiida_logger.level
         aiida_logger.level = 20
         aiida_logger.handlers[-1].setLevel(23)
-        aiida_logger.log(msg=f"Active Learning Inputs: \n{input_dict}", level=20)
+        aiida_logger.log(msg=f'Active Learning Inputs: \n{input_dict}', level=20)
         aiida_logger.level = ini_level
 
         print()
-        inputs = Panel(Pretty(input_dict), title="Active Learning Inputs")
+        inputs = Panel(Pretty(input_dict), title='Active Learning Inputs')
         console.print(inputs)
 
     def check_al_loop_conditions(self) -> bool:
@@ -2470,16 +1780,16 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         continue_cond = continue_loop_conditions and iterations_status_ok
 
         if self.ctx.stop_md_seed_no_disagreement.value:
-            self.report("Stopping AL Loop as all predictions agree for a MD seed.")
+            self.report('Stopping AL Loop as all predictions agree for a MD seed.')
         elif self.ctx.seed_gen_db_all_structs_removed.value:
             self.report(
-                "Stopping AL Loop as seed generating database has been depleted."
+                'Stopping AL Loop as seed generating database has been depleted.'
             )
         else:
             if self.ctx.iteration != 0:
                 self.report(
-                    f"Proceeding with iteration-{self.ctx.iteration+1} of AL Loop "
-                    "as stopping conditions not met."
+                    f'Proceeding with iteration-{self.ctx.iteration+1} of AL Loop '
+                    'as stopping conditions not met.'
                 )
             self.ctx.inputs.al_loop_iteration = self.ctx.iteration
 
@@ -2500,15 +1810,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             selected structures.
         """
         self.report(
-            f"Starting AL Loop iteration {self.ctx.iteration+1}/"
-            f"{self.inputs.active_learning.max_iterations.value}..."
+            f'Starting AL Loop iteration {self.ctx.iteration+1}/'
+            f'{self.inputs.active_learning.max_iterations.value}...'
         )
-        self.report("Getting MD seed...")
+        self.report('Getting MD seed...')
         self.ctx.inputs.metadata.description = (
-            "Perform MD simulations, evaluate and refine ML models. "
-            f"Step: {self.ctx.iteration+1}"
+            'Perform MD simulations, evaluate and refine ML models. '
+            f'Step: {self.ctx.iteration+1}'
         )
-        self.ctx.inputs.metadata.label = f"Step - {self.ctx.iteration+1}"
+        self.ctx.inputs.metadata.label = f'Step - {self.ctx.iteration+1}'
 
         seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
 
@@ -2518,24 +1828,24 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # In order to use small_first, the current iteration number must be
         # less than small_first_max_iter.
         if (
-            seed_select_settings["seed_select_type"] == "small_first"
-            and self.ctx.iteration + 1 <= seed_select_settings["small_first_max_iter"]
+            seed_select_settings['seed_select_type'] == 'small_first'
+            and self.ctx.iteration + 1 <= seed_select_settings['small_first_max_iter']
         ):
             self.report("Using 'small_first' seed selection type.")
-            seed_select_type = "small_first"
+            seed_select_type = 'small_first'
         else:
-            seed_select_type = "random"
+            seed_select_type = 'random'
 
         # Filter the structure database and only use the small structures.
-        if seed_select_type == "small_first":
-            max_size = seed_select_settings["small_first_max_size"]
+        if seed_select_type == 'small_first':
+            max_size = seed_select_settings['small_first_max_size']
             seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
             if len(seed_gen_db) == 0:
                 raise mdb_excp.FilterError(
-                    f"There are no structures with less than "
-                    f"{max_size} atoms in the given database. "
+                    f'There are no structures with less than '
+                    f'{max_size} atoms in the given database. '
                     "Please, remove the 'small_first' seed selection mode. "
-                    "and try again."
+                    'and try again.'
                 )
 
         # Getting length of the seed generating database
@@ -2549,8 +1859,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_size < self.ctx.min_seed_size:
             seed_size = self.ctx.min_seed_size
             self.report(
-                "Set MD seed size to minimum seed size as the calculated seed size was "
-                f"below the minimum seed size: {self.ctx.min_seed_size}."
+                'Set MD seed size to minimum seed size as the calculated seed size was '
+                f'below the minimum seed size: {self.ctx.min_seed_size}.'
             )
 
         # Limit the maximum number of structures to the seed size limit set on the input
@@ -2562,7 +1872,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_size > db_length:
             seed_size = db_length
             self.report(
-                "MD seed size larger than seed generation database."
+                'MD seed size larger than seed generation database.'
                 f"Limited size to '{db_length}'."
             )
 
@@ -2570,7 +1880,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # if this happens, make it 1.
         if seed_size < 1:
             seed_size = 1
-            self.report("MD seed size is 0. Set to 1.")
+            self.report('MD seed size is 0. Set to 1.')
 
         # Choosing structures at random to create the training seed
         selected_structs = np.random.choice(
@@ -2590,8 +1900,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             current_md_seed_structs.append(seed_gen_db[idx])
 
         self.report(
-            f"Created MD seed with {seed_size}"
-            f" structures ({(seed_size/db_length)*100:.1f}% of current database size)."
+            f'Created MD seed with {seed_size}'
+            f' structures ({(seed_size/db_length)*100:.1f}% of current database size).'
         )
 
         # Adding current train seed to the context
@@ -2608,11 +1918,11 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             node=self.node,
         )
         self.ctx.current_md_seed_structs_path = (
-            f"{self.ctx.results_dir}/run_tmp_data/md_seed_structures-"
-            f"{self.ctx.iteration}.pkl"
+            f'{self.ctx.results_dir}/run_tmp_data/md_seed_structures-'
+            f'{self.ctx.iteration}.pkl'
         )
 
-        with open(self.ctx.current_md_seed_structs_path, "wb") as seed_file:
+        with open(self.ctx.current_md_seed_structs_path, 'wb') as seed_file:
             pickle.dump(current_md_seed_structs, seed_file)
         self.ctx.inputs.current_md_seed_structs_path = (
             self.ctx.current_md_seed_structs_path
@@ -2630,31 +1940,31 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         signifies the completion of the workchain and the availability of the
         processed training data for further use.
         """
-        self.report("Returning final results...")
+        self.report('Returning final results...')
 
         # Storing final database as a orm.SinglefileData object
         train_db = mdb_al_ut.prepare_output_final_training_db(
             training_db_path=self.ctx.inputs.training_db_path
         )
 
-        self.out("final_training_db", train_db)
+        self.out('final_training_db', train_db)
 
         # Returning final model as orm.SinglefileData object
         final_model_singlefile = self.ctx.last_workchain_completed.outputs[
-            "m0_model_file"
+            'm0_model_file'
         ]
         self.out(
-            "final_model_file",
-            self.ctx.last_workchain_completed.outputs["m0_model_file"],
+            'final_model_file',
+            self.ctx.last_workchain_completed.outputs['m0_model_file'],
         )
 
-        target_file_name = f"al_loop_{self.inputs.active_learning.run_name.value}.model"
+        target_file_name = f'al_loop_{self.inputs.active_learning.run_name.value}.model'
         target_file_path = self.ctx.curr_run_results_dir / target_file_name
 
         with (
-            final_model_singlefile.open(mode="rb") as source,
-            open(target_file_path, mode="wb") as target,
+            final_model_singlefile.open(mode='rb') as source,
+            open(target_file_path, mode='wb') as target,
         ):
             shutil.copyfileobj(source, target)
 
-        self.report("Workchain completed!")
+        self.report('Workchain completed!')
