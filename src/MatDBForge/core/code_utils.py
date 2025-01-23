@@ -49,7 +49,7 @@ def init_logger(source, log_path=None):
     ch.setFormatter(formatter_con)
     logger.addHandler(ch)
 
-    filename = tempfile.NamedTemporaryFile(prefix=f'mdb_{source}_', suffix='.log').name
+    filename = tempfile.mktemp(prefix=f'mdb_{source}_', suffix='.log')
 
     if log_path:
         log_path_dir = pathlib.Path(log_path)
@@ -261,7 +261,10 @@ def get_last_tagged_version():
     os.chdir(MDB_ROOT_DIR)
 
     # Run the git fetch to get the last tagged version
-    _ = sb.check_output(['git', 'fetch', '--tags', '--quiet'])
+    try:
+        _ = sb.check_output(['git', 'fetch', '--tags', '--quiet'])
+    except sb.CalledProcessError:
+        return '0.0.0', 'unknown'
 
     # Getting a sorted tag list
     output = (
@@ -333,6 +336,8 @@ def check_mdb_version(logger=None):
             ),
             'warn',
         )
+    elif hash_str == 'unknown':
+        custom_print('Unable to fetch the latest version!', 'error')
     else:
         custom_print(
             (
