@@ -1239,17 +1239,25 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 result_dir_path=self.inputs.results_dir.value,
                 node=self.node,
             )
+
+        # Running VASP calulations if its the selected method
         if self.inputs.dft_method == 'vasp':
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(f'Gathered {dft_calcs} VASP DFT calculations.')
+                self.report(
+                    f'Gathered {dft_calcs} VASP DFT calculations in total.', 'debug'
+                )
                 dft_calcs_ok = [
                     node.uuid
                     for node in self.ctx.dft_struct_seed_calcs
                     if node.is_finished_ok
                 ]
+                self.report(
+                    f'Gathered {dft_calcs_ok} VASP DFT calculations '
+                    'that finished correctly.'
+                )
                 if len(dft_calcs_ok) == 0:
-                    self.report('No VASP DFT calculations finished correctly.')
+                    self.report('No DFT calculations finished correctly.')
                     return_list_path = ''
                 else:
                     dft_calc_list = mdb_al_ut.gather_dft_calcs_vasp(dft_calcs_ok)

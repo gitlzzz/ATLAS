@@ -473,7 +473,6 @@ def submit_aiida_vasp_calculation(
 
     # Setting custom settings for the critical notifications
     custom_parser_settings = aiida_vasp_settings.get('parser_settings', {})
-    print('custom_parser_settings: ', custom_parser_settings)
     for key, value in custom_parser_settings.items():
         builder['settings']['parser_settings'][key] = value
 
