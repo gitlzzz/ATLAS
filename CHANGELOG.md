@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.1 (2025-01-23)
+
+### Fix
+
+- **al_loop**: added TODO block with outlier filtering for VASP calculations ([#b592722](https://github.com/pol-sb/MatDBForge/commit/b59272205594d5d7bb2cfec8663ffbcbf0d126d2))
+- **al_loop**: added error when evaluating structures with missing element in MACE models ([#8c1d97a](https://github.com/pol-sb/MatDBForge/commit/8c1d97a25a077c931cf2f9674be3aae711132a46))
+- **al_loop**: improve error handling when mace evaluations fail ([#25bdb8c](https://github.com/pol-sb/MatDBForge/commit/25bdb8c760ee91942ba3864c6ee2cd9dd19f4bc8))
+- **core**: added default "unknown" version to version check in case it fails ([#df94bde](https://github.com/pol-sb/MatDBForge/commit/df94bde589e5cc48cde8992df4a8c311c81cb82f))
+
+### Misc
+
+- **al_loop**: applied formatting and improved log messages ([#d53e86d](https://github.com/pol-sb/MatDBForge/commit/d53e86d65545ffa227804f6998ce98d92416cb73))
+- **core**: updated pre-commit config ([#9c87a53](https://github.com/pol-sb/MatDBForge/commit/9c87a53e80f6ff9e414c70ee3552de17cb34e880))
+
 ## 0.20.0 (2025-01-20)
 
 ### Feature
