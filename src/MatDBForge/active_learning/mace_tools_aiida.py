@@ -671,7 +671,12 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             420, 'ERROR_INVALID_OUTPUT', 'training calculation could not run'
         )
         spec.exit_code(
-            420, "ERROR_INVALID_OUTPUT", "training calculation could not run"
+            421,
+            'ERROR_MISSING_ELEMENT',
+            "Configuration evaluation with MACE model failed. ({node_id})"
+            "The model wasn't trained on data containing the element {missing_element}."
+            " Please retrain the model with the missing element, or remove the element"
+            " from the structure database.",
         )
 
     def prepare_for_submission(self, folder):
@@ -739,7 +744,19 @@ class EvaluateMACEConfigsCalculationParser(Parser):
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""
         # str that represents the absolute filepath to the temporary folder
-        retrieved_temporary_folder: Path = Path(kwargs["retrieved_temporary_folder"])
+        retrieved_temporary_folder: Path = Path(kwargs['retrieved_temporary_folder'])
+
+        schederr_str = self.node.get_scheduler_stderr()
+        import re
+
+        missing_element_re = r'ValueError: \d* is not in list'
+        missing_element_re = re.findall(missing_element_re, schederr_str, re.MULTILINE)
+        if len(missing_element_re) > 0:
+            missing_element = missing_element_re[0].split(' ')[1]
+            return self.exit_codes.ERROR_MISSING_ELEMENT.format(
+                missing_element=missing_element,
+                node_id=self.node.pk,
+            )
 
         result_dict_list = []
         forces_dict_list = []
