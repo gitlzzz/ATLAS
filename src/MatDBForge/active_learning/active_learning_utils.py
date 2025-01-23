@@ -1501,16 +1501,68 @@ def write_gathered_dft_calcs_to_file(dft_calc_list: orm.List, results_dir: str):
         results_dir = Path(results_dir)
 
     results_file_path = results_dir / 'run_tmp_data' / 'gathered_dft_calcs.xyz'
-    print('results_file_path: ', results_file_path)
-
     if isinstance(dft_calc_list[0], dict):
         ase_atoms_list = []
         for calc in dft_calc_list:
             ase_atoms_list.append(aiida_serialized_ase_dict_to_atoms(calc))
         dft_calc_list = ase_atoms_list
 
+    if isinstance(dft_calc_list[0], str):
+        dft_calc_list = [orm.load_node(uuid) for uuid in dft_calc_list]
+
     ase_write(filename=results_file_path, images=dft_calc_list)
     return results_file_path, results_dir
+
+
+def get_outliers_from_calc_list(curr_struct_res, result_list, outlier_list):
+    # Some calculations reported high E and F thoughout all
+    # steps. Checking for outliers using the bond distance
+    for struct in curr_struct_res:
+        outlier_flag = False
+        min_dists = []
+
+        symbols = set(struct.get_chemical_symbols())
+
+        struct_ana = Analysis(struct)
+        struct_ana.clear_cache()
+
+        # Checking all bond distances for all bond types
+        for at_A, at_B in it.combinations_with_replacement(symbols, 2):
+            # Getting covalent radii from ase.data
+            R_atA = covalent_radii[atomic_numbers[at_A]]
+            R_atB = covalent_radii[atomic_numbers[at_B]]
+
+            try:
+                # Getting bond distances. This will consider pbc.
+                vals = struct_ana.get_values(
+                    struct_ana.get_bonds(at_A, at_B, unique=True)
+                )
+            except IndexError:
+                # If there is only one atom of a type (X), there are no
+                # distances for atoms of this type (X-X), and therefore
+                # the bond distance calculation must be skipped for the
+                # current atom pair (X-X).
+                continue
+
+            min_bond_length = np.min(vals[0])
+            min_dists.append(min_bond_length)
+
+            # Structures with bond distances below this value will be
+            # considered outliers.
+            bond_length_threshold = (R_atA + R_atB) * 0.7
+
+            # Check for any outliers below the minimum bond length threshold
+            # and add the structure to the outlier list, which will not be
+            # part of the final database.
+            if np.any(np.array(min_dists) < bond_length_threshold):
+                outlier_list.append(struct)
+                outlier_flag = True
+                break
+
+        if not outlier_flag:
+            result_list.append(struct)
+
+    return result_list, outlier_list
 
 
 @calcfunction
@@ -1589,52 +1641,10 @@ def gather_dft_calcs_mace(
             # result_list.append(structure)
             curr_struct_res.append(structure)
 
-        # Some calculations that reported high E and F thoughout all
-        # steps. Checking for outliers using the bond distance
-        for struct in curr_struct_res:
-            outlier_flag = False
-            min_dists = []
-
-            symbols = set(struct.get_chemical_symbols())
-
-            struct_ana = Analysis(struct)
-            struct_ana.clear_cache()
-
-            # Checking all bond distances for all bond types
-            for at_A, at_B in it.combinations_with_replacement(symbols, 2):
-                # Getting covalent radii from ase.data
-                R_atA = covalent_radii[atomic_numbers[at_A]]
-                R_atB = covalent_radii[atomic_numbers[at_B]]
-
-                try:
-                    # Getting bond distances. This will consider pbc.
-                    vals = struct_ana.get_values(
-                        struct_ana.get_bonds(at_A, at_B, unique=True)
-                    )
-                except IndexError:
-                    # If there is only one atom of a type (X), there are no
-                    # distances for atoms of this type (X-X), and therefore
-                    # the bond distance calculation must be skipped for the
-                    # current atom pair (X-X).
-                    continue
-
-                min_bond_length = np.min(vals[0])
-                min_dists.append(min_bond_length)
-
-                # Structures with bond distances below this value will be
-                # considered outliers.
-                bond_length_threshold = (R_atA + R_atB) * 0.7
-
-                # Check for any outliers below the minimum bond length threshold
-                # and add the structure to the outlier list, which will not be
-                # part of the final database.
-                if np.any(np.array(min_dists) < bond_length_threshold):
-                    outlier_list.append(struct)
-                    outlier_flag = True
-                    break
-
-            if not outlier_flag:
-                result_list.append(struct)
+        # Checking for outliers
+        result_list, outlier_list = get_outliers_from_calc_list(
+            curr_struct_res, result_list, outlier_list
+        )
 
     if workchain:
         node = orm.load_node(workchain.value)
@@ -1780,15 +1790,15 @@ def remove_structs_from_seed_gen_db(
 
 
 @calcfunction
-def check_md_seed_agreement(return_list_path: str) -> orm.Bool:
+def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
     """
     Check if all predictions agree for current seed.
 
     Parameters
     ----------
-    return_list : list
-        orm.List containing all calculations for predictions where the
-        models disagreed.
+    return_list_path : str | None
+        Path pointing to the file that contains all calculations
+        for predictions where the models disagreed.
 
     Returns
     -------
@@ -1799,7 +1809,7 @@ def check_md_seed_agreement(return_list_path: str) -> orm.Bool:
     """
     # If no DFT calculations were found, because all calcs have failed,
     # the predictions are considered to be in disagreement.
-    if not return_list_path:
+    if not return_list_path or return_list_path == '':
         return orm.Bool(False)
 
     # Loading the list of structures

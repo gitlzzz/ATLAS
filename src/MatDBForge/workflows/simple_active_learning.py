@@ -1269,26 +1269,31 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     )
 
             except AttributeError:
-                return_list_path = None
+                return_list_path = ''
+
         elif self.inputs.dft_method == 'mace':
             if hasattr(self.ctx, 'dft_struct_seed_calcs'):
                 dft_calcs = self.ctx.dft_struct_seed_calcs
             try:
                 self.report(f'Gathered {len(dft_calcs)} MACE evaluations.')
 
-                calc_list = [node.uuid for node in dft_calcs]
-
-                # Gather all MACE evaluations, storing results into a file,
-                # stored in `result_list_path`.
-                # Results are filtered to remove outliers. Outliers are
-                # stored in a separate file in the same folder.
-                return_list_path: str = mdb_al_ut.gather_dft_calcs_mace(
-                    dft_calc_list=calc_list,
-                    results_dir=str(self.ctx.results_dir),
-                    workchain=self.node.uuid,
-                )
+                dft_calcs_ok = [node.uuid for node in dft_calcs if node.is_finished_ok]
+                if len(dft_calcs_ok) == 0:
+                    self.report('No DFT calculations finished correctly.')
+                    return_list_path = ''
+                else:
+                    # Gather all MACE evaluations, storing results into a file,
+                    # stored in `result_list_path`.
+                    # Results are filtered to remove outliers. Outliers are
+                    # stored in a separate file in the same folder.
+                    return_list_path: str = mdb_al_ut.gather_dft_calcs_mace(
+                        dft_calc_list=dft_calcs_ok,
+                        results_dir=str(self.ctx.results_dir),
+                        workchain=self.node.uuid,
+                    )
+                breakpoint()
             except AttributeError:
-                return_list_path = None
+                return_list_path = ''
 
         # File containing structures
         if return_list_path:
