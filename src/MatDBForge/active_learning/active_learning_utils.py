@@ -1489,6 +1489,11 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
         vasprun: dict = serialize_ase(vasprun)
         vasprun_list.append(vasprun)
 
+    # TODO: Checking for outliers
+    # result_list, outlier_list = get_outliers_from_calc_list(
+    #     curr_struct_res, result_list, outlier_list
+    # )
+
     return_list = orm.List([val for val in vasprun_list])
     return return_list
 
