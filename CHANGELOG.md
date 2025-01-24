@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.20.2 (2025-01-24)
+
+### Fix
+
+- **dft**: increased number of steps for IsolatedAtoms calculations ([#afbd09b](https://github.com/pol-sb/MatDBForge/commit/afbd09bb3f850c7e5bf608a054de9c73e4130557))
+- **al_loop**: made code compatible with MACE multihead replay fine-tuning ([#08944e2](https://github.com/pol-sb/MatDBForge/commit/08944e2f7d63255ce7f6a52cccf13dd86469701c))
+- **dft**: added IsolatedAtoms to initial database generation ([#96395ed](https://github.com/pol-sb/MatDBForge/commit/96395ed190c8efcb00850e82c1521270929e7827))
+
+### Misc
+
+- **core**: updated documentation badge ([#79f34bf](https://github.com/pol-sb/MatDBForge/commit/79f34bf7b40180b1226c9718058db8f066b3505f))
+
 ## 0.20.1 (2025-01-23)
 
 ### Fix
