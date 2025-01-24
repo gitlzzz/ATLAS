@@ -27,9 +27,11 @@ class Structure:
     phase : str, optional
         The phase of the material (e.g., solid, liquid, gas), by default None
     base : bool, optional
-        Flag indicating if this is a base structure, by default None
+        Flag indicating if this is a base structure, by default False
+    isolated_atom : bool, optional
+        Flag indicating if this is an isolated_atom structure, by default False
     perturb : bool, optional
-        Flag indicating if the structure should be perturbed, by default None
+        Flag indicating if the structure should be perturbed, by default False
     supercell : tuple of int, optional
         The dimensions of the supercell, specified as a tuple of integers
         (e.g., (2, 2, 2)), by default None
@@ -79,6 +81,7 @@ class Structure:
         material_id=None,
         phase=None,
         base: bool = None,
+        isolated_atom: bool = False,
         perturb: bool = None,
         displacement: bool = None,
         supercell=None,
@@ -113,6 +116,7 @@ class Structure:
         self.material_id = material_id
         self.phase = phase
         self.base = base
+        self.isolated_atom = isolated_atom
         self.perturb = perturb
         self.supercell = supercell
         self.displacement = displacement
@@ -230,6 +234,7 @@ class Structure:
             material_id=kwargs.get('material_id'),
             phase=kwargs.get('phase'),
             base=kwargs.get('base'),
+            isolated_atom=kwargs.get('isolated_atom'),
             perturb=kwargs.get('perturb'),
             supercell=kwargs.get('supercell'),
             surface=kwargs.get('surface'),
@@ -333,6 +338,7 @@ class Structure:
                 'formula': self.formula,
                 'symmetry': self.symmetry,
                 'base': self.base,
+                'isolated_atom': self.isolated_atom,
                 'surface': self.surface,
                 'surface_miller': self.surface_miller,
                 'phase': phase,
@@ -361,6 +367,7 @@ class Structure:
             'perturb': bool,
             'displacement': bool,
             'base': bool,
+            'isolated_atom': bool,
             'bulk': bool,
             'surface': bool,
             'cluster': bool,
@@ -443,3 +450,15 @@ class Cluster(Structure):
         self.cluster = True
         self.surface = False
         self.bulk = False
+
+class IsolatedAtom(Structure):
+    """Class for cluster structures."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # Setting the isolated atom property as True.
+        self.cluster = False
+        self.surface = False
+        self.bulk = False
+        self.isolated_atom = True

@@ -185,6 +185,7 @@ class CalcType(Enum):
     SP_SURFACE = 'single_point_surface'
     SP_CLUSTER = 'single_point_cluster'
     RELAX = 'relaxation'
+    SP_ISOLATEDATOM = 'single_point_isolatedatom'
 
     @classmethod
     def from_string(cls, value):
@@ -202,6 +203,18 @@ class CalcType(Enum):
             'static_cluster': cls.SP_CLUSTER,
             'single_point_surface': cls.SP_SURFACE,
             'single_point_cluster': cls.SP_CLUSTER,
+            'standalone': cls.SP_ISOLATEDATOM,
+            'single': cls.SP_ISOLATEDATOM,
+            'singleatom': cls.SP_ISOLATEDATOM,
+            'single_atom': cls.SP_ISOLATEDATOM,
+            'SingleAtom': cls.SP_ISOLATEDATOM,
+            'static_singleatom': cls.SP_ISOLATEDATOM,
+            'static_isolated_atom': cls.SP_ISOLATEDATOM,
+            'static_isolatedatom': cls.SP_ISOLATEDATOM,
+            'isolatedatom': cls.SP_ISOLATEDATOM,
+            'sp_isolatedatom': cls.SP_ISOLATEDATOM,
+            'IsolatedAtom': cls.SP_ISOLATEDATOM,
+            'isolated_atom': cls.SP_ISOLATEDATOM,
         }
         return aliases.get(value)
 
@@ -344,15 +357,28 @@ def submit_aiida_vasp_calculation(
     # Converting phase name to string to avoid all number structure
     phase = str(phase)
     kspacing = kspacing_dict.get(phase)
-    if not kspacing:
+
+    # Using default kspacing if not found and MDB_DEFAULT is set
+    if not kspacing and kspacing_dict.get('MDB_DEFAULT'):
         kspacing = kspacing_dict.get('MDB_DEFAULT')
-    if not kspacing:
+    # Raising error for missing kspacing entries if MDB_DEFAULT is not set
+    elif not kspacing and phase != 'IsolatedAtom':
         raise ValueError(
             f'No kspacing found for phase {phase} '
             f'(struct id: {unique_id}).'
             f'\nAvailable kspacings: {kspacing_dict.keys()}'
         )
-
+    # IsolatedAtom shouldn't be in the database, but also shouldnt raise an error
+    # Use the highest kspacing for isolated atoms, as the calculation is very simple
+    elif phase == 'IsolatedAtom':
+        # Sort kspacing dict by value
+        sorted_kspacing = sorted(
+            kspacing_dict.items(), key=lambda item: item[1], reverse=True
+        )
+        kspacing = sorted_kspacing[0][1]
+        mdb_cud.custom_print(
+            f'Using highest kspacing {kspacing} for isolated atom.', 'debug'
+        )
     if incar_settings_dict:
         incar = incar_settings_dict
         kspacing_vec = select_kspacing(
@@ -1014,28 +1040,11 @@ def run_dataframe_vasp_aiida_queue(
 
         # Update the queue while the length of the queue is smaller
         # than the maximum allowed number of calculations.
-        mdb_cud.custom_print('Before entering while loop to fill up queue', 'debug')
-        mdb_cud.custom_print(f'current_row_index: {current_row_index}.', 'debug')
-        mdb_cud.custom_print(f'total_loops: {total_loops}.', 'debug')
-        mdb_cud.custom_print(f'len(queue): {len(queue)}.', 'debug')
-        mdb_cud.custom_print(
-            f'len(queue) < max_batch: {len(queue) < max_batch}.', 'debug'
-        )
         while (
             len(queue) < max_batch
             and total_loops < len(sel_struct_db)
             and current_row_index < len(sel_struct_db)
         ):
-            # DEBUG
-            mdb_cud.custom_print('Running while loop to fill up queue', 'debug')
-            mdb_cud.custom_print(f'current_row_index: {current_row_index}.', 'debug')
-            mdb_cud.custom_print(f'total_loops: {total_loops}.', 'debug')
-            mdb_cud.custom_print(f'len(queue): {len(queue)}.', 'debug')
-            mdb_cud.custom_print(f'len(sel_struct_db): {len(sel_struct_db)}.', 'debug')
-            mdb_cud.custom_print(
-                f'len(queue) < max_batch: {len(queue) < max_batch}.', 'debug'
-            )
-
             # Choosing current structure and gathering information
             if isinstance(sel_struct_db, list):
                 target_row = sel_struct_db[current_row_index]
@@ -1173,10 +1182,18 @@ def select_kspacing(
     calc_type_str = calc_type.value if not isinstance(calc_type, str) else calc_type
 
     kspacing_get = kspacing_dict.get(phase)
-    if not kspacing_get:
+
+    # Using default kspacing if not found and MDB_DEFAULT is set
+    if not kspacing_get and kspacing_dict.get('MDB_DEFAULT'):
         kspacing_get = kspacing_dict.get('MDB_DEFAULT')
-    if not kspacing_get:
+
+    elif not kspacing_get and phase != 'IsolatedAtom':
         raise ValueError('No kspacing found for the current phase.')
+
+    # IsolatedAtom shouldn't be in the database, but also shouldnt raise an error
+    # Use the highest kspacing for isolated atoms, as the calculation is very simple
+    elif phase == 'IsolatedAtom':
+        kspacing_get = [1, 1, 1]
 
     if 'surface' in calc_type_str:
         kspacing_calc = kpoint_mesh_from_density(
@@ -1256,10 +1273,10 @@ def generate_incar(
         incar['incar']['DIPOL'] = [0.5, 0.5, 0.5]
         incar['incar']['IDIPOL'] = 4
 
-    # Removing kpar for multinode calculations
-    # incar["incar"]["kpar"] = 4
-    # if mult > 1:
-    #     incar["incar"].pop("kpar")
+    if 'singleatom' in calc_type.value:
+        # Setting the center of the cell in direct lattice coordinates
+        incar['incar']['DIPOL'] = [0.5, 0.5, 0.5]
+        incar['incar']['IDIPOL'] = 4
 
     return incar, kspacing
 
@@ -1282,7 +1299,6 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
     kpoints_data.set_cell_from_structure(structuredata=structure)
 
     calc_name = calc_type.name if not isinstance(calc_type, str) else calc_type
-
     # Bulks
     if 'bulk' in calc_name.lower():
         kpoints_data.set_kpoints_mesh_from_density(distance=kspacing)
@@ -1309,12 +1325,18 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
             'debug',
         )
 
-    # Clusters
-    elif 'cluster' in calc_name.lower():
+    # Clusters and reference strucures
+    elif calc_name.lower() in [
+        'cluster',
+        'IsolatedAtom',
+        'isolatedatom',
+        'sp_isolatedatom',
+    ]:
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh([1, 1, 1])
         mdb_cud.custom_print(
-            f'Generated kpoints for cluster: {kpoints_data.get_kpoints_mesh()}',
+            f'Generated kpoints for {calc_name.lower()}: '
+            f'{kpoints_data.get_kpoints_mesh()}',
             'debug',
         )
 
