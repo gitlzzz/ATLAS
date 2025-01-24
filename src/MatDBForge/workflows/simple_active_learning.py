@@ -325,7 +325,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         -------
         None
             The function updates the workchain context with the best model's RMSE
-            values, the LAMMPS potential file, and the committee models' information
+            values, the potential file, and the committee models' information
             but does not return any value directly.
         """
         curr_iter = self.inputs.al_loop_iteration.value
@@ -403,7 +403,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 )
 
                 self.report(
-                    f"Generated LAMMPS potential using '{model_name}' as M0 - "
+                    f"Best model of current step '{model_name}' as M0 - "
                     f'RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, '
                     f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
                 )
@@ -1245,7 +1245,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
                 self.report(
-                    f'Gathered {dft_calcs} VASP DFT calculations in total.', 'debug'
+                    f'Gathered {str(dft_calcs)} VASP DFT calculations in total.'
                 )
                 dft_calcs_ok = [
                     node.uuid

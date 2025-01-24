@@ -297,8 +297,6 @@ def process_row_parallel(
     for idx, (slab, mill) in enumerate(total_slabs):
         # Getting the current slab's miller index
         mill_str = get_miller_index_str(mill)
-        # print('#@# mill: ', mill)
-        # print('#@# mill_str: ', mill_str)
 
         # Preparing the structure name
         surf_name = (

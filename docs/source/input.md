@@ -400,7 +400,7 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 - `name`(str)
 - `energy_key` (str):  "energy"
 - `valid_fraction` (float):  0.1
-- `foundation_model` (str):  Either `small`/`medium`/`large` or a path pointing to a foundation model in the machine where the training will be running.
+- `foundation_model` (str):  Either `small`/`medium`/`large` or a path pointing to a MACE-MP-0 foundation model in the machine where the training will be running.
 - `config_type_weights`: { Default = 1.0 }
 - `weight_decay`: 9.34e-07
 - `E0s`: "average"
@@ -422,6 +422,7 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 - `device` (str): Either `cuda`/`cpu`
 - `default_dtype` (str): Either `float32`/`float64`
 - `wandb`(bool): false
+- `enable_cueq`: false
 
 ### DFT Settings - `[dft]`
 

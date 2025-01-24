@@ -1817,6 +1817,9 @@ def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
     if not return_list_path or return_list_path == '':
         return orm.Bool(False)
 
+    if isinstance(return_list_path, orm.Str):
+        return_list_path = return_list_path.value
+
     # Loading the list of structures
     return_structs = ase_read(filename=return_list_path, format='extxyz', index=':')
 

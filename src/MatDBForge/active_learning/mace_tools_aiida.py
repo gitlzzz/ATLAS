@@ -466,8 +466,11 @@ class TrainMACEModelCalculation(CalcJob):
         # Adding random seed
         params_list.append(f'--seed={np.random.randint(1, 100000000)}')
 
-        # (for MACE v0.3.7) Disabling multiheads finetuning
-        # params_list.append("--multiheads_finetuning=False")
+        # (for MACE v0.3.7) Enabling multiheads finetuning for 'mp'
+        foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
+        if foundation_model:
+            params_list.append("--multiheads_finetuning=True")
+            params_list.append("--pt_train_file='mp'")
 
         # Copying database to temporary folder
         final_db_path = self.inputs.mace_train_file_path.value
