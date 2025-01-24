@@ -1277,6 +1277,8 @@ def generate_incar(
         # Setting the center of the cell in direct lattice coordinates
         incar['incar']['DIPOL'] = [0.5, 0.5, 0.5]
         incar['incar']['IDIPOL'] = 4
+        if incar.get('incar', {}).get('NSW', 0) < 300:
+            incar['incar']['NSW'] = 300
 
     return incar, kspacing
 
