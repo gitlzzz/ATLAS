@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.3 (2025-01-28)
+
+### Fix
+
+- **al_loop**: fix incorrect latent space saving generating huge descriptor files ([#7a8c469](https://github.com/pol-sb/MatDBForge/commit/7a8c469702f4d531ac3cc16a68aab787349214a7))
+- **al_loop**: enable containerized code in simple active learning loop ([#664f697](https://github.com/pol-sb/MatDBForge/commit/664f697278ba04cff3048b8a88167d3e49c1598e))
+
 ## 0.20.2 (2025-01-24)
 
 ### Fix

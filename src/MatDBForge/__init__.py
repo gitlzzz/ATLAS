@@ -3,7 +3,7 @@
 import pathlib as pl
 
 # Version of the package (managed with commitizen)
-__version__ = '0.20.2'
+__version__ = '0.20.3'
 
 # Root of package
 MDB_ROOT_DIR = (pl.Path(__file__).parent).resolve()
