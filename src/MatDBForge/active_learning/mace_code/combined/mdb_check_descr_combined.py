@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Script to check the extrapolation of the current iteration."""
+
 import pathlib as pl
 import pickle
 import tomllib
@@ -17,15 +18,15 @@ from MatDBForge.core import code_utils as mdb_cud
 
 def is_advanced_extrapolation_set(input_dict: dict):
     """Check if the advanced extrapolation check is enabled."""
-    extr_type = input_dict.get("extrapolation", {}).get("check_extrapolation_type")
-    if extr_type == "advanced":
+    extr_type = input_dict.get('extrapolation', {}).get('check_extrapolation_type')
+    if extr_type == 'advanced':
         return True
     return
 
 
 def has_latent_space(settings_dict: dict):
     """Check if the latent space was computed for the current iteration."""
-    return settings_dict.get("latent_space", False)
+    return settings_dict.get('latent_space', False)
 
 
 def can_do_advanced_extrapolation():
@@ -62,22 +63,22 @@ def check_atom_in_domain(
 def plot_concave_hull(
     concave_hull: np.ndarray,
     latent_space: np.ndarray,
-    filename: str = "concave_hull.png",
+    filename: str = 'concave_hull.png',
 ):
     # Plotting the concave hull in 2D space using lines
-    plt.plot(concave_hull[:, 0], concave_hull[:, 1], "r-")
+    plt.plot(concave_hull[:, 0], concave_hull[:, 1], 'r-')
     plt.plot(
         latent_space[:, 0],
         latent_space[:, 1],
-        "o",
+        'o',
         markersize=2,
         alpha=0.5,
-        label="Descriptor in database",
+        label='Descriptor in database',
         markeredgewidth=0,
-        color="#b16286",
+        color='#b16286',
     )
-    plt.title("Concave Hull")
-    plt.xlabel("x")
+    plt.title('Concave Hull')
+    plt.xlabel('x')
     plt.legend()
     plt.tight_layout()
     plt.savefig(filename, dpi=300)
@@ -89,7 +90,7 @@ def get_concave_hull_julia(latent_space: np.ndarray) -> np.ndarray:
     from juliacall import convert as jl_convert
 
     # Load the required Julia modules.
-    jl.seval("using GMT")
+    jl.seval('using GMT')
 
     if len(latent_space.shape) > 2:
         latent_space = np.vstack(latent_space)
@@ -112,7 +113,7 @@ def get_concave_hull_julia_new(latent_space: np.ndarray, k: float = 1) -> np.nda
     from juliacall import convert as jl_convert
 
     # Load the ConcaveHull package
-    jl.seval("using ConcaveHull")
+    jl.seval('using ConcaveHull')
 
     # Convert the latent space to a Julia array
     latent_space_julia = jl_convert(
@@ -127,104 +128,109 @@ def get_concave_hull_julia_new(latent_space: np.ndarray, k: float = 1) -> np.nda
     concave_hull_np = np.vstack(np.array(concave_hull.vertices))
 
     # Output information
-    mdb_cud.custom_print(f"Concave hull (K = {k}) has area: {hull_area}.")
+    mdb_cud.custom_print(f'Concave hull (K = {k}) has area: {hull_area}.')
 
     return concave_hull_np
 
 
-if __name__ == "__main__":
-
+if __name__ == '__main__':
     # The /mdb_data directory should only exist in the containerized version
     # of the code. This conditional statement will get the correct path for
     # input and output files.
-    if pl.Path("/mdb_data").exists():
-        prepend_path = pl.Path("/mdb_data")
+    if pl.Path('/mdb_data').exists():
+        prepend_path = pl.Path('/mdb_data')
     else:
-        prepend_path = pl.Path(".")
+        prepend_path = pl.Path('.')
 
     # Define results folder
-    res_folder = pl.Path(prepend_path) / pl.Path("./results")
+    res_folder = pl.Path(prepend_path) / pl.Path('./results')
     res_folder.mkdir(exist_ok=True)
 
     # Initialize the logger
-    log_folder = prepend_path / pl.Path("./logs")
+    log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
     logger = mdb_cud.init_logger(
-        source="check_extrapolation_combined", log_path=log_folder
+        source='check_extrapolation_combined', log_path=log_folder
     )
 
     mdb_cud.custom_print(
-        "Initializing descriptor generation, dimensionality reduction, "
-        "and concave hull computation for the structure database."
+        'Initializing descriptor generation, dimensionality reduction, '
+        'and concave hull computation for the structure database.'
     )
     mdb_cud.custom_print(f"Storing results in '{res_folder.resolve()}'.")
 
     # Read TOML file with settings
-    with open(prepend_path / "settings.toml", "rb") as f:
+    with open(prepend_path / 'settings.toml', 'rb') as f:
         settings = tomllib.load(f)
 
-    descriptor_settings = settings.get("descriptors", {})
-    device = descriptor_settings.get("device", "cpu")
-    dtype = descriptor_settings.get("dtype", "float32")
-    extrapolation_settings = settings.get("extrapolation", {})
-    auto_settings = descriptor_settings.get("autoencoder", {})
-    auto_train_settings = auto_settings.get("train_settings", {})
-    auto_path = auto_train_settings.get("model_path", "autoencoder_model.pth")
+    descriptor_settings = settings.get('descriptors', {})
+    device = descriptor_settings.get('device', 'cpu')
+    dtype = descriptor_settings.get('dtype', 'float32')
+    extrapolation_settings = settings.get('extrapolation', {})
+    auto_settings = descriptor_settings.get('autoencoder', {})
+    auto_train_settings = auto_settings.get('train_settings', {})
+    auto_path = auto_train_settings.get('model_path', 'autoencoder_model.pth')
 
     # Load data
     structs_database = ase_read(
-        prepend_path / "training_db.xyz", index=":", format="extxyz"
+        prepend_path / 'training_db.xyz', index=':', format='extxyz'
     )
 
     # Generate descriptors
-    descriptor_type = descriptor_settings.get("descriptor_type", "mace")
-    match descriptor_type:
-        case "mace":
-            mdb_cud.custom_print("Generating MACE descriptors...")
-            descriptor_dict, descriptor_arr = generate_descriptors(
-                model_path=prepend_path / "curr_iter_best.model",
-                database=structs_database,
-                device=device,
-                dtype=dtype,
-            )
+    if not pl.Path(res_folder / 'curr_it_db_descriptors.pkl').exists():
+        descriptor_type = descriptor_settings.get('descriptor_type', 'mace')
+        match descriptor_type:
+            case 'mace':
+                mdb_cud.custom_print('Generating MACE descriptors...')
+                descriptor_dict, descriptor_arr = generate_descriptors(
+                    model_path=prepend_path / 'curr_iter_best.model',
+                    database=structs_database,
+                    device=device,
+                    dtype=dtype,
+                )
+    else:
+        mdb_cud.custom_print('Reading descriptors from file...')
+        descriptor_arr = np.load(prepend_path / 'all_descriptors.npy')
+        with open(res_folder / 'curr_it_db_descriptors.pkl', 'rb') as f:
+            descriptor_dict = pickle.load(f)
 
     # Minimum and maximum values for each of the descriptors
     min_val = np.min(descriptor_arr, axis=0)
     max_val = np.max(descriptor_arr, axis=0)
 
     # Storing arrays into a numpy file to be later gathered by the workchain
-    np.save(file=res_folder / "curr_it_db_max", arr=max_val)
-    np.save(file=res_folder / "curr_it_db_min", arr=min_val)
+    np.save(file=res_folder / 'curr_it_db_max', arr=max_val)
+    np.save(file=res_folder / 'curr_it_db_min', arr=min_val)
 
     # Saving descriptor array
-    np.save(prepend_path / "all_descriptors.npy", descriptor_arr)
-    mdb_cud.custom_print("Descriptors generated.")
+    np.save(prepend_path / 'all_descriptors.npy', descriptor_arr)
+    mdb_cud.custom_print('Descriptors generated.')
 
     latent_space = None
+
     # Proceed with advanced extrapolation if enabled
     if is_advanced_extrapolation_set(input_dict=settings):
-
         # Get latent space
-        latent_space_file = res_folder / "latent_space.npy"
+        latent_space_file = res_folder / 'latent_space.npy'
 
         if not pl.Path(prepend_path / auto_path).exists():
-            mdb_cud.custom_print("Training the autoencoder model...")
+            mdb_cud.custom_print('Training the autoencoder model...')
 
             # Check if the dataset path exists, if not prepend the prepend_path
-            if not pl.Path(auto_train_settings["dataset"]).exists():
-                auto_train_settings["dataset"] = (
-                    prepend_path / auto_train_settings["dataset"]
+            if not pl.Path(auto_train_settings['dataset']).exists():
+                auto_train_settings['dataset'] = (
+                    prepend_path / auto_train_settings['dataset']
                 )
             # Check if the model path exists, if not prepend the prepend_path
-            if not pl.Path(auto_train_settings["model_path"]).exists():
-                auto_path = prepend_path / auto_train_settings["model_path"]
-                auto_train_settings["model_path"] = auto_path
+            if not pl.Path(auto_train_settings['model_path']).exists():
+                auto_path = prepend_path / auto_train_settings['model_path']
+                auto_train_settings['model_path'] = auto_path
 
             # Train the autoencoder model
             mdb_train_ae.run_training(AttributeDict(auto_train_settings))
-            mdb_cud.custom_print("Autoencoder model trained.")
+            mdb_cud.custom_print('Autoencoder model trained.')
         else:
-            mdb_cud.custom_print("Loading Autoencoder model...")
+            mdb_cud.custom_print('Loading Autoencoder model...')
 
         # Load autoencoder model
         import torch
@@ -232,11 +238,11 @@ if __name__ == "__main__":
         model = torch.load(auto_path, weights_only=False)
 
         # Save autoencoder model to `autoencoder_model.pth` if it does not exist
-        if not pl.Path(res_folder / "autoencoder_model.pth").exists():
-            torch.save(model, res_folder / "autoencoder_model.pth")
+        if not pl.Path(res_folder / 'autoencoder_model.pth').exists():
+            torch.save(model, res_folder / 'autoencoder_model.pth')
 
         # Changing device to CPU
-        model.to("cpu")
+        model.to('cpu')
 
         # Remember that you must call model.eval() to set dropout and batch
         # normalization layers to evaluation mode before running inference.
@@ -244,9 +250,13 @@ if __name__ == "__main__":
         model.eval()
 
         # Reduce the dimensionality of the input points to 2D
-        mdb_cud.custom_print("Computing latent space for all structures...")
+        mdb_cud.custom_print('Computing latent space for all structures...')
+        latent_space_all = []
         with torch.no_grad():  # No need to compute gradients for inference
-            for struct in structs_database:
+            for idx, struct in enumerate(structs_database):
+                mdb_cud.custom_print(
+                    f'Structure {idx}/{len(structs_database)}', 'debug'
+                )
 
                 # Get descriptors
                 if struct.info.get('mdb_id'):
@@ -254,25 +264,28 @@ if __name__ == "__main__":
                 else:
                     curr_struct_id = struct.info.get('aiida_uuid')
 
-                curr_descriptors = descriptor_dict[curr_struct_id]["descriptors"]
+                # print('descriptors:', descriptor_dict[curr_struct_id]['descriptors'])
+                curr_descriptors = descriptor_dict[curr_struct_id]['descriptors'][0]
 
                 # Get latent space
-                latent_space = model.encoder(torch.Tensor(descriptor_arr))
-
-                # Save latent space
-                descriptor_dict[curr_struct_id]["latent_space"].append(
-                    latent_space.cpu().numpy()
+                latent_space = (
+                    model.encoder(torch.Tensor(curr_descriptors)).cpu().numpy()
                 )
 
+                # Save latent space
+                descriptor_dict[curr_struct_id]['latent_space'].extend(latent_space)
+                latent_space_all.append(latent_space)
+
         # Saving latent space
-        np.save(latent_space_file, latent_space)
+        latent_space_all = np.vstack(latent_space_all)
+        np.save(latent_space_file, latent_space_all)
 
         # No way to store all of the descriptors in a single array,
         # as the n_atom dimension will change according to the structure
         # This pickle object will contain a list of length n_struct,
         # that will have n_at lists inside, each containing model_size
         # lists of descriptor values.
-        with open(res_folder / "curr_it_db_descriptors.pkl", "wb") as f:
+        with open(res_folder / 'curr_it_db_descriptors.pkl', 'wb') as f:
             pickle.dump(descriptor_dict, f)
 
     # If latent space was successfully calculated
@@ -281,25 +294,15 @@ if __name__ == "__main__":
         # if latent_space:
         # Get concave hull
         # Compute the concave hull using Julia.
-        match descriptor_settings.get("dimensionality_reduction_method"):
-            case "autoencoder":
-                # REMOVE: Test the two functions
-                mdb_cud.custom_print(
-                    "Computing concave hull using GMT.jl...", "info"
-                )
-                concave_hull = get_concave_hull_julia(latent_space)
-                concave_hull_path = res_folder / "concave_hull.npy"
+        match descriptor_settings.get('dimensionality_reduction_method'):
+            case 'autoencoder':
+                mdb_cud.custom_print('Computing concave hull using GMT.jl...', 'info')
+                concave_hull = get_concave_hull_julia(latent_space_all)
+                concave_hull_path = res_folder / 'concave_hull.npy'
                 np.save(file=concave_hull_path, arr=concave_hull)
 
-                # mdb_cud.custom_print(
-                #     "Computing concave hull using ConcaveHull.jl...", "info"
-                # )
-                # concave_hull_new = get_concave_hull_julia_new(latent_space, k=1)
-                # concave_hull_path_new = res_folder / "concave_hull_new.npy"
-                # np.save(file=concave_hull_path_new, arr=concave_hull_new)
-
                 mdb_cud.custom_print(
-                    f"Concave hull computed, saved to '{concave_hull_path}'.", "done"
+                    f"Concave hull computed, saved to '{concave_hull_path}'.", 'done'
                 )
 
                 plot_hull = True
@@ -307,21 +310,16 @@ if __name__ == "__main__":
                 if plot_hull:
                     plot_concave_hull(
                         concave_hull=concave_hull,
-                        latent_space=latent_space,
-                        filename=res_folder / "concave_hull.png",
+                        latent_space=latent_space_all,
+                        filename=res_folder / 'concave_hull.png',
                     )
-                    # plot_concave_hull(
-                    #     concave_hull=concave_hull_new,
-                    #     latent_space=latent_space,
-                    #     filename=res_folder / "concave_hull_new.png",
-                    # )
 
-                    mdb_cud.custom_print("Concave hull plotted.", "done")
-            case "pca":
-                raise NotImplementedError("PCA not implemented yet")
+                    mdb_cud.custom_print('Concave hull plotted.', 'done')
+            case 'pca':
+                raise NotImplementedError('PCA not implemented yet')
     else:
         mdb_cud.custom_print(
-            "Latent space was not computed. Skipping concave hull computation.",
-            "warn",
+            'Latent space was not computed. Skipping concave hull computation.',
+            'warn',
         )
-    mdb_cud.custom_print("Calculation done.", "done")
+    mdb_cud.custom_print('Calculation done.', 'done')
