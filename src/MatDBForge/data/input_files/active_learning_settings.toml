@@ -36,9 +36,20 @@ model_acc_multiplier = 10
 # (bool) Whether to check for extrapolation using the MACE descriptors
 check_extrapolation = true
 
-
 # (optional, list[int]) Load initial models from several aiida uuids/pk.
 load_init_models = []
+
+###############################################
+# [code]
+# [code.container]
+# Whether to use a containerized version of the code, located
+# in the path specified by image_name on the calculation nodes.
+# By default, the code will be run locally.
+# use_container = false
+# image_name = ''
+# engine_command = ''
+# prepend_text = ''
+
 
 ###############################################
 
@@ -211,6 +222,8 @@ descriptor_type = "mace"
 # Options: "autoencoder", "pca", "none"
 # If not set, the default is none, which means no dimensionality reduction.
 # dimensionality_reduction_method = ""
+
+
 
 # Aiida metadata settings for MACE descriptor calculation
 [descriptors.metadata]

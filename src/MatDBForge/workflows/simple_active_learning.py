@@ -60,6 +60,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.input(
             'al_loop_iteration', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
+        spec.input('container_settings', valid_type=orm.Dict)
         spec.input(
             'seed_min_num_structs',
             valid_type=orm.Int,
@@ -474,27 +475,26 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
         desc_builder.metadata.computer = computer
 
-        # TODO: add settings for this
-        containerized = False
+        container_dict = self.inputs.container_settings.get_dict()
+        containerized = container_dict.get('use_container', False)
         if containerized:
+            image_name = container_dict.get('image_name', '')
+            engine_command = container_dict.get('engine_command', '')
             prepend_text = (
-                self.inputs.descriptor_settings['metadata']['prepend_text']
-                + '\nmodule load singularity'
-                + '\nexport PATH=$PATH:.'
+                self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
+                + '\n'
+                + container_dict.get('prepend_text', '')
             )
             code = orm.ContainerizedCode(
                 computer=desc_builder.metadata.computer,
-                image_name='/gpfs/projects/iciq72/psanz/containers/mdb.sif',
+                image_name=image_name,
                 filepath_executable='mdb_check_descr_combined.py',
-                engine_command=(
-                    'singularity exec --bind .:/mdb_data --nv '
-                    '--contain --writable-tmpfs {image_name}'
-                ),
                 prepend_text=prepend_text,
+                engine_command=engine_command,
             )
         else:
             prepend_text = (
-                self.inputs.descriptor_settings['metadata']['prepend_text']
+                self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
                 + '\nexport PATH=$PATH:.'
             )
             code = orm.PortableCode(
@@ -503,7 +503,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 filepath_executable='mdb_check_descr_combined.py',
                 prepend_text=prepend_text,
             )
-
         desc_builder.code = code
 
         # Loading computer and removing it from the input dictionary
@@ -611,7 +610,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             code_builder.mace_train_file_path.store()
 
         prepend_text = (
-            self.inputs.descriptor_settings['metadata']['prepend_text']
+            self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
             + '\nPATH=$PATH:.'
         )
 
@@ -760,7 +759,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # Adding the CWD to the path in the script, so that the script can be
         # run from aiida.
         prepend_text = (
-            self.inputs.descriptor_settings['metadata']['prepend_text']
+            self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
             + '\nPATH=$PATH:.'
         )
 
@@ -836,6 +835,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         with open(self.inputs.current_md_seed_structs_path.value, 'rb') as f:
             current_md_seed_structs = pickle.load(f)
 
+        self.report(
+            f'Starting submission of {len(current_md_seed_structs)} '
+            'structures to process...'
+        )
+
         # # DEBUG: Testing shared directory for inputs
         # metadata_dict = self.inputs.descriptor_settings['metadata']
         # computer = orm.load_computer(metadata_dict['computer'])
@@ -879,9 +883,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
             ]:
                 if curr_structure.get(key):
                     curr_structure[key] = np.array(curr_structure[key])
-
-            # DEBUG: Check the keys in curr_structure and if they are arrays.
-            # breakpoint()
 
             if isinstance(curr_structure, dict):
                 curr_structure = Atoms.fromdict(curr_structure)
@@ -945,31 +946,51 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             proc_seed_builder.commitee_models = commitee_dict
 
-            # Get portable code
-            code_path = Path(f'{MDB_ROOT_DIR}/active_learning/md')
-            # TODO: This should not be `descriptor_settings`` after the simple
-            # loop is introduced. A new section containing all settings
-            # should be included, and this should be changed to the section
-            # name.
-            metadata_dict = self.inputs.descriptor_settings['metadata']
-            num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
-            prepend_text = (
-                metadata_dict['prepend_text']
-                + '\nexport PATH=$PATH:.'
-                + f'\nexport OMP_NUM_THREADS={num_threads}'
-            )
-            portable_code = orm.PortableCode(
-                label='mdb_process_md_seed_struct',
-                filepath_files=code_path,
-                filepath_executable='mdb_process_structure.py',
-                prepend_text=prepend_text,
-            )
-            proc_seed_builder.code = portable_code
-
             # Loading computer and removing it from the input dictionary
+            metadata_dict = self.inputs.descriptor_settings['metadata']
             options_dict = metadata_dict['options']
             computer = orm.load_computer(metadata_dict['computer'])
             proc_seed_builder.metadata.computer = computer
+
+            container_dict = self.inputs.container_settings.get_dict()
+            containerized = container_dict.get('use_container', False)
+            if containerized:
+                image_name = container_dict.get('image_name', '')
+                engine_command = container_dict.get('engine_command', '')
+                prepend_text = (
+                    self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
+                    + '\n'
+                    + container_dict.get('prepend_text', '')
+                )
+                code = orm.ContainerizedCode(
+                    computer=computer,
+                    image_name=image_name,
+                    filepath_executable='mdb_process_structure.py',
+                    prepend_text=prepend_text,
+                    engine_command=engine_command,
+                )
+            else:
+                # Get portable code
+                code_path = Path(f'{MDB_ROOT_DIR}/active_learning/md')
+                # TODO: This should not be `descriptor_settings`` after the simple
+                # loop is introduced. A new section containing all settings
+                # should be included, and this should be changed to the section
+                # name.
+
+                num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
+                prepend_text = (
+                    metadata_dict.get('prepend_text', '')
+                    + '\nexport PATH=$PATH:.'
+                    + f'\nexport OMP_NUM_THREADS={num_threads}'
+                )
+                code = orm.PortableCode(
+                    label='mdb_process_md_seed_struct',
+                    filepath_files=code_path,
+                    filepath_executable='mdb_process_structure.py',
+                    prepend_text=prepend_text,
+                )
+            proc_seed_builder.code = code
+
             # options_dict.pop('computer', None)
 
             # Load scheduler and resources options
@@ -1016,7 +1037,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
             self.to_context(process_committee_results=append_(future))
 
         self.report(
-            f'Processing {len(self.ctx.process_committee_results)} structures...'
+            f'Submission done. Processing {len(self.ctx.process_committee_results)} '
+            'structures...'
         )
 
     def send_calc_or_remove_structures(self):
@@ -1291,7 +1313,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
                         results_dir=str(self.ctx.results_dir),
                         workchain=self.node.uuid,
                     )
-                breakpoint()
             except AttributeError:
                 return_list_path = ''
 
