@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.5 (2025-01-29)
+
+### Misc
+
+- **al_loop**: added documentation for container section ([#fc7708c](https://github.com/pol-sb/MatDBForge/commit/fc7708c61e8db9f479192023c65b97e3b841b35c))
+
 ## 0.20.4 (2025-01-29)
 
 ### Fix
