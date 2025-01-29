@@ -1515,7 +1515,17 @@ def write_gathered_dft_calcs_to_file(dft_calc_list: orm.List, results_dir: str):
     if isinstance(dft_calc_list[0], str):
         dft_calc_list = [orm.load_node(uuid) for uuid in dft_calc_list]
 
-    ase_write(filename=results_file_path, images=dft_calc_list)
+    parsed_structs = []
+    for struct in dft_calc_list:
+        if isinstance(struct, orm.CalcJobNode):
+            with struct.outputs.configuration_result_file.open() as f:
+                parsed_struct = ase_read(filename=f, format='extxyz', index=':')
+                parsed_structs.extend(parsed_struct)
+
+    if len(parsed_structs) > 0:
+        ase_write(filename=results_file_path, images=parsed_structs, format='extxyz')
+    else:
+        ase_write(filename=results_file_path, images=dft_calc_list, format='extxyz')
     return results_file_path, results_dir
 
 
