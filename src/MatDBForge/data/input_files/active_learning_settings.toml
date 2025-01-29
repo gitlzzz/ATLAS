@@ -39,7 +39,9 @@ check_extrapolation = true
 # (optional, list[int]) Load initial models from several aiida uuids/pk.
 load_init_models = []
 
+
 ###############################################
+
 # [code]
 # [code.container]
 
@@ -59,7 +61,6 @@ load_init_models = []
 # Allows loading the required modules for container use, setting the environment, etc.
 # Check your HPC system documentation for the commands required for container usage.
 # prepend_text = ''
-
 
 ###############################################
 
@@ -234,7 +235,6 @@ descriptor_type = "mace"
 # dimensionality_reduction_method = ""
 
 
-
 # Aiida metadata settings for MACE descriptor calculation
 [descriptors.metadata]
 
@@ -253,24 +253,24 @@ options.withmpi = ''
 [descriptors.autoencoder.train_settings]
 # model_path = "autoencoder_model.pth" # (REMOVE, str) Path to save the model
 # dataset = "all_descriptors.npy"      # (REMOVE, str) Path to the training dataset
-load_model = false                     # (bool) Load the model from the model path
-rng_seed = ""                          # (int) Random seed for reproducibility
-l1_hidden_dim = 256                    # (int) Number of units in the first hidden layer
-l2_hidden_dim = 32                     # (int) Number of units in the second hidden layer
-bottleneck_dim = 2                     # (int) Dimensionality of the bottleneck (latent space)
-bias_flag = true                       # (bool) Flag to include bias terms in the layers
-num_epochs = 15                        # (int) Number of epochs to train the model
-batch_size = 4096                      # (int) Batch size for training
-patience = 5                           # (int) Patience for early stopping
-lr = 0.001                             # (float) Learning rate for the optimizer
-weight_decay = 1e-5                    # (float) L2 regularization
-loss = "mse"                           # (str) Loss function type (one of: "mse", "weighted_mse")
-train_frac = 0.8                       # (float) Fraction of the data to use for training
-valid_frac = 0.1                       # (float) Fraction of the data to use for validation
-test_frac = 0.1                        # (float) Fraction of the data to use for testing
-wandb = false                          # (bool) Whether to log metrics to wandb
-wandb_name = ""                        # (str) Name of the wandb run
-wandb_project = ""                     # (str) Name of the wandb project
+load_model = false  # (bool) Load the model from the model path
+rng_seed = ""       # (int) Random seed for reproducibility
+l1_hidden_dim = 256 # (int) Number of units in the first hidden layer
+l2_hidden_dim = 32  # (int) Number of units in the second hidden layer
+bottleneck_dim = 2  # (int) Dimensionality of the bottleneck (latent space)
+bias_flag = true    # (bool) Flag to include bias terms in the layers
+num_epochs = 15     # (int) Number of epochs to train the model
+batch_size = 4096   # (int) Batch size for training
+patience = 5        # (int) Patience for early stopping
+lr = 0.001          # (float) Learning rate for the optimizer
+weight_decay = 1e-5 # (float) L2 regularization
+loss = "mse"        # (str) Loss function type (one of: "mse", "weighted_mse")
+train_frac = 0.8    # (float) Fraction of the data to use for training
+valid_frac = 0.1    # (float) Fraction of the data to use for validation
+test_frac = 0.1     # (float) Fraction of the data to use for testing
+wandb = false       # (bool) Whether to log metrics to wandb
+wandb_name = ""     # (str) Name of the wandb run
+wandb_project = ""  # (str) Name of the wandb project
 
 ###############################################
 
@@ -421,3 +421,47 @@ idipol = 3
 ldipol = true
 dipol = [0.5, 0.5, 0.5]
 idipol = 4
+
+
+# Several entries for the parser settings.
+[dft.vasp.aiida_vasp.parser_settings]
+# add_trajectory = false
+# add_bands = false
+# add_charge_density = false
+# add_dos = false
+# add_kpoints = false
+#add_energies = true
+# add_misc = true
+# add_structure = false
+# add_projectors = false
+# add_born_charges = false
+# add_dielectrics = false
+# add_hessian = false
+# add_dynmat = false
+# add_wavecar = false
+# add_forces = false
+# add_stress = false
+
+# Errors and warnings to be treated as critical.
+[dft.vasp.aiida_vasp.parser_settings.critical_notifications]
+# add_brmix = true
+# add_cnormn = true
+# add_denmp = true
+# add_dentet = true
+add_edddav_zhegv = true
+add_eddrmm_zhegv = true
+# add_edwav = true
+# add_fexcp = true
+# add_fock_acc = true
+# add_non_collinear = true
+# add_not_hermitian = true
+# add_psmaxn = true
+# add_pzstein = true
+# add_real_optlay = true
+# add_rhosyg = true
+# add_rspher = true
+# add_set_indpw_full = true
+# add_sgrcon = true
+# add_no_potimm = true
+# add_magmom = true
+# add_bandocc = true

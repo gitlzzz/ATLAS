@@ -202,7 +202,6 @@ Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresho
 - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace"
 - `load_init_models`: (list[int], optional) # Load initial models from several aiida uuids/pk.
 
-
 ### General code settings - `[code]`
 
 #### Container usage - `[code.container]`
@@ -226,7 +225,6 @@ module load singularity
 export PATH=$PATH:.
 """
 ```
-
 
 ### Active Learning Seed Generation - `[al_seed]`
 
@@ -396,7 +394,7 @@ This section contains keys related to the Autoencoder training
 - `wandb_name`: (str) Name of the wandb run
 - `wandb_project`: (str)  Name of the wandb project
 
-### MACE Scheduler - `[mace_train]`
+### MACE Train - `[mace_train]`
 
 MACE training code and scheduler settings (aiida)
 
@@ -452,7 +450,10 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 
 ### DFT Settings - `[dft]`
 
-### MACE as DFT calculator - `[dft.mace]`
+- `dft_method`: (str, optional) What energy and force calculation method to use, either DFT with VASP or MACE using a pre-trained MACE model.  Specified as either "vasp" or "mace", the default being 'mace'.
+- `dft_calc_limit`: (int, optional) Maximum number of DFT calculations to perform per AL step. Default is None, so no limit will be in place.
+
+#### MACE as DFT calculator - `[dft.mace]`
 
 MACE Settings as DFT calculator. Ignored if dft_method = "vasp"
 Options intended for MACE will be passed as arguments during MACE execution. The scheduler options will be used in the builder.metadata.options from AiiDA.
@@ -470,14 +471,14 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 - `options.max_memory_kb`: 102400000
 - `options.custom_scheduler_commands`(str): Additional options for the scheduler, such as setting the hostname:
 
-```
+```bash
 '''
 #$ -l gpu=1
 #$ -l hostname="tekla2189"
 '''
 ```
 
-### VASP as DFT calculator - `[dft.vasp]`
+#### VASP as DFT calculator - `[dft.vasp]`
 
 Settings for VASP as DFT calculator using the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin. Ignored if `dft_method = "mace"`.
 
@@ -487,7 +488,7 @@ Settings for VASP as DFT calculator using the [aiida-vasp](https://aiida-vasp.re
 
 See [the potentials section in the aiida-vasp documentation](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html) to setup the potentials for VASP.
 
-### Scheduler settings for aiida-vasp - `[dft.vasp.queue]`
+##### Scheduler settings for aiida-vasp - `[dft.vasp.queue]`
 
 - `queue.type` = "sge"
 - `queue.node_cpus` = 12
@@ -496,24 +497,26 @@ See [the potentials section in the aiida-vasp documentation](https://aiida-vasp.
 - `queue.multiple` = 1
 - `queue.custom_scheduler_commands` = '#$ -l hostname="tekla2044"'
 
-### VASP k-spacing - `[dft.vasp.kspacing]`
+##### VASP k-spacing - `[dft.vasp.kspacing]`
 
-**WIP**
+Description of the phase diagram. The phase name along their k-spacing must be used like in the following example:
 
-Description of the phase diagram.
+```toml
+alpha = 0.135088484104361
+m1 = 0.100530964914873
+beta-prime = 0.102415920507027
+```
 
-- `alpha` = 0.135088484104361
-- `m1` = 0.100530964914873
-- `beta`-prime = 0.102415920507027
-- `m2` = 0.100530964914873
-- `gamma` = 0.141371669411541
-- `m3` = 0.166504410640259
-- `epsilon` = 0.105557513160617
-- `eta` = 0.0993371597065093
-- `m4` = 0.0948760981384118
-- `delta` = 0.0994491889005363
+The `MDB_DEFAULT` phase can be added to this dictionary among all the other phases, so all structures that don't have a phase included will use this one as the default:
 
-### VASP INCAR - `[dft.vasp.incar]`
+```toml
+alpha = 0.135088484104361
+m1 = 0.100530964914873
+beta-prime = 0.102415920507027
+MDB_DEFAULT = 0.125
+```
+
+##### VASP INCAR - `[dft.vasp.incar]`
 
 General incar settings to be used as a template for all calculations. Different types of calculations, i.e., relaxations, bulks, clusters and surfaces, can have different options. Type-specific options must be specified in the corresponding key for each type (see below) and will overwrite the keys on the general incar in this section.
 
@@ -539,22 +542,69 @@ General incar settings to be used as a template for all calculations. Different 
 - `lelf`: false
 - `ivdw`: 11      # van der Waals
 
-#### VASP INCAR for relaxations - `[dft.vasp.relax.incar]`
+##### VASP INCAR for relaxations - `[dft.vasp.relax.incar]`
 
 - `ibrion` = 2
 - `nsw` = 350
 - `isif` = 3
 
-#### VASP INCAR for surfaces - `[dft.vasp.surface.incar]`
+##### VASP INCAR for surfaces - `[dft.vasp.surface.incar]`
 
 - `ldipol` = true
 - `idipol` = 3
 
-#### VASP INCAR for clusters - `[dft.vasp.cluster.incar]`
+##### VASP INCAR for clusters - `[dft.vasp.cluster.incar]`
 
 - `ldipol` = true
 - `dipol` = [0.5, 0.5, 0.5]
 - `idipol` = 4
+
+##### AiiDA-VASP parser settings - `[dft.vasp.aiida_vasp.parser_settings]`
+
+Contains entries to include in the results gathered using the aiida-vasp parser settings. The defaults are as follows:
+
+- `add_trajectory` = false
+- `add_bands` = false
+- `add_charge_density` = false
+- `add_dos` = false
+- `add_kpoints` = false
+- `add_energies` = true
+- `add_misc` = true
+- `add_structure` = false
+- `add_projectors` = false
+- `add_born_charges` = false
+- `add_dielectrics` = false
+- `add_hessian` = false
+- `add_dynmat` = false
+- `add_wavecar` = false
+- `add_forces` = false
+- `add_stress` = false
+
+##### AiiDA-VASP critical notifications - `[dft.vasp.aiida_vasp.parser_settings.critical_notifications]`
+
+VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The defaults are as follows:
+
+- `add_brmix` = true
+- `add_cnormn` = true
+- `add_denmp` = true
+- `add_dentet` = true
+- `add_edddav_zhegv` = true
+- `add_eddrmm_zhegv` = true
+- `add_edwav` = true
+- `add_fexcp` = true
+- `add_fock_acc` = true
+- `add_non_collinear` = true
+- `add_not_hermitian` = true
+- `add_psmaxn` = true
+- `add_pzstein` = true
+- `add_real_optlay` = true
+- `add_rhosyg` = true
+- `add_rspher` = true
+- `add_set_indpw_full` = true
+- `add_sgrcon` = true
+- `add_no_potimm` = true
+- `add_magmom` = true
+- `add_bandocc` = true
 
 ## Input Example: Active Learning
 
