@@ -42,12 +42,22 @@ load_init_models = []
 ###############################################
 # [code]
 # [code.container]
-# Whether to use a containerized version of the code, located
+
+# (bool, optional) Whether to use a containerized version of the code, located
 # in the path specified by image_name on the calculation nodes.
-# By default, the code will be run locally.
+# By default false, which means that the container won't be used, and code is gathered
+# from the local MatDBForge installation.
 # use_container = false
+
+# (str) Path for the container image
 # image_name = ''
+
+# (str) Command to run the container image. Docker and Singularity are supported.
 # engine_command = ''
+
+# (str) Text to prepend to the calculation script before the actual code execution.
+# Allows loading the required modules for container use, setting the environment, etc.
+# Check your HPC system documentation for the commands required for container usage.
 # prepend_text = ''
 
 

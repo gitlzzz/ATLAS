@@ -202,6 +202,32 @@ Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresho
 - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace"
 - `load_init_models`: (list[int], optional) # Load initial models from several aiida uuids/pk.
 
+
+### General code settings - `[code]`
+
+#### Container usage - `[code.container]`
+
+This key contains settings to the configuration and usage of the container image of MatDBForge for all the instances where a remote code must be run. This is disabled by default,
+instead using a `PortableCode` instance in that case.
+
+- `use_container`: (bool, optional) Whether to use a containerized version of the code. By default false
+- `image_name`: (str, optional) Path in the path specified by image_name on the calculation nodes.
+- `engine_command`: (str, optional) Command to run the container image. Docker and Singularity are supported.
+- `prepend_text`: (str, optional) Text to prepend to the calculation script before the actual code execution. Allows loading the required modules for container use, setting the environment, etc... Check your HPC system documentation for the commands required for container usage.
+
+An example of a container section for Singularity:
+
+```toml
+use_container = true
+image_name = '/projects/.../containers/mdb.sif'
+engine_command = 'singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}'
+prepend_text = """
+module load singularity
+export PATH=$PATH:.
+"""
+```
+
+
 ### Active Learning Seed Generation - `[al_seed]`
 
 Parameters to configure the MD seed generation. The MD seed is used to generate structures for MD simulations. The MD seed is updated at every iteration, choosing randomly from the seed database until the database is emptied.
