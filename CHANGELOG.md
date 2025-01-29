@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.4 (2025-01-29)
+
+### Fix
+
+- **al_loop**: add handler to `mdb_process_structure` for empty MD trajs ([#598ec1f](https://github.com/pol-sb/MatDBForge/commit/598ec1f1e6bf74dbdbc5bd743e7caefa2647bc2f))
+- **al_loop**: prepare paths in `mdb_process_structure` for container use ([#1305373](https://github.com/pol-sb/MatDBForge/commit/1305373860096564738f0027ce34b96f062fe68e))
+
 ## 0.20.3 (2025-01-28)
 
 ### Fix
