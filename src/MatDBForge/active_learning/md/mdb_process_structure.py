@@ -169,11 +169,11 @@ if __name__ == '__main__':
     f_rmse = rmse_arr[1]
 
     # Define results folder
-    res_folder = pl.Path(prepend_path) / pl.Path('./results')
+    res_folder = prepend_path / pl.Path('./results')
     res_folder.mkdir(exist_ok=True)
 
     # Initialize the logger
-    log_folder = pl.Path('./logs')
+    log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
     logger = mdb_cud.init_logger(source='proc_structure', log_path=log_folder)
 
@@ -296,14 +296,14 @@ if __name__ == '__main__':
 
         # Running evaluation of the energies and forces using each commitee model
         mdb_cud.custom_print('Running committee evaluation...', 'info')
-        model_file_list = list(pl.Path.cwd().glob('*.model'))
+        model_file_list = list(prepend_path.glob('*.model'))
         comm_settings = settings.get('committee_eval', {})
         comm_results = {}
         for model in model_file_list:
             comm_results[model.stem] = {'energy': [], 'forces': []}
 
             calculator = MACECalculator(
-                model_paths=model,
+                model_paths=prepend_path / model,
                 device=comm_settings.get('mace', {}).get('device', 'cpu'),
                 default_dtype=comm_settings.get('mace', {}).get(
                     'default_dtype', 'float32'
