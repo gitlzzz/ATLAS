@@ -291,6 +291,27 @@ if __name__ == '__main__':
             f'Trajectory length after MD filters: {len(md_traj_filtered)}', 'info'
         )
 
+        if len(md_traj_filtered) == 0:
+            mdb_cud.custom_print(
+                (
+                    'No MD frames left after filtering. '
+                    'This means that probably there are a lot of unrealistic structures'
+                    '. Check the training data and models used to run this MD.'
+                ),
+                'warning',
+            )
+
+            # Returning empty frames list
+            ase_write(
+                res_folder / 'extrapolating_frames.xyz',
+                format='extxyz',
+                images=[],
+                append=True,
+            )
+
+            # Skip the rest of the process for the current T.
+            continue
+
         # Limit total number of frames
         md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
 
@@ -406,12 +427,14 @@ if __name__ == '__main__':
 
         # Adding extrapolating indices to list
         e_f_extrapol = []
-        for err_idx, error in enumerate(error_e_structures):
-            if error:
-                e_f_extrapol.append(short_mask[err_idx])
-        for err_idx, error in enumerate(error_f_structures):
-            if error:
-                e_f_extrapol.append(short_mask[err_idx])
+        if isinstance(error_e_structures, np.ndarray):
+            for err_idx, error in enumerate(error_e_structures):
+                if error:
+                    e_f_extrapol.append(short_mask[err_idx])
+        if isinstance(error_f_structures, np.ndarray):
+            for err_idx, error in enumerate(error_f_structures):
+                if error:
+                    e_f_extrapol.append(short_mask[err_idx])
 
         # Any index in this array is extrapolating and must
         # be sent to calculate with DFT.
