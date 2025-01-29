@@ -880,6 +880,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 'initial_magmoms',
                 'bulk_equivalent',
                 'bulk_wyckoff',
+                'spacegroup_kinds'
             ]:
                 if curr_structure.get(key):
                     curr_structure[key] = np.array(curr_structure[key])
