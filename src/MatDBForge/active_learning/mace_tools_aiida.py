@@ -285,6 +285,7 @@ class ProcessMDSeedStructCalculationParser(Parser):
         retrieved_temporary_folder: Path = Path(kwargs['retrieved_temporary_folder'])
 
         extrapolating_structures = None
+        extrapolation_plot = None
 
         for child_file in retrieved_temporary_folder.rglob('*'):
             # Create singlefile data for the model
