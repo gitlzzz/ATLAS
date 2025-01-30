@@ -156,6 +156,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
             'extrapolation_plot',
             valid_type=orm.SinglefileData,
             help=('File containing a figure showing the extrapolation results.'),
+            required=False,
         )
         spec.exit_code(420, 'ERROR_INVALID_OUTPUT', 'structure could not be processed')
 
