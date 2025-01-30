@@ -3097,10 +3097,15 @@ def cli_run_gen_initial_database(
         spacegroup = None
         symbol = None
 
-        with MPRester(ut.gather_secrets()['API_KEY'], mute_progress_bars=True) as mpr:
-            query_result = mpr.summary.search(material_ids=phase_d['prototype'])[0]
-            spacegroup = query_result.symmetry.number
-            symbol = query_result.symmetry.symbol
+        try:
+            with MPRester(
+                ut.gather_secrets()['API_KEY'], mute_progress_bars=True
+            ) as mpr:
+                query_result = mpr.summary.search(material_ids=phase_d['prototype'])[0]
+                spacegroup = query_result.symmetry.number
+                symbol = query_result.symmetry.symbol
+        except TypeError:
+            pass
 
         curr_phase = mdb_pd.Phase(
             name=curr_phase_name,
@@ -3141,7 +3146,6 @@ def cli_run_gen_initial_database(
         # Obtain structures from Materials Project
         structures.gather_base_structures(phase_diag_phases=phase_diagram.phases)
         read_from_db = False
-
 
     # Applying central_atom_octahedral perturbation to specific structures
     phases_read_from_db = []
