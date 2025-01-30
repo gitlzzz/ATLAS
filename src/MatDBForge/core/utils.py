@@ -82,7 +82,6 @@ def gather_secrets():
             "error",
         )
         secrets = None
-        sys.exit(420)
 
     return secrets
 
@@ -1038,7 +1037,7 @@ def add_adsorbates(
     from rich.progress import track
 
     # Create temporary file to store the trajectory using tmpfile
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".traj").name
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".traj").name # noqa
     print("tmp_file: ", tmp_file)
 
     adsorb_structs = []
