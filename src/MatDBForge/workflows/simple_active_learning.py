@@ -868,6 +868,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # mace_builder.commitee_models = commitee_dict
 
             # Converting to ase.Atoms()
+            # TODO: Find a way of not having to hardcode the keys
             for key in [
                 'pbc',
                 'cell',
@@ -880,7 +881,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 'initial_magmoms',
                 'bulk_equivalent',
                 'bulk_wyckoff',
-                'spacegroup_kinds'
+                'spacegroup_kinds',
+                'mdb_mace_eval_forces'
             ]:
                 if curr_structure.get(key):
                     curr_structure[key] = np.array(curr_structure[key])
