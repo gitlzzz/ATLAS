@@ -14,7 +14,6 @@ import lzma
 import pathlib
 import pathlib as pl
 import pickle
-import re
 import time
 import warnings
 from io import BytesIO, TextIOWrapper
@@ -2194,91 +2193,6 @@ class InitialDatabase:
 
         perc = main_cnt / total_atoms
         return perc
-
-    @mdb_cud.deprecated('Unused method', '0.11.2')
-    def generate_surfaces_replacements(
-        self,
-        phase: mdb_pd.Phase,
-        num_struct: int,
-        num_repeats: int,
-    ):
-        if isinstance(phase, str):
-            phase = self.phase_diagram.get_phase(phase)
-
-        # Instantiating RNG
-        rng = np.random.default_rng()
-
-        # Getting the base structures
-        slabs_df = self.df.loc[self.df.surface]
-        slabs_df = slabs_df.loc[self.df.base]
-        slabs_df = slabs_df.loc[self.df.phase == phase.name]
-
-        for _, row in slabs_df.iterrows():
-            curr_surface = row.structure
-
-            structure_len = len(curr_surface.species)
-
-            # Getting current percentage of main element
-            strct_perc = self._get_main_elem_perc(
-                phase=phase,
-                structure=curr_surface,
-            )
-
-            # Randomly generating base elem percentages for the new structures
-            subst_base_elem_perc = self._gen_perc_surfaces(
-                phase=phase,
-                num_struct=num_struct,
-                current_perc=strct_perc,
-            )
-
-            # Choosing the amount of atoms to replace with the base element in the
-            # struct, which at this point will be completely replaced by atoms
-            # of the remaining species of the alloy.
-            n_at_replacement = []
-            for stct in subst_base_elem_perc:
-                curr_repl = int(round(structure_len * abs(stct), 0))
-                if stct < 0:
-                    curr_repl *= -1
-                n_at_replacement.append(curr_repl)
-
-            # Attempting to fix any percentages outside of the
-            # current phase ratios.
-            n_at_replacement_upd = self._fit_replacements_phase(
-                phase, curr_surface, subst_base_elem_perc
-            )
-
-            # Adapting the replacement percentages generated to the
-            # percentage of the current structure
-            # n_at_replacement_final = self._adjust_replacements()
-
-            for str_ind, n_atoms in enumerate(n_at_replacement_upd):
-                for repl in range(num_repeats):
-                    # Replacing atoms according to the current phase from the structure.
-                    new_structure = self._apply_replacement(
-                        curr_surface, phase, structure_len, n_atoms, rng
-                    )
-
-                    prototype = phase.prototype
-
-                    # Matching the miller index from the name as it is not stored.
-                    match = re.search(r'\((.*?)\)', row.material_id)
-                    curr_miller = match.group(1) if match else '???'
-
-                    print('curr_miller: ', curr_miller)
-                    extra = {'surface': True, 'surface_miller': curr_miller}
-
-                    # Preparing the structure name
-                    mat_id_name = f'{prototype}_{phase.name}'
-                    mat_id_surf_data = f'_replacement-({curr_miller})-_{str_ind}-{repl}'
-                    material_id = mat_id_name + mat_id_surf_data
-
-                    # Saving the structure into the database.
-                    self._save_row(
-                        material_id=material_id,
-                        phase=phase,
-                        structure=new_structure,
-                        extra=extra,
-                    )
 
     def _save_row(
         self,
