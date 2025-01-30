@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==3.29.1"]
+dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==4.1.1"]
 
 
 [project.urls]
@@ -109,7 +109,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.20.5"
+version = "0.20.6"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [

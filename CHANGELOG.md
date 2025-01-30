@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.6 (2025-01-30)
+
+### Fix
+
+- **al_loop**: `extrapolation_plot` now not required as an output now in `ProcessMDSeedStructCalculation`. This allows calculations that did not return extrapolating frames to finish without error codes. ([#6c665a2](https://github.com/pol-sb/MatDBForge/commit/6c665a2221b377c6b1206c51d8c7d9d61fed2450))
+- **al_loop**: added missing `mdb_mace_eval_forces` key when converting structure to ase.Atoms for MD ([#94347c0](https://github.com/pol-sb/MatDBForge/commit/94347c0ce811bf50136090fcbc603cd888527df2))
+- **al_loop**: allowed gathering of DFT calculations from orm.CalcJob ([#47add66](https://github.com/pol-sb/MatDBForge/commit/47add667bc76ebca7a7171a3a43dca234f9527ae))
+- **al_loop**: added missing `spacegroup_kinds` key when converting structure to ase.Atoms for MD ([#de58e03](https://github.com/pol-sb/MatDBForge/commit/de58e03d0fe8b7ecf3ac918b4d2546107452dd94))
+
+### Misc
+
+- **core**: pinned `mace-torch` dependency ([#7106d44](https://github.com/pol-sb/MatDBForge/commit/7106d442caf6548e2af58a769811556f8a7219bb))
+- **al_loop**: added missing documentations ([#f9d7af6](https://github.com/pol-sb/MatDBForge/commit/f9d7af63fcbfe72a4aa1b0bde2b0056f498a2d39))
+
 ## 0.20.5 (2025-01-29)
 
 ### Misc
