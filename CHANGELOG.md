@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.20.7 (2025-01-30)
+
+### Fix
+
+- **al_loop**: allow `ProcessMDSeedStructCalculation` to finish without an extrapolation plot. ([#af91762](https://github.com/pol-sb/MatDBForge/commit/af9176264aaa4c10cbd763acdebc467ae607afca))
+- **db_gen**: remove error when MP API key not found ([#ea8d318](https://github.com/pol-sb/MatDBForge/commit/ea8d318f53fc467d38207c16c18d42e6a0415af8))
+- **db_gen**: enable usage without MP API key ([#1f0da10](https://github.com/pol-sb/MatDBForge/commit/1f0da1080fe5a73299c10a2d9e1b0ed85cfafd58))
+
+### Misc
+
+- **docs**: replaced 1.1/1.2 with Option A/B in `README.md` ([#849dd3d](https://github.com/pol-sb/MatDBForge/commit/849dd3deb357733142b9f4d9d1b48ca5e846cee7))
+- **docs**: added conda to installation instructions ([#a43aaf6](https://github.com/pol-sb/MatDBForge/commit/a43aaf63f0a637139c5329926545948907f4dffd))
+- **docs**: added conda to installation instructions ([#004b2b5](https://github.com/pol-sb/MatDBForge/commit/004b2b55d9d8adf8c613306dd3b17e8d326979a7))
+- **db_gen**: removed deprecated function `generate_surfaces_replacements()` ([#533521a](https://github.com/pol-sb/MatDBForge/commit/533521a28bb7b1cb3d97288854432a17febd45aa))
+- **docs**: replaced NNP with the more generic MLIP ([#33ab3e8](https://github.com/pol-sb/MatDBForge/commit/33ab3e806fd74c881ec04cb0a35b56326a77b0d0))
+
 ## 0.20.6 (2025-01-30)
 
 ### Fix
