@@ -4,18 +4,18 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="media/logo_dark.png">
     <source media="(prefers-color-scheme: light)" srcset="media/logo_light.png">
-    <img alt="MatDBForge: A workflow for materials NNP generation" src="media/logo_light.png">
+    <img alt="MatDBForge: A workflow for materials MLIP generation" src="media/logo_light.png">
   </picture>
 
 [![documentation](https://github.com/pol-sb/MatDBForge/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/MatDBForge/master/index.html)
 
-MatDBForge is a Python library that aids in the generation of chemical structures databases for training NNPs (Neural Network Potential) to be used in heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling and active learning procedure.
+MatDBForge is a Python library that aids in the generation of chemical structures databases for training MLIPs (Machine Learning Interatomic Potential) to be used in heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling and active learning procedure.
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Example](#example-training-a-mace-nnp-from-scratch)
+- [Example](#example-training-a-mace-mlip-from-scratch)
 - [Package Structure](#package-structure)
 
 ## Installation
@@ -71,14 +71,14 @@ The steps required to set up the active learning loop with the simplest AiiDA co
 
 ## Usage
 
-The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (NNPs) by means of Active Learning (AL) Loops.
+The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (MLIPs) by means of Active Learning (AL) Loops.
 
 During the library installation, several entry points will be added so that the user can easily run the different utilities:
 
 - `mdb_init_setup`: Run initial configuration steps after installing MatDBForge.
 - `mdb_run_dft_database`: Run DFT calculations for a MatDBForge structure database.
 - `mdb_gen_configuration_file`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
-- `mdb_gen_init_db`: Generate a database containing structures for NNP training.
+- `mdb_gen_init_db`: Generate a database containing structures for MLIP training.
 - `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
 - `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
 
@@ -109,7 +109,7 @@ The utilities for generation and running the AL loop use inputs in the TOML form
 
 A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/MatDBForge/master/source/input.html)  or in the local documentation files: [Input](./docs/source/input.md).
 
-## Example: Training a MACE NNP from scratch
+## Example: Training a MACE MLIP from scratch
 
 This example will showcase the training of a MACE potential in a pure Cu database.
 
