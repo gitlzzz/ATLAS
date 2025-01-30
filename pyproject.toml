@@ -25,7 +25,7 @@ dependencies = [
     "scipy==1.14.1",
     "seaborn==0.13.2",
     "pymatgen==2024.10.3",
-    "mace-torch @ git+https://github.com/ACEsuit/mace.git@v0.3.7",
+    "mace-torch==0.3.7",
     "e3nn==0.4.4",
     "aiida-core==2.6.2",
     "aiida-lammps==1.0.1",
@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "pytest", "pytest-cov", "commitizen"]
+dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==3.29.1"]
 
 
 [project.urls]
