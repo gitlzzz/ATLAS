@@ -26,7 +26,7 @@ To install MatDBForge, you can use pip in a python virtual environment or conda 
 
 First, **create a virtual environment** and activate it. This can be done using `conda` or python `venv`.
 
-#### 1.1 conda
+#### Option A - conda
 
 ```bash
 # Create a conda environment named matdbforge which uses python 3.11
@@ -36,7 +36,7 @@ conda create -n matdbforge python=3.11
 conda activate matdbforge
 ```
 
-#### 1.2 venv
+#### Option B - venv
 
 An example for an Ubuntu 22.04 system, using python3.11 and venv:
 
