@@ -775,7 +775,16 @@ def can_submit_calculation(
     scheduler.set_transport(transport)
 
     # Checking if the number of jobs is below the limit
-    return len(scheduler.get_jobs()) < limit
+    below_limit = False
+    try:
+        if len(scheduler.get_jobs()) < limit:
+            below_limit = True
+    except EOFError:
+        # If the scheduler is not available, the calculation
+        # cannot be submitted.
+        below_limit = False
+
+    return below_limit
 
 
 def update_db_with_dft_results(sel_struct_db, queue):
