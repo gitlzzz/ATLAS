@@ -170,7 +170,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         rmse_arr = np.array([self.inputs.m_rmse_e.value, self.inputs.m_rmse_f.value])
         # Create a named temporary file using tmpfile
         with tempfile.NamedTemporaryFile(
-            mode='w', delete=False, suffix='.npy', prefix='mdb_process_md-'
+            mode='w', delete=True, suffix='.npy', prefix='mdb_process_md-'
         ) as f:
             np.save(f.name, rmse_arr)
             folder.insert_path(
@@ -197,7 +197,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         if self.inputs.concave_hull:
             concave_hull = self.inputs.concave_hull.get_array()
             with tempfile.NamedTemporaryFile(
-                mode='w', delete=False, suffix='.npy', prefix='mdb_process_md-'
+                mode='w', delete=True, suffix='.npy', prefix='mdb_process_md-'
             ) as f:
                 np.save(f.name, concave_hull)
                 folder.insert_path(
@@ -216,7 +216,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         # Copying descriptors max and min
         desc_max_arr: orm.ArrayData = self.inputs.desc_max_arr.get_array()
         with tempfile.NamedTemporaryFile(
-            mode='w', delete=False, suffix='.npy', prefix='mdb_process_md-'
+            mode='w', delete=True, suffix='.npy', prefix='mdb_process_md-'
         ) as f:
             np.save(f.name, desc_max_arr)
             folder.insert_path(
@@ -225,7 +225,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
             )
         desc_min_arr = self.inputs.desc_min_arr.get_array()
         with tempfile.NamedTemporaryFile(
-            mode='w', delete=False, suffix='.npy', prefix='mdb_process_md-'
+            mode='w', delete=True, suffix='.npy', prefix='mdb_process_md-'
         ) as f:
             np.save(f.name, desc_min_arr)
             folder.insert_path(
