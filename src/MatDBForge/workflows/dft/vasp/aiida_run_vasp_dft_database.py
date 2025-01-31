@@ -45,7 +45,7 @@ def main():
     config = load_config(args.config)
 
     # Start logger
-    log_path = config.get("general", "{}").get("log_path", "/tmp/")
+    log_path = config.get("general", {}).get("log_path", "/tmp/")
     _, log_file_path = mdb_cud.init_logger(
         source="run_vasp_database", log_path=log_path
     )
