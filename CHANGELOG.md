@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.20.8 (2025-01-31)
+
+### Fix
+
+- **dft**: fixed formatting error in get function `aiida_run_vasp_dft_… ([#4654448](https://github.com/pol-sb/MatDBForge/commit/465444850ec085f33efc9d4ae0841676c63ad238))
+- **dft**: fixed formatting error in get function `aiida_run_vasp_dft_database.py` ([#6f1d8e4](https://github.com/pol-sb/MatDBForge/commit/6f1d8e4d68090f4ad3b98b9ddbcbb8d382bf9b83))
+- **al_loop**: remove `ProcessMDSeedStructCalculation` temporary files after use ([#bb61df6](https://github.com/pol-sb/MatDBForge/commit/bb61df6fd825b8129b66f65fcc42c978b95e36e0))
+- **al_loop**: updated report generation to work with the on-the-fly active learning loop ([#0af22b6](https://github.com/pol-sb/MatDBForge/commit/0af22b69287d2843349be2d8b2a8c8be22d05fe4))
+- **al_loop**: catch `EOFError` exception when checking queue in `can_submit_calculation()` ([#fdf5208](https://github.com/pol-sb/MatDBForge/commit/fdf5208757ecc1e159bd0f242dcbac32831c678b))
+
 ## 0.20.7 (2025-01-30)
 
 ### Fix
