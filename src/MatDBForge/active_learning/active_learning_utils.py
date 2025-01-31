@@ -394,12 +394,13 @@ def gen_al_loop_report(
 
     # Match all lines containing the M0 model performance
     mace_e, mace_f = [], []
-    lammps_lines = re.compile(r'Generated LAMMPS potential using.*').findall(report)
+    best_model_lines = re.compile(r'Best model of current step.*').findall(report)
+    print('best_model_lines: ', best_model_lines)
 
     # Prepare a list of all mace models generated from lammps_lines
-    for line in lammps_lines:
-        mace_e.append(float(line.split()[10]))
-        mace_f.append(float(line.split()[14]))
+    for line in best_model_lines:
+        mace_e.append(float(line.split()[11]))
+        mace_f.append(float(line.split()[15]))
 
     if get_error_plot:
         # Create a 2x2 figure
@@ -466,6 +467,7 @@ def generate_error_plot(
                 stp
                 for stp in al_loop_node.called
                 if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
             ][-1]
         except AttributeError:
             last_iter = al_loop_node
@@ -585,7 +587,8 @@ def generate_error_plot(
         tex_x_pos = 0.1
         tex_y_pos = 0.80
         save_fig_now = False
-        if not ax:
+
+        if ax is None:
             save_fig_now = True
             ax = plt.subplots(2, 3, figsize=(18, 12))[1]
 
@@ -1839,3 +1842,7 @@ def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
         return orm.Bool(False)
     else:
         return orm.Bool(True)
+
+
+def get_concave_hull(latent_space: np.ndarray) -> np.ndarray:
+    ...
