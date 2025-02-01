@@ -194,15 +194,15 @@ def get_config_path() -> pathlib.Path:
     return pathlib.Path(config_path)
 
 
-def init_config_dir(config_dir):
+def init_config_dir(config_dir, config_file:str):
     """Create the configuration directory and the secrets file template."""
     # Create a 'mdb' directory inside the config directory
     config_dir = config_dir / 'mdb'
     config_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create a 'secrets.json' file inside the 'mdb' directory
+    # Create a 'config_file' file inside the 'mdb' directory
     try:
-        file_path = config_dir / 'secrets.json'
+        file_path = config_dir / config_file
 
         with open(file_path, 'x') as f:
             f.write('{\n' '"API_KEY": ""\n' '}')
@@ -211,10 +211,10 @@ def init_config_dir(config_dir):
         # to the owner only
         os.chmod(file_path, 0o700)
 
-        return config_dir
+        return True, config_dir
 
     except FileExistsError:
-        return None
+        return False, config_dir / config_file
 
 
 def get_cache_path() -> pathlib.Path:
