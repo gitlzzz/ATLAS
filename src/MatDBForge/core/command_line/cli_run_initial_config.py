@@ -11,22 +11,32 @@ warnings.filterwarnings('ignore')
 def run_initial_config():
     mdb_cud.init_logger(source=pl.Path(__file__).stem, log_path='/tmp')
 
+    # Config file name
+    config_file_name = 'secrets.json'
+
     # Get config directory
     config_path = mdb_cud.get_config_path()
 
     # Create a mdb folder
-    config_dir = mdb_cud.init_config_dir(config_path)
+    created, config_dir = mdb_cud.init_config_dir(
+        config_path, config_file=config_file_name
+    )
 
-    if config_dir:
+    if created:
         mdb_cud.custom_print(
-            f"Enter your materials project API key in '{config_dir/'secrets.json'}'"
-            f" to finish the setup process."
-            "You can get your API key from https://next-gen.materialsproject.org/api",
+            f"Enter your materials project API key in '{config_dir / config_file_name}'"
+            f' to finish the setup process.'
+            'You can get your API key from https://next-gen.materialsproject.org/api',
             print_type='warn',
         )
     else:
         mdb_cud.custom_print(
-            "Initial configuration already done: 'secrets.json' already exists.", 'done'
+            (
+                f"Initial configuration already done: '{config_file_name}' already "
+                f"exists. Check the '{config_dir / config_file_name}' file to update "
+                'your MP API key.'
+            ),
+            'warn',
         )
 
     # Get cache directory
