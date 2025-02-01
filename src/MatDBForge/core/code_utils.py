@@ -214,7 +214,7 @@ def init_config_dir(config_dir, config_file:str):
         return True, config_dir
 
     except FileExistsError:
-        return False, config_dir / config_file
+        return False, config_dir
 
 
 def get_cache_path() -> pathlib.Path:
