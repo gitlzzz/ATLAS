@@ -1619,11 +1619,21 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.report(f'Adding {cnt_dft_calcs} DFT calculations to DB.')
 
             # Adding calculations to training database and seed_generation database
-            for dft_calc in dft_calcs:
+            for dft_calc_idx, dft_calc in enumerate(dft_calcs):
                 # Converting serialized structures to Atoms object.
                 if isinstance(dft_calc, dict):
-                    dft_calc = mdb_al_ut.aiida_serialized_ase_dict_to_atoms(dft_calc)
+                    dft_calc: Atoms = mdb_al_ut.aiida_serialized_ase_dict_to_atoms(
+                        dft_calc
+                    )
 
+                # Check if structure has `mdb_db_index` key. If not, add it using
+                # the current length of the database + the current calc idx + 1.
+                mdb_db_index = dft_calc.info.get(
+                    'mdb_db_index', len(training_db) + dft_calc_idx + 1
+                )
+                dft_calc.info['mdb_db_index'] = mdb_db_index
+
+                # Adding the structure to the training database
                 seed_gen_db.append(dft_calc)
                 training_db.append(dft_calc)
 
