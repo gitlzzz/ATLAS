@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.10 (2025-02-03)
+
+### Fix
+
+- **core**: add github tags based version check ([#fb53c6d](https://github.com/pol-sb/MatDBForge/commit/fb53c6d7c5df13e5e2e4dfcb938799245c179788))
+
 ## 0.20.9 (2025-02-02)
 
 ### Fix
