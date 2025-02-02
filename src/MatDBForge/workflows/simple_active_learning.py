@@ -882,7 +882,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 'bulk_equivalent',
                 'bulk_wyckoff',
                 'spacegroup_kinds',
-                'mdb_mace_eval_forces'
+                'mdb_mace_eval_forces',
             ]:
                 if curr_structure.get(key):
                     curr_structure[key] = np.array(curr_structure[key])
@@ -1597,6 +1597,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         their results are appended to both the training database and the seed
         generation database.
         """
+        # Updating final and seed database.
+        self.report('Checking if database files must be updated...')
+
         # Updating current training seed
         try:
             seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
@@ -1609,6 +1612,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cnt_dft_calcs = len(dft_calcs)
 
         except KeyError:
+            self.report('No new structures available for DB.')
             cnt_dft_calcs = 0
 
         if cnt_dft_calcs > 0:
@@ -1623,9 +1627,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 seed_gen_db.append(dft_calc)
                 training_db.append(dft_calc)
 
-            # Updating final and seed database.
-            self.report('Updating database files...')
-
+            # Writing the updated databases to file
             ase_write(
                 filename=self.ctx.training_db_path,
                 images=training_db,
