@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.9 (2025-02-02)
+
+### Fix
+
+- **al_loop**: add `mdb_db_index` key to all structures before adding to db ([#a2063f0](https://github.com/pol-sb/MatDBForge/commit/a2063f0294e4342755dc1866b4931bcd13c80a19))
+- **al_loop**: add error for nan values inresult table for `TrainMACEModelCalculation` ([#41c06c2](https://github.com/pol-sb/MatDBForge/commit/41c06c21a046f9b3bf17aaad1191defbec4dc86e))
+- **core**: pinned `torch==2.4.1` to avoid breaking update to `torch==2.6` ([#7372413](https://github.com/pol-sb/MatDBForge/commit/73724136fd94808e552188141e790b4df22612e8))
+- **core**: fixes wrong path definition on `init_config_dir`. ([#2bf6a70](https://github.com/pol-sb/MatDBForge/commit/2bf6a7038b6ca1eb1b9a554d79ad8c132d117022))
+- **core**: fixes wrong path definition on `init_config_dir`. ([#1f51f1d](https://github.com/pol-sb/MatDBForge/commit/1f51f1d165fa49c29e131b52463ba593ec02ad64))
+- **core**: print used configuration path when running `mdb_init_setup` after the first time ([#e0a57d3](https://github.com/pol-sb/MatDBForge/commit/e0a57d3719e1bde455c258cc97ea6f7043baafd6))
+
+### Misc
+
+- **al_loop**: improve clarity of output when saving structures to database ([#68b6713](https://github.com/pol-sb/MatDBForge/commit/68b67135622ef5003b5e5b5f0977f324eed3eebd))
+
 ## 0.20.8 (2025-01-31)
 
 ### Fix
