@@ -345,9 +345,15 @@ class TrainMACEModelCalculationParser(Parser):
             if 'train_' in child_file.name:
                 train_file = orm.SinglefileData(file=child_file)
 
-        # Return failed code
+        # If there are some missing variables, return failed code
         if not rmse_e or not rmse_f or not model_file or not train_file:
             return self.exit_codes.ERROR_INVALID_OUTPUT
+
+        # Really weird data will make the training results NaN
+        # Training will run 'fine', but model can't be used like that.
+        # Return an error
+        if np.isnan(rmse_e) or np.isnan(rmse_f):
+            return self.exit_codes.ERROR_NAN_TRAINING_RESULTS
 
         # Return CalcJob outputs
         self.out('model_file', model_file)
@@ -451,6 +457,15 @@ class TrainMACEModelCalculation(CalcJob):
         spec.exit_code(
             420, 'ERROR_INVALID_OUTPUT', 'training calculation could not run'
         )
+        spec.exit_code(
+            421,
+            'ERROR_NAN_TRAINING_RESULTS',
+            (
+                'Error table after training contains NaN values. '
+                'This is likely due to bad training data. Check the generated '
+                'structures'
+            ),
+        )
 
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
@@ -471,7 +486,7 @@ class TrainMACEModelCalculation(CalcJob):
         # (for MACE v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
         if foundation_model:
-            params_list.append("--multiheads_finetuning=True")
+            params_list.append('--multiheads_finetuning=True')
             params_list.append("--pt_train_file='mp'")
 
         # Copying database to temporary folder
@@ -678,10 +693,10 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         spec.exit_code(
             421,
             'ERROR_MISSING_ELEMENT',
-            "Configuration evaluation with MACE model failed. ({node_id})"
+            'Configuration evaluation with MACE model failed. ({node_id})'
             "The model wasn't trained on data containing the element {missing_element}."
-            " Please retrain the model with the missing element, or remove the element"
-            " from the structure database.",
+            ' Please retrain the model with the missing element, or remove the element'
+            ' from the structure database.',
         )
 
     def prepare_for_submission(self, folder):
