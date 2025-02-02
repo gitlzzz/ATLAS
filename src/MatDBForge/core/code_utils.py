@@ -9,11 +9,12 @@ import tempfile
 import warnings
 
 from packaging.version import Version
+from packaging.version import parse as parse_version
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.theme import Theme
 
-from MatDBForge import MDB_ROOT_DIR, __version__
+from MatDBForge import MDB_ROOT_DIR, __repo__, __version__
 
 
 def init_logger(source, log_path=None):
@@ -194,7 +195,7 @@ def get_config_path() -> pathlib.Path:
     return pathlib.Path(config_path)
 
 
-def init_config_dir(config_dir, config_file:str):
+def init_config_dir(config_dir, config_file: str):
     """Create the configuration directory and the secrets file template."""
     # Create a 'mdb' directory inside the config directory
     config_dir = config_dir / 'mdb'
@@ -245,45 +246,93 @@ def init_cache_dir(cache_dir):
 
 def get_last_tagged_version():
     """
-    Get the last tagged version from the repository.
+    Get the last tagged version from the GitHub repository (via SSH).
+    If SSH access fails, fall back to checking the local Git repository.
 
     Returns
     -------
     str
-        Last tagged version in the repository
+        Last tagged version in the repository.
     str
-        Hash of the current commit
+        Hash of the current commit.
+    """
+    try:
+        # Try fetching the latest tag from GitHub via SSH
+        output = (
+            sb.check_output(['git', 'ls-remote', '--tags', __repo__], stderr=sb.DEVNULL)
+            .decode()
+            .strip()
+        )
+
+        # Extract tag names from the output
+        tags = [
+            line.split('/')[-1].replace('^{}', '').replace('v', '')
+            for line in output.split('\n')
+        ]
+        # Get the newest tag. Use versioning.version.parse to handle the version sorting
+        # Return '0.0.0' if no tags are found
+        newest_tag = (
+            sorted(tags, reverse=True, key=lambda v: parse_version(v))[0]
+            if tags
+            else '0.0.0'
+        )
+
+        # Get the latest commit hash from the remote
+        hash_str = (
+            sb.check_output(['git', 'ls-remote', __repo__, 'HEAD']).decode().split()[0]
+        )
+
+    except (sb.CalledProcessError, IndexError):
+        # If SSH access fails, fall back to local repository
+        newest_tag, hash_str = get_last_tagged_version_local()
+
+    return newest_tag, hash_str
+
+
+def get_last_tagged_version_local():
+    """
+    Get the last tagged version from the local Git repository.
+
+    Returns
+    -------
+    str
+        Last tagged version in the local repository.
+    str
+        Hash of the current commit.
     """
     # Save the current directory path
     cwd = os.getcwd()
 
-    # Change to the MatDBForge root directory
-    os.chdir(MDB_ROOT_DIR)
-
-    # Run the git fetch to get the last tagged version
     try:
-        _ = sb.check_output(['git', 'fetch', '--tags', '--quiet'])
-    except sb.CalledProcessError:
-        return '0.0.0', 'unknown'
+        # Change to the MatDBForge root directory
+        os.chdir(MDB_ROOT_DIR)
 
-    # Getting a sorted tag list
-    output = (
-        sb.check_output(['git', 'tag', '--merged', 'master', '--sort=-creatordate'])
-        .decode()
-        .strip()
-    )
+        # Run the git fetch to get the last tagged version
+        try:
+            _ = sb.check_output(['git', 'fetch', '--tags', '--quiet'])
+        except sb.CalledProcessError:
+            return '0.0.0', 'unknown'
 
-    # Split the output into a list of tags
-    tags = output.split('\n') if output else []
+        # Getting a sorted tag list
+        output = (
+            sb.check_output(['git', 'tag', '--merged', 'master', '--sort=-creatordate'])
+            .decode()
+            .strip()
+        )
 
-    # Get the newest tag (first in the sorted list)
-    newest_tag = tags[0] if tags else None
+        # Split the output into a list of tags
+        tags = output.split('\n') if output else []
 
-    # Get the current commit hash
-    current_hash = sb.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+        # Get the newest tag (first in the sorted list)
+        newest_tag = tags[0] if tags else '0.0.0'
 
-    # Go back to the original directory
-    os.chdir(cwd)
+        # Get the current commit hash
+        current_hash = sb.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+
+    finally:
+        # Ensure we switch back to the original directory
+        os.chdir(cwd)
+
     return newest_tag, current_hash
 
 
@@ -333,6 +382,14 @@ def check_mdb_version(logger=None):
                 f'Current version of MatDBForge ({curr_version}, {hash_str[:7]}) '
                 'is outdated. Please update to the latest '
                 f'version ({last_tagged_version}).'
+            ),
+            'warn',
+        )
+    elif curr_version > last_tagged_version:
+        custom_print(
+            (
+                '[bold yellow]Current version of MatDBForge '
+                f'({curr_version}, {hash_str[:7]}) is an unrealeased version.'
             ),
             'warn',
         )
