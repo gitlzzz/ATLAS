@@ -1174,12 +1174,16 @@ def kpoint_mesh_from_density(structure, kspacing):
     # Getting volume of the reciprocal cell
     v_mat = np.dot(np.cross(l_mat[0, :], l_mat[1, :]), l_mat[2, :])
 
-    # Computing values for each axis
+    # Computing kpoint values for each axis
     a_rcpr = np.linalg.norm((np.cross(l_mat[1, :], l_mat[2, :])) / v_mat)
     b_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[2, :])) / v_mat)
     c_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[1, :])) / v_mat)
     arr_kpt_run = 1 / (kpt_dens_arr / np.array((a_rcpr, b_rcpr, c_rcpr)))
+
+    # Round kpoints to nearest integer
     arr_kpt_run = np.around(arr_kpt_run)
+
+    # Setting the number of kpoints to 1 in the axis normal to the surface
     arr_kpt_run[2] = 1
 
     return arr_kpt_run
