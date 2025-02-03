@@ -1339,7 +1339,6 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
     # Clusters and reference strucures
     elif calc_name.lower() in [
         'cluster',
-        'IsolatedAtom',
         'isolatedatom',
         'sp_isolatedatom',
     ]:
