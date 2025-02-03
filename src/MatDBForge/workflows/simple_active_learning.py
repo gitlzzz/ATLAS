@@ -515,7 +515,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         desc_builder.metadata.options = mace_eval_aiida_settings_dict
         desc_builder.metadata.options.parser_name = 'mdb-descriptors-combined-parser'
 
-        # Get the calculation limit, from the 1mputer metadata set to 0
+        # Get the calculation limit, from the computer metadata set to 0
         # if not present.
         # `mdb_calc_limit` is a custom property set with:
         # computer.set_property(name='mdb_calc_limit', value=366)
