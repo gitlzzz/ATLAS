@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.20.11 (2025-02-03)
+
+### Fix
+
+- **dft**: add function to check direction normal to surface using vacuum ([#5d4e2fd](https://github.com/pol-sb/MatDBForge/commit/5d4e2fd5bcc60f8c87ec3a0680dbcb5f7d8cc533))
+- **dft**: added forgotten variable assignation ([#ead1680](https://github.com/pol-sb/MatDBForge/commit/ead1680282a05cdf4ffd11ff87d6eff4f4abaedb))
+- **dft**: added forgotten variable assignation when adding '.xyz' suffix in `run_dataframe_vasp_aiida_queue()` ([#3317616](https://github.com/pol-sb/MatDBForge/commit/3317616df17530006e8000ac6635ab90be0a9b47))
+
+### Misc
+
+- **dft**: improved description of `generate_potential_mapping()` ([#26ff388](https://github.com/pol-sb/MatDBForge/commit/26ff3881ca65e7de440327e542f6dadd3e77830a))
+- **al_loop**: fixed typo on comments related to `gen_descriptors_and_concave_hull()` and `gen_descriptors()` ([#b0ec3a9](https://github.com/pol-sb/MatDBForge/commit/b0ec3a93bc5a28d4c3f8ffcbb6c44f90e35cf662))
+- **al_loop**: improved output message ([#4dd765f](https://github.com/pol-sb/MatDBForge/commit/4dd765fecdbf025db56331477ccb4cb6d2daf0c9))
+- **dft**: improve comments ([#bec3f2b](https://github.com/pol-sb/MatDBForge/commit/bec3f2be0422ea2b18c940f8803cd4f1753116a5))
+- **dft**: remove unnecessary check ([#1a2020f](https://github.com/pol-sb/MatDBForge/commit/1a2020f850a4a94946689739881a71d9d8c25c03))
+- **al_loop**: fixed typo ([#0cfc17f](https://github.com/pol-sb/MatDBForge/commit/0cfc17f4df59f7c72b0911ca17560511476cd5e4))
+
 ## 0.20.10 (2025-02-03)
 
 ### Fix
