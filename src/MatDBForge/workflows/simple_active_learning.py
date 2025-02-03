@@ -236,7 +236,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # committee models and will only be used to evaluate energies.
         self.report(
             f'Training {self.inputs.committee_num_models.value} models using '
-            'current iteration data.'
+            'current training dataset.'
         )
 
         # Stop the calculation if initial models must be loaded
