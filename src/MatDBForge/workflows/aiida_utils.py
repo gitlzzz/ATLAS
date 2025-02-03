@@ -1445,7 +1445,7 @@ def add_aiida_group_to_db(db_obj: str, group_identifier, copy=False):
 
 def generate_potential_mapping(assign_dict=None) -> dict:
     """
-    Generate a dictionary specifying the potential mapping for vasp.
+    Generate a dictionary specifying the pseudopotential mapping for vasp.
 
     This function only assigns the default potential for every
     atom. The user can specify different mappings if needed.
