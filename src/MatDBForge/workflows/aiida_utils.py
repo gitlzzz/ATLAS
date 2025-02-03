@@ -1159,6 +1159,34 @@ def run_dataframe_vasp_aiida_queue(
     mdb_cud.custom_print("Check 'verdi process list' for more information", 'info.')
 
 
+def determine_vacuum_direction(structure):
+    """
+    A heuristic function that determines the vacuum direction by
+    examining the spread of atomic positions in fractional coordinates.
+
+    Returns the index (0, 1, or 2) corresponding to the direction
+    with the largest vacuum gap.
+    """
+    # Get fractional coordinates
+    frac_coords = structure.frac_coords
+
+    gaps = []
+    for ax in range(3):
+        # Sort the fractional coordinates along the i-th direction
+        coords = np.sort(frac_coords[:, ax])
+
+        # Compute differences between successive atoms
+        diffs = np.diff(coords)
+
+        # Also consider the gap from the last back to the first (periodic boundary)
+        gap_end = 1 - coords[-1] + coords[0]
+        max_gap = max(np.max(diffs), gap_end)
+        gaps.append(max_gap)
+
+    # The direction with the largest gap is assumed to be the vacuum direction
+    return np.argmax(gaps)
+
+
 def kpoint_mesh_from_density(structure, kspacing):
     """Return kpoint mesh (3x3) from kpoint array,
     intended for surfaces.
@@ -1174,13 +1202,18 @@ def kpoint_mesh_from_density(structure, kspacing):
     # Getting volume of the reciprocal cell
     v_mat = np.dot(np.cross(l_mat[0, :], l_mat[1, :]), l_mat[2, :])
 
-    # Computing values for each axis
+    # Computing kpoint values for each axis
     a_rcpr = np.linalg.norm((np.cross(l_mat[1, :], l_mat[2, :])) / v_mat)
     b_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[2, :])) / v_mat)
     c_rcpr = np.linalg.norm((np.cross(l_mat[0, :], l_mat[1, :])) / v_mat)
     arr_kpt_run = 1 / (kpt_dens_arr / np.array((a_rcpr, b_rcpr, c_rcpr)))
+
+    # Round kpoints to nearest integer
     arr_kpt_run = np.around(arr_kpt_run)
-    arr_kpt_run[2] = 1
+
+    # Setting the number of kpoints to 1 in the axis normal to the surface
+    normal_dir = determine_vacuum_direction(poscar.structure)
+    arr_kpt_run[normal_dir] = 1
 
     return arr_kpt_run
 
