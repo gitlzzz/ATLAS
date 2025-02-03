@@ -169,7 +169,7 @@ class ActiveLearningWorkChain(WorkChain):
             # It will get the descriptors for the entire database and use
             # the concave hull as the extrapolation mechanism.
             if_(cls.check_extrapolation_enabled)(
-                # Generate MACE descriptors for the current seed.
+                # Generate MACE descriptors for the current dataset.
                 # Dimensionality reduction is used if specified,
                 # returning an embedded/latent space.
                 cls.generate_descriptors,

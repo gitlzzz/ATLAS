@@ -163,7 +163,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # It will get the descriptors for the entire database and use
             # the concave hull as the extrapolation mechanism.
             if_(cls.check_extrapolation_enabled)(
-                # Generate descriptors for the current seed
+                # Generate descriptors for the current dataset
                 # and apply dimensionality reduction if specified.
                 # If advanced extrapolation is enabled, the latent space
                 # will be used to generate the concave hull.
