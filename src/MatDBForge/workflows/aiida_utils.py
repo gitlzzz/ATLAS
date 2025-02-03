@@ -892,7 +892,7 @@ def run_dataframe_vasp_aiida_queue(
 
     # Adding xyz suffix if not present
     if results_path.suffix != '.xyz':
-        results_path.with_suffix('.xyz')
+        results_path = results_path.with_suffix('.xyz')
 
     kspacing_dict: dict | float = config_dict.get('kpoints', {}).get('kspacing')
     dry_run: bool = config_dict.get('general', {}).get('dry_run', False)
