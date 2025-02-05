@@ -395,7 +395,6 @@ def gen_al_loop_report(
     # Match all lines containing the M0 model performance
     mace_e, mace_f = [], []
     best_model_lines = re.compile(r'Best model of current step.*').findall(report)
-    print('best_model_lines: ', best_model_lines)
 
     # Prepare a list of all mace models generated from lammps_lines
     for line in best_model_lines:
@@ -421,7 +420,10 @@ def gen_al_loop_report(
 
     if get_error_plot:
         custom_print(
-            'Generating database error plot.' f'Remove outliers: {remove_outliers}',
+            (
+                'Generating database error plot. '
+                f'Remove outliers: {bool(remove_outliers)})'
+            ),
             'info',
         )
 
@@ -500,7 +502,11 @@ def generate_error_plot(
 
         z_table = utils.AtomicNumberTable([int(z) for z in model.atomic_numbers])
 
-        configs = [data.config_from_atoms(atoms) for atoms in train_db]
+        configs = [
+            data.config_from_atoms(atoms)
+            for atoms in train_db
+            if atoms.info.get('config_type', '').lower() != 'isolatedatom'
+        ]
         data_loader = torch_geometric.dataloader.DataLoader(
             dataset=[
                 data.AtomicData.from_config(
@@ -1844,5 +1850,4 @@ def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
         return orm.Bool(True)
 
 
-def get_concave_hull(latent_space: np.ndarray) -> np.ndarray:
-    ...
+def get_concave_hull(latent_space: np.ndarray) -> np.ndarray: ...
