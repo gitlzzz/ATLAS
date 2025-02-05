@@ -178,6 +178,9 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 dest_name='rmse_arr.npy',
             )
 
+            # Remove the file after insertion
+            Path(f).unlink()
+
         # Copying structure to use for the MD
         md_structure: orm.SinglefileData = self.inputs.md_structure
         with md_structure.as_path() as md_struct_path:
@@ -205,6 +208,9 @@ class ProcessMDSeedStructCalculation(CalcJob):
                     dest_name='concave_hull.npy',
                 )
 
+            # Remove the file after insertion
+            Path(f).unlink()
+
         # Copying concave hull for extrapolation
         if self.inputs.autoencoder_model:
             with self.inputs.autoencoder_model.as_path() as autoencoder_path:
@@ -223,6 +229,9 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 src=f.name,
                 dest_name='curr_it_db_max.npy',
             )
+            # Remove the file after insertion
+            Path(f).unlink()
+
         desc_min_arr = self.inputs.desc_min_arr.get_array()
         with tempfile.NamedTemporaryFile(
             mode='w', delete=True, suffix='.npy', prefix='mdb_process_md-'
@@ -232,6 +241,8 @@ class ProcessMDSeedStructCalculation(CalcJob):
                 src=f.name,
                 dest_name='curr_it_db_min.npy',
             )
+            # Remove the file after insertion
+            Path(f).unlink()
 
         # Copying configuration to temporary folder
         best_model_name = self.inputs.best_model_name.value.replace('-', '_')
