@@ -567,7 +567,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             self.ctx.autoencoder_model_file = curr_calc.outputs.autoencoder_model
 
     def generate_descriptors(self):
-        """Generate descriptors for the current seed using the best model.
+        """Generate descriptors for the current dataset using the best model.
 
         According to the value of `dimensionality_reduction_method`, the descriptors
         will be generated using the autoencoder or directly from MACE.
