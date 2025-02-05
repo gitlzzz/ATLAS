@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.20.12 (2025-02-06)
+
+### Misc
+
+- **al_loop**: remove isolatedatoms configs from error plot ([#93c55a5](https://github.com/pol-sb/MatDBForge/commit/93c55a5c8f064df2800254d6210c57224c74a74d))
+- **al_loop**: fixed typo in comments ([#4edcfb0](https://github.com/pol-sb/MatDBForge/commit/4edcfb03671a40f0608b4a16d992e2bd98c069a2))
+- **al_loop**: added toggle for multihead finetuning ([#7d71d03](https://github.com/pol-sb/MatDBForge/commit/7d71d035180b721c3f0b55a93229ec49c1ad49a2))
+- **al_loop**: added file cleanup ([#01447bb](https://github.com/pol-sb/MatDBForge/commit/01447bbfef3d82bc18cc8b06aefcb8a990327bcb))
+
 ## 0.20.11 (2025-02-03)
 
 ### Fix
