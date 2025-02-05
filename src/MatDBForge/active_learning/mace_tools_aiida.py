@@ -439,6 +439,12 @@ class TrainMACEModelCalculation(CalcJob):
         )
 
         spec.input(
+            'multihead_finetuning',
+            valid_type=orm.Bool,
+            help=('Whether to use multihead finetuning.'),
+            serializer=orm.to_aiida_type,
+        )
+        spec.input(
             'model_name',
             valid_type=orm.Str,
             help=('Name given to the model.'),
@@ -496,7 +502,8 @@ class TrainMACEModelCalculation(CalcJob):
 
         # (for MACE v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
-        if foundation_model:
+        multihead: bool = self.inputs.multihead_finetuning
+        if foundation_model and multihead:
             params_list.append('--multiheads_finetuning=True')
             params_list.append("--pt_train_file='mp'")
 

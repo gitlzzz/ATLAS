@@ -263,6 +263,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
             mace_train = CalculationFactory('mace-train')
             mace_builder = mace_train.get_builder()
 
+            mace_builder.multihead_finetuning = self.inputs.mace_train.get(
+                'multihead_finetuning', False
+            )
             mace_builder.model_name = model_name
             mace_builder.mace_settings_dict = orm.Dict(mace_train_settings)
 
