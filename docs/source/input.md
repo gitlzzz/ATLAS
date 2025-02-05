@@ -644,12 +644,21 @@ This section contains information related to the k-spacing for the calculations.
 
 - `kspacing`: (int | dict) K-spacing in $Å^{-1}$ for different phases or a single value for all structures. Example:
 
-```ini
+```toml
 a-ir = 0.001
 ir6o = 0.005
 ir3o = 0.100
 ir2o = 0.001
 iro = 0.002
+```
+
+The `MDB_DEFAULT` phase can be added to this dictionary among all the other phases, so all structures that don't have a phase included will use this one as the default:
+
+```toml
+alpha = 0.135088484104361
+m1 = 0.100530964914873
+beta-prime = 0.102415920507027
+MDB_DEFAULT = 0.125
 ```
 
 ### Queue Settings - [queue]
