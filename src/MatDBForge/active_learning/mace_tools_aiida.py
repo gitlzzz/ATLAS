@@ -506,6 +506,8 @@ class TrainMACEModelCalculation(CalcJob):
         if foundation_model and multihead:
             params_list.append('--multiheads_finetuning=True')
             params_list.append("--pt_train_file='mp'")
+        else:
+            params_list.append('--multiheads_finetuning=False')
 
         # Copying database to temporary folder
         final_db_path = self.inputs.mace_train_file_path.value
