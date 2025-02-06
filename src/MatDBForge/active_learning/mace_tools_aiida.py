@@ -816,9 +816,18 @@ class EvaluateMACEConfigsCalculationParser(Parser):
                 result_structures = ase_read(child_file, format='extxyz', index=':')
                 for curr_structure in result_structures:
                     result_dict = mdb_al_ut.serialize_ase(curr_structure)
-                    result_dict_list.append(result_dict)
 
-                    forces_dict = np.vstack(result_dict['mdb_mace_eval_forces'])
+                    # Get values from calculator
+                    if curr_structure.calc:
+                        # calc_energies = curr_structure.calc.get_potential_energy()
+                        calc_forces = curr_structure.calc.get_forces()
+                    else:
+                        # calc_energies = result_dict['mdb_mace_eval_energy']
+                        calc_forces = result_dict['mdb_mace_eval_forces']
+
+
+                    result_dict_list.append(result_dict)
+                    forces_dict = np.vstack(calc_forces)
                     forces_dict_list.append(forces_dict)
 
         energy_float_list = [
