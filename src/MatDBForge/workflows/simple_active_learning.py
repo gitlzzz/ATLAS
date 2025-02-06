@@ -843,24 +843,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
             'structures to process...'
         )
 
-        # # DEBUG: Testing shared directory for inputs
-        # metadata_dict = self.inputs.descriptor_settings['metadata']
-        # computer = orm.load_computer(metadata_dict['computer'])
-        # shared_dir_path = tempfile.mkdtemp()
-        # node_list = []
-        # for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
-        #     # Only alphanumeric and underscores are allowed as links
-        #     model_name = model_name.replace('-', '_')
-        #     # model = orm.load_node(model)
-        #     node_list.append(model)
-        # mdb_al_ut.create_shared_directory(
-        #     computer=computer,
-        #     node_list=node_list,
-        #     shared_dir_path=Path(shared_dir_path),
-        # )
-
-        # quit()
-
         for _, curr_structure in enumerate(current_md_seed_structs):
             # Run training and save new model file
             proc_seed = CalculationFactory('mdb-process-md-seed-struct')
