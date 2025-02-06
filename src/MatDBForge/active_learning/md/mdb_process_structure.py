@@ -540,10 +540,19 @@ if __name__ == '__main__':
         mdb_cud.custom_print(
             f'Total count of extrapolating frames: {len(extrapol_frames_final)}', 'info'
         )
+
+        # Renaming result keys
+        mod_extrap_frames = []
+        for structure in extrapol_frames_final:
+            structure.info['REF_energy'] = structure.calc.get_potential_energy()
+            structure.arrays['REF_forces'] = structure.calc.get_forces()
+
+            mod_extrap_frames.append(structure)
+
         ase_write(
             res_folder / 'extrapolating_frames.xyz',
             format='extxyz',
-            images=extrapol_frames_final,
+            images=mod_extrap_frames,
             append=True,
         )
 
