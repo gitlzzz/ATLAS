@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.13 (2025-02-06)
+
+### Fix
+
+- **al_loop**: replace default calculator keys with REF_xxx keys usable with MACE ([#eee81ee](https://github.com/pol-sb/MatDBForge/commit/eee81eef03813411a6cde0d5e691a5913f5e01e5))
+- **al_loop**: replace default calculator keys with REF_xxx keys usable with MACE ([#b46542f](https://github.com/pol-sb/MatDBForge/commit/b46542ffec9dca86085e16f4cd4889fd16dd80c5))
+- **al_loop**: added missing_ok to unlink call, to avoid error on tmp file removal ([#d9d44e7](https://github.com/pol-sb/MatDBForge/commit/d9d44e7a0741d6e8309acf8919ee7df8a33d57ad))
+- **al_loop**: use file path for tmp file unlink instead of wrong `_TemporaryFileWrapper` object ([#4bb20ac](https://github.com/pol-sb/MatDBForge/commit/4bb20ac055ad192cc204d971a6f5a2725f13fe1a))
+
+### Misc
+
+- **al_loop**: removed unused comments ([#aa90b81](https://github.com/pol-sb/MatDBForge/commit/aa90b818ee7220913cfc4d699b48803c5874d673))
+- **al_loop**: added missing type in docstring ([#59c491b](https://github.com/pol-sb/MatDBForge/commit/59c491ba32d6c0c8d7fe3e29644e6234aa0ecdcd))
+- **al_loop**: added toggle for multihead finetuning ([#25c03a6](https://github.com/pol-sb/MatDBForge/commit/25c03a63d0a2e7013359251e2fd7c5f3af8eb4f8))
+
 ## 0.20.12 (2025-02-06)
 
 ### Misc
