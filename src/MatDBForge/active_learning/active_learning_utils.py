@@ -181,7 +181,6 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
     # from a docker container)
     log_folder = Path(prepend_path) / 'logs'
     log_folder.mkdir(exist_ok=True)
-    print('init_conf: ', init_conf)
 
     match thermostat:
         case 'langevin':
@@ -422,7 +421,7 @@ def gen_al_loop_report(
         custom_print(
             (
                 'Generating database error plot. '
-                f'Remove outliers: {bool(remove_outliers)})'
+                f'Remove outliers: {bool(remove_outliers)}'
             ),
             'info',
         )
@@ -454,12 +453,10 @@ def generate_error_plot(
     threshold_meV: float = None,
     remove_outliers: bool = False,
 ):
-    from mace import data
-    from mace.tools import torch_geometric, torch_tools, utils
+    from mace.tools import torch_tools
     from rich.progress import track
 
     torch_tools.set_default_dtype('float32')
-    device = torch_tools.init_device(device_str)
 
     # Create tmp folder in the current directory
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -494,44 +491,26 @@ def generate_error_plot(
         train_db = ase_read(training_db_cp_path, format='extxyz', index=':')
 
         # Load model
-        model = torch.load(f=model_path, map_location=device_str, weights_only=False)
-        model = model.to(device_str)
-
-        for param in model.parameters():
-            param.requires_grad = False
-
-        z_table = utils.AtomicNumberTable([int(z) for z in model.atomic_numbers])
-
-        configs = [
-            data.config_from_atoms(atoms)
-            for atoms in train_db
-            if atoms.info.get('config_type', '').lower() != 'isolatedatom'
-        ]
-        data_loader = torch_geometric.dataloader.DataLoader(
-            dataset=[
-                data.AtomicData.from_config(
-                    config, z_table=z_table, cutoff=float(model.r_max), heads=None
-                )
-                for config in configs
-            ],
-            batch_size=12,
-            shuffle=False,
-            drop_last=False,
+        mace_model = MACECalculator(
+            model_paths=model_path,
+            device=device_str,
+            default_dtype='float32',
         )
 
         E_nn_list = []
         # Iterate over the data loader to get the model energies
         # Use a rich progress bar to show the progress
         if 'E_nn_list.npy' not in os.listdir():
-            for batch in track(
-                data_loader,
+            for struct in track(
+                train_db,
                 description='Evaluating structures...',
             ):
-                batch = batch.to(device)
-                output = model(batch.to_dict(), compute_stress=False)
-                E_nn_list.append(torch_tools.to_numpy(output['energy']))
+                # struct = struct.to(device=device, dtype=torch.float64)
+                struct.calc = mace_model
+                energy_output = struct.get_potential_energy()
+                # forces_output = struct.get_forces()
+                E_nn_list.append(energy_output)
 
-            E_nn_list = np.concatenate(E_nn_list, axis=0)
         else:
             E_nn_list = np.load('E_nn_list.npy')
 
