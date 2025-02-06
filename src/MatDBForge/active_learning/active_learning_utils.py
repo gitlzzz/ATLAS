@@ -54,7 +54,7 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
         Total number of steps in the MD simulation.
     T_start : float
         Initial temperature of the MD simulation.
-    T_end : _type_
+    T_end : float
         Final temperature of the MD simulation.
 
     Returns
