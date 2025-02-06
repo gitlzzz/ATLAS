@@ -1495,7 +1495,18 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
             remove_stress=False,
         )
 
+        if vasprun.info.get('energy'):
+            vasprun.info['REF_energy'] = vasprun.info.pop('energy')
+        elif vasprun.calc:
+            vasprun.info['REF_energy'] = vasprun.calc.get_potential_energy()
+
+        if vasprun.arrays.get('forces'):
+            vasprun.arrays['REF_forces'] = vasprun.arrays.pop('forces')
+        elif vasprun.calc:
+            vasprun.arrays['REF_forces'] = vasprun.calc.get_forces()
+
         vasprun: dict = serialize_ase(vasprun)
+
         vasprun_list.append(vasprun)
 
     # TODO: Checking for outliers
@@ -1661,6 +1672,9 @@ def gather_dft_calcs_mace(
                 structure.arrays['REF_forces'] = structure.arrays.pop(
                     'mdb_mace_eval_forces'
                 )
+
+            if 'forces' in structure.arrays:
+                structure.arrays.pop('forces')
 
             # result_list.append(structure)
             curr_struct_res.append(structure)
