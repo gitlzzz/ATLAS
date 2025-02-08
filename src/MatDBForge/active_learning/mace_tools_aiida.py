@@ -740,7 +740,9 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         # Adding cli parameters to list
         prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
 
-        params_list.append('--info_prefix=mdb_mace_eval_')
+        # REMOVE
+        # params_list.append('--info_prefix=mdb_mace_eval_')
+        params_list.append('--info_prefix=REF_')
 
         # Remove duplicate entries
         params_list = list(set(params_list))
@@ -1235,6 +1237,9 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         Path to the MDB settings file in the .toml format.
     training_database_path : orm.Str
         Path to the configurations to evaluate, provided in the extxyz format.
+    autoencoder_model : orm.SinglefileData, optional
+        File containing the autoencoder model.
+        If not provided, a new autoencoder is trained is computed.
     latent_space : orm.SinglefileData, optional
         File containing the latent space represented as an array.
         If not provided, the latent space is computed.
@@ -1289,6 +1294,15 @@ class GetDescriptorsCombinedCalculation(CalcJob):
             'latent_space',
             valid_type=orm.ArrayData,
             help='File containing the latent space as an array.',
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=None,
+            non_db=True,
+        )
+        spec.input(
+            'autoencoder_model',
+            valid_type=orm.ArrayData,
+            help='File containing the autoencoder model.',
             serializer=orm.to_aiida_type,
             required=False,
             default=None,
@@ -1366,6 +1380,12 @@ class GetDescriptorsCombinedCalculation(CalcJob):
                 folder.insert_path(
                     src=latent_space_path,
                     dest_name='latent_space.npy',
+                )
+        if self.inputs.autoencoder_model:
+            with self.inputs.autoencoder_model.as_path() as autoencoder_model_path:
+                folder.insert_path(
+                    src=autoencoder_model_path,
+                    dest_name='autoencoder_model.pth',
                 )
 
         codeinfo = CodeInfo()

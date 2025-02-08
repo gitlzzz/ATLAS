@@ -407,14 +407,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 )
 
                 self.report(
-                    f"Best model of current step '{model_name}' as M0 - "
+                    f"Best model of current step '{model_name}' ({calc.pk}) as M0 - "
                     f'RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, '
                     f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
                 )
                 self.out('m0_model_file', model_file)
             else:
                 self.report(
-                    f"Trained committee model '{model_name}' - "
+                    f"Trained committee model '{model_name}' ({calc.pk}) - "
                     f'RMSE E: {curr_calc.outputs.m_rmse_e.value:.3f} meV/at, '
                     f'RMSE F: {curr_calc.outputs.m_rmse_f.value:.3f} meV/Å'
                 )
@@ -441,6 +441,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
     def gen_descriptors_and_concave_hull(self):
         self.report('Generating descriptors and latent space + concave hull...')
+
         # Run training and save new model file
         desc_calc = CalculationFactory('mdb-descriptors-combined')
         desc_builder = desc_calc.get_builder()
@@ -467,6 +468,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # Getting settings file path
         settings_file_pth = self.inputs.toml_file
         desc_builder.settings_file_path = settings_file_pth
+
+        # Get the autoencoder model file. If not found, the calculation will be
+        # submitted without providing the file and a new one will be trained
+        # at runtime.
+        if hasattr(self.ctx, 'autoencoder_model_file'):
+            desc_builder.autoencoder_model = self.ctx.autoencoder_model_file
 
         # Get portable code
         descriptor_code_path = Path(
