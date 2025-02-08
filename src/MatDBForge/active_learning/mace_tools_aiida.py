@@ -825,7 +825,7 @@ class EvaluateMACEConfigsCalculationParser(Parser):
                         calc_forces = curr_structure.calc.get_forces()
                     else:
                         # calc_energies = result_dict['mdb_mace_eval_energy']
-                        calc_forces = result_dict['mdb_mace_eval_forces']
+                        calc_forces = result_dict['REF_forces']
 
 
                     result_dict_list.append(result_dict)
@@ -833,7 +833,7 @@ class EvaluateMACEConfigsCalculationParser(Parser):
                     forces_dict_list.append(forces_dict)
 
         energy_float_list = [
-            ene_dict['info']['mdb_mace_eval_energy'] for ene_dict in result_dict_list
+            ene_dict['info']['REF_energy'] for ene_dict in result_dict_list
         ]
 
         try:
