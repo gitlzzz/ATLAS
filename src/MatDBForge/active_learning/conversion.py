@@ -94,7 +94,6 @@ def _add_entry_to_mace_input(
     # extxyz.write_extxyz(buffer, data_dict["atoms_obj"])
 
     if isinstance(vasprun, dict):
-        # print("vasprun: ", vasprun["forces"].shape)
         vasprun = Atoms.fromdict(vasprun)
 
     name = node.label

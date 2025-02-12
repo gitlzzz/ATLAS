@@ -1010,7 +1010,6 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         params_list = list(set(params_list))
 
         # Copying configuration to temporary folder
-        # print('self.commitee_models: ', self.commitee_models)
         for model_str, model_singlefile in self.inputs.commitee_models.items():
             with model_singlefile.as_path() as model_path:
                 folder.insert_path(
@@ -1353,7 +1352,6 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         :return: `CalcInfo` instance
         """
         # Copying configuration to temporary folder
-        # print('self.commitee_models: ', self.commitee_models)
         with self.inputs.best_model.as_path() as model_path:
             folder.insert_path(
                 src=model_path,

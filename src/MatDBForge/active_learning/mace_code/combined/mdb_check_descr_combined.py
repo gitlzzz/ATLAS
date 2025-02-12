@@ -264,7 +264,6 @@ if __name__ == '__main__':
                 else:
                     curr_struct_id = struct.info.get('aiida_uuid')
 
-                # print('descriptors:', descriptor_dict[curr_struct_id]['descriptors'])
                 curr_descriptors = descriptor_dict[curr_struct_id]['descriptors'][0]
 
                 # Get latent space
