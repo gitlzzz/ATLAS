@@ -1116,7 +1116,7 @@ class ActiveLearningWorkChain(WorkChain):
                     "trajectory": traj,
                     "energy": {self.ctx.best_model_name: energies},
                     "forces": {self.ctx.best_model_name: forces},
-                    "al_step": self.inputs.al_loop_iteration.value,
+                    "mdb_al_step": self.inputs.al_loop_iteration.value,
                     "index_in_db": md_calc_wkch.base.extras.all["index_in_db"],
                     "mdb_struct_type": md_calc_wkch.base.extras.all["mdb_struct_type"],
                     "material_name": md_calc_wkch.base.extras.all["struct_name"],
