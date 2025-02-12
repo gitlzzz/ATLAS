@@ -101,14 +101,16 @@ class Autoencoder(nn.Module):
 
 
 def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
-    state_dict = torch.load(model_path)
+    model = torch.load(model_path)
+
+    state_dict = model if isinstance(model, dict) else model.state_dict()
 
     input_dim = data_arr.shape[1]
     l1_dim = state_dict['encoder.0.weight'].shape[0]
     l2_dim = state_dict['encoder.2.weight'].shape[0]
 
     # Check if the model already exists
-    if pl.Path(model_path).exists():
+    if pl.Path(model_path).exists() and isinstance(model, dict):
         # model = torch.load(model_path)
         model = Autoencoder(
             input_dim=input_dim,
@@ -122,8 +124,19 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
 
 
 def get_latent_space_autoencoder(
-    model, descriptor_dict: dict, device: str = None, dtype=torch.float32
+    model,
+    descriptor_dict: dict,
+    device: str = None,
+    dtype=torch.float32,
+    quiet: bool = False,
 ):
+    if quiet:
+        init_print_type = 'debug'
+        final_print_type = 'debug'
+    else:
+        init_print_type = 'info'
+        final_print_type = 'done'
+
     # Changing device to available GPU if available, else CPU.
     if not device:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -136,7 +149,7 @@ def get_latent_space_autoencoder(
     model.eval()
 
     # Reduce the dimensionality of the input points to 2D
-    custom_print('Computing latent space for all structures...', 'info')
+    custom_print('Computing latent space for all structures...', init_print_type)
     with torch.no_grad():  # No need to compute gradients for inference
         for uuid, descr_dict in descriptor_dict.items():
             # Get latent space
@@ -147,5 +160,5 @@ def get_latent_space_autoencoder(
             # Save latent space
             descriptor_dict[uuid]['latent_space'] = latent_space.cpu().numpy()
 
-    custom_print('Computed latent space!', 'done')
+    custom_print('Computed latent space!', final_print_type)
     return descriptor_dict

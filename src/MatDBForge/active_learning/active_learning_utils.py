@@ -3,6 +3,7 @@
 import io
 import itertools as it
 import os
+import pickle
 import shutil
 import tempfile
 import time
@@ -31,12 +32,17 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
 from mace.calculators import LAMMPS_MACE, MACECalculator
+from matplotlib import colormaps
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 from rich.pretty import pprint as rprint
 from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
+from MatDBForge.active_learning.extrapolation.autoencoder import (
+    get_latent_space_autoencoder,
+    load_autoencoder_model,
+)
 from MatDBForge.core import code_utils as mdb_cud
 from MatDBForge.core.code_utils import custom_print, init_logger
 from MatDBForge.workflows import aiida_utils as mdb_aut
@@ -70,7 +76,13 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
 
 
 # TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
-def generate_descriptors(model_path: str, database, device='cpu', dtype='float32'):
+def generate_descriptors(
+    model_path: str,
+    database,
+    device='cpu',
+    dtype='float32',
+    descriptor_dict: dict = None,
+):
     # Initialize the MACE calculator
     calculator = MACECalculator(
         model_paths=model_path, device=device, default_dtype=dtype
@@ -230,7 +242,13 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
 
 
 def plot_al_loop_report(
-    ini_db_size, seed_gen_db_sizes, train_db_sizes, mace_e, mace_f, it_idx, ax
+    ini_db_size: int,
+    seed_gen_db_sizes: list[int],
+    train_db_sizes: list[int],
+    mace_e: list[float],
+    mace_f: list[float],
+    it_idx: list[int],
+    ax,
 ):
     # Get unix timestamp for filename
     timestamp = int(time.time())
@@ -255,28 +273,45 @@ def plot_al_loop_report(
     seed_gen_db_sizes = [ini_db_size] + seed_gen_db_sizes
 
     # Plotting seed and train db sizes
-    ax[0, 0].bar(ind, train_db_sizes, width=width, label='train_db', color=colors[0])
-    ax[0, 0].bar(
+    ax1 = ax.figure.add_subplot(ax[0, 0])
+    ax1.bar(ind, train_db_sizes, width=width, label='train_db', color=colors[0])
+    ax1.bar(
         ind + width,
         seed_gen_db_sizes,
         width=width,
         label='seed_gen_db',
         color=colors[1],
     )
-    ax[0, 0].set_xticks(ind + width / 2, ind)
-    ax[0, 0].set_xlabel('AL Loop Step')
-    ax[0, 0].set_ylabel('Number of structures')
-    ax[0, 0].legend()
-    ax[0, 0].set_title('Seed and Train Database Evolution')
+    ax1.set_xticks(ind + width / 2, ind)
+    ax1.set_xlabel('AL Loop Step')
+    ax1.set_ylabel('Number of structures')
+    ax1.legend()
+    ax1.set_title('Seed and Train Database Evolution')
 
     # Add text labels to top left figure bars
     for idx, seed, train in zip(
         it_idx, seed_gen_db_sizes, train_db_sizes, strict=False
     ):
-        ax[0, 0].text(idx, train / 2, train, ha='center', va='bottom', rotation=90)
-        ax[0, 0].text(
-            idx + width, seed / 2, seed, ha='center', va='bottom', rotation=90
+        ax1.text(
+            idx,
+            train / 2,
+            train,
+            ha='center',
+            va='bottom',
+            rotation=90,
+            fontweight=700,
         )
+        ax1.text(
+            idx + width,
+            seed / 2,
+            seed,
+            ha='center',
+            va='bottom',
+            rotation=90,
+            fontweight=700,
+        )
+
+    ax2 = ax.figure.add_subplot(ax[0, 1])
 
     # Plot seed size delta as a bar chart over every iteration
     seed_gen_db_diff, train_db_diff = [], []
@@ -301,48 +336,188 @@ def plot_al_loop_report(
         seed_txt = f'{seed}' if seed < 0 else f'+{seed}'
         train_txt = f'{train}' if train < 0 else f'+{train}'
 
-        ax[0, 1].text(idx, train / 2, train_txt, ha='center', va='bottom', rotation=90)
-        ax[0, 1].text(
-            idx + width, seed / 2, seed_txt, ha='center', va='bottom', rotation=90
+        ax2.text(
+            idx,
+            train / 2,
+            train_txt,
+            ha='center',
+            va='bottom',
+            rotation=90,
+            fontweight=700,
+        )
+        ax2.text(
+            idx + width,
+            seed / 2,
+            seed_txt,
+            ha='center',
+            va='bottom',
+            rotation=90,
+            fontweight=700,
         )
 
-    ax[0, 1].bar(ind, train_db_diff, width=width, label='train_db', color=colors[0])
-    ax[0, 1].bar(
+    ax2.bar(ind, train_db_diff, width=width, label='train_db', color=colors[0])
+    ax2.bar(
         ind + width,
         seed_gen_db_diff,
         width=width,
         label='seed_gen_db',
         color=colors[1],
     )
-    ax[0, 1].axhline(y=0, color=line_color, linestyle='--')
-    ax[0, 1].set_xticks(ind + width / 2, ind)
-    ax[0, 1].set_xlabel('AL Loop Step')
-    ax[0, 1].set_ylabel(r'$\Delta$ Number of structures')
-    ax[0, 1].set_title('Structure count change over iteration')
-    ax[0, 1].legend()
+    ax2.axhline(y=0, color=line_color, linestyle='--')
+    ax2.set_xticks(ind + width / 2, ind)
+    ax2.set_xlabel('AL Loop Step')
+    ax2.set_ylabel(r'$\Delta$ Number of structures')
+    ax2.set_title('Structure count change over iteration')
+    ax2.legend()
 
     # Plot MACE model energy performance
+    ax3 = ax.figure.add_subplot(ax[1, 0])
     ind = np.arange(len(mace_e)) + 1
-    ax[1, 0].plot(ind, mace_e, label='MACE Energy', color=colors[2], marker='o')
-    ax[1, 0].set_xticks(ind, ind)
-    ax[1, 0].set_xlabel('AL Loop Step')
-    ax[1, 0].set_ylabel('RMSE E per atom [meV]')
-    ax[1, 0].set_title('Evolution of best MACE Model Energy RMSE')
-
-    # Plot MACE model force performance
-    ax[1, 1].plot(ind, mace_f, label='MACE Forces', color=colors[3], marker='o')
-    ax[1, 1].set_xticks(ind, ind)
-    ax[1, 1].set_xlabel('AL Loop Step')
-    ax[1, 1].set_ylabel('RMSE F [meV / A]')
+    ax3.plot(ind, mace_e, label='MACE Energy', color=colors[2], marker='o')
+    ax3.set_xticks(ind, ind)
+    ax3.set_xlabel('AL Loop Step')
+    ax3.set_ylabel('RMSE E per atom [meV]')
+    ax3.set_title('Evolution of best MACE Model Energy RMSE')
 
     # Add a horizontal line to mark chemical accuracy for energy and forces
     chem_acc = 43.37  # meV
+    ax3.axhline(y=chem_acc, color=line_color, linestyle='--')
 
-    ax[1, 0].axhline(y=chem_acc, color=line_color, linestyle='--')
-    ax[1, 0].text(x=1.5, y=chem_acc + 0.5, s='Chem. Acc.', color=line_color)
-    ax[1, 1].set_title('Evolution of best MACE Model Force RMSE')
+    # Plot MACE model force performance
+    ax4 = ax.figure.add_subplot(ax[1, 1])
+    ax4.plot(ind, mace_f, label='MACE Forces', color=colors[3], marker='o')
+    ax4.set_xticks(ind, ind)
+    ax4.set_xlabel('AL Loop Step')
+    ax4.set_ylabel('RMSE F [meV / A]')
+    ax4.text(x=1.5, y=chem_acc + 0.5, s='Chem. Acc.', color=line_color)
+    ax4.set_title('Evolution of best MACE Model Force RMSE')
 
-    return ax, filename
+    return filename
+
+
+def generate_latent_space_evol(
+    al_loop_node: orm.Node,
+    device_str: str,
+    ax,
+    database_path: str,
+    model_path: str,
+    autoencoder_path: str,
+    autoencoder_model: str,
+    databases: list[str],
+):
+    # all_steps = [
+    #     stp
+    #     for stp in al_loop_node.called
+    #     if stp.process_type == 'aiida.workflows:mdb-active-learning'
+    #     or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
+    # ]
+
+    # auto_steps = []
+
+    # for node in all_steps:
+    #     for substep in node.called:
+    #         if substep.process_type == 'aiida.calculations:mdb-descriptors-combined':
+    #             auto_steps.append(substep)
+
+    # if len(auto_steps) == 0:
+    #     return
+
+    # # Get autoencoder for first step
+    # main_auto_model: orm.SinglefileData = auto_steps[0].outputs.autoencoder_model
+
+    # for step in auto_steps:
+    #     ...
+    #     # TODO: Database is not stored in any of the aiida nodes
+
+    autoencoder_file_path = Path(autoencoder_model)
+    autoencoder = None
+    descr_dict = None
+
+    # Load pickle file
+    if Path('./latent_spaces.pkl').exists():
+        with open('latent_spaces.pkl', 'rb') as f:
+            latent_spaces = pickle.load(f)
+    else:
+        latent_spaces = []
+
+    # Get number of steps saved
+    num_steps_saved = len(latent_spaces)
+
+    # Computing latent space for all structures
+    if num_steps_saved == 0:
+        for step_idx, database in enumerate(databases):
+            custom_print(
+                f"Getting latent space for the database at step '{step_idx}'...",
+                'info',
+            )
+
+            curr_db = ase_read(
+                Path(autoencoder_path) / database, format='extxyz', index=':'
+            )
+            descr_dict, arr = generate_descriptors(
+                model_path=model_path,
+                database=curr_db,
+                device=device_str,
+                descriptor_dict=descr_dict,
+            )
+
+            if not autoencoder:
+                autoencoder = load_autoencoder_model(
+                    model_path=autoencoder_file_path,
+                    data_arr=arr,
+                )
+
+            latent_space_dict = get_latent_space_autoencoder(
+                model=autoencoder,
+                descriptor_dict=descr_dict,
+                device=device_str,
+                quiet=True,
+            )
+            latent_spaces.append(latent_space_dict)
+
+        # Saving latent spaces to pickle file
+        if num_steps_saved > 0:
+            with open('latent_spaces.pkl', 'wb') as f:
+                pickle.dump(latent_spaces, file=f)
+
+    # Getting colormap for step number
+    cmap = colormaps.get_cmap('viridis')
+    colors = cmap(np.linspace(0, 1, num_steps_saved))
+    import matplotlib as mpl
+
+    # Plotting latent space
+    ax1 = ax.figure.add_subplot(ax[2, :])
+    for idx, latent_dict in enumerate(latent_spaces):
+        latent_spaces = []
+        for structure in latent_dict:
+            curr_struct_latent = latent_dict[structure]['latent_space'][0]
+            latent_spaces.append(curr_struct_latent)
+        latent_spaces = np.vstack(latent_spaces)
+        ax1.set_title('Latent Space Evolution')
+        ax1.set_xlabel('Reduced dimension 1')
+        ax1.set_ylabel('Reduced dimension 2')
+        ax1.set_title('Latent Space Evolution')
+        ax1.scatter(
+            x=latent_spaces[:, 0],
+            y=latent_spaces[:, 1],
+            color=colors[idx],
+            alpha=0.1,
+            label=f'Step {idx}',
+            s=2,
+            edgecolors='#282828',
+            linewidth=0.25,
+        )
+
+    # Adding colorbar once all iterations are plotted
+    plt.colorbar(
+        mpl.cm.ScalarMappable(
+            norm=mpl.colors.Normalize(1, num_steps_saved),
+            cmap=cmap,
+            label='AL Loop Step',
+        ),
+        pad=0.01,
+        ax=ax1,
+    )
 
 
 def gen_al_loop_report(
@@ -354,6 +529,9 @@ def gen_al_loop_report(
     database_path: str | Path = None,
     threshold_meV: float = None,
     remove_outliers: bool = False,
+    title: str = None,
+    get_latent_space: bool = False,
+    autoencoder_path: str = None,
 ):
     import re
 
@@ -397,25 +575,62 @@ def gen_al_loop_report(
 
     # Prepare a list of all mace models generated from lammps_lines
     for line in best_model_lines:
-        mace_e.append(float(line.split()[11]))
-        mace_f.append(float(line.split()[15]))
+        mace_e.append(float(line.split()[12]))
+        mace_f.append(float(line.split()[16]))
+
+    # Get run name
+    if not title:
+        try:
+            title_regex = r'Active Learning Inputs:\s*\n({.*?})\n'
+            matches = [match for match in re.finditer(title_regex, report, re.DOTALL)]
+            settings_dict_string = matches[0].group(1)
+            import json
+
+            settings_dict_string = (
+                settings_dict_string.replace("'", '"')
+                .replace('True', '"True"')
+                .replace('False', '"False"')
+                .replace('None', '"None"')
+            )
+
+            settings_dict = json.loads(settings_dict_string)
+            title = settings_dict.get('run_name')
+        except Exception:
+            title = None
+
+    if not title:
+        title = f'{al_loop_node}'
+
+    from matplotlib.gridspec import GridSpec
+
+    # Adjust number of panels according to options
+    num_rows = 2
+    num_cols = 2
 
     if get_error_plot:
-        # Create a 2x2 figure
-        fig, ax = plt.subplots(2, 3, figsize=(18, 12))
-    else:
-        # Create a 2x2 figure
-        fig, ax = plt.subplots(2, 2, figsize=(12, 12))
+        num_cols += 1
+    if get_latent_space:
+        num_rows += 1
 
-    ax, filename = plot_al_loop_report(
+    # Automatically adjust figure size
+    fig_width = num_cols * 5
+    fig_height = num_rows * 5
+
+    fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
+    gs = GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
+
+    filename = plot_al_loop_report(
         ini_db_size=ini_db_size,
         seed_gen_db_sizes=seed_gen_db_sizes,
         train_db_sizes=train_db_sizes,
         mace_e=mace_e,
         mace_f=mace_f,
         it_idx=it_idx,
-        ax=ax,
+        ax=gs,
     )
+
+    # bold title
+    fig.suptitle(f"Results for run: '{title}'", fontsize=14, fontweight='bold')
 
     if get_error_plot:
         custom_print(
@@ -429,14 +644,44 @@ def gen_al_loop_report(
         generate_error_plot(
             al_loop_node=al_loop_node,
             device_str=device,
-            ax=ax,
+            ax=gs,
             database_path=database_path,
             model_path=model_path,
             threshold_meV=threshold_meV,
             remove_outliers=remove_outliers,
         )
 
+    if get_latent_space:
+        # raise NotImplementedError("Latent space evolution plot not implemented yet.")
+        custom_print(
+            'Plotting latent space evolution...',
+            'info',
+        )
+
+        # TODO: Get the autoencoder model from the first iteration
+        if not autoencoder_path:
+            ...
+        else:
+            autoencoder_model = list(Path(autoencoder_path).glob('*.pth'))[0]
+            database_files = list(Path(autoencoder_path).glob('database*.xyz'))
+            database_files = [file.name for file in database_files]
+            database_files.sort(
+                key=lambda x: int(str(x).replace('.xyz', '').split('_')[-1])
+            )
+
+        generate_latent_space_evol(
+            al_loop_node=al_loop_node,
+            device_str=device,
+            ax=gs,
+            database_path=database_path,
+            model_path=model_path,
+            autoencoder_model=autoencoder_model,
+            autoencoder_path=autoencoder_path,
+            databases=database_files,
+        )
+
     plt.tight_layout()
+    fig.subplots_adjust(top=0.925, bottom=0.0725, right=0.95, left=0.075)
     plt.savefig(filename, dpi=300)
     custom_print(f"Saved report to '{filename}'.", 'info')
     plt.clf()
@@ -489,6 +734,13 @@ def generate_error_plot(
 
         # Load the training database
         train_db = ase_read(training_db_cp_path, format='extxyz', index=':')
+
+        # Filter reference energies
+        train_db = [
+            at
+            for at in train_db
+            if at.info.get('config_type', '').lower() != 'isolatedatom'
+        ]
 
         # Load model
         mace_model = MACECalculator(
@@ -554,7 +806,7 @@ def generate_error_plot(
 
         # Save the outliers to a file,
         if len(outlier_list) > 0:
-            ase_write('outliers.xyz', outlier_list)
+            ase_write('outliers.xyz', outlier_list, format='extxyz')
             custom_print(
                 (
                     f"Saved {len(outlier_list)} outliers to 'outliers.xyz'. "
@@ -577,14 +829,16 @@ def generate_error_plot(
             save_fig_now = True
             ax = plt.subplots(2, 3, figsize=(18, 12))[1]
 
-        ax[0, 2].text(
+        ax1 = ax.figure.add_subplot(ax[0, 2])
+
+        ax1.text(
             x=tex_x_pos,
             y=tex_y_pos,
             s=f'MAE: {mae:.3f} meV/atom\nRMSD: {rmsd:.3f} meV/atom',
-            transform=ax[0, 2].transAxes,
+            transform=ax1.transAxes,
         )
 
-        ax[0, 2].plot(
+        ax1.plot(
             E_dft_list_per_at,
             E_nn_list_per_at,
             'o',
@@ -594,32 +848,36 @@ def generate_error_plot(
             markeredgecolor='#282828',
             markersize=3,
         )
-        ax[0, 2].plot(
-            E_dft_list_per_at, E_dft_list_per_at, color='#b16286', linestyle='--'
-        )
-        ax[0, 2].set_xlabel('DFT Energy [meV/atom]')
-        ax[0, 2].set_ylabel('NN Energy [meV/atom]')
-        ax[0, 2].set_title('Energy comparison')
+        ax1.plot(E_dft_list_per_at, E_dft_list_per_at, color='#b16286', linestyle='--')
+        ax1.set_xlabel('DFT Energy [meV/atom]')
+        ax1.set_ylabel('NN Energy [meV/atom]')
+        ax1.set_title('Energy comparison')
 
+        ax2 = ax.figure.add_subplot(ax[1, 2])
         # Plotting the EDFT, ENN and their difference in a line plot, using the
         # structure index as the x-axis.
-        ax[1, 2].plot(E_dft_list, color='#83a598', label='DFT Energy', alpha=0.5)
-        ax[1, 2].plot(E_nn_list, color='#b16286', label='NN Energy', alpha=0.5)
+        ax2.plot(E_dft_list, color='#83a598', label='DFT Energy', alpha=0.5)
+        ax2.plot(E_nn_list, color='#b16286', label='NN Energy', alpha=0.5)
 
         # Use secondary y-axis for the difference
-        ax_twin = ax[1, 2].twinx()
+        ax_twin = ax2.twinx()
         ax_twin.plot(
             np.abs(diff_list_meV),
             color='#fb4934',
             label='Difference',
+            linewidth=0.75,
+            alpha=0.75,
         )
         ax_twin.set_ylabel('Abs. Energy difference [meV/atom]')
 
         # Set labels and title
-        ax[1, 2].set_xlabel('Structure index')
-        ax[1, 2].set_ylabel('Energy [eV]')
-        ax[1, 2].set_title('Energy comparison')
-        ax[1, 2].legend()
+        ax2.set_xlabel('Structure index')
+        ax2.set_ylabel('Energy [eV]')
+        ax2.set_title('Energy comparison')
+
+        lines, labels = ax2.get_legend_handles_labels()
+        lines2, labels2 = ax_twin.get_legend_handles_labels()
+        ax_twin.legend(lines + lines2, labels + labels2)
 
         if save_fig_now:
             plt.tight_layout()

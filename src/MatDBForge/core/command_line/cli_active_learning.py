@@ -360,6 +360,34 @@ def run_active_learning():
         required=False,
     )
 
+    report_parser.add_argument(
+        '--title',
+        help=(
+            'Run name to be used as title. '
+            'If not provided, a name will be gathered from the calculation files.'
+        ),
+        metavar='<TITLE>',
+        required=False,
+    )
+
+    report_parser.add_argument(
+        '--db_latent_space_evolution',
+        help=('Plot database evolution over time'),
+        action='store_const',
+        const=True,
+    )
+
+    report_parser.add_argument(
+        '--autoencoder_folder',
+        help=(
+            'Path to the autoencoder folder. '
+            'Should contain an autoencoder model and the database files for every step'
+        ),
+        metavar='<PATH>',
+        default=None,
+        required=False,
+    )
+
     # Create the subparser for the 'resume' command
     resume_parser = subparsers.add_parser(
         'resume',
@@ -446,6 +474,9 @@ def run_active_learning():
             database_path=args.database,
             threshold_meV=float(args.threshold_meV),
             remove_outliers=args.remove_outliers,
+            title=args.title,
+            get_latent_space=args.db_latent_space_evolution,
+            autoencoder_path=args.autoencoder_folder,
         )
 
     # Resume a previous calculation
