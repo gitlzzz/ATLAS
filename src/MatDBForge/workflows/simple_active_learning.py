@@ -1483,8 +1483,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
 
         # Adding the database indexes to the info dict of the structures
+        # and the current active learning loop step index (0).
         for idx, struct in enumerate(database_training):
             struct.info['mdb_db_index'] = idx
+            struct.info['mdb_al_step'] = 0
             database_training[idx] = struct
 
         ase_write(
@@ -1624,6 +1626,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     'mdb_db_index', len(training_db) + dft_calc_idx + 1
                 )
                 dft_calc.info['mdb_db_index'] = mdb_db_index
+
+                # Add information about the current AL step
+                dft_calc.info['mdb_al_step'] = self.ctx.iteration
 
                 # Adding the structure to the training database
                 seed_gen_db.append(dft_calc)
