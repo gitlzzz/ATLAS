@@ -90,6 +90,7 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
             - `debug/extra`: prefixes [...] before the string.
             - `done/ok`: prefixes [ ✔ ] before the string.
             - `error/problem`: prefixes [ X ] before the string.
+            - `none/clean/clear/empty`: leaves an empty space before the string.
     """
     # normal = "\u001b[0m"
 
