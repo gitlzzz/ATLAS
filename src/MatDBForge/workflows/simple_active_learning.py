@@ -1292,7 +1292,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
             if hasattr(self.ctx, 'dft_struct_seed_calcs'):
                 dft_calcs = self.ctx.dft_struct_seed_calcs
             try:
-                self.report(f'Gathered {len(dft_calcs)} MACE evaluations.')
+                self.report(
+                    f'Gathered {len(dft_calcs)} MACE evaluation calculation jobs.'
+                )
 
                 dft_calcs_ok = [node.uuid for node in dft_calcs if node.is_finished_ok]
                 if len(dft_calcs_ok) == 0:
