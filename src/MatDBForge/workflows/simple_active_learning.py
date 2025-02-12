@@ -1032,8 +1032,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
             self.to_context(process_committee_results=append_(future))
 
         self.report(
-            f'Submission done. Processing {len(self.ctx.process_committee_results)} '
-            'structures...'
+            f'Submission done. Running MD for {len(self.ctx.process_committee_results)}'
+            ' structures...'
         )
 
     def send_calc_or_remove_structures(self):
