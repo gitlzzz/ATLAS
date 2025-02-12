@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.20.14 (2025-02-12)
+
+### Fix
+
+- **al_loop**: update `al_loop` to `mdb_al_loop` in complex al loop version ([#98443c6](https://github.com/pol-sb/MatDBForge/commit/98443c6bd74cfddb6da259133cf45da67263a0b2))
+- **al_loop**: improve representation of database evolution through latent space ([#f1dbda2](https://github.com/pol-sb/MatDBForge/commit/f1dbda2df8f7f3ab944fb4b9b9d425a987aadbb0))
+- **al_loop**: add active learning loop step index to new structures in database ([#c4e9d74](https://github.com/pol-sb/MatDBForge/commit/c4e9d74053c16f7d82977afa7c6f41341618764f))
+- **al_loop**: correctly gather energy and forces from vasp calculations ([#9a2f5ed](https://github.com/pol-sb/MatDBForge/commit/9a2f5edb3516ad0674a66f391f24de3b53a7a478))
+- **al_loop**: update keys to REF_ prefix ([#e7a4a9d](https://github.com/pol-sb/MatDBForge/commit/e7a4a9df39cfb82fc72c377d20abc436c88320ef))
+- **al_loop**: allow using a single autoencoder for the entire loop ([#d94ae84](https://github.com/pol-sb/MatDBForge/commit/d94ae84ec47c2b71ddcbd9b6c55b07ed99897e16))
+- **al_loop**: simplified MACE evaluation with report ([#da7117d](https://github.com/pol-sb/MatDBForge/commit/da7117dfff8cbe9d82d1c6aafaa2fbb5d9bb7470))
+- **al_loop**: replace mdb_process_structure extrapolating frames keys with REF_xxx keys usable with MACE ([#b857216](https://github.com/pol-sb/MatDBForge/commit/b85721671ef07983d0ab3a9db139b407066fd491))
+
+### Misc
+
+- **al_loop**: improved output comments for MACE evaluation during active learning loop ([#5ca16de](https://github.com/pol-sb/MatDBForge/commit/5ca16de67f04dbf7ed11d27879d87448f0924362))
+- **al_loop**: improved output comments ([#b3801e9](https://github.com/pol-sb/MatDBForge/commit/b3801e95b0d15e9e0f80282c495eb57ffa5584bb))
+- **core**: remove unused comments ([#6014efa](https://github.com/pol-sb/MatDBForge/commit/6014efa36a893803be066b57780b5508ef23b94f))
+- **core**: add `none` print type to `custrom_print` function ([#26eebc3](https://github.com/pol-sb/MatDBForge/commit/26eebc34ec9e319e7364a8a1818e4b4b859d00b7))
+
 ## 0.20.13 (2025-02-06)
 
 ### Fix
