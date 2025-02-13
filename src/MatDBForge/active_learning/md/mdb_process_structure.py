@@ -341,6 +341,9 @@ if __name__ == '__main__':
 
         ## Apply E/F commitee extrapolation filter
         model_acc_multiplier = settings['active_learning'].get('model_acc_multiplier')
+        mdb_cud.custom_print('Printing extrapolation statistics:', 'debug')
+        mdb_cud.custom_print('Printing extrapolation statistics for energy...', 'none')
+        mdb_cud.custom_print(f'model_acc_multiplier: {model_acc_multiplier}', 'none')
 
         # Get the energy and forces and save into arrays
         # shape: (n_frames, n_models)
@@ -351,18 +354,23 @@ if __name__ == '__main__':
         # Getting the standard deviation of the energies across
         # all models for each frame.
         energies_stat = np.nanstd(all_energies_array, axis=1, ddof=1)
+        mdb_cud.custom_print(f'energies_stat: {energies_stat}', 'none')
 
         # Average variability in energy predictions across models for all frames
         e_mean_error = np.mean(energies_stat)
+        mdb_cud.custom_print(f'e_mean_error: {e_mean_error}', 'none')
 
         # Spread of variability in the energy predictions across frames
         e_std_error = np.std(energies_stat)
+        mdb_cud.custom_print(f'e_std_error: {e_std_error}', 'none')
 
         # Threshold for identifying frames with unusually high variability
         e_error_threshold = e_mean_error + 2 * e_std_error  # meV
+        mdb_cud.custom_print(f'e_error_threshold: {e_error_threshold}', 'none')
 
         # Threshold for outliers
         e_maximum_value = e_mean_error + 10 * e_std_error  # meV
+        mdb_cud.custom_print(f'e_maximum_value: {e_maximum_value}', 'none')
 
         # Checking if the energies are over the error threshold
         error_e_structures_sm = np.ma.make_mask(
@@ -382,7 +390,11 @@ if __name__ == '__main__':
         error_e_structures = np.logical_and(
             error_e_structures_sm, error_e_structures_bg
         )
+        mdb_cud.custom_print(
+            f'Extrapolating structures according to E: {error_e_structures}', 'none'
+        )
 
+        mdb_cud.custom_print('Printing extrapolation statistics for forces...', 'none')
         # Array containing the forces for each model
         # shape: (3, n_at, n_frames, n_models)
         all_forces_array = np.array(
@@ -397,18 +409,23 @@ if __name__ == '__main__':
 
         # Shape: (n_frames)
         f_std_norm_max = np.amax(f_std_devs, axis=0)
+        mdb_cud.custom_print(f'f_std_norm_max: {f_std_norm_max}', 'none')
 
         # Average variability in forces predictions across models for all frames
         f_mean_error = np.mean(energies_stat)
+        mdb_cud.custom_print(f'f_mean_error: {f_mean_error}', 'none')
 
         # Spread of variability in the forces predictions across frames
         f_std_error = np.std(energies_stat)
+        mdb_cud.custom_print(f'f_std_error: {f_std_error}', 'none')
 
         # Threshold for identifying frames with unusually high variability
         f_error_threshold = f_mean_error + 2 * f_std_error  # meV
+        mdb_cud.custom_print(f'f_error_threshold meV: {f_error_threshold}', 'none')
 
         # Threshold for outliers
         f_maximum_value = f_mean_error + 10 * f_std_error  # meV
+        mdb_cud.custom_print(f'f_maximum_value meV: {f_maximum_value}', 'none')
 
         # Checking if the forces are over the error threshold
         err_f_struct_sm = np.ma.make_mask(
@@ -424,6 +441,9 @@ if __name__ == '__main__':
         # and below the maximum value.
         # True values are the structures that are considered as extrapolation.
         error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
+        mdb_cud.custom_print(
+            f'Extrapolating structures according to F: {error_f_structures}', 'none'
+        )
 
         # Adding extrapolating indices to list
         e_f_extrapol = []
