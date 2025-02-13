@@ -10,6 +10,7 @@ import time
 from contextlib import redirect_stdout
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import slugify
@@ -43,6 +44,7 @@ from MatDBForge.active_learning.extrapolation.autoencoder import (
     get_latent_space_autoencoder,
     load_autoencoder_model,
 )
+from MatDBForge.active_learning.extrapolation.concave_hull import get_concave_hull_julia
 from MatDBForge.core import code_utils as mdb_cud
 from MatDBForge.core.code_utils import custom_print, init_logger
 from MatDBForge.workflows import aiida_utils as mdb_aut
@@ -476,45 +478,60 @@ def generate_latent_space_evol(
             latent_spaces.append(latent_space_dict)
 
         # Saving latent spaces to pickle file
-        if num_steps_saved > 0:
+        if len(latent_spaces) > 0:
             with open('latent_spaces.pkl', 'wb') as f:
                 pickle.dump(latent_spaces, file=f)
 
     # Getting colormap for step number
     cmap = colormaps.get_cmap('viridis')
     colors = cmap(np.linspace(0, 1, num_steps_saved))
-    import matplotlib as mpl
 
     # Plotting latent space
     ax1 = ax.figure.add_subplot(ax[2, :])
     for idx, latent_dict in enumerate(latent_spaces):
-        latent_spaces = []
+        latent_space_vals = []
+
         for structure in latent_dict:
             curr_struct_latent = latent_dict[structure]['latent_space'][0]
-            latent_spaces.append(curr_struct_latent)
-        latent_spaces = np.vstack(latent_spaces)
+            latent_space_vals.append(curr_struct_latent)
+        latent_space_vals = np.vstack(latent_space_vals)
+
+        # Get concave hull if step is 0
+        if idx == 0:
+            concave_hull = get_concave_hull_julia(latent_space_vals)
+            ax1.plot(
+                concave_hull[:, 0],
+                concave_hull[:, 1],
+                color='#fb4934',
+                linestyle='solid',
+                zorder=10,
+                label='Concave Hull',
+                linewidth=1,
+            )
+
         ax1.set_title('Latent Space Evolution')
         ax1.set_xlabel('Reduced dimension 1')
         ax1.set_ylabel('Reduced dimension 2')
         ax1.set_title('Latent Space Evolution')
         ax1.scatter(
-            x=latent_spaces[:, 0],
-            y=latent_spaces[:, 1],
+            x=latent_space_vals[:, 0],
+            y=latent_space_vals[:, 1],
             color=colors[idx],
             alpha=0.1,
-            label=f'Step {idx}',
+            # label=f'Step {idx}',
             s=2,
             edgecolors='#282828',
             linewidth=0.25,
         )
+        ax1.legend()
 
     # Adding colorbar once all iterations are plotted
     plt.colorbar(
         mpl.cm.ScalarMappable(
             norm=mpl.colors.Normalize(1, num_steps_saved),
             cmap=cmap,
-            label='AL Loop Step',
         ),
+        label='AL Loop Step',
         pad=0.01,
         ax=ax1,
     )
