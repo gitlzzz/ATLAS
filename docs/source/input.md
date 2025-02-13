@@ -252,9 +252,10 @@ Parameters to tune the structure selection while creating the AL seeds.
 
 This section contains keys which adjust the extrapolation settings.
 
-- `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently two options are allowed:
-  - `basic`: Check for extrapolation using the ranges of the MACE descriptors.
-  - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors, after reducing dimensionality with an autoencoder trained on the current iteration data descriptors.
+- `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently the following options are allowed:
+  - `none`: Only use committee disagreement for EF as extrapolation criteria.
+  - `basic`: Check for extrapolation using the ranges of the MACE descriptors + EF disagreement.
+  - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement. Dimensionality is reduced with an autoencoder trained on the current iteration data descriptors.
 
 ### MD Settings - `[md]`
 

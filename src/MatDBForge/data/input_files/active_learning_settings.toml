@@ -109,9 +109,22 @@ small_first_max_size = 50
 # (int) Apply small_first mode for the first n iterations
 small_first_max_iter = 5
 
+
 ###############################################
 
-# Settings for MD simulations using LAMMPS
+[extrapolation]
+# (str, optional) Whether to check for extrapolation. Default is 'advanced'
+# Currently, allows for:
+# - `none` (or not set): Only use committee disagreement for EF as extrapolation criteria
+# - `basic`: Check for extrapolation using the range of the MACE descriptors + EF disagreement
+# - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement
+check_extrapolation_type = 'none'
+
+
+###############################################
+
+
+# Settings for MD simulations
 [md]
 [md.parameters]
 
@@ -211,7 +224,7 @@ compute_stress = true     # whether or not to compute stress (true/false)
 # AiiDA scheduler options for MACE Evaluations
 [committee_eval.metadata.options]
 parser_name = "mace-committee-eval-parser"
-resources.parallel_env = "c128m1024ib_mpi_32slots"
+resources.parallel_env = "XXXXXXXXXX"
 resources.tot_num_mpiprocs = 32
 queue_name = "c128m1024ibgpu4.q"
 max_wallclock_seconds = 117280000

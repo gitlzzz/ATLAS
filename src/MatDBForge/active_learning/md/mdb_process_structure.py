@@ -24,8 +24,8 @@ import MatDBForge.active_learning.extrapolation.concave_hull as mdb_chull
 from MatDBForge.active_learning.extrapolation import autoencoder as mdb_ae
 from MatDBForge.core import code_utils as mdb_cud
 
-warnings.filterwarnings('ignore')
 warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore')
 
 
 def check_traj_in_domain(
@@ -198,7 +198,7 @@ if __name__ == '__main__':
 
     # Get the extrapolation type
     extrap_type = settings.get('extrapolation', {}).get(
-        'check_extrapolation_type', 'basic'
+        'check_extrapolation_type', 'advanced'
     )
 
     # Get the dimensionality reduction method settings
@@ -444,27 +444,28 @@ if __name__ == '__main__':
             'info',
         )
 
-        ## Get the descriptors
-        # Only MACE is supported for now
-        mdb_cud.custom_print('Generating descriptors...', 'info')
-        if settings['descriptors'].get('descriptor_type', 'mace') == 'soap':
-            descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_soap(
-                database=md_traj_short,
-                descriptor_settings=settings['descriptors'],
-            )
-        else:
-            descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
-                model_path=prepend_path / 'curr_model.model',
-                database=md_traj_short,
-                descriptor_settings=settings['descriptors'],
-            )
+        ## Get the descriptors if extrapolation enabled
+        if extrap_type != 'none':
+            # Only MACE is supported for now
+            mdb_cud.custom_print('Generating descriptors...', 'info')
+            if settings['descriptors'].get('descriptor_type', 'mace') == 'soap':
+                descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_soap(
+                    database=md_traj_short,
+                    descriptor_settings=settings['descriptors'],
+                )
+            else:
+                descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
+                    model_path=prepend_path / 'curr_model.model',
+                    database=md_traj_short,
+                    descriptor_settings=settings['descriptors'],
+                )
 
-        # Add is_extrapolating list which contains boolean values showing
-        # if the frame is extrapolating or not
-        for structure_uuid in descriptor_dict:
-            descriptor_dict[structure_uuid]['is_extrapolating'] = np.zeros(
-                len(md_traj_short), dtype=bool
-            )
+            # Add is_extrapolating list which contains boolean values showing
+            # if the frame is extrapolating or not
+            for structure_uuid in descriptor_dict:
+                descriptor_dict[structure_uuid]['is_extrapolating'] = np.zeros(
+                    len(md_traj_short), dtype=bool
+                )
 
         print()
 
@@ -527,12 +528,20 @@ if __name__ == '__main__':
             descriptor_dict = simple_extrapolation_check(
                 curr_it_db_max, curr_it_db_min, descriptor_dict
             )
+        # Dont apply any further extrapolation check. Use the EF commitee check
+        # already applied.
+        elif extrap_type == 'none':
+            mdb_cud.custom_print(
+                ('No extrapolation check applied. Only EF commitee check applied.'),
+                'warn',
+            )
 
-        for idx, is_extrapolating in enumerate(
-            descriptor_dict[structure_uuid]['is_extrapolating']
-        ):
-            if is_extrapolating:
-                extrap_frame_idx.append(md_traj_short[idx].info['frame_idx'])
+        elif extrap_type != 'none':
+            for idx, is_extrapolating in enumerate(
+                descriptor_dict[structure_uuid]['is_extrapolating']
+            ):
+                if is_extrapolating:
+                    extrap_frame_idx.append(md_traj_short[idx].info['frame_idx'])
 
         # Saving all the frames that are extrapolating to a file
         extrap_frame_idx = set(extrap_frame_idx)
