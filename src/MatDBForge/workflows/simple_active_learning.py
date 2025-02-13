@@ -427,18 +427,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
         """Check if the extrapolation check is enabled."""
         return bool(self.inputs.check_extrapolation_type.value)
 
-    def is_advanced_extrapolation(self):
-        """Check if the advanced extrapolation check is enabled."""
-        return self.inputs.check_extrapolation_type.value == 'advanced'
-
-    def has_latent_space(self):
-        """Check if the latent space was computed for the current iteration."""
-        return hasattr(self.ctx, 'latent_space')
-
-    def can_do_advanced_extrapolation(self):
-        """Check if the advanced extrapolation can be done."""
-        return self.has_latent_space() and self.is_advanced_extrapolation()
-
     def gen_descriptors_and_concave_hull(self):
         self.report('Generating descriptors and latent space + concave hull...')
 
