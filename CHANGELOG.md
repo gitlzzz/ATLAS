@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.15 (2025-02-15)
+
+### Fix
+
+- **al_loop**: re-added training-based interpolation strategy ([#71513de](https://github.com/pol-sb/MatDBForge/commit/71513decaad40a71046f32f5bdff9a5edd31633f))
+- **al_loop**: add extrapolation detailed logs to `mdb_process_structure` ([#5d3dfe1](https://github.com/pol-sb/MatDBForge/commit/5d3dfe1bfa732474b49e70357de5671d0e4780b9))
+- **al_loop**: add concave hull to report ([#849dbd0](https://github.com/pol-sb/MatDBForge/commit/849dbd03109ca3cffd4a7746ca94405db1c8c2b3))
+- **al_loop**: re add `none` extrapolation type, so only E and F are checked with the committee ([#be7b6d5](https://github.com/pol-sb/MatDBForge/commit/be7b6d5c97be1be14b582e061e1f9089f1d102f1))
+
+### Misc
+
+- **al_loop**: function cleanup ([#64936e2](https://github.com/pol-sb/MatDBForge/commit/64936e2c697416111312265499142f0f66bd6f66))
+
 ## 0.20.14 (2025-02-12)
 
 ### Fix
