@@ -113,6 +113,13 @@ small_first_max_iter = 5
 ###############################################
 
 [extrapolation]
+# Select the approach to perform the energy and force
+# (E&F) committee disagreement checkon new frames obtained via MD.
+# Default is `training`. Currently the following options are allowed:
+# - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
+# - `md_treshold`: Compare E&F with a threshold obtained from the standard
+disagreement_check_type = "training"
+
 # (str, optional) Whether to check for extrapolation. Default is 'advanced'
 # Currently, allows for:
 # - `none` (or not set): Only use committee disagreement for EF as extrapolation criteria

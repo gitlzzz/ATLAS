@@ -250,7 +250,11 @@ Parameters to tune the structure selection while creating the AL seeds.
 
 ### Extrapolation Settings - `[extrapolation]`
 
-This section contains keys which adjust the extrapolation settings.
+This section contains keys which adjust the extrapolation and disagreement check settings.
+
+- `disagreement_check_type`: (str, optional) Select the approach to perform the energy and force (E&F) committee disagreement check on new frames obtained via MD. Default is `training`. Currently the following options are allowed:
+  - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
+  - `md_treshold`: Compare E&F with a threshold obtained from the standard
 
 - `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently the following options are allowed:
   - `none`: Only use committee disagreement for EF as extrapolation criteria.
