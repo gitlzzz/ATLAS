@@ -1279,6 +1279,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         elif self.inputs.dft_method == 'mace':
             if hasattr(self.ctx, 'dft_struct_seed_calcs'):
                 dft_calcs = self.ctx.dft_struct_seed_calcs
+            else:
+                dft_calcs = []
             try:
                 self.report(
                     f'Gathered {len(dft_calcs)} MACE evaluation calculation jobs.'
