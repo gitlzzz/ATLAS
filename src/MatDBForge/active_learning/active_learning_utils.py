@@ -995,7 +995,6 @@ def get_model_energies_std(energies_dict: dict) -> np.ndarray:
     # Calculate the sample standard deviation of the energies
     # for each structure
     energies_std = np.nanstd(energies_model_list, axis=0, ddof=1)
-
     return energies_std
 
 
