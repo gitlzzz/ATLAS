@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.16 (2025-02-17)
+
+### Fix
+
+- **al_loop**: cleanup ([#a2afb30](https://github.com/pol-sb/MatDBForge/commit/a2afb3060953202b02fcc56b45e45b5f8bad4a13))
+- **al_loop**: fixed units and statistics for `training` mode in `mdb_process_structure.py` ([#f8e28b6](https://github.com/pol-sb/MatDBForge/commit/f8e28b6d2cb84112f44d131d9ce6de96eb705e32))
+- **al_loop**: updated threshold multiplier for forces for `md_threshold` mode in `mdb_process_structure.py` ([#c31547b](https://github.com/pol-sb/MatDBForge/commit/c31547b171a870ae12f68fcb761f5aaa0bada107))
+- **al_loop**: added empty dft calcs so iterations that remove all dft structuer dont crash ([#39a940c](https://github.com/pol-sb/MatDBForge/commit/39a940cd3923c8c9934a1a42ccfa50f28002a96b))
+
+### Misc
+
+- **al_loop**: added additional log messages to `mdb_process_structure.py` ([#664f4d5](https://github.com/pol-sb/MatDBForge/commit/664f4d55941a6dc10c4752ceb07c625dc28bfce8))
+
 ## 0.20.15 (2025-02-15)
 
 ### Fix
