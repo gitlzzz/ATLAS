@@ -360,9 +360,9 @@ if __name__ == '__main__':
             for _, frame in enumerate(md_traj_short):
                 frame.calc = calculator
 
-                # Get the energy and forces
-                comm_results[model.stem]['energy'].append(frame.get_potential_energy())
-                comm_results[model.stem]['forces'].append(frame.get_forces())
+                # Get the energy [meV/at] and forces [meV/A]
+                comm_results[model.stem]['energy'].append(frame.get_potential_energy()*1000/len(frame))
+                comm_results[model.stem]['forces'].append(frame.get_forces()*1000)
 
         ## Apply E/F commitee extrapolation filter
         model_acc_multiplier = settings['active_learning'].get(
@@ -372,34 +372,34 @@ if __name__ == '__main__':
         mdb_cud.custom_print(
             f"Using disagreement check type: '{ef_disagreement_type}'", 'info'
         )
-        mdb_cud.custom_print('Printing extrapolation statistics:', 'debug')
+        mdb_cud.custom_print('Printing extrapolation statistics for E:', 'debug')
 
         if ef_disagreement_type == 'training':
-            e_error_threshold = model_acc_multiplier * e_rmse
-            f_error_threshold = model_acc_multiplier * f_rmse
+            e_error_threshold = model_acc_multiplier * e_rmse # meV / at
+            f_error_threshold = model_acc_multiplier * f_rmse # meV / A
 
             mdb_cud.custom_print(
                 f'model_acc_multiplier: {model_acc_multiplier}', 'none'
             )
 
             # Prepare energies and forces dict
-            model_names = list(comm_results.keys())[:-1]
+            model_names = list(comm_results.keys())
             model_energies_dict = {}
             model_forces_dict = {}
-            for model_idx, model_name in enumerate(model_names):
+            for model_name in model_names:
                 if not model_energies_dict.get(model_name):
                     model_energies_dict[model_name] = []
                 if not model_forces_dict.get(model_name):
                     model_forces_dict[model_name] = []
 
-                for _, res in enumerate(comm_results.items()):
-                    res: tuple[str, dict]
-                    model_energies_dict[model_name].append(res[1]['energy'][model_idx])
-                    model_forces_dict[model_name].append(res[1]['forces'][model_idx])
+                model_energies_dict[model_name].append(
+                    comm_results[model_name]['energy']
+                )
+                model_forces_dict[model_name].append(comm_results[model_name]['forces'])
 
             # Checking if the energies are over the error threshold
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
-            maximum_value_e = np.average(energies_stat) * 1000  # meV
+            maximum_value_e = np.average(energies_stat) * 1000 # meV * 100
             mdb_cud.custom_print(f'e_error_threshold: {e_error_threshold}', 'none')
             mdb_cud.custom_print(f'e_maximum_value: {maximum_value_e}', 'none')
             mdb_cud.custom_print(f'energies_stat: {energies_stat}', 'none')
@@ -422,12 +422,18 @@ if __name__ == '__main__':
                 f'Extrapolating structures according to E: {error_e_structures}', 'none'
             )
 
-            mdb_cud.custom_print(
-                'Printing extrapolation statistics for forces...', 'none'
-            )
+            mdb_cud.custom_print('Printing extrapolation statistics for F...', 'none')
+
+            # Shape: (1, n_frames, n_atoms, 3)
             forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
-            forces_std_norm = np.linalg.norm(forces_std, axis=2)
-            forces_std_norm_max = np.amax(forces_std_norm, axis=1)
+
+            # Getting the magnitude for the force vector (Euclidean norm)
+            # Shape: (1, n_frames, n_atoms)
+            forces_std_norm = np.linalg.norm(forces_std, axis=3)
+
+            # Keeping only the maximum force for every structure
+            # Shape: (1, n_frames)
+            forces_std_norm_max = np.amax(forces_std_norm, axis=2)
 
             maximum_value_f = np.average(forces_std_norm_max) * 1000  # meV
             mdb_cud.custom_print(f'f_error_threshold: {f_error_threshold}', 'none')
@@ -455,11 +461,11 @@ if __name__ == '__main__':
             # Adding extrapolating indices to list
             e_f_extrapol = []
             if isinstance(error_e_structures, np.ndarray):
-                for err_idx, error in enumerate(error_e_structures):
+                for err_idx, error in enumerate(error_e_structures[0]):
                     if error:
                         e_f_extrapol.append(short_mask[err_idx])
             if isinstance(error_f_structures, np.ndarray):
-                for err_idx, error in enumerate(error_f_structures):
+                for err_idx, error in enumerate(error_f_structures[0]):
                     if error:
                         e_f_extrapol.append(short_mask[err_idx])
 
