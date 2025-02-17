@@ -549,7 +549,7 @@ if __name__ == '__main__':
             mdb_cud.custom_print(f'f_std_error: {f_std_error}', 'none')
 
             # Threshold for identifying frames with unusually high variability
-            f_error_threshold = f_mean_error + 2 * f_std_error  # meV
+            f_error_threshold = f_mean_error + 3 * f_std_error  # meV
             mdb_cud.custom_print(f'f_error_threshold meV: {f_error_threshold}', 'none')
 
             # Threshold for outliers
