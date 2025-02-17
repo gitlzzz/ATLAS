@@ -219,10 +219,20 @@ if __name__ == '__main__':
 
     ## Running MD simulations for given temperatures
     for T_start in T_list:
+        traj_filename = res_folder / f'md_traj_final_temp-{T_start}.traj'
+
+        # Not repeating MD simulations if the trajectory already exists.
+        # Mainly for testing, this should not happen during a normal run.
+        if pl.Path(traj_filename).exists():
+            mdb_cud.custom_print(
+                f"MD trajectory for 'T={T_start} K' already exists. Skipping...", 'warn'
+            )
+            continue
+
         # Instantiating ase trajectory object
         init_conf = init_conf_orig.copy()
         traj_obj = TrajectoryWriter(
-            res_folder / f'md_traj_final_temp-{T_start}.traj',
+            filename=traj_filename,
             mode='w',
             atoms=init_conf,
             properties=['energy', 'forces', 'REF_energy', 'REF_forces'],
@@ -265,26 +275,34 @@ if __name__ == '__main__':
         frames_to_remove = []
         md_filters = settings.get('md', {}).get('filters', [])
         mdb_cud.custom_print('Applying MD filters to remove outliers...', 'info')
+
         if 'layer_distance' in md_filters:
+            later_distance_r_frames = []
             max_dist = md_filters['layer_distance']['max_layer_distance_ang']
             for idx, frame in enumerate(md_traj):
                 is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
                     struct=frame, max_layer_distance_ang=max_dist
                 )
                 if is_structure_wrong:
-                    frames_to_remove.append(idx)
+                    later_distance_r_frames.append(idx)
+            frames_to_remove.extend(later_distance_r_frames)
         mdb_cud.custom_print(
-            f'Marked by layer distance filter: {len(frames_to_remove)}', 'debug'
+            f'Marked by layer distance filter: {len(later_distance_r_frames)}', 'debug'
         )
 
         if 'check_atoms_no_neighbor' in md_filters:
+            neighbor_r_frames = []
             for idx, frame in enumerate(md_traj):
                 is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(struct=frame)
                 if is_structure_wrong:
-                    frames_to_remove.append(idx)
+                    neighbor_r_frames.append(idx)
+            frames_to_remove.extend(neighbor_r_frames)
         mdb_cud.custom_print(
-            f'Marked by no neighbor filter: {len(frames_to_remove)}', 'debug'
+            f'Marked by no neighbor filter: {len(neighbor_r_frames)}', 'debug'
         )
+
+        # Remove duplicate frames
+        frames_to_remove = list(set(frames_to_remove))
 
         # Create a new list excluding the frames to remove
         md_traj_filtered = [
@@ -318,6 +336,9 @@ if __name__ == '__main__':
 
         # Limit total number of frames
         md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
+        mdb_cud.custom_print(
+            f'Limited number of frames to: {len(md_traj_short)}', 'info'
+        )
 
         # Running evaluation of the energies and forces using each commitee model
         mdb_cud.custom_print('Running committee evaluation...', 'info')
