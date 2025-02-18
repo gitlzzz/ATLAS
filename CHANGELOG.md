@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.20.17 (2025-02-18)
+
+### Fix
+
+- **al_loop**: add forces to report ([#490143c](https://github.com/pol-sb/MatDBForge/commit/490143c3c121a66fef2c988e0e7a9934ac5430ec))
+
+### Misc
+
+- **docs**: fixed typo on `input.md` ([#032b346](https://github.com/pol-sb/MatDBForge/commit/032b34662652235f15bbc0ab42b997686bac5e85))
+
 ## 0.20.16 (2025-02-17)
 
 ### Fix
