@@ -11,6 +11,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 import matplotlib as mpl
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import slugify
@@ -618,8 +619,6 @@ def gen_al_loop_report(
     if not title:
         title = f'{al_loop_node}'
 
-    from matplotlib.gridspec import GridSpec
-
     # Adjust number of panels according to options
     num_rows = 2
     num_cols = 2
@@ -634,7 +633,7 @@ def gen_al_loop_report(
     fig_height = num_rows * 5
 
     fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
-    gs = GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
+    gs = gridspec.GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
 
     filename = plot_al_loop_report(
         ini_db_size=ini_db_size,
@@ -706,6 +705,17 @@ def gen_al_loop_report(
     custom_print('Report generation complete.', 'done')
 
 
+def simplify_forces_struct(forces: np.ndarray):
+    # Getting the magnitude for the force vector (Euclidean norm)
+    # Shape: (n_atoms)
+    forces_std_norm = np.linalg.norm(forces, axis=1)
+
+    # Calculate the sample standard deviation of the forces
+    # for each structure
+    forces_std = np.nanstd(forces_std_norm)
+    return forces_std
+
+
 def generate_error_plot(
     al_loop_node,
     device_str: str = 'cpu',
@@ -766,25 +776,37 @@ def generate_error_plot(
             default_dtype='float32',
         )
 
+        files = ('E_nn_list.npy', 'F_nn_list.npy')
         E_nn_list = []
+        F_nn_list = []
         # Iterate over the data loader to get the model energies
         # Use a rich progress bar to show the progress
-        if 'E_nn_list.npy' not in os.listdir():
+        # Only run if any of the two files are missing
+        if len(set(files) - set(os.listdir())) != 0:
             for struct in track(
                 train_db,
                 description='Evaluating structures...',
             ):
-                # struct = struct.to(device=device, dtype=torch.float64)
                 struct.calc = mace_model
                 energy_output = struct.get_potential_energy()
-                # forces_output = struct.get_forces()
                 E_nn_list.append(energy_output)
+
+                # Getting forces
+                # Shape: (n_atoms, 3)
+                forces_output = struct.get_forces()
+                forces_std = simplify_forces_struct(forces_output)
+                F_nn_list.append(forces_std)
 
         else:
             E_nn_list = np.load('E_nn_list.npy')
+            F_nn_list = np.load('F_nn_list.npy')
 
         np.save('E_nn_list.npy', E_nn_list)
+        np.save('F_nn_list.npy', F_nn_list)
         E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
+        F_dft_list = np.array(
+            [simplify_forces_struct(atoms.arrays['REF_forces']) for atoms in train_db]
+        )
 
         # Getting atom count
         struct_len_list = np.array([len(atoms) for atoms in train_db])
@@ -793,18 +815,24 @@ def generate_error_plot(
         E_nn_list_per_at = E_nn_list / struct_len_list
         E_dft_list_per_at = E_dft_list / struct_len_list
 
-        diff_list_meV = (E_nn_list_per_at - E_dft_list_per_at) * 1000
+        # Getting force per atom
+        F_nn_list_per_at = F_nn_list / struct_len_list
+        F_dft_list_per_at = F_dft_list / struct_len_list
+
+        E_diff_list_meV = (E_nn_list_per_at - E_dft_list_per_at) * 1000
+        F_diff_list_meV = (F_nn_list_per_at - F_dft_list_per_at) * 1000
 
         # Sort diff_list_meV, keeping the original indices
-        sorted_diff_list_meV = np.argsort(np.abs(diff_list_meV))
+        E_sorted_diff_list_meV = np.argsort(np.abs(E_diff_list_meV))
+        # F_sorted_diff_list_meV = np.argsort(np.abs(E_diff_list_meV))
 
         outlier_list = []
         remove_indices = []
         # Mark outliers, appending the E difference in meV to the structure info dict.
-        for val in sorted_diff_list_meV[::-1]:
-            if abs(diff_list_meV[val]) > threshold_meV:
+        for val in E_sorted_diff_list_meV[::-1]:
+            if abs(E_diff_list_meV[val]) > threshold_meV:
                 struct = train_db[int(val)]
-                struct.info['E_dft_nn_diff_meV'] = diff_list_meV[val]
+                struct.info['E_dft_nn_diff_meV'] = E_diff_list_meV[val]
                 outlier_list.append(struct)
 
                 # Add outler indices to list for removal
@@ -817,9 +845,16 @@ def generate_error_plot(
                 for struct in train_db
                 if train_db.index(struct) not in remove_indices
             ]
-            diff_list_meV = np.delete(diff_list_meV, remove_indices)
+
+            # Energies
+            E_diff_list_meV = np.delete(E_diff_list_meV, remove_indices)
             E_nn_list_per_at = np.delete(E_nn_list_per_at, remove_indices)
             E_dft_list_per_at = np.delete(E_dft_list_per_at, remove_indices)
+
+            # Forces
+            F_diff_list_meV = np.delete(F_diff_list_meV, remove_indices)
+            F_nn_list_per_at = np.delete(F_nn_list_per_at, remove_indices)
+            F_dft_list_per_at = np.delete(F_dft_list_per_at, remove_indices)
 
         # Save the outliers to a file,
         if len(outlier_list) > 0:
@@ -833,10 +868,12 @@ def generate_error_plot(
             )
 
         # Get RMSD
-        rmsd = np.sqrt(np.mean(diff_list_meV**2))
+        E_rmsd = np.sqrt(np.mean(E_diff_list_meV**2))
+        F_rmsd = np.sqrt(np.mean(F_diff_list_meV**2))
 
         # Get MAE
-        mae = np.mean(np.abs(diff_list_meV))
+        E_mae = np.mean(np.abs(E_diff_list_meV))
+        F_mae = np.mean(np.abs(F_diff_list_meV))
 
         tex_x_pos = 0.1
         tex_y_pos = 0.80
@@ -846,16 +883,19 @@ def generate_error_plot(
             save_fig_now = True
             ax = plt.subplots(2, 3, figsize=(18, 12))[1]
 
-        ax1 = ax.figure.add_subplot(ax[0, 2])
+        inner_grid = gridspec.GridSpecFromSubplotSpec(
+            2, 1, subplot_spec=ax[0, 2], hspace=0.5
+        )
+        ax1_top = ax.figure.add_subplot(inner_grid[0, 0])
 
-        ax1.text(
+        ax1_top.text(
             x=tex_x_pos,
             y=tex_y_pos,
-            s=f'MAE: {mae:.3f} meV/atom\nRMSD: {rmsd:.3f} meV/atom',
-            transform=ax1.transAxes,
+            s=f'MAE: {E_mae:.3f} meV/atom\nRMSD: {E_rmsd:.3f} meV/atom',
+            transform=ax1_top.transAxes,
         )
 
-        ax1.plot(
+        ax1_top.plot(
             E_dft_list_per_at,
             E_nn_list_per_at,
             'o',
@@ -865,36 +905,86 @@ def generate_error_plot(
             markeredgecolor='#282828',
             markersize=3,
         )
-        ax1.plot(E_dft_list_per_at, E_dft_list_per_at, color='#b16286', linestyle='--')
-        ax1.set_xlabel('DFT Energy [meV/atom]')
-        ax1.set_ylabel('NN Energy [meV/atom]')
-        ax1.set_title('Energy comparison')
+        ax1_top.plot(
+            E_dft_list_per_at, E_dft_list_per_at, color='#b16286', linestyle='--'
+        )
+        ax1_top.set_xlabel('DFT Energy [meV/atom]')
+        ax1_top.set_ylabel('NN Energy [meV/atom]')
+        ax1_top.set_title('Energy comparison')
 
-        ax2 = ax.figure.add_subplot(ax[1, 2])
+        ax1_bottom = ax.figure.add_subplot(inner_grid[1, 0])
+        ax1_bottom.text(
+            x=tex_x_pos,
+            y=tex_y_pos,
+            s=f'MAE: {F_mae:.3f} meV/atom\nRMSD: {F_rmsd:.3f} meV/atom',
+            transform=ax1_bottom.transAxes,
+        )
+
+        ax1_bottom.plot(
+            F_dft_list_per_at,
+            F_nn_list_per_at,
+            'o',
+            color='#83a598',
+            alpha=0.5,
+            markeredgewidth=0.5,
+            markeredgecolor='#282828',
+            markersize=3,
+        )
+        ax1_bottom.plot(
+            F_dft_list_per_at, F_dft_list_per_at, color='#b16286', linestyle='--'
+        )
+        ax1_bottom.set_xlabel('DFT Forces [meV/A]')
+        ax1_bottom.set_ylabel('NN Forces [meV/A]')
+        ax1_bottom.set_title('Forces comparison')
+
+        inner_grid_diff = gridspec.GridSpecFromSubplotSpec(
+            2, 1, subplot_spec=ax[1, 2], hspace=0.5
+        )
+        ax2_top = ax.figure.add_subplot(inner_grid_diff[0, 0])
+        ax2_bottom = ax.figure.add_subplot(inner_grid_diff[1, 0])
+
         # Plotting the EDFT, ENN and their difference in a line plot, using the
         # structure index as the x-axis.
-        ax2.plot(E_dft_list, color='#83a598', label='DFT Energy', alpha=0.5)
-        ax2.plot(E_nn_list, color='#b16286', label='NN Energy', alpha=0.5)
+        ax2_top.plot(E_dft_list, color='#83a598', label='DFT Energy', alpha=0.5)
+        ax2_top.plot(E_nn_list, color='#b16286', label='NN Energy', alpha=0.5)
+
+        ax2_bottom.plot(F_dft_list, color='#83a598', label='DFT Forces', alpha=0.5)
+        ax2_bottom.plot(F_nn_list, color='#b16286', label='NN Forces', alpha=0.5)
 
         # Use secondary y-axis for the difference
-        ax_twin = ax2.twinx()
+        ax_twin = ax2_top.twinx()
+        ax_twin_b = ax2_bottom.twinx()
         ax_twin.plot(
-            np.abs(diff_list_meV),
+            np.abs(E_diff_list_meV),
             color='#fb4934',
             label='Difference',
             linewidth=0.75,
             alpha=0.75,
         )
-        ax_twin.set_ylabel('Abs. Energy difference [meV/atom]')
+        ax_twin_b.plot(
+            np.abs(F_diff_list_meV),
+            color='#fb4934',
+            label='Difference',
+            linewidth=0.75,
+            alpha=0.75,
+        )
+        ax_twin.set_ylabel('Abs. E diff [meV/atom]')
+        ax_twin_b.set_ylabel('Abs. F diff [meV/atom]')
 
         # Set labels and title
-        ax2.set_xlabel('Structure index')
-        ax2.set_ylabel('Energy [eV]')
-        ax2.set_title('Energy comparison')
+        ax2_top.set_xlabel('Structure index')
+        ax2_top.set_ylabel('Energy [eV]')
+        ax2_top.set_title('Energy comparison')
+        ax2_bottom.set_xlabel('Structure index')
+        ax2_bottom.set_ylabel('Forces [eV]')
+        ax2_bottom.set_title('Forces comparison')
 
-        lines, labels = ax2.get_legend_handles_labels()
+        lines, labels = ax2_top.get_legend_handles_labels()
         lines2, labels2 = ax_twin.get_legend_handles_labels()
         ax_twin.legend(lines + lines2, labels + labels2)
+        lines_b, labels_b = ax2_bottom.get_legend_handles_labels()
+        lines2_b, labels2_b = ax_twin_b.get_legend_handles_labels()
+        ax_twin_b.legend(lines_b + lines2_b, labels_b + labels2_b)
 
         if save_fig_now:
             plt.tight_layout()
@@ -979,7 +1069,7 @@ def get_model_forces_std(forces_dict: dict) -> np.ndarray:
     """Get the standard deviation of the forces for each structure in the dict."""
     forces_model_list = model_res_dict_to_arr(forces_dict, dict_type='forces')
 
-    # Calculate the sample standard deviation of the energies
+    # Calculate the sample standard deviation of the forces
     # for each structure
     forces_std = np.nanstd(forces_model_list, axis=0, ddof=1)
 
