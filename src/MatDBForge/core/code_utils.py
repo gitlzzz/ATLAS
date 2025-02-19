@@ -17,7 +17,7 @@ from rich.theme import Theme
 from MatDBForge import MDB_ROOT_DIR, __repo__, __version__
 
 
-def init_logger(source, log_path=None):
+def init_logger(source, log_path=None, show_log_path=True):
     # Starting console
     console = Console(
         theme=Theme(
@@ -71,7 +71,8 @@ def init_logger(source, log_path=None):
     logging.addLevelName(30, '[ ! ]')
     logging.addLevelName(40, '[ X ]')
 
-    custom_print(f"Logging in '{filename}'", print_type='info')
+    if show_log_path:
+        custom_print(f"Logging in '{filename}'", print_type='info')
 
     return logger, filename
 
@@ -375,7 +376,7 @@ def check_mdb_version(logger=None):
     new_logger = False
     if not logger:
         new_logger = True
-        logger, _ = init_logger('mdb_version_check')
+        logger, _ = init_logger('mdb_version_check', show_log_path=False)
 
     if curr_version < last_tagged_version:
         custom_print(
