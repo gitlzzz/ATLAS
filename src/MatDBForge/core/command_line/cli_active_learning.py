@@ -8,6 +8,7 @@ import tomllib
 import warnings
 from argparse import RawTextHelpFormatter
 
+from MatDBForge.active_learning import report_utils as mdb_report
 from MatDBForge.core.code_utils import check_mdb_version
 
 warnings.filterwarnings('ignore')
@@ -291,16 +292,81 @@ def run_active_learning():
     # Create the subparser for the 'report' command
     report_parser = subparsers.add_parser(
         'report',
-        help='Generate a report for an active learning loop.',
+        help='Generate reports for MatDBForge.',
         usage=(
-            'run_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)\n'
-            'Generate a report for an active learning loop by providing an AiiDA '
+            'run_active_learning report [-h]\n'
+            'Generate a report for a MatDBForge active learning loop or '
+            'a MatDBForge initial database.'
+        ),
+    )
+    report_subparsers = report_parser.add_subparsers(dest='subcommand', required=True)
+
+    # Create the subparser for the 'report' command
+    init_db_parser = report_subparsers.add_parser(
+        'init_db',
+        help='Generate a report for a MatDBForge initial database.',
+        usage=(
+            'run_active_learning report init_db [-h] --db_path <PATH>\n'
+            'Generate a report for a MatDBForge initial database.'
+        ),
+    )
+
+    init_db_parser.add_argument(
+        '--db_path',
+        '-d',
+        help=('Path to the database file.'),
+        metavar='<PATH>',
+        default=None,
+        required=True,
+    )
+
+    init_db_parser.add_argument(
+        '--threshold_E_eV',
+        help=('Threshold for E to consider a structure as outlier, in eV.'),
+        metavar='<FLOAT>',
+        default=None,
+        required=False,
+        type=float,
+    )
+
+    init_db_parser.add_argument(
+        '--threshold_F_std_eV',
+        help=('Threshold for F to consider a structure as outlier, in eV.'),
+        metavar='<FLOAT>',
+        default=None,
+        required=False,
+        type=float,
+    )
+
+    init_db_parser.add_argument(
+        '--remove_outliers',
+        help=('Remove outliers from the plot'),
+        action='store_const',
+        const=True,
+    )
+    init_db_parser.add_argument(
+        '--color_type',
+        help=('What to use for coloring the plot'),
+        choices=['phase', 'struct_type'],
+        type=str,
+    )
+
+    # Create the subparser for the 'al_loop' subcommand
+    al_loop_report_parser = report_subparsers.add_parser(
+        'al_loop',
+        help=(
+            'Generate a report for an active learning loop '
+            'by providing an AiiDA PK/UUID or a log file path.'
+        ),
+        usage=(
+            'run_active_learning report al_loop (--loop_id <ID> | --log_path <PATH>)'
+            '\nGenerate a report for an active learning loop by providing an AiiDA '
             'PK/UUID or a log file path.'
         ),
     )
 
     # Add mutually exclusive group for the 'report' command
-    report_group = report_parser.add_mutually_exclusive_group(required=True)
+    report_group = al_loop_report_parser.add_mutually_exclusive_group(required=True)
 
     # Add arguments specific to the 'report' subcommand
     report_group.add_argument(
@@ -315,7 +381,7 @@ def run_active_learning():
         help=('MatDBForge log of the active learning loop.'),
         metavar='<PATH>',
     )
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--device',
         '-d',
         help=('String representing a device to run inference on.'),
@@ -323,20 +389,20 @@ def run_active_learning():
         default='cpu',
         choices=['cpu', 'cuda'],
     )
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--get_error_plot',
         help=('Get error plot'),
         action='store_const',
         const=True,
     )
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--remove_outliers',
         help=('Remove outliers from the error plot'),
         action='store_const',
         const=True,
     )
 
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--model',
         help=('Path to the model file.'),
         metavar='<PATH>',
@@ -344,7 +410,7 @@ def run_active_learning():
         required=False,
     )
 
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--database',
         help=('Path to the database file.'),
         metavar='<PATH>',
@@ -352,7 +418,7 @@ def run_active_learning():
         required=False,
     )
 
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--threshold_meV',
         help=('Threshold to consider a structure as outlier, in meV. Default is 100.'),
         metavar='<FLOAT>',
@@ -360,7 +426,7 @@ def run_active_learning():
         required=False,
     )
 
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--title',
         help=(
             'Run name to be used as title. '
@@ -370,14 +436,14 @@ def run_active_learning():
         required=False,
     )
 
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--db_latent_space_evolution',
         help=('Plot database evolution over time'),
         action='store_const',
         const=True,
     )
 
-    report_parser.add_argument(
+    al_loop_report_parser.add_argument(
         '--autoencoder_folder',
         help=(
             'Path to the autoencoder folder. '
@@ -463,21 +529,29 @@ def run_active_learning():
     check_mdb_version()
 
     if args.command == 'report':
-        from MatDBForge.active_learning.active_learning_utils import gen_al_loop_report
-
-        gen_al_loop_report(
-            args.loop_id,
-            args.log_path,
-            device=args.device,
-            get_error_plot=args.get_error_plot,
-            model_path=args.model,
-            database_path=args.database,
-            threshold_meV=float(args.threshold_meV),
-            remove_outliers=args.remove_outliers,
-            title=args.title,
-            get_latent_space=args.db_latent_space_evolution,
-            autoencoder_path=args.autoencoder_folder,
-        )
+        if args.subcommand == 'al_loop':
+            mdb_report.gen_al_loop_report(
+                args.loop_id,
+                args.log_path,
+                device=args.device,
+                get_error_plot=args.get_error_plot,
+                model_path=args.model,
+                database_path=args.database,
+                threshold_meV=float(args.threshold_meV),
+                remove_outliers=args.remove_outliers,
+                title=args.title,
+                get_latent_space=args.db_latent_space_evolution,
+                autoencoder_path=args.autoencoder_folder,
+            )
+        elif args.subcommand == 'init_db':
+            # Generating a report for an initial database
+            mdb_report.gen_init_db_report(
+                train_db_path=args.db_path,
+                threshold_E=args.threshold_E_eV,
+                threshold_F_std=args.threshold_F_std_eV,
+                remove_outliers=args.remove_outliers,
+                color_type=args.color_type,
+            )
 
     # Resume a previous calculation
     elif args.command == 'resume':
