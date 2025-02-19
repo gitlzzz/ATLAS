@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.18 (2025-02-19)
+
+### Fix
+
+- **init_db**: relabel custom_format function ([#6524f99](https://github.com/pol-sb/MatDBForge/commit/6524f99a0dfa5acfc3a34061933fc4427b883cb2))
+- **al_loop**: add `show_log_path` option to `init_logger()` ([#820b248](https://github.com/pol-sb/MatDBForge/commit/820b248c8f9e62313e0de4406688e14fa3ff5b92))
+- **al_loop**: make init_db report interactive ([#02f2c24](https://github.com/pol-sb/MatDBForge/commit/02f2c244ef26bffba2cc08b5cffa1dc6b7ffd3a4))
+
 ## 0.20.17 (2025-02-18)
 
 ### Fix
