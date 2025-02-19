@@ -2683,20 +2683,12 @@ class InitialDatabase:
             db_report['structure_count'].pop(key)
 
         def autopct_format(values):
-            def my_format(pct):
+            def custom_format(pct):
                 total = db_report['database_settings']['total_entries']
                 val = int(round(pct * total / 100.0))
                 return f'{pct:.1f}%\n({val:d})'
 
-            return my_format
-
-        def autopct_display_value(values):
-            def my_format(pct):
-                total = sum(db_report['structure_count'].values())
-                val = int(round(pct * total / 100.0))
-                return f'{val:d}'
-
-            return my_format
+            return custom_format
 
         # Plotting bar chart
         y_pos_bar = range(len(db_report['structure_count'].keys()))
