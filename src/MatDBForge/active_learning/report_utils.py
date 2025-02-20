@@ -495,7 +495,22 @@ def gen_init_db_report(
         [simplify_forces_struct(atoms.arrays['REF_forces'])[1] for atoms in train_db]
     )
 
-    # Create masks
+    # Set standard units
+    E_unit = 'eV'
+    F_unit = 'eV/A'
+
+    # Apply per atom scaling
+    if per_atom:
+        for idx, _ in enumerate(train_db):
+            E_dft_list[idx] /= len(train_db[idx])
+            F_dft_list_max[idx] /= len(train_db[idx])
+            F_dft_list_avg[idx] /= len(train_db[idx])
+
+        # Update units
+        E_unit = 'eV/atom'
+        F_unit = 'eV/atom'
+
+    # Create masks (True for values that should be removed)
     E_mask = np.full(len(E_dft_list), False)
     F_mask = np.full(len(E_dft_list), False)
     if threshold_E:
@@ -503,17 +518,18 @@ def gen_init_db_report(
     if threshold_F:
         F_mask = np.abs(F_dft_list_max) < float(threshold_F)
 
-    combined_mask = E_mask & F_mask
+    # Combine masks
+    combined_mask = E_mask | F_mask
 
     if np.any(combined_mask) and remove_outliers:
         # Apply combined_mask to E_dft_list and F_dft_list
-        indices = np.array(range(len(E_dft_list)))[combined_mask]
-        E_dft_list = E_dft_list[combined_mask]
-        F_dft_list_max = F_dft_list_max[combined_mask]
-        F_dft_list_avg = F_dft_list_avg[combined_mask]
+        indices = np.array(range(len(E_dft_list)))[~combined_mask]
+        E_dft_list = E_dft_list[~combined_mask]
+        F_dft_list_max = F_dft_list_max[~combined_mask]
+        F_dft_list_avg = F_dft_list_avg[~combined_mask]
 
         valid_idxs = np.array(range(len(train_db)))
-        structs = [train_db[struct_idx] for struct_idx in valid_idxs[combined_mask]]
+        structs = [train_db[struct_idx] for struct_idx in valid_idxs[~combined_mask]]
 
         custom_print(
             f'Filtered {len(train_db)-len(structs)} structures based on thresholds.',
@@ -532,17 +548,7 @@ def gen_init_db_report(
     formulas = [struct.get_chemical_formula() for struct in train_db]
     phases = [struct.info.get('phase', 'unknown') for struct in train_db]
     struct_type = [struct.info.get('mdb_struct_type', 'unknown') for struct in train_db]
-
-    E_unit = 'eV'
-    F_unit = 'eV/A'
-
-    if per_atom:
-        for idx in indices:
-            E_dft_list[idx] /= len(train_db[idx])
-            F_dft_list_max[idx] /= len(train_db[idx])
-            F_dft_list_avg[idx] /= len(train_db[idx])
-        E_unit = 'eV/atom'
-        F_unit = 'eV/atom'
+    uuids = [struct.info.get('mdb_uuid', 'unknown') for struct in train_db]
 
     energy_line_color = 'rgba(177,98,134, 0.25)'
     forces_max_line_color = 'rgba(25, 95, 180, 0.50)'
@@ -590,16 +596,17 @@ def gen_init_db_report(
                 width=0.85,
                 color=energy_line_color,
             ),
-            customdata=np.stack((formulas, phases, struct_type), axis=-1),
+            customdata=np.stack((formulas, phases, struct_type, uuids), axis=-1),
             hovertemplate="""
             <b>Energy</b><br><br>
             <b>Structure:</b> %{x}<br>
+            <b>ID:</b> %{customdata[3]}<br>
             <b>Energy:</b> %{y} eV<br>
             <b>Formula:</b> %{customdata[0]}<br>
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-            """.replace("eV", E_unit),
+            """.replace('eV', E_unit),
         ),
         row=1,
         col=1,
@@ -609,12 +616,13 @@ def gen_init_db_report(
     forces_hovertemplate = """
             <b>NAME</b><br><br>
             <b>Structure:</b> %{x}<br>
+            <b>ID:</b> %{customdata[3]}<br>
             <b>Force:</b> %{y} eV<br>
             <b>Formula:</b> %{customdata[0]}<br>
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-        """.replace("eV", F_unit)
+        """.replace('eV', F_unit)
     curr_trace: str = 'DFT Forces Max'
     fig.add_trace(
         go.Scatter(
@@ -626,7 +634,7 @@ def gen_init_db_report(
             mode='lines+markers',
             marker=dict(size=2, color=F_max_type_color),
             line=dict(width=0.85, color=forces_max_line_color),
-            customdata=np.stack((formulas, phases, struct_type), axis=-1),
+            customdata=np.stack((formulas, phases, struct_type, uuids), axis=-1),
             hovertemplate=forces_hovertemplate.replace('NAME', curr_trace),
         ),
         row=2,
@@ -645,7 +653,7 @@ def gen_init_db_report(
                 width=0.85,
                 color=forces_avg_line_color,
             ),
-            customdata=np.stack((formulas, phases, struct_type), axis=-1),
+            customdata=np.stack((formulas, phases, struct_type, uuids), axis=-1),
             hovertemplate=forces_hovertemplate.replace('NAME', curr_trace),
         ),
         row=2,
@@ -657,12 +665,12 @@ def gen_init_db_report(
             type='line',
             x0=0,
             x1=max(indices),
-            y0=-threshold_E,
-            y1=-threshold_E,
+            y0=threshold_E,
+            y1=threshold_E,
             line=dict(color='#282828', width=2, dash='dash'),
             yref='y1',
         )
-        fig.add_annotation(text='E threshold', x=0, y=-threshold_E, yref='y1')
+        fig.add_annotation(text='E threshold', x=0, y=threshold_E, yref='y1')
     if threshold_F:
         fig.add_shape(
             type='line',
