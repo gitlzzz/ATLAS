@@ -1,4 +1,5 @@
 """Utils for generating reports."""
+
 import os
 import pickle
 import shutil
@@ -477,7 +478,7 @@ def generate_error_plot(
 def gen_init_db_report(
     train_db_path,
     threshold_E: float = None,
-    threshold_F_std: float = None,
+    threshold_F: float = None,
     remove_outliers: bool = False,
     color_type: str = None,
 ):
@@ -486,8 +487,11 @@ def gen_init_db_report(
     train_db = ase_read(train_db_path, format='extxyz', index=':')
 
     E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
-    F_dft_list = np.array(
-        [simplify_forces_struct(atoms.arrays['REF_forces']) for atoms in train_db]
+    F_dft_list_max = np.array(
+        [simplify_forces_struct(atoms.arrays['REF_forces'])[0] for atoms in train_db]
+    )
+    F_dft_list_avg = np.array(
+        [simplify_forces_struct(atoms.arrays['REF_forces'])[1] for atoms in train_db]
     )
 
     # Create masks
@@ -495,8 +499,8 @@ def gen_init_db_report(
     F_mask = np.full(len(E_dft_list), False)
     if threshold_E:
         E_mask = np.abs(E_dft_list) < float(threshold_E)
-    if threshold_F_std:
-        F_mask = np.abs(F_dft_list) < float(threshold_F_std)
+    if threshold_F:
+        F_mask = np.abs(F_dft_list_max) < float(threshold_F)
 
     combined_mask = E_mask & F_mask
 
@@ -504,7 +508,8 @@ def gen_init_db_report(
         # Apply combined_mask to E_dft_list and F_dft_list
         indices = np.array(range(len(E_dft_list)))[combined_mask]
         E_dft_list = E_dft_list[combined_mask]
-        F_dft_list = F_dft_list[combined_mask]
+        F_dft_list_max = F_dft_list_max[combined_mask]
+        F_dft_list_avg = F_dft_list_avg[combined_mask]
 
         valid_idxs = np.array(range(len(train_db)))
         structs = [train_db[struct_idx] for struct_idx in valid_idxs[combined_mask]]
@@ -527,12 +532,29 @@ def gen_init_db_report(
     phases = [struct.info.get('phase', 'unknown') for struct in train_db]
     struct_type = [struct.info.get('mdb_struct_type', 'unknown') for struct in train_db]
 
+    energy_line_color = 'rgba(177,98,134, 0.25)'
+    forces_max_line_color = 'rgba(25, 95, 180, 0.50)'
+    forces_avg_line_color = 'rgba(80, 180, 100, 0.50)'
+
     if color_type == 'struct_type':
         type_color = [color_dict.get(struct, '#282828') for struct in struct_type]
+        E_type_color, F_max_type_color, F_avg_type_color = (
+            type_color,
+            type_color,
+            type_color,
+        )
     elif color_type == 'phase':
         type_color = [color_dict.get(struct, '#282828') for struct in phases]
+        E_type_color, F_max_type_color, F_avg_type_color = (
+            type_color,
+            type_color,
+            type_color,
+        )
     else:
         type_color = None
+        E_type_color = energy_line_color
+        F_max_type_color = forces_max_line_color
+        F_avg_type_color = forces_avg_line_color
 
     # Create subplots with 2 rows
     fig = make_subplots(
@@ -551,10 +573,10 @@ def gen_init_db_report(
             name='DFT Energy',
             hoverinfo='x+y',
             mode='lines+markers',
-            marker=dict(size=3, color=type_color),
+            marker=dict(size=3, color=E_type_color),
             line=dict(
                 width=0.85,
-                color='rgba(177,98,134, 0.25)',
+                color=energy_line_color,
             ),
             customdata=np.stack((formulas, phases, struct_type), axis=-1),
             hovertemplate="""
@@ -572,21 +594,7 @@ def gen_init_db_report(
     )
 
     # Forces bar chart
-    fig.add_trace(
-        go.Scatter(
-            x=indices,
-            y=F_dft_list,
-            name='DFT Forces',
-            # marker_color='#83a598',
-            hoverinfo='x+y',
-            mode='lines+markers',
-            marker=dict(size=3, color=type_color),
-            line=dict(
-                width=0.85,
-                color='rgba(131, 165, 152, 0.45)',
-            ),
-            customdata=np.stack((formulas, phases, struct_type), axis=-1),
-            hovertemplate="""
+    forces_hovertemplate = """
             <b>Forces</b><br><br>
             <b>Structure:</b> %{x}<br>
             <b>Force std. dev.:</b> %{y} eV<br>
@@ -594,7 +602,37 @@ def gen_init_db_report(
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-            """,
+        """
+    fig.add_trace(
+        go.Scatter(
+            x=indices,
+            y=F_dft_list_max,
+            name='DFT Forces Max',
+            # marker_color='#83a598',
+            hoverinfo='x+y',
+            mode='lines+markers',
+            marker=dict(size=2, color=F_max_type_color),
+            line=dict(width=0.85, color=forces_max_line_color),
+            customdata=np.stack((formulas, phases, struct_type), axis=-1),
+            hovertemplate=forces_hovertemplate,
+        ),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=indices,
+            y=F_dft_list_avg,
+            name='DFT Forces Average',
+            hoverinfo='x+y',
+            mode='lines+markers',
+            marker=dict(size=2, color=F_avg_type_color),
+            line=dict(
+                width=0.85,
+                color=forces_avg_line_color,
+            ),
+            customdata=np.stack((formulas, phases, struct_type), axis=-1),
+            hovertemplate=forces_hovertemplate,
         ),
         row=2,
         col=1,
@@ -611,23 +649,23 @@ def gen_init_db_report(
             yref='y1',
         )
         fig.add_annotation(text='E threshold', x=0, y=-threshold_E, yref='y1')
-    if threshold_F_std:
+    if threshold_F:
         fig.add_shape(
             type='line',
             x0=0,
             x1=max(indices),
-            y0=threshold_F_std,
-            y1=threshold_F_std,
+            y0=threshold_F,
+            y1=threshold_F,
             line=dict(color='#282828', width=2, dash='dash'),
             yref='y2',
         )
-        fig.add_annotation(text='F threshold', x=0, y=threshold_F_std, yref='y2')
+        fig.add_annotation(text='F threshold', x=0, y=threshold_F, yref='y2')
 
     # Customize layout
     fig.update_layout(
         title='DFT Energy and Forces per Structure',
         yaxis=dict(autorange='reversed', title='Energy [eV]'),
-        yaxis2=dict(title='Forces Std. Dev. [eV]'),
+        yaxis2=dict(title='Forces [eV]'),
         xaxis2=dict(title='Structure Index'),
         template='simple_white',
     )

@@ -330,7 +330,7 @@ def run_active_learning():
     )
 
     init_db_parser.add_argument(
-        '--threshold_F_std_eV',
+        '--threshold_F_eV',
         help=('Threshold for F to consider a structure as outlier, in eV.'),
         metavar='<FLOAT>',
         default=None,
@@ -548,7 +548,7 @@ def run_active_learning():
             mdb_report.gen_init_db_report(
                 train_db_path=args.db_path,
                 threshold_E=args.threshold_E_eV,
-                threshold_F_std=args.threshold_F_std_eV,
+                threshold_F=args.threshold_F_eV,
                 remove_outliers=args.remove_outliers,
                 color_type=args.color_type,
             )

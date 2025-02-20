@@ -237,14 +237,17 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
 
 
 def simplify_forces_struct(forces: np.ndarray):
+    # forces shape: (n_atoms, 3)
+
     # Getting the magnitude for the force vector (Euclidean norm)
     # Shape: (n_atoms)
     forces_std_norm = np.linalg.norm(forces, axis=1)
 
-    # Calculate the sample standard deviation of the forces
-    # for each structure
-    forces_std = np.nanstd(forces_std_norm)
-    return forces_std
+    # Get maximum and average forces
+    forces_max = np.amax(forces_std_norm)
+    forces_avg = np.average(forces_std_norm)
+
+    return forces_max, forces_avg
 
 
 def model_res_dict_to_arr(res_dict: dict, dict_type: str) -> np.ndarray:

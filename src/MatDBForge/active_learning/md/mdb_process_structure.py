@@ -424,6 +424,7 @@ if __name__ == '__main__':
 
             mdb_cud.custom_print('Printing extrapolation statistics for F...', 'none')
 
+            # model_forces_dict shape: (1, n_frames, n_atoms, 3, n_models)
             # Shape: (1, n_frames, n_atoms, 3)
             forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
 
