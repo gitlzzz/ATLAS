@@ -561,8 +561,8 @@ def run_active_learning():
             # Generating a report for an initial database
             mdb_report.gen_init_db_report(
                 train_db_path=args.db_path,
-                threshold_E=args.threshold_E_eV,
-                threshold_F=args.threshold_F_eV,
+                threshold_E=args.threshold_E,
+                threshold_F=args.threshold_F,
                 remove_outliers=args.remove_outliers,
                 color_type=args.color_type,
                 per_atom=args.per_atom,
