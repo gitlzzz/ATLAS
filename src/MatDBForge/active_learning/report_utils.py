@@ -498,7 +498,7 @@ def gen_init_db_report(
     E_mask = np.full(len(E_dft_list), False)
     F_mask = np.full(len(E_dft_list), False)
     if threshold_E:
-        E_mask = np.abs(E_dft_list) < float(threshold_E)
+        E_mask = E_dft_list > float(threshold_E)
     if threshold_F:
         F_mask = np.abs(F_dft_list_max) < float(threshold_F)
 
@@ -595,35 +595,37 @@ def gen_init_db_report(
 
     # Forces bar chart
     forces_hovertemplate = """
-            <b>Forces</b><br><br>
+            <b>NAME</b><br><br>
             <b>Structure:</b> %{x}<br>
-            <b>Force std. dev.:</b> %{y} eV<br>
+            <b>Force:</b> %{y} eV<br>
             <b>Formula:</b> %{customdata[0]}<br>
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
         """
+    curr_trace: str = 'DFT Forces Max'
     fig.add_trace(
         go.Scatter(
             x=indices,
             y=F_dft_list_max,
-            name='DFT Forces Max',
+            name=curr_trace,
             # marker_color='#83a598',
             hoverinfo='x+y',
             mode='lines+markers',
             marker=dict(size=2, color=F_max_type_color),
             line=dict(width=0.85, color=forces_max_line_color),
             customdata=np.stack((formulas, phases, struct_type), axis=-1),
-            hovertemplate=forces_hovertemplate,
+            hovertemplate=forces_hovertemplate.replace('NAME', curr_trace),
         ),
         row=2,
         col=1,
     )
+    curr_trace: str = 'DFT Forces Average'
     fig.add_trace(
         go.Scatter(
             x=indices,
             y=F_dft_list_avg,
-            name='DFT Forces Average',
+            name=curr_trace,
             hoverinfo='x+y',
             mode='lines+markers',
             marker=dict(size=2, color=F_avg_type_color),
@@ -632,7 +634,7 @@ def gen_init_db_report(
                 color=forces_avg_line_color,
             ),
             customdata=np.stack((formulas, phases, struct_type), axis=-1),
-            hovertemplate=forces_hovertemplate,
+            hovertemplate=forces_hovertemplate.replace('NAME', curr_trace),
         ),
         row=2,
         col=1,
