@@ -321,8 +321,11 @@ def run_active_learning():
     )
 
     init_db_parser.add_argument(
-        '--threshold_E_eV',
-        help=('Threshold for E to consider a structure as outlier, in eV.'),
+        '--threshold_E',
+        help=(
+            'Threshold for E to consider a structure as outlier, '
+            'in eV, or eV/atom if enabled'
+        ),
         metavar='<FLOAT>',
         default=None,
         required=False,
@@ -330,8 +333,11 @@ def run_active_learning():
     )
 
     init_db_parser.add_argument(
-        '--threshold_F_eV',
-        help=('Threshold for F to consider a structure as outlier, in eV.'),
+        '--threshold_F',
+        help=(
+            'Threshold for F to consider a structure as outlier, '
+            'in eV, or eV/atom if enabled'
+        ),
         metavar='<FLOAT>',
         default=None,
         required=False,
@@ -349,6 +355,14 @@ def run_active_learning():
         help=('What to use for coloring the plot'),
         choices=['phase', 'struct_type'],
         type=str,
+    )
+
+    init_db_parser.add_argument(
+        '--per_atom',
+        help=('Display energy and force values per atom'),
+        action='store_const',
+        const=True,
+        default=False,
     )
 
     # Create the subparser for the 'al_loop' subcommand
@@ -551,6 +565,7 @@ def run_active_learning():
                 threshold_F=args.threshold_F_eV,
                 remove_outliers=args.remove_outliers,
                 color_type=args.color_type,
+                per_atom=args.per_atom,
             )
 
     # Resume a previous calculation

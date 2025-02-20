@@ -481,6 +481,7 @@ def gen_init_db_report(
     threshold_F: float = None,
     remove_outliers: bool = False,
     color_type: str = None,
+    per_atom: bool = False,
 ):
     init_logger(source='gen_init_db_report')
     custom_print('Generating initial database report...', 'info')
@@ -532,6 +533,17 @@ def gen_init_db_report(
     phases = [struct.info.get('phase', 'unknown') for struct in train_db]
     struct_type = [struct.info.get('mdb_struct_type', 'unknown') for struct in train_db]
 
+    E_unit = 'eV'
+    F_unit = 'eV/A'
+
+    if per_atom:
+        for idx in indices:
+            E_dft_list[idx] /= len(train_db[idx])
+            F_dft_list_max[idx] /= len(train_db[idx])
+            F_dft_list_avg[idx] /= len(train_db[idx])
+        E_unit = 'eV/atom'
+        F_unit = 'eV/atom'
+
     energy_line_color = 'rgba(177,98,134, 0.25)'
     forces_max_line_color = 'rgba(25, 95, 180, 0.50)'
     forces_avg_line_color = 'rgba(80, 180, 100, 0.50)'
@@ -565,7 +577,7 @@ def gen_init_db_report(
         subplot_titles=('DFT Energy', 'DFT Forces'),
     )
 
-    # Energy bar chart
+    # Energy chart
     fig.add_trace(
         go.Scatter(
             x=indices,
@@ -587,13 +599,13 @@ def gen_init_db_report(
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-            """,
+            """.replace("eV", E_unit),
         ),
         row=1,
         col=1,
     )
 
-    # Forces bar chart
+    # Forces chart
     forces_hovertemplate = """
             <b>NAME</b><br><br>
             <b>Structure:</b> %{x}<br>
@@ -602,7 +614,7 @@ def gen_init_db_report(
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-        """
+        """.replace("eV", F_unit)
     curr_trace: str = 'DFT Forces Max'
     fig.add_trace(
         go.Scatter(
@@ -663,11 +675,14 @@ def gen_init_db_report(
         )
         fig.add_annotation(text='F threshold', x=0, y=threshold_F, yref='y2')
 
+    yaxis_label = f'Energy [{E_unit}]'
+    yaxis2_label = f'Forces [{F_unit}]'
+
     # Customize layout
     fig.update_layout(
         title='DFT Energy and Forces per Structure',
-        yaxis=dict(autorange='reversed', title='Energy [eV]'),
-        yaxis2=dict(title='Forces [eV]'),
+        yaxis=dict(autorange='reversed', title=yaxis_label),
+        yaxis2=dict(title=yaxis2_label),
         xaxis2=dict(title='Structure Index'),
         template='simple_white',
     )
