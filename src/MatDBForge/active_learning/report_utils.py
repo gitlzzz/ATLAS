@@ -275,8 +275,8 @@ def generate_error_plot(
                 # Getting forces
                 # Shape: (n_atoms, 3)
                 forces_output = struct.get_forces()
-                forces_std = simplify_forces_struct(forces_output)
-                F_nn_list.append(forces_std)
+                forces_max, _ = simplify_forces_struct(forces_output)
+                F_nn_list.append(forces_max)
 
         else:
             custom_print('Loading energies and forces from file...', 'info')
@@ -287,7 +287,10 @@ def generate_error_plot(
         np.save('F_nn_list.npy', F_nn_list)
         E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
         F_dft_list = np.array(
-            [simplify_forces_struct(atoms.arrays['REF_forces']) for atoms in train_db]
+            [
+                simplify_forces_struct(atoms.arrays['REF_forces'])[0]
+                for atoms in train_db
+            ]
         )
 
         # Getting atom count
@@ -398,7 +401,7 @@ def generate_error_plot(
         ax1_bottom.text(
             x=tex_x_pos,
             y=tex_y_pos,
-            s=f'MAE: {F_mae:.3f} meV/atom\nRMSD: {F_rmsd:.3f} meV/atom',
+            s=f'MAE: {F_mae:.3f} meV/A\nRMSD: {F_rmsd:.3f} meV/A',
             transform=ax1_bottom.transAxes,
         )
 
