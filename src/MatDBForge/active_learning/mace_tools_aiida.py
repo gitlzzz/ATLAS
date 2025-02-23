@@ -154,7 +154,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         )
         spec.output(
             'extrapolation_plot',
-            valid_type=orm.SinglefileData,
+            valid_type=(orm.SinglefileData, None),
             help=('File containing a figure showing the extrapolation results.'),
             required=False,
         )
@@ -305,9 +305,6 @@ class ProcessMDSeedStructCalculationParser(Parser):
         extrapolation_plot = None
 
         for child_file in retrieved_temporary_folder.rglob('*'):
-            # Create singlefile data for the model
-
-            # If swa was used, get the swa model preferentially
             if 'extrapolating_frames.xyz' in child_file.name:
                 extrapolating_structures = orm.SinglefileData(file=child_file)
             if '.png' in child_file.name:
@@ -317,7 +314,18 @@ class ProcessMDSeedStructCalculationParser(Parser):
         if not extrapolating_structures:
             return self.exit_codes.ERROR_INVALID_OUTPUT
 
-        # Return CalcJob outputs
+        # TODO: extrapolating_plot can be None, but the output will result in error,
+        # as the required=False is not having an effect? This is a workaround for that
+        if not extrapolation_plot:
+            with tempfile.NamedTemporaryFile(
+                mode='wb',
+                delete=True,
+                suffix='.txt',
+                prefix='mdb_extrapolation_plot_placeholder-',
+            ) as f:
+                f.write(b'')
+                extrapolation_plot = orm.SinglefileData(file=f)
+
         self.out('extrapolating_structures', extrapolating_structures)
         self.out('extrapolation_plot', extrapolation_plot)
 
@@ -826,7 +834,6 @@ class EvaluateMACEConfigsCalculationParser(Parser):
                     else:
                         # calc_energies = result_dict['mdb_mace_eval_energy']
                         calc_forces = result_dict['REF_forces']
-
 
                     result_dict_list.append(result_dict)
                     forces_dict = np.vstack(calc_forces)
