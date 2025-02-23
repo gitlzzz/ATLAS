@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.19 (2025-02-23)
+
+### Fix
+
+- **al_loop**: create empty temporary file for missing `extrapolation_plot` file ([#c92f5b8](https://github.com/pol-sb/MatDBForge/commit/c92f5b8d5c9145871581a3e7f3346a1f69e33202))
+- **al_loop**: make al_loop report compatible with new F_max/F_avg and fix labels ([#fe0c7d8](https://github.com/pol-sb/MatDBForge/commit/fe0c7d89bcc6627933362a50ec77942e6feb9638))
+- **al_loop**: improved logged information ([#e4ce21c](https://github.com/pol-sb/MatDBForge/commit/e4ce21cacd6aa3f0e898a94064174593ad32bb82))
+- **al_loop**: remove from seed_db processing calculations that finished with errors ([#8101e5a](https://github.com/pol-sb/MatDBForge/commit/8101e5a6f62e9c60900580203c1806df069426a2))
+- **al_loop**: fix outlier masking ([#658591b](https://github.com/pol-sb/MatDBForge/commit/658591b6d052966224b261ab114eb974587b1201))
+- **al_loop**: fix args for per_atom option in init_db plot ([#9b446bf](https://github.com/pol-sb/MatDBForge/commit/9b446bf4465fc90c37aaadc573ed94d4f6cc19de))
+- **al_loop**: add per_atom option to init_db plot ([#621ba68](https://github.com/pol-sb/MatDBForge/commit/621ba68467034b3bd0d366379ed8034e60e06cf4))
+- **al_loop**: energy filtering uses values directly, to filter high energies instead of low ones ([#a8e0d03](https://github.com/pol-sb/MatDBForge/commit/a8e0d03990cd3f23f9dca9c8d434dfd9b899d445))
+- **al_loop**: change std. dev. to force max in init_db report ([#bc498ca](https://github.com/pol-sb/MatDBForge/commit/bc498caff63ae92df010bd7f299df6638f22bc25))
+
 ## 0.20.18 (2025-02-19)
 
 ### Fix
