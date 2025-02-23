@@ -428,7 +428,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         return bool(self.inputs.check_extrapolation_type.value)
 
     def gen_descriptors_and_concave_hull(self):
-        self.report('Generating descriptors and latent space + concave hull...')
+        self.report('Preparing descriptors calculation...')
 
         # Run training and save new model file
         desc_calc = CalculationFactory('mdb-descriptors-combined')
@@ -539,8 +539,13 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
 
         future = self.submit(desc_builder)
-        # future.base.extras.set("unique_id", row[1]["unique_id"])
-        # future.base.extras.set("md_temperature", row[1]["md_temperature"])
+        if self.inputs.check_extrapolation_type.value == 'advanced':
+            self.report(
+                f'Submitted calculation ({future.pk}) for descriptors + concave hull.'
+            )
+        else:
+            self.report(f'Submitted calculation ({future.pk}) for descriptors.')
+
         self.to_context(descrptor_results=append_(future))
 
     def get_descriptor_results(self):
