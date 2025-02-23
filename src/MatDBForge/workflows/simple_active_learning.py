@@ -1043,9 +1043,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Skip calculation if it didn't finish correctly
             if proc_calcjob.exit_status != 0:
                 self.report(
-                    'Skipping struct. processing that finished with errors '
+                    'Removing struct. processing that finished with errors '
                     f'(pk: {proc_calcjob.pk}).'
                 )
+                delete_indices.append(proc_calcjob.base.extras.all.get('unique_id'))
                 continue
 
             # Getting unique_id from extras
