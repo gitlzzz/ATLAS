@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.20 (2025-02-24)
+
+### Fix
+
+- **al_loop**: update status gui to be compatible with simple active learning ([#b2a64e4](https://github.com/pol-sb/MatDBForge/commit/b2a64e4bdfb0dc4a825a8b2985331a326e28a09a))
+- **al_loop**: fixed al_loop report and added svg saving ([#d210525](https://github.com/pol-sb/MatDBForge/commit/d210525ff153c55146e31106aa763eaccaa9a841))
+- **al_loop**: fixed extrapolation_plot placeholder ([#c4724ec](https://github.com/pol-sb/MatDBForge/commit/c4724ec1a637226bcd152a06c4bb0c906635c696))
+
 ## 0.20.19 (2025-02-23)
 
 ### Fix
