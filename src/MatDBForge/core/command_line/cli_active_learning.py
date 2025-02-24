@@ -15,7 +15,10 @@ warnings.filterwarnings('ignore')
 
 
 def create_active_learning_builder(
-    toml_dict: dict, toml_dict_path: pl.Path = None, complete=False
+    toml_dict: dict,
+    toml_dict_path: pl.Path = None,
+    complete: bool = False,
+    log_file_path: pl.Path = None,
 ):
     """
     Create builder object for the ActiveLearningWorkChain.
@@ -64,6 +67,17 @@ def create_active_learning_builder(
     else:
         timestamp = time.strftime('%Y%m%d-%H%M%S')
         log_path = pl.Path(f'mdb_output_{timestamp}.log').resolve()
+
+    # Getting contents from previous log file and appending to new log file
+    # to conserve the history of the previous run.
+    if log_file_path:
+        with open(log_file_path) as f:
+            old_log: str = f.read()
+
+        with open(log_path, 'a+') as f:
+            f.write(old_log)
+            f.write('\n')
+
     builder.log_path = str(log_path)
 
     builder.active_learning.final_db_name = al_conf['final_db_name']
@@ -163,7 +177,9 @@ def create_active_learning_builder(
     return builder
 
 
-def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None):
+def resume_al_loop_builder(
+    prev_run_dir: pl.Path, toml_dict_path: pl.Path = None, log_file_path: pl.Path = None
+):
     # Resume dictionary. This will be used to pass the last iteration and
     # the paths to the train_db and seed_db files to the base workchain
     # to resume the active learning loop from the beginning of the last iteration.
@@ -190,6 +206,9 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
         from aiida.orm import load_node
 
         wk_node = load_node(wk_uuid)
+
+    # REMOVE: Disable wk_node until implemented
+    wk_node = None
 
     # Node found, reading settings from aiida node
     if wk_node:
@@ -225,6 +244,7 @@ def resume_al_loop_builder(prev_run_dir: pl.Path, toml_dict_path: pl.Path = None
     builder = create_active_learning_builder(
         toml_dict=toml_dict,
         toml_dict_path=toml_dict_path,
+        log_file_path=log_file_path,
     )
 
     # Setting resume dictionary and updating builder inputs
@@ -506,6 +526,18 @@ def run_active_learning():
         required=False,
         default=None,
     )
+    resume_parser.add_argument(
+        '--old_log_path',
+        '-l',
+        help=(
+            'Path pointing to the previous run log file.\n'
+            'Optional. Will prepend the previous contents to the new calculation log.'
+        ),
+        type=pl.Path,
+        metavar='<PATH>',
+        required=False,
+        default=None,
+    )
 
     # Create the subparser for the 'gui' command
     gui_parser = subparsers.add_parser(
@@ -592,6 +624,7 @@ def run_active_learning():
         builder = resume_al_loop_builder(
             prev_run_dir=pl.Path(args.dir_resume).resolve(),
             toml_dict_path=config_file,
+            log_file_path=args.old_log_path,
         )
 
         # Running the workchain
