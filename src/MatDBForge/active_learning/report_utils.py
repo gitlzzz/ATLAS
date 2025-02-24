@@ -126,7 +126,7 @@ def gen_al_loop_report(
     fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
     gs = gridspec.GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
 
-    filename = plot_al_loop_report(
+    filename: Path = plot_al_loop_report(
         ini_db_size=ini_db_size,
         seed_gen_db_sizes=seed_gen_db_sizes,
         train_db_sizes=train_db_sizes,
@@ -189,8 +189,12 @@ def gen_al_loop_report(
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.925, bottom=0.0725, right=0.95, left=0.075)
-    plt.savefig(filename, dpi=300)
-    custom_print(f"Saved report to '{filename}'.", 'info')
+
+    # Saving both png and svg
+    plt.savefig(filename.with_suffix('.png'), dpi=300)
+    plt.savefig(filename.with_suffix('.svg'), dpi=300)
+    custom_print(f"Saved report to '{filename.with_suffix('.png')}'.", 'info')
+
     plt.clf()
 
     custom_print('Report generation complete.', 'done')
@@ -720,7 +724,7 @@ def plot_al_loop_report(
 ):
     # Get unix timestamp for filename
     timestamp = int(time.time())
-    filename = Path(f'al_loop_report_{timestamp}.png').resolve()
+    filename = Path(f'al_loop_report_{timestamp}').resolve()
 
     # Define colors from the gruvbox palette
     colors = [
@@ -850,6 +854,7 @@ def plot_al_loop_report(
     # Add a horizontal line to mark chemical accuracy for energy and forces
     chem_acc = 43.37  # meV
     ax3.axhline(y=chem_acc, color=line_color, linestyle='--')
+    ax3.text(x=1.5, y=chem_acc + 0.5, s='Chem. Acc.', color=line_color)
 
     # Plot MACE model force performance
     ax4 = ax.figure.add_subplot(ax[1, 1])
@@ -857,7 +862,6 @@ def plot_al_loop_report(
     ax4.set_xticks(ind, ind)
     ax4.set_xlabel('AL Loop Step')
     ax4.set_ylabel('RMSE F [meV / A]')
-    ax4.text(x=1.5, y=chem_acc + 0.5, s='Chem. Acc.', color=line_color)
     ax4.set_title('Evolution of best MACE Model Force RMSE')
 
     return filename
