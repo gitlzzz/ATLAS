@@ -80,11 +80,13 @@
             <div class="col-xl-3 col-md-4 col-sm-12 subprocess-list-col gy-2 bottom-row">
                 <div id="subprocess-list" class="subprocess-list g-2">
                     {% for entry in subprocess_list %}
+                    {% set curr_it = entry[0]["curr_it"] %}
+
                     <button class="text-truncate" data-bs-toggle="collapse" href='#collapse{{ entry[0]["curr_it"] }}'
                         role="button" aria-expanded="false" aria-controls='collapse{{ entry[0]["curr_it"] }}'
                         type="calcjob-button">AL Loop
                         Iteration -
-                        {{ entry[0]["curr_it"] }} ({{ cache.iloc[0]["pk"] }})
+                        {{ curr_it|int }} ({{ cache.iloc[curr_it|int - 1]["pk"] }})
                     </button>
 
                     <script> console.log("entry: {{ entry }}") </script>

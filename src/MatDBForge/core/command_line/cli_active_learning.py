@@ -284,6 +284,13 @@ def run_active_learning():
         const=True,
     )
 
+    parser.add_argument(
+        '--gui',
+        help='Launch a dashboard to keep track of the active learning loop.',
+        action='store_const',
+        const=True,
+    )
+
     # Create a subparsers object
     subparsers = parser.add_subparsers(
         dest='command', help='List of available commands'
@@ -535,6 +542,13 @@ def run_active_learning():
         const=True,
         default=False,
     )
+    gui_parser.add_argument(
+        '-i',
+        '--pk',
+        '--loop_id',
+        help=('AiiDA PK/UUID of the active learning loop.'),
+        metavar='<ID>',
+    )
 
     # Getting CLI arguments
     args = parser.parse_args()
@@ -582,6 +596,16 @@ def run_active_learning():
 
         # Running the workchain
         node = run(builder)
+    elif args.command == 'gui':
+        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+
+        run_dashboard_app(
+            process_id=str(args.pk),
+            port=args.port,
+            update_interval=args.update_interval,
+            debug=args.debug,
+            online=args.online,
+        )
 
     # Start a new al loop
     else:
@@ -607,7 +631,7 @@ def run_active_learning():
             complete=args.complete,
         )
 
-        if args.command != 'gui':
+        if not args.gui:
             node = run(builder)
         else:
             from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app

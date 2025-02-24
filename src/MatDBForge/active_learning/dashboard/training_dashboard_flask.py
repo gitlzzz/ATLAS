@@ -113,7 +113,10 @@ def get_missing_cache_steps_uuid(node, cache: pd.DataFrame):
     missing_uuid_list = []
     children = orm.load_node(node).called
     children = [
-        child for child in children if child.process_label == 'ActiveLearningWorkChain'
+        child
+        for child in children
+        if child.process_label
+        in ('ActiveLearningWorkChain', 'SimpleActiveLearningWorkChain')
     ]
 
     for child in children:
@@ -242,7 +245,8 @@ def update_cache(cache: pd.DataFrame, missing_uuid_list) -> pd.DataFrame:
     al_loop_steps = [
         c
         for c in orm.load_node(cache.attrs['base_workchain']).called
-        if c.process_label == 'ActiveLearningWorkChain'
+        if c.process_label
+        in ('ActiveLearningWorkChain', 'SimpleActiveLearningWorkChain')
     ]
     # Update extra information
     cache.attrs['curr_iter'] = al_loop_steps[-1].inputs.al_loop_iteration.value + 1
@@ -273,7 +277,10 @@ def create_cache(workchain_node_id):
 
     # Gathering AL steps
     al_loop_steps = [
-        c for c in base_workchain.called if c.process_label == 'ActiveLearningWorkChain'
+        c
+        for c in base_workchain.called
+        if c.process_label
+        in ('ActiveLearningWorkChain', 'SimpleActiveLearningWorkChain')
     ]
     if len(al_loop_steps) > 0:
         cache.attrs['curr_iter'] = al_loop_steps[-1].inputs.al_loop_iteration.value
@@ -361,7 +368,7 @@ def gather_information(workchain_node_id, app):
 
     # Determining workchain status
     wkc = orm.load_node(workchain_node_id)
-    if any([wkc.is_excepted, wkc.is_terminated, wkc.is_killed]):
+    if any([wkc.is_excepted, wkc.is_killed]):
         progbar_class_name = 'workchain-progbar-error'
         iter_text = f"ERROR ({cache.attrs['curr_iter']})"
         curr_iter = cache.attrs['curr_iter']
@@ -404,6 +411,7 @@ def run_training_dashboard(workchain_node_id, refresh_interval=60, port=8000):
             curr_iter,
             progbar_class_name,
         ) = gather_information(workchain_node_id, app)
+
 
         return render_template(
             'training_dashboard.html',
