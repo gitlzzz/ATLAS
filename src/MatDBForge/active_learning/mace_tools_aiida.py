@@ -318,7 +318,7 @@ class ProcessMDSeedStructCalculationParser(Parser):
         # as the required=False is not having an effect? This is a workaround for that
         if not extrapolation_plot:
             with tempfile.NamedTemporaryFile(
-                mode='wb',
+                mode='ab+',
                 delete=True,
                 suffix='.txt',
                 prefix='mdb_extrapolation_plot_placeholder-',
