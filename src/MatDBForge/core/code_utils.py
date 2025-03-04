@@ -50,12 +50,13 @@ def init_logger(source, log_path=None, show_log_path=True):
     ch.setFormatter(formatter_con)
     logger.addHandler(ch)
 
-    filename = tempfile.mktemp(prefix=f'mdb_{source}_', suffix='.log')
-
-    if log_path:
+    if not log_path:
+        _, filename = tempfile.mkstemp(prefix=f'mdb_{source}_', suffix='.log')
+    else:
         log_path_dir = pathlib.Path(log_path)
-        log_filename = pathlib.Path(filename + '.log').stem
-        filename = log_path_dir / log_filename
+        _, filename = tempfile.mkstemp(
+            prefix=f'mdb_{source}_', suffix='.log', dir=log_path_dir
+        )
 
     fh = logging.FileHandler(filename=filename, mode='a+')
     fh.setLevel(logging.DEBUG)
