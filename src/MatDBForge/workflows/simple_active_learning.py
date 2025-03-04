@@ -46,6 +46,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         """Specify inputs and outputs."""
         super().define(spec)
 
+        spec.input('al_start_mode', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('init_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('toml_file', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -240,7 +241,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
         # Stop the calculation if initial models must be loaded
-        if self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0:
+        if (
+            self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0
+        ) or (
+            self.inputs.load_init_models and self.inputs.al_start_mode.value == 'resume'
+        ):
             self.report(
                 'Loading models from nodes: '
                 f"'{self.inputs.load_init_models.get_list()}'."
@@ -334,7 +339,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         """
         curr_iter = self.inputs.al_loop_iteration.value
         if (not self.inputs.load_init_models) or (
-            self.inputs.load_init_models and curr_iter != 0
+            self.inputs.load_init_models
+            and (curr_iter != 0 and self.inputs.al_start_mode.value == 'normal')
         ):
             mace_training_results = self.ctx.mace_training_results
         else:

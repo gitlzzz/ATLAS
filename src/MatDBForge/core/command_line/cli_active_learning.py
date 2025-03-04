@@ -19,6 +19,7 @@ def create_active_learning_builder(
     toml_dict_path: pl.Path = None,
     complete: bool = False,
     log_file_path: pl.Path = None,
+    al_start_mode: str = 'normal',
 ):
     """
     Create builder object for the ActiveLearningWorkChain.
@@ -34,7 +35,7 @@ def create_active_learning_builder(
         A process builder that helps setting up the inputs for
         an ActiveLearningWorkChain.
     """
-    from aiida.orm import Dict, Int
+    from aiida.orm import Dict, Int, Str
     from aiida.plugins import WorkflowFactory
 
     # Getting builder for workchain
@@ -174,6 +175,9 @@ def create_active_learning_builder(
     ## Descriptor settings
     builder.active_learning.descriptor_settings = Dict(value=toml_dict['descriptors'])
 
+    ## Start mode
+    builder.active_learning.al_start_mode = Str(al_start_mode)
+
     return builder
 
 
@@ -245,6 +249,7 @@ def resume_al_loop_builder(
         toml_dict=toml_dict,
         toml_dict_path=toml_dict_path,
         log_file_path=log_file_path,
+        al_start_mode='resume',
     )
 
     # Setting resume dictionary and updating builder inputs
