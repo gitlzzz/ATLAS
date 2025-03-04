@@ -34,6 +34,23 @@ database_path = ""
 # overwrite_db = false
 
 
+# Settings for the composition of the database
+[database.composition]
+
+# (int) Maximum number of structures to generate for the database
+size = 7500
+
+[database.composition.ratios]
+# The sum of the fractions must be equal to 1.0
+
+# (float) Fraction of structures that will be bulk
+bulk = 0.4
+# (float) Fraction of structures that will be surfaces
+surface = 0.6
+# (float) Fraction of structures that will be clusters
+# cluster = 0.1
+
+
 [database.plot_db]
 # (bool) Display database with phase diagram after creation
 show = true
