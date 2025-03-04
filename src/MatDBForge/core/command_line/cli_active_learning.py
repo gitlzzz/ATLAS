@@ -495,6 +495,42 @@ def run_active_learning():
         required=False,
     )
 
+    # Create the subparser for the 'al_loop' subcommand
+    al_loop_batch_parser = report_subparsers.add_parser(
+        'al_loop_batch',
+        help=(
+            'Generate a report for a series of active learning loops, '
+            'as a way of comparing them by providing an AiiDA PK/UUID or '
+            ' a log file path.'
+        ),
+        usage=(
+            'run_active_learning report al_loop (--loop_id <ID> | --log_path <PATH>)'
+            '\nGenerate a report for an active learning loop by providing an AiiDA '
+            'PK/UUID or a log file path.'
+        ),
+    )
+
+    al_loop_batch_parser.add_argument(
+        '--db_path',
+        '--d',
+        help='Path to the database file.',
+        metavar='<PATH>',
+    )
+    al_loop_batch_parser.add_argument(
+        '--threshold_meV',
+        help=('Threshold to consider a structure as outlier, in meV. Default is 100.'),
+        metavar='<FLOAT>',
+        default=100.0,
+        required=False,
+    )
+
+    al_loop_batch_parser.add_argument(
+        '--remove_outliers',
+        help=('Remove outliers from the error plot'),
+        action='store_const',
+        const=True,
+    )
+
     # Create the subparser for the 'resume' command
     resume_parser = subparsers.add_parser(
         'resume',
@@ -613,6 +649,9 @@ def run_active_learning():
                 color_type=args.color_type,
                 per_atom=args.per_atom,
             )
+        elif args.subcommand == 'al_loop_batch':
+            # Generating a report for an initial database
+            mdb_report.gen_batch_report(training_db_path=args.db_path)
 
     # Resume a previous calculation
     elif args.command == 'resume':

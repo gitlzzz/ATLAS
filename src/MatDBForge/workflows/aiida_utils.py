@@ -849,16 +849,16 @@ def update_db_with_dft_results(sel_struct_db, queue):
         new_struct.info['calc_type'] = 'vasp_dft'
         new_struct.info['calc_performed'] = True
         try:
-            new_struct.info['REF_energy'] = results_dict[0]['info']['energy']
+            new_struct.info['REF_energy'] = results_dict[0]['info']['REF_energy']
             new_struct.info['REF_stress'] = results_dict[0]['info']['stress']
-            new_struct.arrays['REF_forces'] = np.array(results_dict[0]['forces'])
+            new_struct.arrays['REF_forces'] = np.array(results_dict[0]['REF_forces'])
             new_struct.arrays['positions'] = np.array(results_dict[0]['positions'])
         except IndexError:
             new_struct.info['REF_energy'] = results_dict['info']['energy']
             new_struct.info['REF_stress'] = results_dict['info']['stress']
-            new_struct.arrays['REF_forces'] = np.array(results_dict['forces'])
+            new_struct.arrays['REF_forces'] = np.array(results_dict['REF_forces'])
             new_struct.info['REF_energy'] = results_dict['info']['energy']
-            new_struct.arrays['REF_forces'] = np.array(results_dict['forces'])
+            new_struct.arrays['REF_forces'] = np.array(results_dict['REF_forces'])
             new_struct.arrays['positions'] = np.array(results_dict['positions'])
 
         sel_struct_db[idx] = new_struct
