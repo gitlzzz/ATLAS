@@ -228,11 +228,16 @@ def resume_al_loop_builder(
             )
 
         # Read toml settings file
-        for toml in prev_run_dir.glob('*.toml'):
-            toml_dict_path = toml
+        if not toml_dict_path:
+            for toml in prev_run_dir.glob('*.toml'):
+                toml_dict_path = toml
+
         toml_dict = read_toml_config(toml_dict_path)
 
         # Populating resume dictionary with last iteration
+        run_tmp_path = prev_run_dir / 'run_tmp_data'
+        run_tmp_files = [f for f in run_tmp_path.glob('*.pkl')]
+        run_tmp_files.sort(key=lambda x: x.stem.split('-')[-1])
         for it_file in (prev_run_dir / 'run_tmp_data').glob('*.pkl'):
             last_iteration = int(it_file.stem.split('-')[-1])
         resume_dict['last_iteration'] = last_iteration
@@ -267,14 +272,15 @@ def resume_al_loop_builder(
 
     # Check for any model files in the folder and return an error if not found
     # builder.dft_settings["mace_potential_path"]
-    mace_model_path = pl.Path(
-        builder.active_learning.dft_settings['mace_potential_path']
-    )
-    if not mace_model_path.exists():
-        raise FileNotFoundError(
-            'No model files found in the run directory.\n'
-            f"Check that '{mace_model_path}' exists."
+    if toml_dict.get('dft', {}).get('dft_method') == 'mace':
+        mace_model_path = pl.Path(
+            builder.active_learning.dft_settings['mace_potential_path']
         )
+        if not mace_model_path.exists():
+            raise FileNotFoundError(
+                'No model files found in the run directory.\n'
+                f"Check that '{mace_model_path}' exists."
+            )
 
     return builder
 
