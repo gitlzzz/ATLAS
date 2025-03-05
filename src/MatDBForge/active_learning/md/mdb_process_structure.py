@@ -165,7 +165,10 @@ if __name__ == '__main__':
 
     # Load the rmse_arr.npy file and assign the values to the variables
     rmse_arr = np.load(prepend_path / 'rmse_arr.npy')
+
+    # meV/at
     e_rmse = rmse_arr[0]
+    # meV/A
     f_rmse = rmse_arr[1]
 
     # Define results folder
@@ -361,8 +364,10 @@ if __name__ == '__main__':
                 frame.calc = calculator
 
                 # Get the energy [meV/at] and forces [meV/A]
-                comm_results[model.stem]['energy'].append(frame.get_potential_energy()*1000/len(frame))
-                comm_results[model.stem]['forces'].append(frame.get_forces()*1000)
+                comm_results[model.stem]['energy'].append(
+                    frame.get_potential_energy() * 1000 / len(frame)
+                )
+                comm_results[model.stem]['forces'].append(frame.get_forces() * 1000)
 
         ## Apply E/F commitee extrapolation filter
         model_acc_multiplier = settings['active_learning'].get(
@@ -375,8 +380,8 @@ if __name__ == '__main__':
         mdb_cud.custom_print('Printing extrapolation statistics for E:', 'debug')
 
         if ef_disagreement_type == 'training':
-            e_error_threshold = model_acc_multiplier * e_rmse # meV / at
-            f_error_threshold = model_acc_multiplier * f_rmse # meV / A
+            e_error_threshold = model_acc_multiplier * e_rmse  # meV / at
+            f_error_threshold = model_acc_multiplier * f_rmse  # meV / A
 
             mdb_cud.custom_print(
                 f'model_acc_multiplier: {model_acc_multiplier}', 'none'
@@ -399,7 +404,7 @@ if __name__ == '__main__':
 
             # Checking if the energies are over the error threshold
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
-            maximum_value_e = np.average(energies_stat) * 1000 # meV * 100
+            maximum_value_e = np.average(energies_stat) * 500  # meV * 500
             mdb_cud.custom_print(f'e_error_threshold: {e_error_threshold}', 'none')
             mdb_cud.custom_print(f'e_maximum_value: {maximum_value_e}', 'none')
             mdb_cud.custom_print(f'energies_stat: {energies_stat}', 'none')
@@ -548,11 +553,11 @@ if __name__ == '__main__':
             mdb_cud.custom_print(f'f_std_norm_max: {f_std_norm_max}', 'none')
 
             # Average variability in forces predictions across models for all frames
-            f_mean_error = np.mean(energies_stat)
+            f_mean_error = np.mean(f_std_norm_max)
             mdb_cud.custom_print(f'f_mean_error: {f_mean_error}', 'none')
 
             # Spread of variability in the forces predictions across frames
-            f_std_error = np.std(energies_stat)
+            f_std_error = np.std(f_std_norm_max)
             mdb_cud.custom_print(f'f_std_error: {f_std_error}', 'none')
 
             # Threshold for identifying frames with unusually high variability
