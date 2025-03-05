@@ -68,6 +68,7 @@ def gen_al_loop_report(
         it_idx,
         mace_e,
         mace_f,
+        model_acc_multiplier,
     ) = get_loop_report(loop_id, log_path, title)
 
     # Adjust number of panels according to options
@@ -94,6 +95,7 @@ def gen_al_loop_report(
         mace_f=mace_f,
         it_idx=it_idx,
         ax=gs,
+        model_acc_multiplier=model_acc_multiplier,
     )
 
     # bold title
@@ -178,7 +180,7 @@ def gen_al_loop_report(
     custom_print('Report generation complete.', 'done')
 
 
-def get_loop_report(loop_id=None, log_path=None, title=None):
+def get_loop_report(loop_id=None, log_path=None, title=None, model_acc_multiplier=None):
     if loop_id:
         al_loop_node = orm.load_node(loop_id)
         report = get_workchain_report(al_loop_node, levelname='REPORT')
@@ -197,6 +199,11 @@ def get_loop_report(loop_id=None, log_path=None, title=None):
         ini_db_size = int(ini_db_line[0].split()[3].replace("'", ''))
     except IndexError:
         ini_db_size = 0
+
+    if isinstance(al_loop_node, orm.Node):
+        model_acc_multiplier = (
+            al_loop_node.inputs.active_learning.model_acc_multiplier.value
+        )
 
     # Match all lines containing the seed_gen_db and train_db sizes
     seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
@@ -246,8 +253,9 @@ def get_loop_report(loop_id=None, log_path=None, title=None):
         seed_gen_db_sizes,
         train_db_sizes,
         it_idx,
-        mace_e,
-        mace_f,
+        np.array(mace_e),
+        np.array(mace_f),
+        model_acc_multiplier,
     )
 
 
@@ -588,9 +596,7 @@ def generate_error_plot(
         markeredgecolor='#282828',
         markersize=3,
     )
-    ax1_bottom.plot(
-        F_dft_list, F_dft_list, color='#b16286', linestyle='--'
-    )
+    ax1_bottom.plot(F_dft_list, F_dft_list, color='#b16286', linestyle='--')
     ax1_bottom.set_xlabel('DFT Forces [eV/A]')
     ax1_bottom.set_ylabel('NN Forces [eV/A]')
     ax1_bottom.set_title('Forces comparison')
@@ -628,6 +634,15 @@ def generate_error_plot(
     )
     ax_twin.set_ylabel('Abs. E diff [meV/atom]')
     ax_twin_b.set_ylabel('Abs. F diff [meV/A]')
+
+    ax_twin.spines['right'].set_color('#fb4934')
+    ax_twin.tick_params(axis='y', colors='#fb4934')
+    ax_twin.yaxis.label.set_color('#fb4934')
+    ax_twin.title.set_color('#fb4934')
+    ax_twin_b.spines['right'].set_color('#fb4934')
+    ax_twin_b.tick_params(axis='y', colors='#fb4934')
+    ax_twin_b.yaxis.label.set_color('#fb4934')
+    ax_twin_b.title.set_color('#fb4934')
 
     # Set labels and title
     ax2_top.set_xlabel('Structure index')
@@ -1156,6 +1171,7 @@ def plot_al_loop_report(
     mace_f: list[float],
     it_idx: list[int],
     ax,
+    model_acc_multiplier: float = None,
 ):
     bar_line_color = '#282828'
     bar_line_width = 1.5
@@ -1316,10 +1332,24 @@ def plot_al_loop_report(
     ax3 = ax.figure.add_subplot(ax[1, 0])
     ind = np.arange(len(mace_e)) + 1
     ax3.plot(ind, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
+
+    if model_acc_multiplier:
+        thresh_color = COLORS[-1]
+        # ax3_twin = ax3.twinx()
+        ax3.plot(
+            ind,
+            mace_e * model_acc_multiplier,
+            label='Energy threshold',
+            color=COLORS[-1],
+            marker='^',
+        )
+        ax3.set_ylabel('Energy threshold [meV]')
+
     ax3.set_xticks(ind, ind)
     ax3.set_xlabel('AL Loop Step')
     ax3.set_ylabel('RMSE E per atom [meV]')
     ax3.set_title('Evolution of best MACE Model Energy RMSE')
+    ax3.legend()
 
     ax3.annotate(
         'c)',
@@ -1340,10 +1370,22 @@ def plot_al_loop_report(
     # Plot MACE model force performance
     ax4 = ax.figure.add_subplot(ax[1, 1])
     ax4.plot(ind, mace_f, label='MACE Forces', color=COLORS[3], marker='o')
+
+    if model_acc_multiplier:
+        thresh_color = COLORS[-1]
+        ax4.plot(
+            ind,
+            mace_f * model_acc_multiplier,
+            label='Forces threshold',
+            color=thresh_color,
+            marker='^',
+        )
+
     ax4.set_xticks(ind, ind)
     ax4.set_xlabel('AL Loop Step')
     ax4.set_ylabel('RMSE F [meV / A]')
     ax4.set_title('Evolution of best MACE Model Force RMSE')
+    ax4.legend()
 
     ax4.annotate(
         'd)',

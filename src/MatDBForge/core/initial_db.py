@@ -2567,6 +2567,9 @@ class InitialDatabase:
         fig_format: str = 'png',
         max_phases_pie: int = 5,
     ):
+
+
+
         # Updating matplotlib rcParams
         for key, value in rc_params.items():
             mpl.rcParams[key] = value
@@ -2868,7 +2871,7 @@ class InitialDatabase:
                         lr=1e-3,
                         batch_size=4096,
                         num_epochs=250,
-                        model_path=False,
+                        model_path='./autoencoder_model.pth',
                         weight_decay=1e-5,
                         verbose=False,
                     )
@@ -2933,7 +2936,7 @@ def cli_run_gen_initial_database(
     composition_dict = db_dict.get('composition')
     if not composition_dict:
         raise ValueError(
-            'Composition dictionary not found.'
+            'Composition dictionary not found. '
             'Add the `database.composition` key in the .toml file.'
         )
 
@@ -2941,20 +2944,19 @@ def cli_run_gen_initial_database(
     bulk_r = ratios_dict.get('bulk', 0)
     surf_r = ratios_dict.get('surface', 0)
     clst_r = ratios_dict.get('cluster', 0)
+    ratio_sum = bulk_r + surf_r + clst_r
 
-    if (bulk_r + surf_r + clst_r) != 1:
+    if ratio_sum != 1:
         raise ValueError(
-            'Sum of ratios in the composition dictionary must be 1.'
-            ' Ommitted types will be considered as 0.'
+            'Sum of ratios in the composition dictionary must be 1. '
+            f'Currently: {ratio_sum}. Ommitted types will be considered as 0.'
         )
 
     # Start logger
     log_path = pl.Path(db_path) / 'logs'
     if not log_path.exists():
         log_path.mkdir(parents=True)
-    logger, _ = mdb_cud.init_logger(
-        source=pl.Path(__file__).stem, log_path=f'{db_path}/logs'
-    )
+    logger, _ = mdb_cud.init_logger(source=pl.Path(__file__).stem, log_path=log_path)
 
     # Checking last version of the library
     mdb_cud.check_mdb_version(logger=logger)
@@ -3189,7 +3191,7 @@ def cli_run_gen_initial_database(
                 use_phase=phase,
                 only_use_base=False,
                 limit_num_structures=int(displ_dict['limit_max_num_displacements']),
-                filters=displ_dict['filter_struct_types'],
+                filters=displ_dict.get('filter_struct_types'),
                 rng_seed=rng_seed,
             )
             mdb_cud.custom_print(structures, 'info')
