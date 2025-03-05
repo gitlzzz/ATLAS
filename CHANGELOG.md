@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.20.21 (2025-03-05)
+
+### Fix
+
+- **al_loop**: fix `energies_stat` being used for `f_mean_error` and `f_std_error`. ([#3dcd2c5](https://github.com/pol-sb/MatDBForge/commit/3dcd2c5aaf6c8ca8888641e713d69d376d98c080))
+- **gen_db**: improve database generation output ([#c8afc66](https://github.com/pol-sb/MatDBForge/commit/c8afc6662eff4e63bf52a7694829995f46927715))
+- **al_loop**: gather resume iteration number properly + make mace_potential_path only mandatory for dft mace ([#84a362a](https://github.com/pol-sb/MatDBForge/commit/84a362a0ca9ffa20f11cb1e00f41caef98cbc640))
+- **al_loop**: add `al_start_mode` input to simple active learning to allow loading already trained MLIP models ([#0959c7d](https://github.com/pol-sb/MatDBForge/commit/0959c7d166edffaa4f0ce4a84965c51b0bd5c984))
+- **core**: updated database generation template ([#2e1358e](https://github.com/pol-sb/MatDBForge/commit/2e1358e2a63e1257e76de3df9243bab5a24776d3))
+- **core**: fix log generation ([#9a019a8](https://github.com/pol-sb/MatDBForge/commit/9a019a8e84a9ba466b5a019878dac237a577eafb))
+
 ## 0.20.20 (2025-02-24)
 
 ### Fix
