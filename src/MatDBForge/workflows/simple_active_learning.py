@@ -337,16 +337,23 @@ class SimpleActiveLearningWorkChain(WorkChain):
             values, the potential file, and the committee models' information
             but does not return any value directly.
         """
+        # Get the current iteration and resume mode
         curr_iter = self.inputs.al_loop_iteration.value
-        if (not self.inputs.load_init_models) or (
-            self.inputs.load_init_models
-            and (curr_iter != 0 and self.inputs.al_start_mode.value == 'normal')
-        ):
-            mace_training_results = self.ctx.mace_training_results
+        resume_mode = self.inputs.al_start_mode.value == 'resume'
+
+        # Ensure that models are loaded only for the first resumed step
+        if self.inputs.load_init_models:
+            if curr_iter == 0 or (
+                resume_mode and not hasattr(self.ctx, 'loaded_init_models')
+            ):
+                mace_training_results = [
+                    orm.load_node(node) for node in self.inputs.load_init_models
+                ]
+                self.ctx.loaded_init_models = True  # Mark that models have been loaded
+            else:
+                mace_training_results = self.ctx.mace_training_results
         else:
-            mace_training_results = [
-                orm.load_node(node) for node in self.inputs.load_init_models
-            ]
+            mace_training_results = self.ctx.mace_training_results
 
         model_name_list = []
         weighted_E_F_sum_list = []
@@ -1713,7 +1720,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Update the iteration counter if resuming from a previous run
         if self.inputs.resume_dict:
             self.report(
-                "Resuming from previous run, stopped at iteration: "
+                'Resuming from previous run, stopped at iteration: '
                 f"'{self.inputs.resume_dict['last_iteration']}'."
             )
             self.ctx.iteration = self.inputs.resume_dict['last_iteration']
@@ -1838,7 +1845,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         else:
             if self.ctx.iteration != 0:
                 self.report(
-                    f'Proceeding with iteration-{self.ctx.iteration+1} of AL Loop '
+                    f'Proceeding with iteration-{self.ctx.iteration + 1} of AL Loop '
                     'as stopping conditions not met.'
                 )
             self.ctx.inputs.al_loop_iteration = self.ctx.iteration
@@ -1860,15 +1867,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             selected structures.
         """
         self.report(
-            f'Starting AL Loop iteration {self.ctx.iteration+1}/'
+            f'Starting AL Loop iteration {self.ctx.iteration + 1}/'
             f'{self.inputs.active_learning.max_iterations.value}...'
         )
         self.report('Getting MD seed...')
         self.ctx.inputs.metadata.description = (
             'Perform MD simulations, evaluate and refine ML models. '
-            f'Step: {self.ctx.iteration+1}'
+            f'Step: {self.ctx.iteration + 1}'
         )
-        self.ctx.inputs.metadata.label = f'Step - {self.ctx.iteration+1}'
+        self.ctx.inputs.metadata.label = f'Step - {self.ctx.iteration + 1}'
 
         seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
 
@@ -1950,8 +1957,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             current_md_seed_structs.append(seed_gen_db[idx])
 
         self.report(
-            f'Created MD seed with {seed_size}'
-            f' structures ({(seed_size/db_length)*100:.1f}% of current database size).'
+            f'Created MD seed with {seed_size} structures '
+            f'({(seed_size / db_length) * 100:.1f}% of current database size).'
         )
 
         # Adding current train seed to the context
