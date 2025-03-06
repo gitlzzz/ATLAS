@@ -254,8 +254,7 @@ This section contains keys which adjust the extrapolation and disagreement check
 
 - `disagreement_check_type`: (str, optional) Select the approach to perform the energy and force (E&F) committee disagreement check on new frames obtained via MD. Default is `training`. Currently the following options are allowed:
   - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
-  - `md_treshold`: Compare E&F with a threshold obtained from the standard
-
+  - `md_threshold`: Compare E&F with a unique threshold for every MD, defined as $committee\_mean + 3 * committee\_std\_dev$.
 - `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently the following options are allowed:
   - `none`: Only use committee disagreement for EF as extrapolation criteria.
   - `basic`: Check for extrapolation using the ranges of the MACE descriptors + EF disagreement.
