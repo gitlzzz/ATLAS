@@ -1107,6 +1107,7 @@ def run_dataframe_vasp_aiida_queue(
                     ),
                     'warning',
                 )
+                incar_dict = INCAR_SP
 
             # Iterating over the chunk and launching a separate
             # vasp workchain for every structure contained.
