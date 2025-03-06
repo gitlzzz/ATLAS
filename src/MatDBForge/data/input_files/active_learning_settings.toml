@@ -117,7 +117,7 @@ small_first_max_iter = 5
 # (E&F) committee disagreement checkon new frames obtained via MD.
 # Default is `training`. Currently the following options are allowed:
 # - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
-# - `md_treshold`: Compare E&F with a threshold obtained from the standard
+# - `md_threshold`: Compare E&F with a unique threshold for every MD, defined as comm_mean + 3*comm_std_dev.
 disagreement_check_type = "training"
 
 # (str, optional) Whether to check for extrapolation. Default is 'advanced'
