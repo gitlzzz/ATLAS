@@ -403,7 +403,7 @@ if __name__ == '__main__':
                 model_forces_dict[model_name].append(comm_results[model_name]['forces'])
 
             # Checking if the energies are over the error threshold
-            energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)
+            energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict) # meV
             maximum_value_e = np.average(energies_stat) * 500  # meV * 500
             mdb_cud.custom_print(f'e_error_threshold: {e_error_threshold}', 'none')
             mdb_cud.custom_print(f'e_maximum_value: {maximum_value_e}', 'none')
@@ -441,7 +441,7 @@ if __name__ == '__main__':
             # Shape: (1, n_frames)
             forces_std_norm_max = np.amax(forces_std_norm, axis=2)
 
-            maximum_value_f = np.average(forces_std_norm_max) * 1000  # meV
+            maximum_value_f = np.average(forces_std_norm_max) * 500  # meV
             mdb_cud.custom_print(f'f_error_threshold: {f_error_threshold}', 'none')
             mdb_cud.custom_print(f'f_maximum_value: {maximum_value_f}', 'none')
             mdb_cud.custom_print(f'forces_std_norm_max: {forces_std_norm_max}', 'none')
