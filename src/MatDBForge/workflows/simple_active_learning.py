@@ -32,7 +32,6 @@ from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core.code_utils import get_mdb_version_info
-from MatDBForge.workflows.aiida_utils import can_submit_calculation
 
 
 class SimpleActiveLearningWorkChain(WorkChain):
@@ -252,6 +251,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
             return
 
+        calc_count = 0
         for _ in range(self.inputs.committee_num_models.value):
             model_name = mdb_al_ut.generate_model_name()
 
@@ -293,30 +293,21 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
             mace_builder.metadata.label = model_name
 
-            # Get the calculation limit, from the computer metadata set to 0
-            # if not present.
-            # `mdb_calc_limit` is a custom property set with:
-            # computer.set_property(name='mdb_calc_limit', value=366)
-            calc_limit = computer.metadata.get('mdb_calc_limit', 0)
-
-            # Check if the calculation can be submitted
-            if calc_limit == 0:
-                can_submit = True
-            else:
-                can_submit = can_submit_calculation(
-                    code=code_str,
-                    limit=calc_limit,
+            # future = self.submit(mace_builder)
+            # self.to_context(mace_training_results=append_(future))
+            calc_limit = mace_builder.metadata.computer.metadata.get(
+                'mdb_calc_limit', 0
+            )
+            if calc_limit != 0:
+                mdb_al_ut.aiida_wait_submit(
+                    builder=mace_builder,
+                    computer=computer,
+                    calc_count=calc_count,
                 )
 
-            # If the calculation cannot be submitted, wait for a minute and check again
-            while not can_submit:
-                time.sleep(60)
-                can_submit = can_submit_calculation(
-                    code=code_str,
-                    limit=calc_limit,
-                )
-
+            # Submit calculation
             future = self.submit(mace_builder)
+            self.report(f'Submitted calculation {future.pk}.')
             self.to_context(mace_training_results=append_(future))
 
     def get_mace_train_output(self):
@@ -532,23 +523,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # computer.set_property(name='mdb_calc_limit', value=366)
         calc_limit = desc_builder.metadata.computer.metadata.get('mdb_calc_limit', 0)
 
-        # Check if the calculation can be submitted
-        if calc_limit == 0:
-            can_submit = True
-        else:
-            can_submit = can_submit_calculation(
+        if calc_limit != 0:
+            mdb_al_ut.aiida_wait_submit(
+                builder=desc_builder,
                 computer=computer,
-                code=desc_builder.code.label,
-                limit=calc_limit,
-            )
-
-        # If the calculation cannot be submitted, wait for a minute and check again
-        while not can_submit:
-            time.sleep(60)
-            can_submit = can_submit_calculation(
-                computer=computer,
-                code=desc_builder.code.label,
-                limit=calc_limit,
+                calc_count=0,
             )
 
         future = self.submit(desc_builder)
@@ -703,22 +682,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # computer.set_property(name='mdb_calc_limit', value=366)
         calc_limit = computer.metadata.get('mdb_calc_limit', 0)
 
-        # Check if the calculation can be submitted
-        if calc_limit == 0:
-            can_submit = True
-        else:
-            can_submit = can_submit_calculation(
+        if calc_limit != 0:
+            mdb_al_ut.aiida_wait_submit(
+                builder=code_builder,
                 computer=computer,
-                code=code.label,
-                limit=calc_limit,
-            )
-        # If the calculation cannot be submitted, wait for a minute and check again
-        while not can_submit:
-            time.sleep(60)
-            can_submit = can_submit_calculation(
-                computer=computer,
-                code=code.label,
-                limit=calc_limit,
+                calc_count=0,
             )
 
         future = self.submit(code_builder)
@@ -785,9 +753,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
         ]
 
         # Set the computer
-        code_builder.metadata.computer = orm.load_computer(
+        computer = orm.load_computer(
             self.inputs.descriptor_settings['metadata']['computer']
         )
+        code_builder.metadata.computer = computer
 
         # Generate aiida code using the script in the `descriptor_code_path` folder.
         descriptor_code_path = Path(
@@ -811,23 +780,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # computer.set_property(name='mdb_calc_limit', value=366)
         calc_limit = code_builder.metadata.computer.metadata.get('mdb_calc_limit', 0)
 
-        # Check if the calculation can be submitted
-        if calc_limit == 0:
-            can_submit = True
-        else:
-            can_submit = can_submit_calculation(
-                code=code.label,
-                limit=calc_limit,
-                computer=code_builder.metadata.computer,
-            )
-
-        # If the calculation cannot be submitted, wait for a minute and check again
-        while not can_submit:
-            time.sleep(60)
-            can_submit = can_submit_calculation(
-                code=code.label,
-                limit=calc_limit,
-                computer=code_builder.metadata.computer,
+        if calc_limit != 0:
+            mdb_al_ut.aiida_wait_submit(
+                builder=code_builder,
+                computer=computer,
+                calc_count=0,
             )
 
         future = self.submit(code_builder)
@@ -855,7 +812,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             f'Starting submission of {len(current_md_seed_structs)} '
             'structures to process...'
         )
-
+        calc_count = 0
         for _, curr_structure in enumerate(current_md_seed_structs):
             # Run training and save new model file
             proc_seed = CalculationFactory('mdb-process-md-seed-struct')
@@ -1008,23 +965,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 'mdb_calc_limit', 0
             )
 
-            # Check if the calculation can be submitted
-            if calc_limit == 0:
-                can_submit = True
-            else:
-                can_submit = can_submit_calculation(
+            if calc_limit != 0:
+                mdb_al_ut.aiida_wait_submit(
+                    builder=proc_seed_builder,
                     computer=computer,
-                    code=proc_seed_builder.code.label,
-                    limit=calc_limit,
-                )
-
-            # If the calculation cannot be submitted, wait for a minute and check again
-            while not can_submit:
-                time.sleep(60)
-                can_submit = can_submit_calculation(
-                    computer=computer,
-                    code=proc_seed_builder.code.label,
-                    limit=calc_limit,
+                    calc_count=calc_count,
                 )
             future = self.submit(proc_seed_builder)
 
@@ -1104,6 +1049,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 sampled_indices = [int(i * step) for i in range(dft_calc_limit)]
                 calcs_to_submit = [calcs_to_submit[idx] for idx in sampled_indices]
 
+        # Submitting calcs
+        calc_count = 0
         for struct in calcs_to_submit:
             # Get row and index
             struct_uuid = struct.info.get('mdb_id')
@@ -1135,22 +1082,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 except Exception:
                     calc_limit = 0
 
-                # Check if the calculation can be submitted
-                if calc_limit == 0:
-                    can_submit = True
-                else:
-                    can_submit = can_submit_calculation(
-                        code=builder.code.label,
-                        limit=calc_limit,
-                    )
-
-                # If the calculation cannot be submitted,
-                # wait for a minute and check again
-                while not can_submit:
-                    time.sleep(60)
-                    can_submit = can_submit_calculation(
-                        code=builder.code.label,
-                        limit=calc_limit,
+                if calc_limit != 0:
+                    mdb_al_ut.aiida_wait_submit(
+                        builder=builder,
+                        computer=builder.code.computer,
+                        calc_count=calc_count,
                     )
 
                 # Submitting current calculation
@@ -1190,23 +1126,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
             calc_limit = builder.code.computer.metadata.get('mdb_calc_limit', 0)
 
             # Check if the calculation can be submitted
-            if calc_limit == 0:
-                can_submit = True
-            else:
-                can_submit = can_submit_calculation(
+            if calc_limit != 0:
+                mdb_al_ut.aiida_wait_submit(
+                    builder=builder,
                     computer=builder.code.computer,
-                    code=builder.code.label,
-                    limit=calc_limit,
-                )
-
-            # If the calculation cannot be submitted,
-            # wait for a minute and check again
-            while not can_submit:
-                time.sleep(60)
-                can_submit = can_submit_calculation(
-                    computer=builder.code.computer,
-                    code=builder.code.label,
-                    limit=calc_limit,
+                    calc_count=calc_count,
                 )
 
             # Submitting current calculation

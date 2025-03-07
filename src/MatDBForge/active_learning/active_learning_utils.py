@@ -3,6 +3,7 @@
 import io
 import itertools as it
 import tempfile
+import time
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -35,6 +36,56 @@ from shapely.geometry import Point, Polygon
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import code_utils as mdb_cud
 from MatDBForge.workflows import aiida_utils as mdb_aut
+from MatDBForge.workflows.aiida_utils import can_submit_calculation
+
+
+def aiida_wait_submit(builder, computer, calc_count=0):
+    # Get the calculation limit, from the computer metadata set to 0
+    # if not present.
+    # `mdb_calc_limit` is a custom property set with:
+    # computer.set_property(name='mdb_calc_limit', value=366)
+    try:
+        calc_limit = builder.metadata.computer.metadata.get('mdb_calc_limit', 0)
+    except AttributeError:
+        # If the builder does not have computer metadata, get the limit
+        # from the computer
+        calc_limit = computer.metadata.get('mdb_calc_limit', 0)
+    except Exception:
+        # If `mdb_calc_limit` is not set, set the limit to 0
+        calc_limit = 0
+
+    # Check if the calculation can be submitted
+    if calc_limit == 0:
+        can_submit = True
+    else:
+        can_submit, calc_count_sch = can_submit_calculation(
+            computer=computer,
+            code=builder.code.label,
+            limit=calc_limit,
+        )
+    mdb_cud.custom_print(f'Can submit: {can_submit}.', 'debug')
+    if calc_count == 0:
+        calc_count = calc_count_sch
+
+    # If the calculation cannot be submitted, wait for a minute and check again
+    while not can_submit or ((calc_count + 1) >= calc_limit):
+        time.sleep(30)
+        can_submit, calc_count_sch = can_submit_calculation(
+            computer=computer,
+            code=builder.code.label,
+            limit=calc_limit,
+        )
+        calc_count = calc_count_sch
+    calc_count += 1
+
+    return calc_count
+
+    # REMOVE: Check the status of the calculation on the remote machine. Extremely
+    # slow (and safe) but not needed for the current implementation.
+    # # Wait for the calculation to get recognized by the queue manager
+    # while future.get_state() == CalcJobState.SUBMITTING or not future.get_state():
+    #     print('#@# future.get_state(): ', future.get_state())
+    #     time.sleep(10)
 
 
 def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
@@ -869,6 +920,7 @@ def create_mace_lammps_model(model_file: orm.SinglefileData):
         A LAMMPS potential file generated from the MACE model.
     """
     from mace.calculators import LAMMPS_MACE
+
     with model_file.as_path() as model_path:
         # Loading model
         model = torch.load(model_path, map_location=torch.device('cpu'))
