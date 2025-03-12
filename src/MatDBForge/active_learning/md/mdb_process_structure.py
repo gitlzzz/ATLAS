@@ -352,6 +352,22 @@ if __name__ == '__main__':
             # Skip the rest of the process for the current T.
             continue
 
+        # Save removed frames to a file
+        if md_filters.get('save_filtered_structures'):
+            mdb_cud.custom_print(
+                f"Saving filtered structures to '{res_folder / 'filtered_frames.xyz'}'",
+                'info',
+            )
+            filtered_frames = [md_traj[i] for i in frames_to_remove]
+            ase_write(
+                res_folder / 'filtered_frames.xyz',
+                format='extxyz',
+                images=filtered_frames,
+                append=True,
+            )
+        else:
+            mdb_cud.custom_print('Filtered structures not saved.', 'info')
+
         # Limit total number of frames
         md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
         mdb_cud.custom_print(
@@ -665,11 +681,11 @@ if __name__ == '__main__':
                 if (prepend_path / 'autoencoder_model.pth').exists():
                     model_path = prepend_path / 'autoencoder_model.pth'
                     model = torch.load(model_path)
-                    mdb_cud.custom_print('Model loaded from:' f"'{model_path}'")
+                    mdb_cud.custom_print(f"Model loaded from:'{model_path}'")
                 else:
                     model_path = prepend_path / aut_t_params.get('model_path')
                     model = torch.load(model_path)
-                    mdb_cud.custom_print('Model loaded from:' f"'{model_path}'")
+                    mdb_cud.custom_print(f"Model loaded from:'{model_path}'")
 
                 model.to(dtype=torch.float32)
 
