@@ -276,12 +276,16 @@ if __name__ == '__main__':
 
         # Apply MD filters and removing these frames from the trajectory
         frames_to_remove = []
-        md_filters = settings.get('md', {}).get('filters', [])
+        md_filters = settings.get('md', {}).get('filters', {})
         mdb_cud.custom_print('Applying MD filters to remove outliers...', 'info')
 
-        if 'layer_distance' in md_filters:
+        if md_filters.get('layer_distance', {}).get('enable'):
+            mdb_cud.custom_print("Running 'layer distance' filter...", 'info')
             later_distance_r_frames = []
-            max_dist = md_filters['layer_distance']['max_layer_distance_ang']
+
+            # Getting max distance from input
+            max_dist: float = md_filters['layer_distance']['max_layer_distance_ang']
+
             for idx, frame in enumerate(md_traj):
                 is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
                     struct=frame, max_layer_distance_ang=max_dist
@@ -289,14 +293,25 @@ if __name__ == '__main__':
                 if is_structure_wrong:
                     later_distance_r_frames.append(idx)
             frames_to_remove.extend(later_distance_r_frames)
-        mdb_cud.custom_print(
-            f'Marked by layer distance filter: {len(later_distance_r_frames)}', 'debug'
-        )
 
-        if 'check_atoms_no_neighbor' in md_filters:
+            mdb_cud.custom_print(
+                f'Marked by layer distance filter: {len(later_distance_r_frames)}',
+                'debug',
+            )
+
+        if md_filters.get('check_atoms_no_neighbor', {}).get('enable'):
+            mdb_cud.custom_print("Running 'no neighbor' filter...", 'info')
             neighbor_r_frames = []
+
+            # Getting multiplier from input
+            cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
+                'covalent_radius_multiplier', 1.0
+            )
+            # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(struct=frame)
+                is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(
+                    struct=frame, cov_rad_multiplier=cov_rad_mult
+                )
                 if is_structure_wrong:
                     neighbor_r_frames.append(idx)
             frames_to_remove.extend(neighbor_r_frames)
