@@ -490,7 +490,13 @@ def apply_layer_distance_filter(struct: Atoms, max_layer_distance_ang: float) ->
     if isinstance(struct, pmg_struct):
         struct = AseAtomsAdaptor().get_atoms(structure=struct)
 
-    max_dist = get_max_layer_distance(struct)
+    # Apply wrapping to structure copy, considering the minimum z value
+    curr_struct = struct.copy()
+    min_z = np.min(curr_struct.positions[:, 2])
+    curr_struct.positions[:, 2] += np.abs(min_z) + np.abs(min_z) * 0.1
+    curr_struct.wrap()
+
+    max_dist = get_max_layer_distance(curr_struct)
 
     # Filtering using the max_layer_distance_ang
     if max_dist > max_layer_distance_ang:
@@ -499,7 +505,7 @@ def apply_layer_distance_filter(struct: Atoms, max_layer_distance_ang: float) ->
     return is_structure_wrong
 
 
-def apply_filter_no_neighbors(struct):
+def apply_filter_no_neighbors(struct, cov_rad_multiplier:float):
     """
     Use neighbor list to check if there are any atoms with no neighbors.
 
@@ -516,7 +522,15 @@ def apply_filter_no_neighbors(struct):
     if isinstance(struct, pmg_struct):
         struct = AseAtomsAdaptor().get_atoms(structure=struct)
 
-    conn_matr, has_disconnected_atoms, coord_nums = get_coord_nums(struct)
+    # Apply wrapping to structure copy, considering the minimum z value
+    curr_struct = struct.copy()
+    min_z = np.min(curr_struct.positions[:, 2])
+    curr_struct.positions[:, 2] += np.abs(min_z) + np.abs(min_z) * 0.1
+    curr_struct.wrap()
+
+    conn_matr, has_disconnected_atoms, coord_nums = get_coord_nums(
+        curr_struct, cov_rad_multiplier=cov_rad_multiplier
+    )
     has_disconnected_neighbors = check_disconn_neighbors(conn_matr, coord_nums)
 
     return has_disconnected_atoms or has_disconnected_neighbors
@@ -588,7 +602,7 @@ def check_disconn_neighbors(
     return has_disconnected_neighbors
 
 
-def get_coord_nums(struct: Atoms) -> tuple:
+def get_coord_nums(struct: Atoms, cov_rad_multiplier: float = 1.0) -> tuple:
     """
     Get the connectivity matrix, check for disconnected atoms and get coord. numbers.
 
@@ -603,7 +617,7 @@ def get_coord_nums(struct: Atoms) -> tuple:
         Tuple containing the connectivity matrix, a boolean indicating if there are
         disconnected atoms and an array with the coordination numbers.
     """
-    cutoffs: list = natural_cutoffs(struct)
+    cutoffs: list = np.array(natural_cutoffs(struct)) * cov_rad_multiplier
     nl = NeighborList(
         cutoffs,
         skin=0.01,
