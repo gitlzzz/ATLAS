@@ -314,6 +314,29 @@ num_repeats = 7
 adsorbate_species = ["H", "H2O"]
 
 
+###############################################
+# Settings related to wrong structure cleanup
+###############################################
+
+[struct_filters]
+
+# Specific settings for the no neighbor check filter.
+# WARNING: only use when dealing with bulks, surfaces or clusters
+# that have no adsorbed molecules. Disable this filter if not needed.
+[struct_filters.no_neighbors]
+
+# (float) Multiplier applied to the covalent radii to be used as cutoff
+# radius for the neighbor check. Default is 1.0
+cov_rad_multiplier = 1.05
+
+
+# Specific settings for the layer distance MD filter.
+[struct_filters.layer_distance]
+
+# (float) Maximum accepted distance between layers (in Angstrom).
+max_layer_distance_ang = 3.5
+
+
 ############################################
 # Settings related to vacancy generation
 ############################################

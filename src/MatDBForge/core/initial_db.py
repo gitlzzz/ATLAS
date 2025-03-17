@@ -50,6 +50,7 @@ import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.surfaces as mdb_surf
+from MatDBForge.active_learning.active_learning_utils import AVAILABLE_FILTERS
 from MatDBForge.core import initial_db as indb
 from MatDBForge.core import utils as ut
 
@@ -168,6 +169,9 @@ class InitialDatabase:
         )
 
         return repr_string
+
+    def __len__(self):
+        return self.df.shape[0]
 
     def _adapt_old_db(self, database_old):
         """Adapter for the old version of the database."""
@@ -675,6 +679,45 @@ class InitialDatabase:
 
         return structure_list
 
+    def db_struct_to_ase(self, row) -> ase_atoms:
+        ase_curr_struct = AseAtomsAdaptor().get_atoms(row.structure)
+
+        # Populate structure with information
+        ase_curr_struct.info['mdb_struct_type'] = self._get_structure_type_row(
+            bulk=row['bulk'],
+            surface=row['surface'],
+            cluster=row['cluster'],
+            isolated_atom=row['isolated_atom'],
+        )
+
+        # Add custom information to the structure for MACE reference atoms
+        if ase_curr_struct.info['mdb_struct_type'] == 'isolated_atom':
+            ase_curr_struct.info['config_type'] = 'IsolatedAtom'
+
+        ase_curr_struct.info['mdb_id'] = str(row['unique_id'])
+        ase_curr_struct.info['struct_name'] = row['material_name']
+        ase_curr_struct.info['perturb'] = row['perturb']
+        ase_curr_struct.info['replacement'] = row['replacement']
+        ase_curr_struct.info['base'] = row['base']
+        ase_curr_struct.info['bulk'] = row['bulk']
+        ase_curr_struct.info['cluster'] = row['cluster']
+        ase_curr_struct.info['surface'] = row['surface']
+        ase_curr_struct.info['surface_miller'] = row['surface_miller']
+        ase_curr_struct.info['supercell'] = row['supercell']
+        ase_curr_struct.info['symmetry'] = row['symmetry']
+        ase_curr_struct.info['calc_type'] = row['calc_type']
+        ase_curr_struct.info['calc_performed'] = row['calc_performed']
+        ase_curr_struct.info['displacement'] = row['displacement']
+        ase_curr_struct.info['vacancy'] = row['vacancy']
+        ase_curr_struct.info['targeted_modification'] = row['targeted_modification']
+        if row.get('phase'):
+            if isinstance(row['phase'], str):
+                ase_curr_struct.info['phase'] = row['phase']
+            else:
+                ase_curr_struct.info['phase'] = row['phase'].name
+
+        return ase_curr_struct
+
     def export_db(
         self,
         out_format: str = 'extxyz',
@@ -685,42 +728,8 @@ class InitialDatabase:
         struct_list = []
         for _, row in self.df.iterrows():
             # Get ASE structure
-            pmg_curr_struct = row['structure']
-            ase_curr_struct = AseAtomsAdaptor().get_atoms(pmg_curr_struct)
-
-            # Populate structure with information
-            ase_curr_struct.info['mdb_struct_type'] = self._get_structure_type_row(
-                bulk=row['bulk'],
-                surface=row['surface'],
-                cluster=row['cluster'],
-                isolated_atom=row['isolated_atom'],
-            )
-
-            # Add custom information to the structure for MACE reference atoms
-            if ase_curr_struct.info['mdb_struct_type'] == 'isolated_atom':
-                ase_curr_struct.info['config_type'] = 'IsolatedAtom'
-
-            ase_curr_struct.info['mdb_id'] = str(row['unique_id'])
-            ase_curr_struct.info['struct_name'] = row['material_name']
-            ase_curr_struct.info['perturb'] = row['perturb']
-            ase_curr_struct.info['replacement'] = row['replacement']
-            ase_curr_struct.info['base'] = row['base']
-            ase_curr_struct.info['bulk'] = row['bulk']
-            ase_curr_struct.info['cluster'] = row['cluster']
-            ase_curr_struct.info['surface'] = row['surface']
-            ase_curr_struct.info['surface_miller'] = row['surface_miller']
-            ase_curr_struct.info['supercell'] = row['supercell']
-            ase_curr_struct.info['symmetry'] = row['symmetry']
-            ase_curr_struct.info['calc_type'] = row['calc_type']
-            ase_curr_struct.info['calc_performed'] = row['calc_performed']
-            ase_curr_struct.info['displacement'] = row['displacement']
-            ase_curr_struct.info['vacancy'] = row['vacancy']
-            ase_curr_struct.info['targeted_modification'] = row['targeted_modification']
-            if row.get('phase'):
-                if isinstance(row['phase'], str):
-                    ase_curr_struct.info['phase'] = row['phase']
-                else:
-                    ase_curr_struct.info['phase'] = row['phase'].name
+            # pmg_curr_struct = row['structure']
+            ase_curr_struct = self.db_struct_to_ase(row)
 
             struct_list.append(ase_curr_struct)
 
@@ -832,7 +841,7 @@ class InitialDatabase:
                 (
                     f"Phase '{curr_phase.name}' - Total selected structures:"
                     f' {tot_structures}, equivalent: {tot_equival}'
-                    f' ({(tot_equival/tot_structures)*100:.2f}%)'
+                    f' ({(tot_equival / tot_structures) * 100:.2f}%)'
                 ),
                 'debug',
             )
@@ -1161,7 +1170,7 @@ class InitialDatabase:
                 new_struct_vac = entry.structure.copy()
                 new_struct_vac = new_struct_vac.remove_sites(vac_indices)
 
-                mat_str = f'{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx+1}'
+                mat_str = f'{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx + 1}'
 
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdb_struct.Structure(
@@ -1214,7 +1223,7 @@ class InitialDatabase:
 
         mdb_cud.custom_print(f'Applying filters {filters} for perturbation.')
         mdb_cud.custom_print(
-            f'{len(target_entries)*repeat} perturbed entries will be added.', 'debug'
+            f'{len(target_entries) * repeat} perturbed entries will be added.', 'debug'
         )
 
         # Applying displacement to all perturbed structures
@@ -1240,7 +1249,7 @@ class InitialDatabase:
                 )
 
                 mat_str = (
-                    f'{entry.curr_str.unique_id}_perturb_gauss_{perturb_repeat_idx+1}'
+                    f'{entry.curr_str.unique_id}_perturb_gauss_{perturb_repeat_idx + 1}'
                 )
 
                 # Creating a new Structure from the perturbed structure
@@ -1346,7 +1355,7 @@ class InitialDatabase:
         """
         # Instantiating RNG
         if not rng_seed:
-            rng_seed = np.random.randint(0, 100000)
+            rng_seed = np.random.randint(0, 2**32 - 1)
         rng = np.random.default_rng(seed=rng_seed)
 
         # Selecting which subset of structures to use by either
@@ -1395,7 +1404,7 @@ class InitialDatabase:
 
                 mat_str = (
                     f'{entry.unique_id}_{str_matid}_{str_phase.name}_'
-                    f'perturb_min_{perturb_repeat_idx+1}'
+                    f'perturb_min_{perturb_repeat_idx + 1}'
                 )
 
                 surface_miller = entry.surface_miller if entry.surface_miller else None
@@ -2050,7 +2059,7 @@ class InitialDatabase:
         """
         # Instantiating RNG
         if not seed:
-            seed = np.random.randint(0, int(1e12))
+            seed = np.random.randint(0, 2**32 - 1)
 
         rng = np.random.default_rng(seed=seed)
         mdb_cud.custom_print(f'Bulk generation RNG seed: {str(seed)}', 'debug')
@@ -2095,7 +2104,7 @@ class InitialDatabase:
             # for the new structures
             subst_base_elem_perc = self._gen_base_elem_perc(phase, num_struct)
             mdb_cud.custom_print(
-                f'Random base element % for bulk to gen: {subst_base_elem_perc*100}',
+                f'Random base element % for bulk to gen: {subst_base_elem_perc * 100}',
                 'debug',
             )
 
@@ -2132,9 +2141,15 @@ class InitialDatabase:
                     except Exception:
                         bulk_temp = np.nan
 
+                    mat_name = (
+                        f'{structure_obj.material_id}_{phase.name}_super-'
+                        f'{supercell_vec_str}-{supr_idx}_replacement-'
+                        f'{str_ind + 1}-{repl + 1}'
+                    )
+
                     # Creating a new Bulk object for the structure with replacement
                     new_struct_symm = mdb_struct.Bulk(
-                        material_name=f'{structure_obj.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}',
+                        material_name=mat_name,
                         material_id=structure_obj.material_id,
                         structure=new_structure,
                         temperature=bulk_temp,
@@ -2320,7 +2335,7 @@ class InitialDatabase:
     def _add_entry_to_n2p2_input(self, buffer: TextIOWrapper, data_dict: dict):
         # Writing begin keyword and structure name
         buffer.write('begin\n')
-        buffer.write(f'comment {data_dict.get("material_name","no name found")}\n')
+        buffer.write(f'comment {data_dict.get("material_name", "no name found")}\n')
 
         # Getting lattice parameters and converting them to Bohr
         lat_x = data_dict['lattice'][0]
@@ -2339,10 +2354,10 @@ class InitialDatabase:
         ):
             # Preparing and writing the line
             buffer.write(
-                f"atom {at[0]:.6f} {at[1]:.6f}"
-                f" {at[2]:.6f}"
-                f" {data_dict['symbols'][idx]} {0:.6f} {0:.6f}"
-                f" {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n"
+                f'atom {at[0]:.6f} {at[1]:.6f}'
+                f' {at[2]:.6f}'
+                f' {data_dict["symbols"][idx]} {0:.6f} {0:.6f}'
+                f' {frc[0]:.6f} {frc[1]:.6f} {frc[2]:.6f}\n'
             )
 
         # writing potential energy and charge
@@ -2567,9 +2582,6 @@ class InitialDatabase:
         fig_format: str = 'png',
         max_phases_pie: int = 5,
     ):
-
-
-
         # Updating matplotlib rcParams
         for key, value in rc_params.items():
             mpl.rcParams[key] = value
@@ -2837,13 +2849,13 @@ class InitialDatabase:
             case 'mace':
                 # Get the MACE descriptors
                 raise NotImplementedError(
-                    'MACE descriptors are not yet implemented' 'in database generation.'
+                    'MACE descriptors are not yet implementedin database generation.'
                 )
                 mdb_cud.custom_print('Generating descriptors using MACE...', 'info')
             case 'acsf':
                 # Get the ACSF descriptors
                 raise NotImplementedError(
-                    'ASCF descriptors are not yet implemented' 'in database generation'
+                    'ASCF descriptors are not yet implementedin database generation'
                 )
         mdb_cud.custom_print('Generated descriptors.', 'done')
 
@@ -2901,6 +2913,7 @@ class InitialDatabase:
             [val['latent_space'] for key, val in descriptors.items()]
         )
 
+        mdb_cud.custom_print('Getting concave hull...', 'info')
         concave_hull = mdb_ch.get_concave_hull_julia(latent_space)
         concave_hull = mdb_ch.plot_concave_hull(
             concave_hull=concave_hull,
@@ -2916,6 +2929,71 @@ class InitialDatabase:
 #     composition_dict = db_dict.get("size")
 
 #     # Multiply number of selected phases by the number of structures per phase
+
+
+def apply_struct_filters(structures: InitialDatabase, config_dict: dict):
+    """
+    Applies user-specified structure filters.
+
+    Parameters
+    ----------
+    structures : list[ase_atoms]
+        List of structures to be filtered.
+    config_dict : dict
+        Dictionary containing user-defined filter settings from TOML.
+    """
+    if 'struct_filters' in config_dict:
+        filter_settings = config_dict.get('struct_filters', {})
+
+        mdb_cud.custom_print('Applying structure filters...', 'info')
+
+        # Validate filter names
+        invalid_filters = [
+            filt_name
+            for filt_name in filter_settings
+            if filt_name not in AVAILABLE_FILTERS
+        ]
+
+        if invalid_filters:
+            raise ValueError(f'Invalid filter names: {invalid_filters}')
+
+        # Apply each filter to the structures
+        filtered_uuids = []
+
+        for row in riprg.track(
+            structures, description='Applying filters...', total=len(structures)
+        ):
+            structure = AseAtomsAdaptor().get_atoms(row[1].structure)
+
+            struct_filter_results = []
+            for filt_name, filt_params in filter_settings.items():
+                # Retrieve function and apply it
+                filter_func = AVAILABLE_FILTERS[filt_name]
+
+                # Apply filter function
+                try:
+                    result = filter_func(structure, **filt_params)
+                except Exception:
+                    print(f"'{filt_name}' failed for structure '{row[0]}'. Skipping...")
+                if result:
+                    struct_filter_results.append(result)
+
+            if any(struct_filter_results):
+                filtered_uuids.append(row[1].unique_id)
+
+        # Get filtered structures from structures.df
+        filtered_structs = [
+            structures.db_struct_to_ase(row=row[1])
+            for row in structures.df[
+                structures.df['unique_id'].isin(filtered_uuids)
+            ].iterrows()
+        ]
+        # Save filtered structures to file
+        aseio.write('filtered_structures.xyz', filtered_structs, format='extxyz')
+
+        # Removing filtered structures
+        structures.df = structures.df[~structures.df['unique_id'].isin(filtered_uuids)]
+        return filtered_uuids
 
 
 def cli_run_gen_initial_database(
@@ -2974,7 +3052,7 @@ def cli_run_gen_initial_database(
         db_dict['database_name'] = db_dict['database_name'] + f'_{timestamp}'
         mdb_cud.custom_print(
             (
-                "Overwriting disabled. Creating new database in"
+                'Overwriting disabled. Creating new database in'
                 f" {db_dict['database_path']} named '{db_dict['database_name']}'."
             ),
             'warning',
@@ -2988,7 +3066,7 @@ def cli_run_gen_initial_database(
     print()
 
     # Get seed from input file or generate one
-    rng_seed = int(db_dict.get('rng_seed', np.random.randint(0, int(1e15))))
+    rng_seed = int(db_dict.get('rng_seed', np.random.randint(0, 2**32 - 1)))
     mdb_cud.custom_print(f"Using RNG seed: '{rng_seed}'.", 'info')
 
     # Assemble phase diagram
@@ -3096,7 +3174,10 @@ def cli_run_gen_initial_database(
         # Creating surfaces from the base structures, generating
         # different supercells and applying replacements.
         mdb_cud.custom_print(
-            f'[bold][{phase_idx+1}/{len(selected_phases)}] - Current phase: {phase}[/]',
+            (
+                f'[bold][{phase_idx + 1}/{len(selected_phases)}] '
+                f'- Current phase: {phase}[/]'
+            ),
             'info',
         )
 
@@ -3224,8 +3305,8 @@ def cli_run_gen_initial_database(
             vacancies_dict = config_dict['vacancies']
             mdb_cud.custom_print(
                 (
-                    f"Applying vacancies to a random subset of "
-                    f"{vacancies_dict['limit_max_num_vacancies']} structures..."
+                    f'Applying vacancies to a random subset of '
+                    f'{vacancies_dict["limit_max_num_vacancies"]} structures...'
                 ),
                 'info',
             )
@@ -3267,6 +3348,15 @@ def cli_run_gen_initial_database(
         'done',
     )
     print()
+
+    # TODO: Apply structure filters here
+    if 'struct_filters' in config_dict:
+        filtered_idxs = apply_struct_filters(structures, config_dict)
+        mdb_cud.custom_print(
+            f'Filtered {len(filtered_idxs)} structures based on user-defined filters.',
+            'info',
+        )
+        mdb_cud.custom_print(structures, 'info')
 
     if 'adsorbates' in config_dict:
         mdb_cud.custom_print(
@@ -3334,7 +3424,7 @@ def cli_run_gen_initial_database(
             ),
             plot_filename=concave_dict.get(
                 'plot_filename',
-                f"{pl.Path(db_path)/'descriptors_concave_hull.png'}",
+                f'{pl.Path(db_path) / "descriptors_concave_hull.png"}',
             ),
             device=concave_dict.get('device', 'cpu'),
             rng_seed=rng_seed,

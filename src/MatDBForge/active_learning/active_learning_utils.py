@@ -505,7 +505,7 @@ def apply_layer_distance_filter(struct: Atoms, max_layer_distance_ang: float) ->
     return is_structure_wrong
 
 
-def apply_filter_no_neighbors(struct, cov_rad_multiplier:float):
+def apply_filter_no_neighbors(struct, cov_rad_multiplier: float):
     """
     Use neighbor list to check if there are any atoms with no neighbors.
 
@@ -535,6 +535,11 @@ def apply_filter_no_neighbors(struct, cov_rad_multiplier:float):
 
     return has_disconnected_atoms or has_disconnected_neighbors
 
+
+AVAILABLE_FILTERS = {
+    'layer_distance': apply_layer_distance_filter,
+    'no_neighbors': apply_filter_no_neighbors,
+}
 
 # def create_shared_directory_and_upload_files(
 #     computer, shared_dir_path: Path, node_list: list[orm.SinglefileData]
