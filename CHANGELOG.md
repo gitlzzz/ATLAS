@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.21.0 (2025-03-17)
+
+### Feature
+
+- **gen_db**: add structure filtering during database generation ([#4bf77a5](https://github.com/pol-sb/MatDBForge/commit/4bf77a59b6b6503f8969da1fffe8df087c8aab5e))
+
+### Fix
+
+- **al_loop**: restructure md inputs and add covalent multiplier input parsing ([#6c6f0e8](https://github.com/pol-sb/MatDBForge/commit/6c6f0e85a597b1253963b0db8af50e223410ae35))
+- **al_loop**: add wrapping + z axis offset to MD filters. Include covalent multiplier ([#35d824c](https://github.com/pol-sb/MatDBForge/commit/35d824cc644346202649b65530a3384c3fb271d0))
+- **al_loop**: use sorted file data to resume calculations ([#ef8d8d0](https://github.com/pol-sb/MatDBForge/commit/ef8d8d08dacd934a3573028cd4306f498e283838))
+- **al_loop**: use sorted file data to resume calculations ([#d77fd76](https://github.com/pol-sb/MatDBForge/commit/d77fd76a513ca86645af7d7896d8c2ae707a291a))
+- **al_loop**: add `aiida_wait_submit` function and fix submission queue ([#f99ee24](https://github.com/pol-sb/MatDBForge/commit/f99ee24167e15d25d0baee848f426c23ec5bfdd5))
+- **al_loop**: decrease `maximum_value_f` multiplier to 500 ([#253b5c6](https://github.com/pol-sb/MatDBForge/commit/253b5c6b5af2c836255fa57b9468750f02e93310))
+- **gen_db**: actually assign bulk INCAR for default cases ([#d5f9abc](https://github.com/pol-sb/MatDBForge/commit/d5f9abcebc7423493d94a07613622e0859131b5e))
+- **al_loop**: ensure that models are loaded only for the first resumed step ([#7b7f8f2](https://github.com/pol-sb/MatDBForge/commit/7b7f8f2f08d43766d935bf59c99725ec7e1d12af))
+
 ## 0.20.21 (2025-03-05)
 
 ### Fix
