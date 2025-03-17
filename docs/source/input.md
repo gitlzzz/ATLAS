@@ -158,6 +158,38 @@ This key describes the settings related to the perturbation of structures.
 - `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
 - `num_repeats`: (int) Number of repeats for each structure, with each repeat getting different random perturbations.
 
+### Adsorbate Placement Settings - `[adsorbates]`
+
+This key contains settings related to adsorbate addition
+
+- `filter_struct_types`: (list[str]) Only apply the perturbation to the following types of structures. Valid types: `'bulk'`, `'surface'`, `'cluster'`
+
+- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
+
+- `num_repeats`: (int) Number of repeats for each structure. # Each repeat will get different random perturbations.
+
+- `adsorbate_species`: (list[str]) List of adsorbate species to consider. Example: ["H", "H2O"]
+
+### Incorrect Structure Removal - `[struct_filters]`
+
+Settings related to incorrect structure cleanup.
+
+#### No neighbor filtering - `[struct_filters.no_neighbors]`
+
+Specific settings for the no neighbor check filter. This will remove structures that have atoms with no neighbors. This sometimes helps with bulks, slabs and clusters with no separated atoms, created by large perturbations.
+
+:::{attention}
+WARNING: only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules. Disable this filter if not needed.
+:::
+
+- `cov_rad_multiplier`: (float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is 1.0.
+
+#### Layer distance fitltering - `[struct_filters.layer_distance]`
+
+Specific settings for the layer distance filter. This sometimes helps with bulks, slabs and clusters that have large separation between layers, created by wrong supercells.
+
+- `max_layer_distance_ang`: (float) Maximum accepted distance between layers (in Angstrom).
+
 ### Vacancy Generation Settings - `[vacancies]`
 
 This section describes the settings for generating vacancies in structures.
@@ -279,15 +311,29 @@ Settings for MD simulations using LAMMPS
 
 #### MD Filters - `[md.filters]`
 
-Contains settings related to the filtering of structures obtained from MD calculations. Filtering allows the removal of some types of incorrect structures that might pollute the training database
+Contains settings related to the filtering of structures obtained from MD calculations. Filtering allows the removal of some types of incorrect structures that might pollute the training database.
 
-- `check_atoms_no_neighbor` (bool):  Check for structures that have atoms with no neighbors. Specific setting for the neighbor check MD filter.
+- `save_filtered_structures`: (bool) Whether to save the filtered structures.
 
-:::{warning}
-In version 0.6, only use the `check_atoms_no_neighbor` when generating bulks, surfaces or clusters that have no adsorbed molecules.
+##### No neighbor filter - `[md.filters.check_atoms_no_neighbor]`
+
+Specific settings for the no neighbor check filter. This will remove structures that have atoms with no neighbors. This sometimes helps with bulks, slabs and clusters with no separated atoms, created by large perturbations during MD.
+
+:::{attention}
+Only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules. Disable this filter if not needed.
 :::
 
-- `layer_distance.max_layer_distance_ang` (float):  Specific setting for the layer distance MD filter.Maximum accepted distance between layers (in Angstrom).
+- `enable`: (bool) Enable the filter. Check for structures that have atoms with no neighbors.
+
+- `cov_rad_multiplier` = (float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is 1.0
+
+##### Layer distance fitltering - `[md.filters.layer_distance]`
+
+Specific settings for the layer distance MD filter. This sometimes helps with bulks, slabs and clusters that have large separation between layers, created by wrong supercells.
+
+- `enable`: (bool) Enable the filter. Check for structures with large separation between layers.
+
+- `max_layer_distance_ang`: (float) Maximum accepted distance between layers (in Angstrom).
 
 #### MD Queue - `[md.queue]`
 
