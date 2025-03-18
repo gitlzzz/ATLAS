@@ -18,7 +18,7 @@ from aiida.engine import (
     calcfunction,
 )
 from aiida.plugins import CalculationFactory
-from ase import Atoms, geometry, units
+from ase import Atoms, units
 from ase.data import atomic_numbers, covalent_radii
 from ase.geometry.analysis import Analysis
 from ase.io import read as ase_read
@@ -26,9 +26,7 @@ from ase.io import write as ase_write
 from ase.md.langevin import Langevin
 from ase.md.npt import NPT
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from e3nn.util import jit
-from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 from rich.pretty import pprint as rprint
 from shapely.geometry import Point, Polygon
@@ -450,197 +448,6 @@ def select_dft_structures(struct_arr, frame_interval):
     selected_high_error_idxs = np.array(selected_dft_structs_idxs)[selected_high_error]
 
     return selected_high_error_idxs
-
-
-def get_max_layer_distance(struct: Atoms) -> float:
-    """Get the maximum distance between layers in a structure."""
-    # Get the layers and their distance with respect to the origin
-    tags, levels = geometry.get_layers(atoms=struct, miller=(0, 0, 1), tolerance=0.1)
-
-    # Compute the maximum layer height
-    layer_distances = []
-    for layer_index, layer_height in enumerate(levels[1:]):
-        layer_height_diff = layer_height - levels[layer_index]
-        layer_distances.append(layer_height_diff)
-
-    max_layer_distance: float = np.max(layer_distances)
-
-    return max_layer_distance
-
-
-def apply_layer_distance_filter(struct: Atoms, max_layer_distance_ang: float) -> bool:
-    """
-    Evaluates whether the layer distace is above max_layer_distance_ang.
-
-    Parameters
-    ----------
-    struct : ase.Atoms
-        structure to check.
-    max_layer_distance_ang : float
-        Maximum distance between layers
-
-    Returns
-    -------
-    bool
-        Returns `True` if the layer distace is above max_layer_distance_ang,
-        `False` if otherwise.
-    """
-    is_structure_wrong = False
-
-    if isinstance(struct, pmg_struct):
-        struct = AseAtomsAdaptor().get_atoms(structure=struct)
-
-    # Apply wrapping to structure copy, considering the minimum z value
-    curr_struct = struct.copy()
-    min_z = np.min(curr_struct.positions[:, 2])
-    curr_struct.positions[:, 2] += np.abs(min_z) + np.abs(min_z) * 0.1
-    curr_struct.wrap()
-
-    max_dist = get_max_layer_distance(curr_struct)
-
-    # Filtering using the max_layer_distance_ang
-    if max_dist > max_layer_distance_ang:
-        is_structure_wrong = True
-
-    return is_structure_wrong
-
-
-def apply_filter_no_neighbors(struct, cov_rad_multiplier: float):
-    """
-    Use neighbor list to check if there are any atoms with no neighbors.
-
-    Parameters
-    ----------
-    struct : ase.Atoms
-        structure to check.
-
-    Returns
-    -------
-    bool
-        Returns `True` if there are atoms with no neighbors, `False` if otherwise.
-    """
-    if isinstance(struct, pmg_struct):
-        struct = AseAtomsAdaptor().get_atoms(structure=struct)
-
-    # Apply wrapping to structure copy, considering the minimum z value
-    curr_struct = struct.copy()
-    min_z = np.min(curr_struct.positions[:, 2])
-    curr_struct.positions[:, 2] += np.abs(min_z) + np.abs(min_z) * 0.1
-    curr_struct.wrap()
-
-    conn_matr, has_disconnected_atoms, coord_nums = get_coord_nums(
-        curr_struct, cov_rad_multiplier=cov_rad_multiplier
-    )
-    has_disconnected_neighbors = check_disconn_neighbors(conn_matr, coord_nums)
-
-    return has_disconnected_atoms or has_disconnected_neighbors
-
-
-AVAILABLE_FILTERS = {
-    'layer_distance': apply_layer_distance_filter,
-    'no_neighbors': apply_filter_no_neighbors,
-}
-
-# def create_shared_directory_and_upload_files(
-#     computer, shared_dir_path: Path, node_list: list[orm.SinglefileData]
-# ):
-#     """Create a directory on the remote machine to store common files."""
-#     # Create a shared directory on the remote machine
-#     from aiida.transports.plugins.ssh import SshTransport
-
-#     transport: SshTransport = computer.get_transport()
-#     with transport:
-#         # Creating temporary folder
-#         transport.makedirs(str(shared_dir_path))
-
-#         # Upload common files to the shared directory
-#         for node in node_list:
-#             if isinstance(node, (str, int)):
-#                 node = orm.load_node(node)
-
-#             r_file_path = str(shared_dir_path / node.filename)
-
-#             with node.as_path() as file_path:
-#                 transport.putfile(
-#                     localpath=file_path, remotepath=r_file_path, overwrite=True
-#                 )
-
-
-def check_disconn_neighbors(
-    conn_matr: np.array, coord_nums: np.array, min_coord: int = 3
-) -> bool:
-    """
-    Check if there are disconnected atoms in the structure.
-
-    Uses the connectivity matrix and the coordination numbers to check if there are
-    atoms with disconnected neighbors. This is done by checking if the coordination
-    number of an atom is below a certain threshold and if any of its neighbors also
-    have a coordination number below the threshold.
-
-    Parameters
-    ----------
-    conn_matr : np.array
-        Connectivity matrix as given by the ASE NeighborList.
-    coord_nums : np.array
-        Array containing the coordination numbers of each atom.
-    min_coord : int, optional
-        Threshold for the coordination number, by default 3.
-
-    Returns
-    -------
-    bool
-        Whether there are disconnected atoms in the structure.
-    """
-    if len(coord_nums) <= min_coord:
-        min_coord -= 1
-
-    has_disconnected_neighbors: bool = False
-    for at_id, coord_num in enumerate(coord_nums):
-        if coord_num <= min_coord:
-            conn_arr_curr_at = conn_matr[at_id]
-            neig_idxs = np.where(conn_arr_curr_at == 1)[0]
-            for nn_id in neig_idxs:
-                neigh_coord = coord_nums[nn_id]
-                if neigh_coord < min_coord:
-                    has_disconnected_neighbors = True
-                    break
-    return has_disconnected_neighbors
-
-
-def get_coord_nums(struct: Atoms, cov_rad_multiplier: float = 1.0) -> tuple:
-    """
-    Get the connectivity matrix, check for disconnected atoms and get coord. numbers.
-
-    Parameters
-    ----------
-    struct : Atoms
-        Structure to check.
-
-    Returns
-    -------
-    tuple
-        Tuple containing the connectivity matrix, a boolean indicating if there are
-        disconnected atoms and an array with the coordination numbers.
-    """
-    cutoffs: list = np.array(natural_cutoffs(struct)) * cov_rad_multiplier
-    nl = NeighborList(
-        cutoffs,
-        skin=0.01,
-        sorted=False,
-        self_interaction=False,
-        bothways=True,
-        primitive=NewPrimitiveNeighborList,
-    )
-
-    nl.update(struct)
-    conn_matr: np.array = nl.get_connectivity_matrix(sparse=False)
-
-    # Check if there is any row in conn_matr that has only zeros
-    has_disconnected_atoms: bool = np.any(np.all(conn_matr == 0, axis=1))
-
-    # Get coordination numbers
-    coord_nums = np.sum(conn_matr, axis=1)
-    return conn_matr, has_disconnected_atoms, coord_nums
 
 
 def get_total_num_frames(len_traj, md_tstep_duration_ps, frame_interval):

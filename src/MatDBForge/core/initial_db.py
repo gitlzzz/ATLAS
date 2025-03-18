@@ -6,8 +6,8 @@ with an applied perturbation with respect to the temperature.
 
 # This needs to be here to avoid segfaults when using Julia
 # and pytorch.
-# from juliacall import Main as jl  # noqa
-# from juliacall import convert as jl_convert  # noqa
+from juliacall import Main as jl  # noqa
+from juliacall import convert as jl_convert  # noqa
 
 import itertools as it
 import lzma
@@ -50,7 +50,9 @@ import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.surfaces as mdb_surf
-from MatDBForge.active_learning.active_learning_utils import AVAILABLE_FILTERS
+
+# from MatDBForge.active_learning.active_learning_utils import AVAILABLE_FILTERS
+from MatDBForge.core.filtering.structure_filters import apply_struct_filters_mdb_db
 from MatDBForge.core import initial_db as indb
 from MatDBForge.core import utils as ut
 
@@ -2931,69 +2933,6 @@ class InitialDatabase:
 #     # Multiply number of selected phases by the number of structures per phase
 
 
-def apply_struct_filters(structures: InitialDatabase, config_dict: dict):
-    """
-    Applies user-specified structure filters.
-
-    Parameters
-    ----------
-    structures : list[ase_atoms]
-        List of structures to be filtered.
-    config_dict : dict
-        Dictionary containing user-defined filter settings from TOML.
-    """
-    if 'struct_filters' in config_dict:
-        filter_settings = config_dict.get('struct_filters', {})
-
-        mdb_cud.custom_print('Applying structure filters...', 'info')
-
-        # Validate filter names
-        invalid_filters = [
-            filt_name
-            for filt_name in filter_settings
-            if filt_name not in AVAILABLE_FILTERS
-        ]
-
-        if invalid_filters:
-            raise ValueError(f'Invalid filter names: {invalid_filters}')
-
-        # Apply each filter to the structures
-        filtered_uuids = []
-
-        for row in riprg.track(
-            structures, description='Applying filters...', total=len(structures)
-        ):
-            structure = AseAtomsAdaptor().get_atoms(row[1].structure)
-
-            struct_filter_results = []
-            for filt_name, filt_params in filter_settings.items():
-                # Retrieve function and apply it
-                filter_func = AVAILABLE_FILTERS[filt_name]
-
-                # Apply filter function
-                try:
-                    result = filter_func(structure, **filt_params)
-                except Exception:
-                    print(f"'{filt_name}' failed for structure '{row[0]}'. Skipping...")
-                if result:
-                    struct_filter_results.append(result)
-
-            if any(struct_filter_results):
-                filtered_uuids.append(row[1].unique_id)
-
-        # Get filtered structures from structures.df
-        filtered_structs = [
-            structures.db_struct_to_ase(row=row[1])
-            for row in structures.df[
-                structures.df['unique_id'].isin(filtered_uuids)
-            ].iterrows()
-        ]
-        # Save filtered structures to file
-        aseio.write('filtered_structures.xyz', filtered_structs, format='extxyz')
-
-        # Removing filtered structures
-        structures.df = structures.df[~structures.df['unique_id'].isin(filtered_uuids)]
-        return filtered_uuids
 
 
 def cli_run_gen_initial_database(
@@ -3351,7 +3290,7 @@ def cli_run_gen_initial_database(
 
     # TODO: Apply structure filters here
     if 'struct_filters' in config_dict:
-        filtered_idxs = apply_struct_filters(structures, config_dict)
+        filtered_idxs = apply_struct_filters_mdb_db(structures, config_dict)
         mdb_cud.custom_print(
             f'Filtered {len(filtered_idxs)} structures based on user-defined filters.',
             'info',

@@ -23,6 +23,7 @@ import MatDBForge.active_learning.active_learning_utils as mdb_al_ut
 import MatDBForge.active_learning.extrapolation.concave_hull as mdb_chull
 from MatDBForge.active_learning.extrapolation import autoencoder as mdb_ae
 from MatDBForge.core import code_utils as mdb_cud
+from MatDBForge.core.filtering import structure_filters as mdb_str_filters
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 warnings.filterwarnings('ignore')
@@ -287,7 +288,7 @@ if __name__ == '__main__':
             max_dist: float = md_filters['layer_distance']['max_layer_distance_ang']
 
             for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_al_ut.apply_layer_distance_filter(
+                is_structure_wrong = mdb_str_filters.apply_filter_layer_distance(
                     struct=frame, max_layer_distance_ang=max_dist
                 )
                 if is_structure_wrong:
@@ -309,7 +310,7 @@ if __name__ == '__main__':
             )
             # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_al_ut.apply_filter_no_neighbors(
+                is_structure_wrong = mdb_str_filters.apply_filter_no_neighbors(
                     struct=frame, cov_rad_multiplier=cov_rad_mult
                 )
                 if is_structure_wrong:
@@ -355,7 +356,8 @@ if __name__ == '__main__':
         # Save removed frames to a file
         if md_filters.get('save_filtered_structures'):
             mdb_cud.custom_print(
-                f"Saving filtered structures to '{res_folder / 'filtered_frames.xyz'}'",
+                (f"Saving {len(frames_to_remove)} filtered structures"
+                 f" to '{res_folder / 'filtered_frames.xyz'}'"),
                 'info',
             )
             filtered_frames = [md_traj[i] for i in frames_to_remove]
