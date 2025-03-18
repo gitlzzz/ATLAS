@@ -272,7 +272,7 @@ if __name__ == '__main__':
         for frame_idx, frame in enumerate(md_traj):
             frame.info['frame_idx'] = frame_idx
             frame.info['calc_type'] = 'MACE_MD'
-            frame.info['md_temperature'] = float(curr_temp)
+            # frame.info['md_temperature'] = float(curr_temp)
             # frame.info['mdb_id'] = str(init_conf.info['mdb_id'])
 
         # Apply MD filters and removing these frames from the trajectory

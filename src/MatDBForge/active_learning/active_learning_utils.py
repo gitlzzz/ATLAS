@@ -112,6 +112,9 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
     # Set the temperature in units of energy
     dyn.set_temperature(temperature_K=current_temperature)
 
+    # Adding T value to info dict
+    dyn.atoms.info['md_temperature'] = current_temperature
+
 
 # TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
 def generate_descriptors(
