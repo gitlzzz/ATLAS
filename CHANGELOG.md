@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.1 (2025-03-18)
+
+### Fix
+
+- **al_loop**: update md temperature during MD run ([#2f29bb9](https://github.com/pol-sb/MatDBForge/commit/2f29bb96e3934fded4639ffd9eb83c7ef79597ac))
+
 ## 0.22.0 (2025-03-18)
 
 ### Feature
