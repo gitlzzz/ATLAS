@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0 (2025-03-18)
+
+### Feature
+
+- **core**: add unified structure filtering in core.filtering ([#5c29fac](https://github.com/pol-sb/MatDBForge/commit/5c29facb9edbf08c3e0df92d2cd73b86c7c441f3))
+
 ## 0.21.1 (2025-03-17)
 
 ## 0.21.0 (2025-03-17)
