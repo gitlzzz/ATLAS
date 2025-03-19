@@ -897,7 +897,7 @@ def find_supercell_indices(
 
 
 def _apply_perturbation_mdb_struct(center, row, per_idx):
-    # Applying displacement
+    # Applying deformation
     new_struct_perturb = gauss_perturb(center=center, structure=row.structure)
 
     # Getting current row information
@@ -913,7 +913,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
         "from_surface",
         "targeted_modification",
         "from_cluster",
-        "displacement",
+        "deformation",
     ]:
         if func_name in row_kwargs_dict:
             row_kwargs_dict.pop(func_name)
@@ -924,7 +924,7 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
         material_name=mat_str,
         structure=new_struct_perturb,
         perturb=True,
-        displacement=False,
+        deformation=False,
         vacancy=False,
         targeted_modification=False,
         base=False,

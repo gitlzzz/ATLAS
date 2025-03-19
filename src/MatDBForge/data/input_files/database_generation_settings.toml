@@ -257,22 +257,22 @@ n_workers = 12
 
 # The lattice deformation chooses a random deformation value
 # between min and max.
-[displacement]
+[deformation]
 
 # (float) Value as a percentage of the lattice side length
-# that will be used as the maximum displacement.
-lattice_frac_displ_max = 0.05
+# that will be used as the maximum deformation.
+lattice_frac_deform_max = 0.05
 
 # (float) Value as a percentage of the lattice side length
-# that will be used as the minimum displacement.
-lattice_frac_displ_min = 0.01
+# that will be used as the minimum deformation.
+lattice_frac_deform_min = 0.01
 
 # (int) Number of repeats for each structure.
-# Each repeat will get different random displacements.
+# Each repeat will get different random deformations.
 num_repeats = 5
 
-# (int) Maximum number of lattice displacements to generate.
-limit_max_num_displacements = 100
+# (int) Maximum number of lattice deformations to generate.
+limit_max_num_deformations = 100
 
 
 ############################################

@@ -274,7 +274,7 @@ class InitialDatabase:
                 'cluster': 0,
                 'perturb': 0,
                 'vacancy': 0,
-                'displacement': 0,
+                'deformation': 0,
             },
             'phases': {},
         }
@@ -295,8 +295,8 @@ class InitialDatabase:
                 struct_info_dict['structure_count']['perturb'] += 1
             if struct[1].vacancy:
                 struct_info_dict['structure_count']['vacancy'] += 1
-            if struct[1].displacement:
-                struct_info_dict['structure_count']['displacement'] += 1
+            if struct[1].deformation:
+                struct_info_dict['structure_count']['deformation'] += 1
             if struct[1].targeted_modification:
                 mod_type = struct[1].targeted_modification
 
@@ -411,7 +411,7 @@ class InitialDatabase:
                 'replacement',
                 'vacancy',
                 'targeted_modification',
-                'displacement',
+                'deformation',
             ]
         )
 
@@ -639,7 +639,7 @@ class InitialDatabase:
                 perturb=False,
                 bulk=False,
                 vacancy=False,
-                displacement=False,
+                deformation=False,
                 formula=single_atom.formula,
                 symmetry=None,
                 base=False,
@@ -709,7 +709,7 @@ class InitialDatabase:
         ase_curr_struct.info['symmetry'] = row['symmetry']
         ase_curr_struct.info['calc_type'] = row['calc_type']
         ase_curr_struct.info['calc_performed'] = row['calc_performed']
-        ase_curr_struct.info['displacement'] = row['displacement']
+        ase_curr_struct.info['deformation'] = row['deformation']
         ase_curr_struct.info['vacancy'] = row['vacancy']
         ase_curr_struct.info['targeted_modification'] = row['targeted_modification']
         if row.get('phase'):
@@ -992,7 +992,7 @@ class InitialDatabase:
                         perturb=False,
                         bulk=True,
                         vacancy=False,
-                        displacement=False,
+                        deformation=False,
                         formula=material.structure.formula,
                         symmetry=material_symmetry,
                         base=True,
@@ -1054,7 +1054,7 @@ class InitialDatabase:
                 material_name=curr_name,
                 bulk=True,
                 perturb=False,
-                displacement=False,
+                deformation=False,
                 vacancy=False,
                 cluster=False,
                 surface=False,
@@ -1141,7 +1141,7 @@ class InitialDatabase:
         # Getting the structures that will be perturbed
         target_entries = filtered_df.loc[sel_idx]
 
-        # Applying displacement to all perturbed structures
+        # Applying deformation to all perturbed structures
         for _, entry in target_entries.iterrows():
             if isinstance(entry.phase, str):
                 curr_phase = self.phase_diagram.get_phase(entry.phase)
@@ -1174,12 +1174,15 @@ class InitialDatabase:
 
                 mat_str = f'{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx + 1}'
 
+                templ_entry = entry.to_dict()
+
                 # Creating a new Structure from the perturbed structure structure
                 curr_struct = mdb_struct.Structure(
                     material_name=mat_str,
                     material_id=entry.material_id,
                     structure=new_struct_vac,
                     phase=curr_phase.name,
+                    surface_miller=entry.surface_miller,
                     base=False,
                     bulk=entry.bulk,
                     surface=entry.surface,
@@ -1192,6 +1195,7 @@ class InitialDatabase:
                     temperature=entry.temperature,
                     calc_performed=False,
                     vacancy=True,
+                    **templ_entry
                 )
 
                 # Converting the structure to the appropiate type
@@ -1228,7 +1232,7 @@ class InitialDatabase:
             f'{len(target_entries) * repeat} perturbed entries will be added.', 'debug'
         )
 
-        # Applying displacement to all perturbed structures
+        # Applying deformation to all perturbed structures
         for _, entry in target_entries.iterrows():
             # Getting information from the current entry
             str_matid = entry.material_id
@@ -1245,7 +1249,7 @@ class InitialDatabase:
                 )
 
             for perturb_repeat_idx in range(repeat):
-                # Applying displacement
+                # Applying deformation
                 new_struct_perturb = self._apply_gauss_perturb(
                     center=center, structure=curr_str
                 )
@@ -1292,7 +1296,7 @@ class InitialDatabase:
         new_structure.perturb(distance=center * 2, min_distance=center / 2)
         return new_structure
 
-    def perturb_min_displacement(
+    def perturb_min_deformation(
         self,
         frac_max: float = 0.05,
         frac_min: float = 0.01,
@@ -1304,10 +1308,10 @@ class InitialDatabase:
         limit_num_structures: int = None,
     ):
         """
-        Apply small displacements to the lattice parameters of relaxed structures.
+        Apply small deformations to the lattice parameters of relaxed structures.
 
         This method perturbs the lattice parameters of structures by applying small
-        displacements to their lattice matrix elements.
+        deformations to their lattice matrix elements.
         The perturbations are repeated a specified number of times, creating multiple
         perturbed structures for each initial structure. This helps in generating
         structures with slightly higher energies and forces, useful for generating
@@ -1350,7 +1354,7 @@ class InitialDatabase:
         Example
         -------
         >>> initial_db = InitialDatabase()
-        >>> initial_db.perturb_min_displacement(
+        >>> initial_db.perturb_min_deformation(
         >>>     frac_max=0.05, frac_min=0.01, repeat=5
         >>> )
 
@@ -1377,14 +1381,14 @@ class InitialDatabase:
         if limit_num_structures:
             limit_num_structures = min(limit_num_structures // repeat, self.df.shape[0])
             mdb_cud.custom_print(
-                f'Limiting number of displacements to  {limit_num_structures}', 'debug'
+                f'Limiting number of deformations to  {limit_num_structures}', 'debug'
             )
             rng_idxs = rng.choice(
                 self.df.shape[0], size=limit_num_structures, replace=False
             )
             target_entries = self.df.iloc[rng_idxs]
 
-        # Applying displacement to all perturbed structures
+        # Applying deformation to all perturbed structures
         for _, entry in target_entries.iterrows():
             # Getting some parameters from the current perturb structure.
             str_matid = entry.material_id
@@ -1397,7 +1401,7 @@ class InitialDatabase:
 
             # Applying the perturbation 'repeat' times.
             for perturb_repeat_idx in range(repeat):
-                # Applying displacement,
+                # Applying deformation,
                 new_struct_perturb = self._apply_min_perturbation(
                     structure=curr_str,
                     frac_max=frac_max,
@@ -1419,7 +1423,7 @@ class InitialDatabase:
                     phase=str_phase.name,
                     base=False,
                     perturb=False,
-                    displacement=True,
+                    deformation=True,
                     vacancy=entry.vacancy,
                     targeted_modification=entry.targeted_modification,
                     supercell=entry.supercell,
@@ -1450,7 +1454,7 @@ class InitialDatabase:
     def _apply_min_perturbation(
         self, structure: Structure, frac_max: float = 0.05, frac_min: float = 0.01
     ):
-        """Apply a small displacement to the lattice matrix of a structure."""
+        """Apply a small deformation to the lattice matrix of a structure."""
         # Making a copy of the current structure lattice which can be modified
         perturb_structure = structure.copy()
         matrix = np.copy(perturb_structure.lattice.matrix)
@@ -1458,18 +1462,18 @@ class InitialDatabase:
         # Select non-zero indices
         non_zero_mask = np.abs(matrix) > 0.01
 
-        # Compute displacements for all non-zero values
+        # Compute deformations for all non-zero values
         fraction = (frac_max - frac_min) * np.random.ranf(size=matrix.shape) + frac_min
 
-        # Applying displacement as a mask
-        displacements = matrix * fraction
-        displacements = np.where(non_zero_mask, displacements, 0)
+        # Applying deformation as a mask
+        deformations = matrix * fraction
+        deformations = np.where(non_zero_mask, deformations, 0)
 
-        # Randomly add or subtract displacements
+        # Randomly add or subtract deformations
         signs = np.random.choice([1, -1], size=len(non_zero_mask))
 
-        # Apply displacements
-        matrix += signs * displacements
+        # Apply deformations
+        matrix += signs * deformations
 
         # Updating perturb_structure with displaced matrix
         perturb_structure.lattice = matrix
@@ -2265,7 +2269,7 @@ class InitialDatabase:
                 'cluster': bool,
                 'calc_performed': bool,
                 'replacement': bool,
-                'displacement': bool,
+                'deformation': bool,
                 'vacancy': bool,
             }
         )
@@ -2280,7 +2284,7 @@ class InitialDatabase:
                 'calc_performed': bool,
                 'replacement': bool,
                 'vacancy': bool,
-                'displacement': bool,
+                'deformation': bool,
             }
         )
 
@@ -2623,7 +2627,7 @@ class InitialDatabase:
             'cluster': {'structs': [], 'color': '#d3869b'},
             'perturb': {'structs': [], 'color': '#d79921'},
             'vacancy': {'structs': [], 'color': '#689d6a'},
-            'displacement': {'structs': [], 'color': '#b16286'},
+            'deformation': {'structs': [], 'color': '#b16286'},
             'oct_perturb': {'structs': [], 'color': '#665c54'},
             'unknown': {'structs': [], 'color': '#ee0000'},
         }
@@ -3198,19 +3202,19 @@ def cli_run_gen_initial_database(
         )
         mdb_cud.custom_print(structures, 'info')
 
-        # Lattice displacement
-        if 'displacement' in config_dict:
-            displ_dict = config_dict['displacement']
+        # Lattice deformation
+        if 'deformation' in config_dict:
+            displ_dict = config_dict['deformation']
 
-            mdb_cud.custom_print('Applying displacements to lattices.', 'info')
+            mdb_cud.custom_print('Applying deformations to lattices.', 'info')
 
-            structures.perturb_min_displacement(
+            structures.perturb_min_deformation(
                 frac_max=float(displ_dict['lattice_frac_displ_max']),
                 frac_min=float(displ_dict['lattice_frac_displ_min']),
                 repeat=int(displ_dict['num_repeats']),
                 use_phase=phase,
                 only_use_base=False,
-                limit_num_structures=int(displ_dict['limit_max_num_displacements']),
+                limit_num_structures=int(displ_dict['limit_max_num_deformations']),
                 filters=displ_dict.get('filter_struct_types'),
                 rng_seed=rng_seed,
             )

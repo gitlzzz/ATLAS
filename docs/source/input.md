@@ -142,13 +142,16 @@ This key describes the settings related to the generation of surface structures.
 - `max_slab_num`: (int) Maximum number of slabs to gather from the slab generation. If a larger number of slabs is generated, a random subset of `max_slab_num` slabs will be selected.
 - `n_workers`: (int) Maximum number of workers to use for the ThreadPoolExecutor. Will be set to the total number of CPUs-1 if not specified. If the number of jobs to run is lower than the given value, `n_workers` will be decreased to match the total number of jobs.
 
-### Lattice Deformation Settings - `[displacement]`
+### Lattice Deformation Settings - `[deformation]`
 
 This key describes the settings related to the lattice deformation of structures.
 
-- `lattice_frac_displ_max`: (float) Maximum displacement value as a percentage of the lattice side length.
-- `lattice_frac_displ_min`: (float) Minimum displacement value as a percentage of the lattice side length.
-- `num_repeats`: (int) Number of repeats for each structure with random displacements.
+- `lattice_frac_deform_max`: (float) Maximum deformation value as a percentage of the lattice side length.
+- `lattice_frac_deform_min`: (float) Minimum deformation value as a percentage of the lattice side length.
+- `num_repeats`: (int) Number of repeats for each structure with random deformations.
+
+- `limit_max_num_deformations` : (int) Maximum number of lattice deformations to generate.
+
 
 ### Perturbation Settings - `[perturbation]`
 

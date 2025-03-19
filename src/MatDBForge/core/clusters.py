@@ -419,11 +419,11 @@ def apply_replacement_cluster_db(
 
 
 def _apply_perturbation_cluster(center, row, per_idx):
-    # Applying displacement
+    # Applying deformation to the structure
     new_struct_perturb = mdb_utils.gauss_perturb(center=center, structure=row.structure)
 
     # Creating perturbed cluster object
-    mat_str = f'{row.material_name}_perturb_gauss_{per_idx+1}'
+    mat_str = f'{row.material_name}_perturb_gauss_{per_idx + 1}'
     clust_obj = mdb_struct.Cluster(
         material_name=mat_str,
         structure=new_struct_perturb,

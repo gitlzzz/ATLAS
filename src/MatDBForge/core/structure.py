@@ -83,7 +83,7 @@ class Structure:
         base: bool = None,
         isolated_atom: bool = False,
         perturb: bool = None,
-        displacement: bool = None,
+        deformation: bool = None,
         supercell=None,
         surface: bool = False,
         bulk: bool = False,
@@ -119,7 +119,7 @@ class Structure:
         self.isolated_atom = isolated_atom
         self.perturb = perturb
         self.supercell = supercell
-        self.displacement = displacement
+        self.deformation = deformation
         self.surface = surface
         self.surface_miller = surface_miller
         self.bulk = bulk
@@ -298,7 +298,7 @@ class Structure:
             props.append('+supercell')
         if self.perturb:
             props.append('+atom_positions_perturbed')
-        if self.displacement:
+        if self.deformation:
             props.append('+lattice_displaced')
         if self.vacancy:
             props.append('+vacancies')
@@ -359,13 +359,13 @@ class Structure:
                 'calc_output': self.calc_output,
                 'vacancy': self.vacancy,
                 'targeted_modification': self.targeted_modification,
-                'displacement': self.displacement,
+                'deformation': self.deformation,
                 'al_loop_step': self.al_loop_step,
             }
         )
         bool_columns = {
             'perturb': bool,
-            'displacement': bool,
+            'deformation': bool,
             'base': bool,
             'isolated_atom': bool,
             'bulk': bool,
