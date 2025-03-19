@@ -1,0 +1,484 @@
+# Active Learning Settings
+[active_learning]
+
+# (str) Name of the aiida profile to be used
+aiida_profile = ""
+
+# (str) Internal name for the run
+run_name = ""
+
+# (str) Path to the folder where the initial database is contained.
+data_path = ""
+
+# (str) Path to the folder where the initial database is contained.
+init_db_path = ""
+
+# (str) Path for final results. Will be created if not existent.
+# It will contain a folder named run_{uuid}.
+results_dir = ""
+
+# (optional, str) Path for the log file.
+# Defaults to 'mdb_<PK>_<DATETIME>.log in the result dir if not specified.
+log_path = ""
+
+# (str) Name for the final database
+# The database will be stored in the extxyz format
+final_db_name = "final_data_test"
+
+# (int) Maximum number of AL loop iterations.
+max_iterations = 3
+
+# (float) Multiplier for model accuracy. Loosens model accuracy threshold.
+# Tighter thresholds (lower values) will result in more DFT calculations.
+# Any RMSE E/F values above chem_acc*chem_acc_multiplier will be considered wrong.
+model_acc_multiplier = 10
+
+# (optional, list[int]) Load initial models from several aiida uuids/pk.
+load_init_models = []
+
+
+###############################################
+
+# [code]
+# [code.container]
+
+# (bool, optional) Whether to use a containerized version of the code, located
+# in the path specified by image_name on the calculation nodes.
+# By default false, which means that the container won't be used, and code is gathered
+# from the local MatDBForge installation.
+# use_container = false
+
+# (str) Path for the container image
+# image_name = ''
+
+# (str) Command to run the container image. Docker and Singularity are supported.
+# engine_command = ''
+
+# (str) Text to prepend to the calculation script before the actual code execution.
+# Allows loading the required modules for container use, setting the environment, etc.
+# Check your HPC system documentation for the commands required for container usage.
+# prepend_text = ''
+
+###############################################
+
+# AL seed generation settings
+# The MD seed is used to generate structures for MD simulations.
+# The seed is updated at every iteration, choosing randomly from the
+# seed database until the database is emptied.
+# Seed size can be limited, and it will never be smaller than 1 or larger
+# than the total number of structures in the database.
+[al_seed]
+
+
+# (float) Sets total structures in an MD seed as a function of the training db size.
+# This percentage is applied at every iteration, thus, the seed size will change
+# according to the seed database size.
+# This influences the amount of MD calculations and E F evaluations.
+seed_size_frac = 0.01
+
+# (int, optional) Value used to set the minimum number of structures in an MD seed.
+# If not specified, it will be set to take seed_size_frac percent of the 
+# the initial seed db size. This percentage will be applied at the start of
+# the active learning loop and will remain unchanged for all iterations.
+# This influences the amount of MD calculations and E F evaluations.
+seed_min_num_structs = 25
+
+# (int) Maximum number of structures in the MD seed.
+seed_max_num_structs = 500
+
+# (optional, bool) Whether to delete structures from the seed database
+# even if they are in domain.
+# default: true
+delete_seed_structs = true
+
+
+[al_seed.seed_select_settings]
+
+# (str) MD seed selection mode.
+# - `random` selects random structures from the seed pool.
+# - `small_first` selects random structures smaller than small_first_max_size
+#   for the first small_first_max_iter iters.
+seed_select_type = "random" # random (default) / small_first
+
+# (int) Maximum size in number of atoms for the structures selected with small_first mode
+small_first_max_size = 50
+
+# (int) Apply small_first mode for the first n iterations
+small_first_max_iter = 5
+
+
+###############################################
+
+[extrapolation]
+
+# Select the approach to perform the energy and force
+# (E&F) committee disagreement checkon new frames obtained via MD.
+# Default is `training`. Currently the following options are allowed:
+# - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
+# - `md_threshold`: Compare E&F with a unique threshold for every MD, defined as comm_mean + 3*comm_std_dev.
+disagreement_check_type = "training"
+
+# (str, optional) Whether to check for extrapolation. Default is 'advanced'
+# Currently, allows for:
+# - `none` (or not set): Only use committee disagreement for EF as extrapolation criteria
+# - `basic`: Check for extrapolation using the range of the MACE descriptors + EF disagreement
+# - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement
+check_extrapolation_type = "advanced"
+
+
+###############################################
+
+# Settings for MD simulations using LAMMPS
+[md]
+[md.parameters]
+
+# (list[float]) List of different temperatures (in K) to be used for the MD simulations.
+temperature_list_K = [300.0, 500.0, 900.0]
+
+# (float) Multiplier for the user-specified MD temperature to determine the upper 
+# bound of the temperature at the end of the simulation run. 
+# Set to 1 to ensure the multiplier has no effect.
+max_temp_multiplier = 1.3
+
+# (int) Total number of timesteps for each MD simulations
+num_steps = 1000
+
+# (int) Duration of each timestep (in ps).
+timestep_duration_ps = 0.003
+
+# (bool) Consider constant lattice when gathering trajectories
+gather_traj_cnt_lattice = true
+
+# (bool) Whether to use kokkos to run the MD
+use_kokkos = true
+
+# (str) Device for the MACE model to be used in the MD simulations.
+device = "cuda"
+
+# (str) Default data type for the MACE model to be used in the MD simulations.
+dtype = "float32"
+
+# (float) Every how many ps of MD simulation keep a structure.
+# Influences the total number of energy evaluations and therefore DFT calculations.
+al_keep_struct_every_n_ps = 0.5
+
+# (int) Every how many MD steps log energy and force information.
+log_save_interval = 10
+
+
+# Specific settings for the neighbor check MD filter.
+[md.filters]
+
+# (bool) Check for structures that have atoms with no neighbors.
+# WARNING: only use when dealing with bulks, surfaces or clusters
+# that have no adsorbed molecules.
+check_atoms_no_neighbor = true
+
+
+# Specific settings for the layer distance MD filter.
+[md.filters.layer_distance]
+
+# (float) Maximum accepted distance between layers (in Angstrom).
+max_layer_distance_ang = 3.5
+
+# AiiDA options for the MD code to be used (only LAMMPS-MACE for now)
+[md.queue]
+
+# (str) AiiDA code name for MD software to be used
+code = "mace-lammps-gpu@tekla2-updated-2024"
+
+# (int) Number of atoms in a structure for it to be considered 'large'.
+num_at_large_struct = 48
+
+# (int) Number of CPUs to be used for large structures. This will override the
+# number of CPUs set in the scheduler options.
+num_cpus_large_struct = 12
+
+# AiiDA scheduler options for MD
+metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
+metadata.options.resources.tot_num_mpiprocs = 4
+metadata.options.queue_name = "c128m1024ibgpu4.q"
+metadata.options.max_memory_kb = 102400000
+metadata.options.max_wallclock_seconds = 117280000
+metadata.options.withmpi = false
+metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2189"'''
+
+###############################################
+# Committee Evaluation Settings (MACE)
+[committee_eval]
+
+# (int) Total number of MACE models.
+# Increases resources necessary for training.
+committee_num_models = 4
+
+# (int) Number of OpenMP threads to be used for MACE CPU evaluation.
+openmp_threads = 8
+
+# prepend text for the PortableCode
+prepend_text = """"""
+
+# Settings for MACE evaluator
+[committee_eval.mace]
+device = "cuda"           # cpu / cuda
+default_dtype = "float32" # float32 / float64
+batch_size = 64           # (int)
+compute_stress = true     # whether or not to compute stress (true/false)
+
+# AiiDA scheduler options for MACE Evaluations
+[committee_eval.metadata.options]
+parser_name = "mace-committee-eval-parser"
+resources.parallel_env = "c128m1024ib_mpi_32slots"
+resources.tot_num_mpiprocs = 32
+queue_name = "c128m1024ibgpu4.q"
+max_wallclock_seconds = 117280000
+max_memory_kb = 102400000
+withmpi = false
+custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2189"'''
+computer = "tekla2-new-test"
+
+###############################################
+
+[descriptors]
+
+# (str) Which descriptor type to use. Options: "mace", "soap".
+# Default: "mace"
+descriptor_type = "mace"
+
+# (str, optional) Dimensionality reduction method for MACE descriptors
+# Options: "autoencoder", "pca", "none"
+# If not set, the default is none, which means no dimensionality reduction.
+# dimensionality_reduction_method = ""
+
+
+# Aiida metadata settings for MACE descriptor calculation
+[descriptors.metadata]
+
+computer = ''
+account = ''
+qos = ''
+parser_name = ''
+prepend_text = ''
+options.max_wallclock_seconds = ''
+options.resources.num_cores_per_mpiproc = ''
+options.resources.tot_num_mpiprocs = ''
+options.resources.num_machines = ''
+options.withmpi = ''
+
+# Autoencoder training settings
+[descriptors.autoencoder.train_settings]
+# model_path = "autoencoder_model.pth" # (REMOVE, str) Path to save the model
+# dataset = "all_descriptors.npy"      # (REMOVE, str) Path to the training dataset
+load_model = false  # (bool) Load the model from the model path
+rng_seed = ""       # (int) Random seed for reproducibility
+l1_hidden_dim = 256 # (int) Number of units in the first hidden layer
+l2_hidden_dim = 32  # (int) Number of units in the second hidden layer
+bottleneck_dim = 2  # (int) Dimensionality of the bottleneck (latent space)
+bias_flag = true    # (bool) Flag to include bias terms in the layers
+num_epochs = 15     # (int) Number of epochs to train the model
+batch_size = 4096   # (int) Batch size for training
+patience = 5        # (int) Patience for early stopping
+lr = 0.001          # (float) Learning rate for the optimizer
+weight_decay = 1e-5 # (float) L2 regularization
+loss = "mse"        # (str) Loss function type (one of: "mse", "weighted_mse")
+train_frac = 0.8    # (float) Fraction of the data to use for training
+valid_frac = 0.1    # (float) Fraction of the data to use for validation
+test_frac = 0.1     # (float) Fraction of the data to use for testing
+wandb = false       # (bool) Whether to log metrics to wandb
+wandb_name = ""     # (str) Name of the wandb run
+wandb_project = ""  # (str) Name of the wandb project
+
+###############################################
+
+# MACE training code and scheduler settings (aiida)
+[mace_train]
+
+# Weight of the force when considering model performance used in:
+# weighted_sum = RMSE_E + (force_weight * RMSE_F)
+# The lowest weighted_sum will be considered as the most performant model.
+result_force_weight = 0.1
+
+# AiiDA code name
+code = "mace_run_train_gpu@tekla2-new-test"
+
+# AiiDA scheduler options for MACE Training
+metadata.options.resources.parallel_env = "c128m1024ib_mpi_32slots"
+metadata.options.resources.tot_num_mpiprocs = 32
+metadata.options.parser_name = "mace-training-parser"
+metadata.options.queue_name = "c128m1024ibgpu4.q"
+metadata.options.max_wallclock_seconds = 117280000
+metadata.options.max_memory_kb = 102400000
+metadata.options.withmpi = true
+metadata.options.custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2188"'''
+
+# MACE Training Settings (run_mace_train)
+[mace_train.train_settings]
+name = "nnp_training_test"
+energy_key = "energy"
+valid_fraction = 0.1
+config_type_weights = { Default = 1.0 }
+weight_decay = 9.34e-07
+E0s = "average"
+num_interactions = 2
+model = "MACE"
+correlation = 3
+hidden_irreps = "16x0e + 16x1o"
+lr = 0.005626773506534471
+r_max = 6.0
+max_ell = 3
+max_L = 2
+batch_size = 64
+max_num_epochs = 35
+swa = true
+ema = true
+ema_decay = 0.99
+amsgrad = true
+restart_latest = true
+device = "cuda"
+default_dtype = "float32"
+wandb = false
+
+###############################################
+
+# DFT Settings
+[dft]
+
+# (str, optional) Selection of DFT calculator.
+dft_method = "mace" # Options: "vasp", "mace". Default 'mace'.
+
+# (int, optional) Maximum number of DFT calculations to perform per AL step.
+# dft_calc_limit = 100
+
+
+# MACE Settings as DFT calculator. Ignored if dft_method = "vasp" 
+[dft.mace]
+mace_potential_path = "" # Path to MACE potential file
+
+# Options for MACE. Will be passed as arguments during MACE execution.
+[dft.mace.settings]
+device = "cuda"           # Options: "cpu", "cuda"
+default_dtype = "float32" # Options: "float32", "float64"
+batch_size = 64
+compute_stress = true     # Options: true, false
+
+# Scheduler options. Will be used in the builder.metadata.options.
+[dft.mace.options]
+parser_name = "mace-eval-parser"
+code_string = "mace_run_eval_gpu@tekla2-new-test"
+resources = { parallel_env = "c128m1024ib_mpi_32slots", tot_num_mpiprocs = 32 }
+max_wallclock_seconds = 117280000
+max_memory_kb = 102400000
+custom_scheduler_commands = '''#$ -l gpu=1
+#$ -l hostname="tekla2189"'''
+withmpi = false
+
+
+# Settings for VASP as DFT calculator. Ignored if dft_method = "mace" 
+[dft.vasp]
+# potential_family = "vasp-5.3-PBE"
+potential_family = "vasp-5.4-PBE-2023"
+structure_types = ['bulk', 'surface', 'cluster']
+
+[dft.vasp.queue]
+type = "sge"
+node_cpus = 12
+code_string = "vasp-std-5.4.4-new@tekla2"
+options_resources = { parallel_env = "c12m48ib_mpi", tot_num_mpiprocs = 12 }
+multiple = 1
+custom_scheduler_commands = '#$ -l hostname="tekla2044"'
+
+[dft.vasp.kspacing]
+alpha = 0.135088484104361
+# m1 = 0.100530964914873
+beta-prime = 0.102415920507027
+# m2 = 0.100530964914873
+gamma = 0.141371669411541
+# m3 = 0.166504410640259
+epsilon = 0.105557513160617
+eta = 0.0993371597065093
+# m4 = 0.0948760981384118
+delta = 0.0994491889005363
+
+# general incar settings to be used as a template for all calculations
+[dft.vasp.incar]
+istart = 0
+icharg = 2
+gga = "Pe"
+ispin = 1
+encut = 450    # electronic steps
+ediff = 1e-6
+ismear = 0
+sigma = 0.03
+algo = "Fast"
+lreal = "Auto"
+nelm = 60      # ionic steps
+ibrion = -1
+nsw = 1
+ediffg = -0.03
+isif = 2
+potim = 0.3
+lwave = false
+lcharg = false
+ncore = 4
+lelf = false
+ivdw = 11      # van der Waals
+
+[dft.vasp.relax.incar]
+ibrion = 2
+nsw = 350
+isif = 3
+
+[dft.vasp.surface.incar]
+ldipol = true
+idipol = 3
+
+[dft.vasp.cluster.incar]
+ldipol = true
+dipol = [0.5, 0.5, 0.5]
+idipol = 4
+
+
+# Several entries for the parser settings.
+[dft.vasp.aiida_vasp.parser_settings]
+# add_trajectory = false
+# add_bands = false
+# add_charge_density = false
+# add_dos = false
+# add_kpoints = false
+#add_energies = true
+# add_misc = true
+# add_structure = false
+# add_projectors = false
+# add_born_charges = false
+# add_dielectrics = false
+# add_hessian = false
+# add_dynmat = false
+# add_wavecar = false
+# add_forces = false
+# add_stress = false
+
+# Errors and warnings to be treated as critical.
+[dft.vasp.aiida_vasp.parser_settings.critical_notifications]
+# add_brmix = true
+# add_cnormn = true
+# add_denmp = true
+# add_dentet = true
+add_edddav_zhegv = true
+add_eddrmm_zhegv = true
+# add_edwav = true
+# add_fexcp = true
+# add_fock_acc = true
+# add_non_collinear = true
+# add_not_hermitian = true
+# add_psmaxn = true
+# add_pzstein = true
+# add_real_optlay = true
+# add_rhosyg = true
+# add_rspher = true
+# add_set_indpw_full = true
+# add_sgrcon = true
+# add_no_potimm = true
+# add_magmom = true
+# add_bandocc = true
