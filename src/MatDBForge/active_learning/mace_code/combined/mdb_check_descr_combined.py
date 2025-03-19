@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Script to check the extrapolation of the current iteration."""
+"""Script to handle descriptor gathering for an AL Loop iteration."""
 
 import pathlib as pl
 import pickle
