@@ -187,7 +187,7 @@ num_struct = 25
 # (int) Number of repeats for each structure
 num_repeat = 5
 
-# (int) Maximum Miller index for the bulk supercells
+# (int) Maximum supercell index for the bulk supercells
 supercell_max_idx = 2
 
 
@@ -336,6 +336,11 @@ cov_rad_multiplier = 1.05
 # (float) Maximum accepted distance between layers (in Angstrom).
 max_layer_distance_ang = 3.5
 
+
+[struct_filters.duplicate_slabs]
+
+# (float) Tolerance for the duplicate slabs filter
+tolerance = 0.2
 
 ############################################
 # Settings related to vacancy generation
