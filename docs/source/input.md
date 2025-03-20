@@ -166,7 +166,7 @@ This key contains settings related to adsorbate addition
 
 - `filter_struct_types`: (list[str]) Only apply the perturbation to the following types of structures. Valid types: `'bulk'`, `'surface'`, `'cluster'`
 
-- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
+- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate. By default, 100.
 
 - `num_repeats`: (int) Number of repeats for each structure. # Each repeat will get different random perturbations.
 

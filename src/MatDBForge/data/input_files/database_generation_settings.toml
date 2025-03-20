@@ -201,7 +201,7 @@ min_miller_index = 1
 # Supercells will be created in the x and y directions
 max_miller_index = 3
 
-# (float) Minimum slab size in Angstrom
+# (float) Minimum slab thickness in Angstrom
 min_slab_size_ang = 7
 
 # [!] This parameter is still under development
@@ -281,15 +281,20 @@ limit_max_num_deformations = 100
 
 [perturbation]
 
-# Only apply the perturbation to the following types of structures
+# (float) Perturbation magnitude in Angstrom
+perturbation_ang = 0.04
+
+# (list[str]) Only apply the perturbation to the following types of structures
 # valid types: 'bulk', 'surface', 'cluster'
 filter_struct_types = ['bulk', 'surface']
 
-# (int) Maximum number of perturbations to generate
+# (int) Maximum number of perturbations to generate.
+# By default, 100.
 limit_max_num_perturbs = 100
 
 # (int) Number of repeats for each structure.
 # Each repeat will get different random perturbations.
+# By default, 1.
 num_repeats = 7
 
 
