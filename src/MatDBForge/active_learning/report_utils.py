@@ -295,7 +295,7 @@ def get_mace_eval_results(
 
         training_db_cp_path = shutil.copy(training_db_path, tmp_dir)
         if not model_path:
-            if not last_iter.is_finished:
+            if not last_iter.is_finished and len(all_iters) > 1:
                 model_file: orm.SinglefileData = all_iters[-2].outputs.m0_model_file
             else:
                 model_file: orm.SinglefileData = last_iter.outputs.m0_model_file
@@ -652,6 +652,13 @@ def generate_error_plot(
     ax2_bottom.set_ylabel('Forces [eV/A]')
     ax2_bottom.set_title('Forces comparison')
 
+    lines, labels = ax2_top.get_legend_handles_labels()
+    lines2, labels2 = ax_twin.get_legend_handles_labels()
+    ax_twin.legend(lines + lines2, labels + labels2)
+    lines_b, labels_b = ax2_bottom.get_legend_handles_labels()
+    lines2_b, labels2_b = ax_twin_b.get_legend_handles_labels()
+    ax_twin_b.legend(lines_b + lines2_b, labels_b + labels2_b)
+
     ax2_top.annotate(
         'g)',
         xy=(0, 1),
@@ -661,6 +668,7 @@ def generate_error_plot(
         fontsize='medium',
         verticalalignment='top',
         bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        zorder=102
     )
     ax2_bottom.annotate(
         'h)',
@@ -671,14 +679,8 @@ def generate_error_plot(
         fontsize='medium',
         verticalalignment='top',
         bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        zorder=102
     )
-
-    lines, labels = ax2_top.get_legend_handles_labels()
-    lines2, labels2 = ax_twin.get_legend_handles_labels()
-    ax_twin.legend(lines + lines2, labels + labels2)
-    lines_b, labels_b = ax2_bottom.get_legend_handles_labels()
-    lines2_b, labels2_b = ax_twin_b.get_legend_handles_labels()
-    ax_twin_b.legend(lines_b + lines2_b, labels_b + labels2_b)
 
     if save_fig_now:
         plt.tight_layout()
@@ -989,7 +991,7 @@ def gen_init_db_report(
         structs = [train_db[struct_idx] for struct_idx in valid_idxs[~combined_mask]]
 
         custom_print(
-            f'Filtered {len(train_db)-len(structs)} structures based on thresholds.',
+            f'Filtered {len(train_db) - len(structs)} structures based on thresholds.',
             'warn',
         )
         ase_write('filtered_structs.xyz', structs, format='extxyz')
