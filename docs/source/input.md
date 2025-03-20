@@ -152,7 +152,6 @@ This key describes the settings related to the lattice deformation of structures
 
 - `limit_max_num_deformations` : (int) Maximum number of lattice deformations to generate.
 
-
 ### Perturbation Settings - `[perturbation]`
 
 This key describes the settings related to the perturbation of structures.
@@ -305,12 +304,14 @@ Settings for MD simulations using LAMMPS
 - `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
 - `num_steps` (int) Total number of MD steps to be run in each MD simulation
 - `timestep_duration_ps`: (float) Duration of each timestep. In LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
+
+- `langevin_friction_ps-1`: (float) friction coefficient for the Langevin thermostat in $ps^{-1}$
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and therefore DFT calculations.
 - `log_save_interval`: (int) Every how many MD steps log energy and force information.
 - `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`.
-- `dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`.
+- `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`.
 
 #### MD Filters - `[md.filters]`
 

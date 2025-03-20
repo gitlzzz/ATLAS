@@ -25,7 +25,11 @@ from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.md.langevin import Langevin
 from ase.md.npt import NPT
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
+from ase.md.velocitydistribution import (
+    MaxwellBoltzmannDistribution,
+    Stationary,
+    ZeroRotation,
+)
 from e3nn.util import jit
 from pymatgen.io.ase import AseAtomsAdaptor
 from rich.pretty import pprint as rprint
@@ -191,7 +195,13 @@ def generate_descriptors_mace(
 def generate_descriptors_soap(database, descriptor_settings: dict): ...
 
 
-def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
+def run_mace_md_ase(
+    init_conf,
+    md_params,
+    T_start,
+    traj_obj,
+    prepend_path='.',
+):
     """
     Run MD simulations using ASE and MACE.
 
@@ -213,14 +223,19 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
     T_multiplier = md_params.get('max_temp_multiplier', 1.0)
     T_end = T_start * T_multiplier
     timestep = md_params['timestep_duration_ps']
-    friction = md_params['timestep_duration_ps'] * 100
+
+    if md_params.get('langevin_friction_ps-1'):
+        friction = md_params['langevin_friction_ps-1']
+    else:
+        friction = md_params['timestep_duration_ps'] * 100
+
     num_steps = md_params['num_steps']
     write_interval = md_params.get('md_write_interval', 1)
     thermostat = md_params.get('md_thermostat', 'langevin')
 
     md_params['T_start'] = T_start
     md_params['T_end'] = T_end
-    md_params['friction'] = friction
+    md_params['langevin_friction_ps-1'] = friction
     md_params['write_interval'] = write_interval
 
     # Load the trained model as an ASE calculator and attach it to the atoms object
@@ -229,12 +244,17 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
     calculator = MACECalculator(
         model_paths=model_path,
         device=md_params.get('device', 'cpu'),
-        default_dtype=md_params.get('dtype', 'float64'),
+        default_dtype=md_params.get('default_dtype', 'float64'),
     )
     init_conf.calc = calculator
 
-    # Set the momenta corresponding to T=300K
+    # Set the momenta corresponding to the initial temperature
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)
+
+    # Zero linear momentum
+    Stationary(init_conf)
+    # Zero angular momentum
+    ZeroRotation(init_conf)
 
     # Creating the log folder (if it does not exist, this applies when running
     # from a docker container)
@@ -246,11 +266,12 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
             # Define the Langevin dynamics
             dyn = Langevin(
                 atoms=init_conf,
-                # convert ps to ase fs
-                timestep=timestep * (units.s * 1e-12),
+                # convert timestep in ps to fs
+                timestep=(timestep * 1000) * units.fs,
                 temperature_K=T_start,
-                friction=friction,
-                trajectory=traj_obj,
+                # convert friction in ps-1 to fs-1
+                friction=(friction / 1000) / units.fs,
+                # trajectory=traj_obj,
                 logfile=log_folder / f'md_info-{T_start}K.log',
             )
         case 'nose-hoover':
@@ -262,12 +283,12 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
 
             dyn = NPT(
                 atoms=init_conf,
-                timestep=timestep * (units.s * 1e-12),
+                timestep=(timestep * 1000) * units.fs,
                 temperature_K=T_start,
                 externalstress=0,
                 ttime=100 * units.fs,
                 pfactor=None,
-                trajectory=traj_obj,
+                # trajectory=traj_obj,
                 logfile=log_folder / f'md_info-{T_start}K.log',
             )
     mdb_cud.custom_print('Running MD simulation using settings:', 'info')
@@ -276,7 +297,7 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
     # Attach the thermostat function to increase the temperature
     # linearly from T_start to T_end
     dyn.attach(
-        interval=write_interval,
+        interval=1,
         function=md_apply_temperature_ramp,
         dyn=dyn,
         total_steps=num_steps,
@@ -284,6 +305,13 @@ def run_mace_md_ase(init_conf, md_params, T_start, traj_obj, prepend_path='.'):
         T_end=T_end,
     )
 
+    dyn.attach(
+        traj_obj.write,
+        atoms=dyn.atoms,
+        REF_energy=dyn.atoms.get_potential_energy(),
+        REF_forces=init_conf.get_forces(),
+        interval=1,
+    )
     # Run the MD simulation
     dyn.run(num_steps)
 

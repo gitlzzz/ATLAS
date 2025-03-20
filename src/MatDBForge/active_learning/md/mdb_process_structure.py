@@ -239,7 +239,7 @@ if __name__ == '__main__':
             filename=traj_filename,
             mode='w',
             atoms=init_conf,
-            properties=['energy', 'forces', 'REF_energy', 'REF_forces'],
+            properties=['energy', 'forces', 'REF_energy', 'REF_forces', 'MACE_energy'],
         )
         print()
         mdb_cud.custom_print(f"Running MD simulation for 'T={T_start} K'", 'info')
@@ -356,8 +356,10 @@ if __name__ == '__main__':
         # Save removed frames to a file
         if md_filters.get('save_filtered_structures'):
             mdb_cud.custom_print(
-                (f"Saving {len(frames_to_remove)} filtered structures"
-                 f" to '{res_folder / 'filtered_frames.xyz'}'"),
+                (
+                    f'Saving {len(frames_to_remove)} filtered structures'
+                    f" to '{res_folder / 'filtered_frames.xyz'}'"
+                ),
                 'info',
             )
             filtered_frames = [md_traj[i] for i in frames_to_remove]

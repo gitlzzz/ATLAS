@@ -149,6 +149,9 @@ num_steps = 1000
 # (int) Duration of each timestep (in ps).
 timestep_duration_ps = 0.003
 
+# (float) friction coefficient for the Langevin thermostat in ps^-1
+langevin_friction_ps-1 = 10
+
 # (bool) Consider constant lattice when gathering trajectories
 gather_traj_cnt_lattice = true
 
@@ -159,7 +162,7 @@ use_kokkos = true
 device = "cuda"
 
 # (str) Default data type for the MACE model to be used in the MD simulations.
-dtype = "float32"
+default_dtype = "float32"
 
 # (float) Every how many ps of MD simulation keep a structure.
 # Influences the total number of energy evaluations and therefore DFT calculations.
