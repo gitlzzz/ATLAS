@@ -897,7 +897,7 @@ def find_supercell_indices(
 
 
 def _apply_perturbation_mdb_struct(center, row, per_idx):
-    # Applying deformation
+    # Applying perturbation to the structure
     new_struct_perturb = gauss_perturb(center=center, structure=row.structure)
 
     # Getting current row information

@@ -1195,7 +1195,7 @@ class InitialDatabase:
                     temperature=entry.temperature,
                     calc_performed=False,
                     vacancy=True,
-                    **templ_entry
+                    **templ_entry,
                 )
 
                 # Converting the structure to the appropiate type
@@ -1232,7 +1232,7 @@ class InitialDatabase:
             f'{len(target_entries) * repeat} perturbed entries will be added.', 'debug'
         )
 
-        # Applying deformation to all perturbed structures
+        # Applying perturbation to all selected structures
         for _, entry in target_entries.iterrows():
             # Getting information from the current entry
             str_matid = entry.material_id
@@ -1249,7 +1249,7 @@ class InitialDatabase:
                 )
 
             for perturb_repeat_idx in range(repeat):
-                # Applying deformation
+                # Applying perturbation to the structure
                 new_struct_perturb = self._apply_gauss_perturb(
                     center=center, structure=curr_str
                 )
@@ -1296,7 +1296,7 @@ class InitialDatabase:
         new_structure.perturb(distance=center * 2, min_distance=center / 2)
         return new_structure
 
-    def perturb_min_deformation(
+    def apply_min_deformation(
         self,
         frac_max: float = 0.05,
         frac_min: float = 0.01,
@@ -1354,7 +1354,7 @@ class InitialDatabase:
         Example
         -------
         >>> initial_db = InitialDatabase()
-        >>> initial_db.perturb_min_deformation(
+        >>> initial_db.apply_min_deformation(
         >>>     frac_max=0.05, frac_min=0.01, repeat=5
         >>> )
 
@@ -1402,7 +1402,7 @@ class InitialDatabase:
             # Applying the perturbation 'repeat' times.
             for perturb_repeat_idx in range(repeat):
                 # Applying deformation,
-                new_struct_perturb = self._apply_min_perturbation(
+                new_struct_perturb = self._apply_min_deformation(
                     structure=curr_str,
                     frac_max=frac_max,
                     frac_min=frac_min,
@@ -1451,7 +1451,7 @@ class InitialDatabase:
                 # Saving the bulk to the db.
                 self.df = curr_struct_conv.save_to_db(self.df)
 
-    def _apply_min_perturbation(
+    def _apply_min_deformation(
         self, structure: Structure, frac_max: float = 0.05, frac_min: float = 0.01
     ):
         """Apply a small deformation to the lattice matrix of a structure."""
@@ -1475,7 +1475,7 @@ class InitialDatabase:
         # Apply deformations
         matrix += signs * deformations
 
-        # Updating perturb_structure with displaced matrix
+        # Updating perturb_structure with deformed matrix
         perturb_structure.lattice = matrix
 
         return perturb_structure
@@ -2937,8 +2937,6 @@ class InitialDatabase:
 #     # Multiply number of selected phases by the number of structures per phase
 
 
-
-
 def cli_run_gen_initial_database(
     db_path: str | pl.Path,
     db_dict: dict,
@@ -3208,7 +3206,7 @@ def cli_run_gen_initial_database(
 
             mdb_cud.custom_print('Applying deformations to lattices.', 'info')
 
-            structures.perturb_min_deformation(
+            structures.apply_min_deformation(
                 frac_max=float(displ_dict['lattice_frac_displ_max']),
                 frac_min=float(displ_dict['lattice_frac_displ_min']),
                 repeat=int(displ_dict['num_repeats']),
@@ -3235,10 +3233,13 @@ def cli_run_gen_initial_database(
 
             ut.apply_gauss_perturb_db(
                 db_obj=structures,
-                repeat=int(perturb_dict['num_repeats']),
-                filters=perturb_dict['filter_struct_types'],
+                repeat=int(perturb_dict.get('num_repeats', 1)),
+                filters=perturb_dict.get('filter_struct_types', []),
                 phase=phase,
-                limit_num_structures=int(perturb_dict['limit_max_num_perturbs']),
+                center=perturb_dict.get('perturbation_ang', 0.04),
+                limit_num_structures=int(
+                    perturb_dict.get('limit_max_num_perturbs'), 100
+                ),
             )
 
             mdb_cud.custom_print(structures, 'info')
