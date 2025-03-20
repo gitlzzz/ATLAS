@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.2 (2025-03-20)
+
+### Fix
+
+- **al_loop**: improve legend in al_loop report ([#0692270](https://github.com/pol-sb/MatDBForge/commit/06922708af0ca97f03cf6f5903ebc6034fc6aa9a))
+- **core**: add num_jobs check to can_submit_calculation ([#15b0da3](https://github.com/pol-sb/MatDBForge/commit/15b0da30d3ae835ac882a35b106e748b897ec4fd))
+- **al_loop**: make MD calculator units consistent. Zero linear and angular momentum ([#78c455e](https://github.com/pol-sb/MatDBForge/commit/78c455ed290af13fcee5789b253f72a4116f18fc))
+- **core**: pin mp_api requirement to at least v0.45.3 ([#45a96c0](https://github.com/pol-sb/MatDBForge/commit/45a96c0b22051ef490108b9f5cafbbe393f4a90a))
+
 ## 0.22.1 (2025-03-18)
 
 ### Fix
