@@ -514,6 +514,11 @@ class TrainMACEModelCalculation(CalcJob):
         # Adding random seed
         params_list.append(f'--seed={np.random.randint(1, 100000000)}')
 
+        # Properly formatting enable_cueq flag
+        if '--enable_cueq' in params_list:
+            params_list.remove('--enable_cueq')
+            params_list.append('--enable_cueq=True')
+
         # (for MACE v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
         multihead: bool = self.inputs.multihead_finetuning
