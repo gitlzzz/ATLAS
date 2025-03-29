@@ -19,7 +19,7 @@ import warnings
 from io import BytesIO, TextIOWrapper
 from os import cpu_count
 from types import SimpleNamespace
-
+from MatDBForge.core.structure import Structure as MDBStructure
 import ase.io as aseio
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -30,6 +30,7 @@ import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
 from ase import Atoms as ase_atoms
+from ase import build as ase_build
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 from mp_api.client import MPRester
@@ -240,6 +241,10 @@ class InitialDatabase:
         mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
         mdb_cud.custom_print(f'Path: {db_path}', 'debug')
 
+    def get_db_shape(self) -> tuple:
+        # Getting the amount of entries in the database
+        return self.df.shape
+
     def gen_report(self) -> dict:
         """
         Generate a report containing the database information.
@@ -275,6 +280,7 @@ class InitialDatabase:
                 'perturb': 0,
                 'vacancy': 0,
                 'deformation': 0,
+                'md': 0,
             },
             'phases': {},
         }
@@ -297,6 +303,8 @@ class InitialDatabase:
                 struct_info_dict['structure_count']['vacancy'] += 1
             if struct[1].deformation:
                 struct_info_dict['structure_count']['deformation'] += 1
+            if struct[1].init_md:
+                struct_info_dict['structure_count']['md'] += 1
             if struct[1].targeted_modification:
                 mod_type = struct[1].targeted_modification
 
@@ -412,6 +420,7 @@ class InitialDatabase:
                 'vacancy',
                 'targeted_modification',
                 'deformation',
+                'init_md',
             ]
         )
 
@@ -711,6 +720,8 @@ class InitialDatabase:
         ase_curr_struct.info['calc_performed'] = row['calc_performed']
         ase_curr_struct.info['deformation'] = row['deformation']
         ase_curr_struct.info['vacancy'] = row['vacancy']
+        ase_curr_struct.info['init_md'] = row['init_md']
+
         ase_curr_struct.info['targeted_modification'] = row['targeted_modification']
         if row.get('phase'):
             if isinstance(row['phase'], str):
@@ -1174,28 +1185,38 @@ class InitialDatabase:
 
                 mat_str = f'{entry.material_id}_{curr_phase.name}_vacancy_{vac_idx + 1}'
 
-                templ_entry = entry.to_dict()
+                new_struct_templ: dict = entry.to_dict()
 
-                # Creating a new Structure from the perturbed structure structure
+                # Updating template
+                new_struct_templ['material_name'] = mat_str
+                new_struct_templ['material_id'] = entry.material_id
+                new_struct_templ['structure'] = new_struct_vac
+                new_struct_templ['phase'] = curr_phase.name
+                new_struct_templ['surface_miller'] = entry.surface_miller
+                new_struct_templ['base'] = False
+                new_struct_templ['bulk'] = entry.bulk
+                new_struct_templ['surface'] = entry.surface
+                new_struct_templ['cluster'] = entry.cluster
+                new_struct_templ['perturb'] = True
+                new_struct_templ['supercell'] = entry.supercell
+                new_struct_templ['replacement'] = entry.replacement
+                new_struct_templ['formula'] = entry.formula
+                new_struct_templ['symmetry'] = new_struct_vac.get_space_group_info()[0]
+                new_struct_templ['temperature'] = entry.temperature
+                new_struct_templ['calc_performed'] = False
+                new_struct_templ['vacancy'] = True
+                new_struct_templ['init_md'] = False
+
+                # Remove unused method
+                try:  # noqa
+                    new_struct_templ.pop('from_db_row')
+                    new_struct_templ.pop('to_ase_atoms')
+                except KeyError:
+                    pass
+
+                # Creating a new Structure from the perturbed structure
                 curr_struct = mdb_struct.Structure(
-                    material_name=mat_str,
-                    material_id=entry.material_id,
-                    structure=new_struct_vac,
-                    phase=curr_phase.name,
-                    surface_miller=entry.surface_miller,
-                    base=False,
-                    bulk=entry.bulk,
-                    surface=entry.surface,
-                    cluster=entry.cluster,
-                    # perturb=True,
-                    supercell=entry.supercell,
-                    replacement=entry.replacement,
-                    formula=entry.formula,
-                    symmetry=new_struct_vac.get_space_group_info()[0],
-                    temperature=entry.temperature,
-                    calc_performed=False,
-                    vacancy=True,
-                    **templ_entry,
+                    **new_struct_templ,
                 )
 
                 # Converting the structure to the appropiate type
@@ -1214,82 +1235,128 @@ class InitialDatabase:
                 # Saving the bulk to the db.
                 self.df = curr_struct_conv.save_to_db(self.df)
 
-    @mdb_cud.deprecated(
-        reason='Replaced with _apply_perturbation_mdb_struct', since_ver='0.3.7'
-    )
-    def perturb_gauss(
-        self, center: float = 0.04, repeat: int = 5, filters: list = None
+    def gen_init_md_frames(
+        self,
+        filters: list,
+        seed: int,
+        md_gen_dict: dict,
+        lim_num_struc: int = None,
+        phase: mdb_pd.Phase = None,
     ):
-        # Getting all structures which are not perturbed
-        target_entries = self.df.loc[(~self.df.material_name.str.contains('_perturb'))]
+        """Run MD simulations for some structures in the database."""
+        # Instantiating RNG
+        # rng = np.random.default_rng(seed=seed)
 
-        # Applying user specified filters
-        if filters:
-            target_entries = self._apply_user_filters(filters, target_entries)
+        # Apply filters to the database
+        filtered_df, _, _ = ut.apply_filters_db(
+            db_obj=self,
+            filters=filters,
+            phase=phase,
+        )
+        # Force add filters for perturbed structures, displaced and replaced
+        # structures
+        filtered_df = filtered_df.loc[(filtered_df['base'])]
 
-        mdb_cud.custom_print(f'Applying filters {filters} for perturbation.')
+        # Filtering by phase if requested
+        if phase is not None:
+            if isinstance(phase, str):
+                filtered_df = filtered_df.loc[filtered_df.phase == phase]
+            elif isinstance(phase, mdb_pd.Phase):
+                filtered_df = filtered_df.loc[filtered_df.phase == phase.name]
+
+        # Get rows with unique values using the 'material_id' column
+        target_entries = filtered_df.drop_duplicates(subset='material_id')
+
         mdb_cud.custom_print(
-            f'{len(target_entries) * repeat} perturbed entries will be added.', 'debug'
+            (f'Running MD for {len(target_entries)} base structures...'),
+            'info',
         )
 
-        # Applying perturbation to all selected structures
+        # Load MD settings
+        md_params = md_gen_dict.get('md', {}).get('parameters', {})
+        T_start = md_params['temperature_K']
+
+        from MatDBForge.active_learning.active_learning_utils import run_mace_md_ase
+
+        # Run MD for all selected structures
+        md_struct_list = []
         for _, entry in target_entries.iterrows():
-            # Getting information from the current entry
-            str_matid = entry.material_id
-            str_phase = entry.phase
-            curr_str = entry.structure
+            # Get structure as ASE atoms
 
-            # Generating string for naming the current structure
-            extra_info = ''
-            if entry.supercell:
-                extra_info += f'_super-{mdb_surf.get_miller_index_str(entry.supercell)}'
-            if entry.replacement:
-                extra_info += (
-                    f'_repl-{entry.replacement_ind[0]}-{entry.replacement_ind[1]}'
-                )
+            init_conf_orig = MDBStructure().from_db_row(
+                row=entry, columns=entry.index.to_list()
+            )
+            init_conf_orig = init_conf_orig.to_ase_atoms()
+            init_conf = init_conf_orig.copy()
+            info_dict = init_conf.info
 
-            for perturb_repeat_idx in range(repeat):
-                # Applying perturbation to the structure
-                new_struct_perturb = self._apply_gauss_perturb(
-                    center=center, structure=curr_str
-                )
+            # Generate [2,2,1] supercell
+            sup_transf = np.eye(3) * [2, 2, 2]
 
-                mat_str = (
-                    f'{entry.curr_str.unique_id}_perturb_gauss_{perturb_repeat_idx + 1}'
-                )
+            init_conf = ase_build.make_supercell(prim=init_conf, P=sup_transf)
+            init_conf.info = info_dict
 
-                # Creating a new Structure from the perturbed structure
-                curr_struct = mdb_struct.Structure(
-                    material_name=mat_str,
-                    structure=new_struct_perturb,
-                    material_id=str_matid,
-                    phase=str_phase,
-                    base=False,
-                    perturb=True,
-                    vacancy=entry.vacancy,
-                    supercell=entry.supercell,
-                    replacement=entry.replacement,
-                    formula=new_struct_perturb.formula,
-                    symmetry=new_struct_perturb.get_space_group_info()[0],
-                    temperature=entry.temperature,
-                    calc_performed=False,
-                )
+            # Adding some displacement from the center of the cell
+            init_conf.positions = init_conf.positions + [0.075, -0.05, 0.1]
 
-                # Converting the structure to the appropiate type
-                if entry.bulk:
-                    curr_struct_conv = curr_struct.to_bulk()
-                elif entry.surface:
-                    curr_struct_conv = curr_struct.to_surface()
-                elif entry.cluster:
-                    curr_struct_conv = curr_struct.to_cluster()
-                else:
-                    raise NotImplementedError(
-                        'This perturbation strategy is not implemented '
-                        'for the current structure type.'
+            md_struct_list = run_mace_md_ase(
+                init_conf,
+                md_params,
+                T_start,
+                traj_obj=None,
+                prepend_path='.',
+                explode_filter=True,
+                mode='db_gen',
+                md_struct_list=md_struct_list,
+            )
+
+        if lim_num_struc < len(md_struct_list):
+            idxs = np.linspace(start=0, stop=len(md_struct_list) - 1, num=lim_num_struc)
+            md_struct_list = [md_struct_list[int(i)] for i in idxs]
+
+        # Add the generated structures to the database
+        for _, entry in target_entries.iterrows():
+            curr_id = entry.material_id
+            for idx, struct in enumerate(md_struct_list):
+                if curr_id in struct.info.get('material_id'):
+                    # Creating a new Structure from the initial MD structure.
+                    pmg_struct = AseAtomsAdaptor().get_structure(struct)
+                    mat_str = f'{entry.material_id}_{entry.phase}_init_md-{idx}'
+                    templ_entry = entry.to_dict()
+                    templ_entry['material_name'] = mat_str
+                    templ_entry['structure'] = pmg_struct
+                    templ_entry['supercell'] = str(sup_transf.diagonal())
+                    templ_entry['replacement'] = entry.replacement
+                    templ_entry['formula'] = entry.formula
+                    templ_entry['symmetry'] = pmg_struct.get_space_group_info()[0]
+                    templ_entry['temperature'] = entry.temperature
+                    templ_entry['calc_performed'] = False
+                    templ_entry['vacancy'] = False
+                    templ_entry['vacancy'] = False
+                    templ_entry['init_md'] = True
+
+                    curr_struct = mdb_struct.Structure(
+                        **templ_entry,
                     )
+                    print('\n', curr_struct)
 
-                # Saving the bulk to the db.
-                self.df = curr_struct_conv.save_to_db(self.df)
+                    # Converting the structure to the appropiate type
+                    if entry.bulk:
+                        curr_struct_conv = curr_struct.to_bulk()
+                    elif entry.surface:
+                        curr_struct_conv = curr_struct.to_surface()
+                    elif entry.cluster:
+                        curr_struct_conv = curr_struct.to_cluster()
+                    else:
+                        raise NotImplementedError(
+                            'Vacancy generation is not implemented '
+                            'for the current structure type.'
+                        )
+
+                    # Saving the structure to the db.
+                    print('self.df: ', self.df.shape)
+                    self.df = curr_struct_conv.save_to_db(self.df)
+                    print('self.df: ', self.df.shape)
 
     def _apply_gauss_perturb(self, structure: Structure, center: float = 0.04):
         new_structure = structure.copy()
@@ -2232,6 +2299,8 @@ class InitialDatabase:
             'to_bulk',
             'to_surface',
             'to_cluster',
+            'from_db_row',
+            'to_ase_atoms',
         ]
 
         # If given structure is a pymatgen Structure
@@ -3093,7 +3162,7 @@ def cli_run_gen_initial_database(
             max_perturbation_ang=float(cen_at_oh_dict.get('max_perturbation_ang', 0.2)),
         )
         phases_read_from_db.extend(cen_at_oh_dict['filter_phases'])
-        mdb_cud.custom_print(structures, 'info')
+        output_db_status(structures)
 
     mdb_cud.custom_print('Generating structures from initial structures...', 'debug')
 
@@ -3152,7 +3221,7 @@ def cli_run_gen_initial_database(
                 seed=rng_seed,
             )
 
-            mdb_cud.custom_print(structures, 'info')
+            output_db_status(structures)
 
         if 'surface' in gen_dict:
             mdb_cud.custom_print('Generating surface structures...', 'info')
@@ -3185,7 +3254,7 @@ def cli_run_gen_initial_database(
                 ),
             )
 
-            mdb_cud.custom_print(structures, 'info')
+            output_db_status(structures)
 
         if 'cluster' in gen_dict:
             raise NotImplementedError('Cluster type not implemented yet')
@@ -3198,7 +3267,7 @@ def cli_run_gen_initial_database(
         mdb_cud.custom_print(
             f'Removed {remove_count} structures out of atom count range.', 'info'
         )
-        mdb_cud.custom_print(structures, 'info')
+        output_db_status(structures)
 
         # Lattice deformation
         if 'deformation' in config_dict:
@@ -3216,7 +3285,7 @@ def cli_run_gen_initial_database(
                 filters=displ_dict.get('filter_struct_types'),
                 rng_seed=rng_seed,
             )
-            mdb_cud.custom_print(structures, 'info')
+            output_db_status(structures)
 
             remove_count = structures.remove_structs_out_of_cell_size_range(
                 min_cell_size=float(db_dict['min_cell_size'])
@@ -3238,11 +3307,11 @@ def cli_run_gen_initial_database(
                 phase=phase,
                 center=perturb_dict.get('perturbation_ang', 0.04),
                 limit_num_structures=int(
-                    perturb_dict.get('limit_max_num_perturbs'), 100
+                    perturb_dict.get('limit_max_num_perturbs', 100)
                 ),
             )
 
-            mdb_cud.custom_print(structures, 'info')
+            output_db_status(structures)
 
         # Applying vacancies to a random subset of structures
         if 'vacancies' in config_dict:
@@ -3284,7 +3353,7 @@ def cli_run_gen_initial_database(
                 lim_phas_structs,
                 rng_seed,
             )
-            mdb_cud.custom_print(structures, 'info')
+            output_db_status(structures)
 
     print()
     mdb_cud.custom_print(
@@ -3292,15 +3361,6 @@ def cli_run_gen_initial_database(
         'done',
     )
     print()
-
-    # TODO: Apply structure filters here
-    if 'struct_filters' in config_dict:
-        filtered_idxs = apply_struct_filters_mdb_db(structures, config_dict)
-        mdb_cud.custom_print(
-            f'Filtered {len(filtered_idxs)} structures based on user-defined filters.',
-            'info',
-        )
-        mdb_cud.custom_print(structures, 'info')
 
     if 'adsorbates' in config_dict:
         mdb_cud.custom_print(
@@ -3313,12 +3373,35 @@ def cli_run_gen_initial_database(
             db_obj=structures,
             repeat=int(adsorb_dict['num_repeats']),
             filters=adsorb_dict['filter_struct_types'],
-            phase=phase,
+            phase=structures.df.phase.unique(),
             limit_num_structures=int(adsorb_dict['limit_max_num_perturbs']),
             adsorbate_species=adsorb_dict['adsorbate_species'],
         )
 
-        mdb_cud.custom_print(structures, 'info')
+        output_db_status(structures)
+
+    # Run short MD simulations for some unperturbed structures
+    # to get some MD information.
+    if 'md_gen' in config_dict:
+        md_gen_dict: dict = config_dict['md_gen']
+
+        structures.gen_init_md_frames(
+            phase=structures.df.phase.unique(),
+            filters=md_gen_dict.get('filter_struct_types'),
+            lim_num_struc=int(md_gen_dict['max_num_frames']),
+            seed=rng_seed,
+            md_gen_dict=md_gen_dict,
+        )
+
+    print()
+    if 'struct_filters' in config_dict:
+        filtered_idxs = apply_struct_filters_mdb_db(structures, config_dict)
+        mdb_cud.custom_print(
+            f'Filtered {len(filtered_idxs)} structures based on user-defined filters.',
+            'info',
+        )
+        output_db_status(structures)
+
 
     # Add function to check all atom type in database and
     # # create a structure for each atom type that contains a single atom
@@ -3400,3 +3483,8 @@ def cli_run_gen_initial_database(
     if db_dict.get('show_db_ase', {}).get('show'):
         mdb_cud.custom_print('Displaying database in ASE...', 'info')
         structures.display_db_ase()
+
+
+def output_db_status(database: InitialDatabase):
+    shape = database.get_db_shape()
+    mdb_cud.custom_print(f'DB Info: {shape[0]} entries, {shape[1]} fields', 'info')
