@@ -139,8 +139,8 @@ def create_active_learning_builder(
     ]
     builder.active_learning.use_kokkos = md_params['use_kokkos']
 
-    # LAMMPS-MACE MD Settings
-    builder.active_learning.lammps_mace = Dict(value=toml_dict['md']['queue'])
+    # MACE MD Settings
+    builder.active_learning.lammps_mace = Dict(value=toml_dict['md']['parameters'])
 
     # MD filters
     builder.active_learning.md_filters = Dict(value=toml_dict['md'].get('filters'))
