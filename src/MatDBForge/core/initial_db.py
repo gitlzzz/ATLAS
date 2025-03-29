@@ -654,6 +654,7 @@ class InitialDatabase:
                 base=False,
                 phase='IsolatedAtom',
                 isolated_atom=True,
+                init_md=False,
                 magnetic_properties=np.nan,
                 energy_per_atom=np.nan,
             )
@@ -1338,7 +1339,6 @@ class InitialDatabase:
                     curr_struct = mdb_struct.Structure(
                         **templ_entry,
                     )
-                    print('\n', curr_struct)
 
                     # Converting the structure to the appropiate type
                     if entry.bulk:
@@ -1354,9 +1354,7 @@ class InitialDatabase:
                         )
 
                     # Saving the structure to the db.
-                    print('self.df: ', self.df.shape)
                     self.df = curr_struct_conv.save_to_db(self.df)
-                    print('self.df: ', self.df.shape)
 
     def _apply_gauss_perturb(self, structure: Structure, center: float = 0.04):
         new_structure = structure.copy()
@@ -3401,7 +3399,6 @@ def cli_run_gen_initial_database(
             'info',
         )
         output_db_status(structures)
-
 
     # Add function to check all atom type in database and
     # # create a structure for each atom type that contains a single atom
