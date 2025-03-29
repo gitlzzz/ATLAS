@@ -164,11 +164,13 @@ This key describes the settings related to the perturbation of structures.
 
 This key contains settings related to adsorbate addition
 
+- `perturbation_ang`: (float) Perturbation magnitude in Angstrom. By default 0.04 A.
+
 - `filter_struct_types`: (list[str]) Only apply the perturbation to the following types of structures. Valid types: `'bulk'`, `'surface'`, `'cluster'`
 
 - `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate. By default, 100.
 
-- `num_repeats`: (int) Number of repeats for each structure. # Each repeat will get different random perturbations.
+- `num_repeats`: (int) Number of repeats for each structure. Each repeat will get different random perturbations. By default, 1.
 
 - `adsorbate_species`: (list[str]) List of adsorbate species to consider. Example: ["H", "H2O"]
 
@@ -296,22 +298,22 @@ This section contains keys which adjust the extrapolation and disagreement check
 
 ### MD Settings - `[md]`
 
-Settings for MD simulations using LAMMPS
+Settings for MD simulations using an ASE calculator or LAMMPS.
 
 #### MD Parameters - `[md.parameters]`
 
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: [300, 350, 400]
 - `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
 - `num_steps` (int) Total number of MD steps to be run in each MD simulation
-- `timestep_duration_ps`: (float) Duration of each timestep. In LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
+- `timestep_duration_ps`: (float) Duration of each timestep. The units are picoseconds. Note that in LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
 
 - `langevin_friction_ps-1`: (float) friction coefficient for the Langevin thermostat in $ps^{-1}$
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
-- `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu
+- `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and therefore DFT calculations.
 - `log_save_interval`: (int) Every how many MD steps log energy and force information.
-- `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`.
-- `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`.
+- `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`. Has no effect when using LAMMPS.
+- `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`. Has no effect when using LAMMPS.
 
 #### MD Filters - `[md.filters]`
 
