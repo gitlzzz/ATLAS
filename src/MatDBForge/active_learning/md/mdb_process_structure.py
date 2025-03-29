@@ -414,7 +414,7 @@ if __name__ == '__main__':
         comm_settings = settings.get('committee_eval', {})
         comm_results = {}
         for model in model_file_list:
-            comm_results[model.stem] = {'energy': [], 'forces': []}
+            comm_results[model.stem] = {'REF_energy': [], 'REF_forces': []}
 
             calculator = MACECalculator(
                 model_paths=prepend_path / model,
@@ -429,10 +429,10 @@ if __name__ == '__main__':
                 frame.calc = calculator
 
                 # Get the energy [meV/at] and forces [meV/A]
-                comm_results[model.stem]['energy'].append(
+                comm_results[model.stem]['REF_energy'].append(
                     frame.get_potential_energy() * 1000 / len(frame)
                 )
-                comm_results[model.stem]['forces'].append(frame.get_forces() * 1000)
+                comm_results[model.stem]['REF_forces'].append(frame.get_forces() * 1000)
 
         ## Apply E/F commitee extrapolation filter
         model_acc_multiplier = settings['active_learning'].get(
@@ -463,13 +463,15 @@ if __name__ == '__main__':
                     model_forces_dict[model_name] = []
 
                 model_energies_dict[model_name].append(
-                    comm_results[model_name]['energy']
+                    comm_results[model_name]['REF_energy']
                 )
-                model_forces_dict[model_name].append(comm_results[model_name]['forces'])
+                model_forces_dict[model_name].append(
+                    comm_results[model_name]['REF_forces']
+                )
 
             # Checking if the energies are over the error threshold
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)  # meV
-            maximum_value_e = np.average(energies_stat) * 500  # meV * 500
+            maximum_value_e = np.average(energies_stat) * 10  # meV
             mdb_cud.custom_print(f'e_error_threshold: {e_error_threshold}', 'none')
             mdb_cud.custom_print(f'e_maximum_value: {maximum_value_e}', 'none')
             mdb_cud.custom_print(f'energies_stat: {energies_stat}', 'none')
@@ -506,7 +508,7 @@ if __name__ == '__main__':
             # Shape: (1, n_frames)
             forces_std_norm_max = np.amax(forces_std_norm, axis=2)
 
-            maximum_value_f = np.average(forces_std_norm_max) * 500  # meV
+            maximum_value_f = np.average(forces_std_norm_max) * 10  # meV
             mdb_cud.custom_print(f'f_error_threshold: {f_error_threshold}', 'none')
             mdb_cud.custom_print(f'f_maximum_value: {maximum_value_f}', 'none')
             mdb_cud.custom_print(f'forces_std_norm_max: {forces_std_norm_max}', 'none')
@@ -552,7 +554,7 @@ if __name__ == '__main__':
             # Get the energy and forces and save into arrays
             # shape: (n_frames, n_models)
             all_energies_array = np.array(
-                [comm_results[model]['energy'] for model in comm_results]
+                [comm_results[model]['REF_energy'] for model in comm_results]
             ).T
 
             # Getting the standard deviation of the energies across
@@ -604,7 +606,7 @@ if __name__ == '__main__':
             # Array containing the forces for each model
             # shape: (3, n_at, n_frames, n_models)
             all_forces_array = np.array(
-                [comm_results[model]['forces'] for model in comm_results]
+                [comm_results[model]['REF_forces'] for model in comm_results]
             ).T
 
             # Shape: (n_at, n_frames, n_models)
@@ -780,8 +782,12 @@ if __name__ == '__main__':
         # Renaming result keys
         mod_extrap_frames = []
         for structure in extrapol_frames_final:
-            structure.info['REF_energy'] = structure.calc.get_potential_energy()
-            structure.arrays['REF_forces'] = structure.calc.get_forces()
+            # Setting the main model calculator for the current structure
+            structure.calc = calculator
+
+            # Getting the energy and forces for the structure
+            structure.info['REF_energy'] = structure.get_potential_energy()
+            structure.arrays['REF_forces'] = structure.get_forces()
 
             mod_extrap_frames.append(structure)
 
