@@ -171,6 +171,8 @@ if __name__ == '__main__':
     auto_train_settings = auto_settings.get('train_settings', {})
     auto_path = auto_train_settings.get('model_path', 'autoencoder_model.pth')
 
+    mdb_cud.custom_print(f'Using device {device} and dtype {dtype}', 'info')
+
     # Load data
     structs_database = ase_read(
         prepend_path / 'training_db.xyz', index=':', format='extxyz'
@@ -190,7 +192,7 @@ if __name__ == '__main__':
                 )
     else:
         mdb_cud.custom_print('Reading descriptors from file...')
-        descriptor_arr = np.load(prepend_path / 'all_descriptors.npy')
+        descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')
         with open(res_folder / 'curr_it_db_descriptors.pkl', 'rb') as f:
             descriptor_dict = pickle.load(f)
 
@@ -203,7 +205,7 @@ if __name__ == '__main__':
     np.save(file=res_folder / 'curr_it_db_min', arr=min_val)
 
     # Saving descriptor array
-    np.save(prepend_path / 'all_descriptors.npy', descriptor_arr)
+    np.savez_compressed(prepend_path / 'all_descriptors.npz', descriptor_arr)
     mdb_cud.custom_print('Descriptors generated.')
 
     latent_space = None
