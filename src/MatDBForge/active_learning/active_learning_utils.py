@@ -245,6 +245,10 @@ def run_mace_md_ase(
         ASE trajectory object to store the MD simulation.
     prepend_path : str, optional
         Path to prepend to the model path, by default None
+    explode_filter: bool, optional
+        Whether to apply the MD explode filter.
+    mode: str
+        Operation mode for this function. One of 'normal' or 'init_db'.
     """
     from mace.calculators import MACECalculator
 
