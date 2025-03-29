@@ -6,6 +6,8 @@ import uuid
 import pandas as pd
 import pymatgen.io.vasp as vasp
 from pymatgen.core.units import Energy
+from pymatgen.core.structure import Structure as pmg_struct
+from pymatgen.io.ase import AseAtomsAdaptor
 import pathlib as pl
 import warnings
 
@@ -106,13 +108,20 @@ class Structure:
         targeted_modification: str = None,
         al_loop_step: int = 0,
         unique_id=None,
+        init_md: bool = False,
     ):
         if unique_id:
             self.unique_id = unique_id
         else:
             self.unique_id = str(uuid.uuid4())
         self.material_name = material_name
-        self.structure = structure
+        if isinstance(structure, (pmg_struct, type(None))):
+            self.structure = structure
+        else:
+            raise TypeError(
+                'Given structure is not a pymatgen structure, '
+                f'it is {type(structure)} instead'
+            )
         self.material_id = material_id
         self.phase = phase
         self.base = base
@@ -149,6 +158,7 @@ class Structure:
         self.vacancy = vacancy
         self.targeted_modification = targeted_modification
         self.al_loop_step = al_loop_step
+        self.init_md = init_md
 
     def to_bulk(self):
         """Create a Bulk instance by passing the current Structure attributes."""
@@ -157,7 +167,7 @@ class Structure:
             for name, value in inspect.getmembers(self)
             if not inspect.isroutine(value)
             and not name.startswith('__')
-            and name not in ['to_surface', 'to_bulk', 'to_cluster']
+            and name not in ['to_surface', 'to_bulk', 'to_cluster', 'to_ase_atoms']
         }
         return Bulk(**attributes)
 
@@ -168,7 +178,7 @@ class Structure:
             for name, value in inspect.getmembers(self)
             if not inspect.isroutine(value)
             and not name.startswith('__')
-            and name not in ['to_surface', 'to_bulk', 'to_cluster']
+            and name not in ['to_surface', 'to_bulk', 'to_cluster', 'to_ase_atoms']
         }
         return Surface(**attributes)
 
@@ -179,7 +189,7 @@ class Structure:
             for name, value in inspect.getmembers(self)
             if not inspect.isroutine(value)
             and not name.startswith('__')
-            and name not in ['to_surface', 'to_bulk', 'to_cluster']
+            and name not in ['to_surface', 'to_bulk', 'to_cluster', 'to_ase_atoms']
         }
         return Cluster(**attributes)
 
@@ -251,6 +261,7 @@ class Structure:
             calc_performed=True,
             calc_type=vasprun.run_type,
             calc_output=vasprun,
+            init_md=False,
         )
 
         if not generated_structure.replacement:
@@ -304,6 +315,8 @@ class Structure:
             props.append('+vacancies')
         if self.targeted_modification:
             props.append(f'+{self.targeted_modification}')
+        if self.init_md:
+            props.append('+initial_md')
 
         repr_str += ' '.join(props)
 
@@ -361,6 +374,7 @@ class Structure:
                 'targeted_modification': self.targeted_modification,
                 'deformation': self.deformation,
                 'al_loop_step': self.al_loop_step,
+                'init_md': self.init_md,
             }
         )
         bool_columns = {
@@ -374,6 +388,7 @@ class Structure:
             'calc_performed': bool,
             'replacement': bool,
             'vacancy': bool,
+            'init_md': bool,
         }
         new_row = new_row.to_frame().T.astype(bool_columns)
 
@@ -409,6 +424,13 @@ class Structure:
             setattr(self, col, row[col_idx])
         return self
 
+    def to_ase_atoms(self):
+        # Convert pymatgen to ase
+        ase_struct = AseAtomsAdaptor().get_atoms(self.structure)
+        ase_struct.info = self.__dict__
+
+        return ase_struct
+
 
 class Bulk(Structure):
     """Class for bulk structures."""
@@ -440,6 +462,7 @@ class Surface(Structure):
         if isinstance(self.surface_miller, str):
             self.surface_miller = [int(idx) for idx in self.surface_miller]
 
+
 class Cluster(Structure):
     """Class for cluster structures."""
 
@@ -450,6 +473,7 @@ class Cluster(Structure):
         self.cluster = True
         self.surface = False
         self.bulk = False
+
 
 class IsolatedAtom(Structure):
     """Class for cluster structures."""
