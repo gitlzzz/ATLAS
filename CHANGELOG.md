@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.23.0 (2025-03-29)
+
+### Feature
+
+- **al_loop**: use compressed numpy arrays for descriptor storage ([#1354ccb](https://github.com/pol-sb/MatDBForge/commit/1354ccb25d37949fb10874eedfcc8d6997c6e314))
+- **al_loop**: enable optional container usage for every step in the AL Loop ([#9cef32d](https://github.com/pol-sb/MatDBForge/commit/9cef32dc63f2310d4f6efe5ba78a1c648b530a4f))
+- **db_gen**: add MD frame generation for initial database creation ([#188245c](https://github.com/pol-sb/MatDBForge/commit/188245c0885d9ef95ad1ea277a1d46439cbd6fd5))
+- **db_gen**: add `to_ase_atoms` function and `init_md` identifier ([#94f92c8](https://github.com/pol-sb/MatDBForge/commit/94f92c829d48950e655d4c7d4317d0172c38ae5c))
+- **al_loop**: add exploding structures filter ([#4d044bb](https://github.com/pol-sb/MatDBForge/commit/4d044bbcee14f6877eac2a0d0e8f591b245124e1))
+
+### Fix
+
+- **init_db**: add `init_md=False` to new IsolatedAtom configurations ([#310cf43](https://github.com/pol-sb/MatDBForge/commit/310cf438d16a765a3f1140f5de4d6c5a4fc230ad))
+- **al_loop**: update thresholds for `mdb_process_structure.py` and fix wrong keys ([#323492e](https://github.com/pol-sb/MatDBForge/commit/323492ec171a331b9c7fa85594cb8e3fdb06c229))
+- **al_loop**: improve database filtering in `apply_filters_db` ([#58999c8](https://github.com/pol-sb/MatDBForge/commit/58999c863236a5a7f96f7de4a43ebe8d0e43d409))
+- **al_loop**: enable container usage for mace tools ([#13a7d97](https://github.com/pol-sb/MatDBForge/commit/13a7d97c25ae0e3985ec88f343644270141b5772))
+- **al_loop**: properly use enable_cueq flag in mace training ([#6248a94](https://github.com/pol-sb/MatDBForge/commit/6248a94f0c3ecd184385d313e5e2084f7b812aac))
+
 ## 0.22.2 (2025-03-20)
 
 ### Fix
