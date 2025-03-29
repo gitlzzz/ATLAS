@@ -330,3 +330,54 @@ def get_available_filters() -> dict:
     }
 
     return available_filters
+
+
+def apply_filter_exploding_structures(
+    struct: Atoms,
+    cov_rad_multiplier_max: float = 10.0,
+    cov_rad_multiplier_min: float = 0.775,
+) -> bool:
+    """
+    Check if the given structure has an unrealistic structure (explosion).
+
+    Parameters
+    ----------
+    struct : ase.Atoms
+        Structure to check.
+    max_distance : float
+        Maximum distance between atoms.
+    min_distance : float
+        Minimum distance between atoms.
+
+    Returns
+    -------
+    bool
+        Returns `True` if the structure is exploding, `False` if otherwise.
+    """
+    # Get the natural cutoffs and multiply them by the cov_rad_multiplier_max
+    # cutoffs will be used as the maximum distance between atoms possible
+    # for the structure to be considered stable
+    cutoffs_max: np.array = np.array(natural_cutoffs(struct)) * cov_rad_multiplier_max
+    cutoffs_min: np.array = np.array(natural_cutoffs(struct)) * cov_rad_multiplier_min
+    max_cell_arr = np.repeat(np.max(struct.cell), repeats=len(cutoffs_max))
+
+    # If the cutoffs are smaller than the maximum cell size,
+    # set them to the maximum cell size
+    if np.all(max_cell_arr > cutoffs_max):
+        cutoffs_max = max_cell_arr
+
+    # Get the distances between atoms
+    all_distances = struct.get_all_distances(mic=True)
+
+    # Change all zeros to NaN. Zeros will be there when the
+    # atom is compared to itself
+    all_distances[np.where(all_distances == 0)] = np.nan
+
+    # Get the maximum and minimum distances
+    max_dist = np.nanmax(all_distances, axis=0)
+    min_dist = np.nanmin(all_distances, axis=0)
+
+    # Check if the maximum distance is above the threshold
+    is_exploding = np.any(max_dist > cutoffs_max) or np.any(min_dist < cutoffs_min)
+
+    return is_exploding

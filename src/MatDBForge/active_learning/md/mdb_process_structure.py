@@ -250,6 +250,7 @@ if __name__ == '__main__':
             traj_obj=traj_obj,
             init_conf=init_conf,
             prepend_path=prepend_path,
+            explode_filter=True,
         )
         mdb_cud.custom_print('MD simulation completed!', 'done')
 
@@ -297,6 +298,35 @@ if __name__ == '__main__':
 
             mdb_cud.custom_print(
                 f'Marked by layer distance filter: {len(later_distance_r_frames)}',
+                'debug',
+            )
+
+            exploding_structs = []
+
+        if md_filters.get('exploding_structures', {}).get('enable'):
+            mdb_cud.custom_print("Running 'exploding structures' filter...", 'info')
+
+            explod_filt_settings = md_filters.get('exploding_structures', {})
+            # Getting multiplier from input
+            cov_rad_multiplier_max: float = explod_filt_settings.get(
+                'cov_rad_multiplier_max', 10.0
+            )
+            cov_rad_multiplier_min: float = explod_filt_settings.get(
+                'cov_rad_multiplier_min', 0.25
+            )
+            # Applying filter for every frame
+            for idx, frame in enumerate(md_traj):
+                is_structure_wrong = mdb_str_filters.apply_filter_exploding_structures(
+                    struct=frame,
+                    cov_rad_multiplier_max=cov_rad_multiplier_max,
+                    cov_rad_multiplier_min=cov_rad_multiplier_min,
+                )
+                if is_structure_wrong:
+                    exploding_structs.append(idx)
+            frames_to_remove.extend(exploding_structs)
+
+            mdb_cud.custom_print(
+                f'Marked by exploding structures filter: {len(exploding_structs)}',
                 'debug',
             )
 

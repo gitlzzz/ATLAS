@@ -4,6 +4,7 @@ import io
 import itertools as it
 import tempfile
 import time
+import tomllib as toml
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from ase.data import atomic_numbers, covalent_radii
 from ase.geometry.analysis import Analysis
 from ase.io import read as ase_read
 from ase.io import write as ase_write
+from ase.io.trajectory import TrajectoryWriter
 from ase.md.langevin import Langevin
 from ase.md.npt import NPT
 from ase.md.velocitydistribution import (
@@ -37,6 +39,9 @@ from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import code_utils as mdb_cud
+from MatDBForge.core.filtering.structure_filters import (
+    apply_filter_exploding_structures,
+)
 from MatDBForge.workflows import aiida_utils as mdb_aut
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
 
@@ -120,6 +125,26 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
     dyn.atoms.info['md_temperature'] = current_temperature
 
 
+def md_write_frame_traj(dyn, traj):
+    """
+    Function to write frames to a trajectory during ASE MD simulations.
+
+    Parameters
+    ----------
+    dyn : ASE MD object
+        ASE MD object used to run the MD simulation.
+    traj : ASE trajectory object
+        ASE trajectory object to store the MD simulation.
+
+    """
+    # Write the frame to the trajectory
+    REF_energy = dyn.atoms.get_potential_energy()
+    REF_forces = dyn.atoms.get_forces()
+    dyn.atoms.info['REF_energy'] = REF_energy
+    dyn.atoms.info['REF_forces'] = REF_forces
+    traj.write(dyn.atoms, energy=REF_energy, forces=REF_forces)
+
+
 # TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
 def generate_descriptors(
     model_path: str,
@@ -196,11 +221,14 @@ def generate_descriptors_soap(database, descriptor_settings: dict): ...
 
 
 def run_mace_md_ase(
-    init_conf,
-    md_params,
-    T_start,
-    traj_obj,
-    prepend_path='.',
+    init_conf: Atoms,
+    md_params: dict,
+    T_start: float,
+    traj_obj: TrajectoryWriter | None,
+    prepend_path: str | Path = '.',
+    explode_filter: bool = False,
+    mode='normal',
+    md_struct_list=None,
 ):
     """
     Run MD simulations using ASE and MACE.
@@ -271,7 +299,6 @@ def run_mace_md_ase(
                 temperature_K=T_start,
                 # convert friction in ps-1 to fs-1
                 friction=(friction / 1000) / units.fs,
-                # trajectory=traj_obj,
                 logfile=log_folder / f'md_info-{T_start}K.log',
             )
         case 'nose-hoover':
@@ -288,7 +315,6 @@ def run_mace_md_ase(
                 externalstress=0,
                 ttime=100 * units.fs,
                 pfactor=None,
-                # trajectory=traj_obj,
                 logfile=log_folder / f'md_info-{T_start}K.log',
             )
     mdb_cud.custom_print('Running MD simulation using settings:', 'info')
@@ -305,15 +331,53 @@ def run_mace_md_ase(
         T_end=T_end,
     )
 
-    dyn.attach(
-        traj_obj.write,
-        atoms=dyn.atoms,
-        REF_energy=dyn.atoms.get_potential_energy(),
-        REF_forces=init_conf.get_forces(),
-        interval=1,
-    )
+    if traj_obj and mode == 'normal':
+        dyn.attach(
+            md_write_frame_traj,
+            # atoms=dyn.atoms,
+            # REF_energy=dyn.atoms.get_potential_energy(),
+            # REF_forces=dyn.atoms.get_forces(),
+            dyn=dyn,
+            traj=traj_obj,
+            interval=1,
+        )
+
+    if explode_filter and mode == 'normal':
+        dyn.attach(
+            md_stop_explode_filter,
+            dyn=dyn,
+            interval=int(num_steps * 0.1),
+        )
+
+    if mode != 'normal':
+        if not md_struct_list:
+            md_struct_list = []
+
+        dyn.attach(
+            md_save_gen_structs,
+            dyn=dyn,
+            struct_list=md_struct_list,
+            interval=1,
+        )
+
     # Run the MD simulation
-    dyn.run(num_steps)
+    try:
+        dyn.run(num_steps)
+    except Exception as e:
+        print(f'Error in MD simulation: {e}')
+
+    if mode != 'normal':
+        return md_struct_list
+
+
+def md_stop_explode_filter(dyn):
+    has_exploded = apply_filter_exploding_structures(dyn.atoms)
+    if has_exploded:
+        raise RuntimeError(f'Wrong structure in step {dyn.nsteps} :(')
+
+
+def md_save_gen_structs(dyn, struct_list):
+    struct_list.append(dyn.atoms.copy())
 
 
 def simplify_forces_struct(forces: np.ndarray):
@@ -569,9 +633,12 @@ def get_dft_calc_builder_mace_list(
     struct_list: list,
     row,
     dft_settings: dict,
+    container_settings: dict,
 ):
     """Get a MACE calculation builder for a given structure list and row."""
     updated_struct_list = []
+
+    containerized: bool = container_settings.get('use_container', False)
 
     for idx, curr_struct in enumerate(struct_list):
         curr_struct = struct_list[idx]
@@ -606,12 +673,45 @@ def get_dft_calc_builder_mace_list(
     # Load structure as orm.SinglefileData
     mace_builder.configuration_to_evaluate = mace_xyz_file
 
-    # Get code and remove from settings dict
-    mace_builder.code = orm.load_code(dft_settings['options']['code_string'])
+    # Pass the containerized settings to the builder
+    mace_builder.use_container = containerized
+
+    if containerized:
+        import os
+
+        image_name = container_settings.get('image_name', '')
+        engine_command = container_settings.get('engine_command', '')
+
+        options_dict = dft_settings['options']
+        metadata_dict = dft_settings.get('metadata', {})
+
+        num_threads = options_dict.get('resources', {}).get(
+            'num_cores_per_mpiproc', os.cpu_count()
+        )
+        prepend_text = (
+            metadata_dict.get('prepend_text', '')
+            + '\n'
+            + container_settings.get('prepend_text', '')
+            + f'\nexport OMP_NUM_THREADS={num_threads}'
+        )
+        computer = orm.load_computer(metadata_dict.get('computer', None))
+        code = orm.ContainerizedCode(
+            computer=computer,
+            image_name=image_name,
+            filepath_executable='mace_eval_configs',
+            prepend_text=prepend_text,
+            engine_command=engine_command,
+        )
+        mace_builder.code = code
+    else:
+        # Get code and remove from settings dict
+        mace_builder.code = orm.load_code(dft_settings['options']['code_string'])
+
     dft_settings['options'].pop('code_string')
 
     # Load scheduler and resources options
     mace_builder.metadata.options = dft_settings['options']
+    mace_builder.metadata.options.parser_name = 'mace-eval-parser'
 
     struct_name = curr_material_name
     mace_builder.metadata.label = struct_name
@@ -1375,3 +1475,10 @@ def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
 
 
 def get_concave_hull(latent_space: np.ndarray) -> np.ndarray: ...
+
+
+def read_toml_settings(settings_file: str | Path) -> dict:
+    """Read a TOML file containing settings for the active learning workflow."""
+    with open(settings_file, 'rb') as f:
+        settings = toml.load(f)
+    return settings
