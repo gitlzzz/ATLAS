@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import yaml
 from aiida import orm
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.folders import Folder
@@ -403,6 +404,9 @@ class TrainMACEModelCalculation(CalcJob):
         Path to the configurations to evaluate in extxyz format.
     model_name : orm.Str
         Name given to the model.
+    use_container : orm.Bool
+        Use code in container. Default is False. Will be set automatically by the
+        code if the containerized mode is enabled.
 
     Outputs
     -------
@@ -459,6 +463,14 @@ class TrainMACEModelCalculation(CalcJob):
             serializer=orm.to_aiida_type,
         )
         spec.input(
+            'use_container',
+            valid_type=orm.Bool,
+            help=('Whether to use code in container.'),
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=orm.Bool(False),
+        )
+        spec.input(
             'model_name',
             valid_type=orm.Str,
             help=('Name given to the model.'),
@@ -509,7 +521,11 @@ class TrainMACEModelCalculation(CalcJob):
         params_list = []
 
         # Adding cli parameters to list
-        prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
+        prepare_cli_args_mace(
+            params_list=params_list,
+            settings_dict=self.inputs.mace_settings_dict,
+            use_container=self.inputs.use_container,
+        )
 
         # Adding random seed
         params_list.append(f'--seed={np.random.randint(1, 100000000)}')
@@ -534,6 +550,20 @@ class TrainMACEModelCalculation(CalcJob):
             src=final_db_path,
             dest_name=self.inputs.mace_settings_dict['train_file'],
         )
+
+        # Create a yaml file using the settings dict and pyyaml
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=True, suffix='.yaml', prefix='mdb_mace_train-'
+        ) as f:
+            yaml.dump(self.inputs.mace_settings_dict.get_dict(), f)
+            folder.insert_path(
+                src=f.name,
+                dest_name='settings.yaml',
+            )
+
+            # Remove the file after insertion
+            f.close()
+            Path(f.name).unlink(missing_ok=True)
 
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
@@ -706,6 +736,14 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             help='Path to the trained MACE model.',
         )
         spec.input(
+            'use_container',
+            valid_type=orm.Bool,
+            help=('Whether to use code in container.'),
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=orm.Bool(False),
+        )
+        spec.input(
             'configuration_to_evaluate',
             valid_type=orm.SinglefileData,
             help='Path to the configurations to evaluate in extxyz format.',
@@ -746,15 +784,24 @@ class EvaluateMACEConfigsCalculation(CalcJob):
         """
         # Parsing mace settings dict
         params_list = []
-        params_list.append('--model=current_mace_model.model')
-        params_list.append('--configs=current_configuration.xyz')
-        params_list.append('--output=results.out')
+
+        model_path_str = Path('current_mace_model.model')
+        configs_path_str = Path('current_configuration.xyz')
+        results_out_path = Path('results.out')
+
+        # Prepending paths with /mdb_data if using container
+        if self.inputs.use_container:
+            model_path_str = Path('/mdb_data') / model_path_str
+            configs_path_str = Path('/mdb_data') / configs_path_str
+            results_out_path = Path('/mdb_data') / results_out_path
+
+        params_list.append(f'--model={model_path_str}')
+        params_list.append(f'--configs={configs_path_str}')
+        params_list.append(f'--output={results_out_path}')
 
         # Adding cli parameters to list
         prepare_cli_args_mace(params_list, self.inputs.mace_settings_dict)
 
-        # REMOVE
-        # params_list.append('--info_prefix=mdb_mace_eval_')
         params_list.append('--info_prefix=REF_')
 
         # Remove duplicate entries
@@ -833,10 +880,11 @@ class EvaluateMACEConfigsCalculationParser(Parser):
                     result_dict = mdb_al_ut.serialize_ase(curr_structure)
 
                     # Get values from calculator
-                    if curr_structure.calc:
+                    # if curr_structure.calc:
+                    try:
                         # calc_energies = curr_structure.calc.get_potential_energy()
                         calc_forces = curr_structure.calc.get_forces()
-                    else:
+                    except Exception:
                         # calc_energies = result_dict['mdb_mace_eval_energy']
                         calc_forces = result_dict['REF_forces']
 
@@ -1061,11 +1109,20 @@ class CheckMACECommitteeResultsCalculation(CalcJob):
         return calcinfo
 
 
-def prepare_cli_args_mace(params_list: list, settings_dict: dict):
+def prepare_cli_args_mace(
+    params_list: list, settings_dict: dict, use_container: bool = False
+):
     """Prepare the command line arguments for the MACE calculation."""
     for key, val in settings_dict.items():
         if key == 'train_file':
             val = Path(val).resolve().name
+
+            # Prepending the /mdb_data path to any path in the settings dict
+            # this is to ensure that the cwd data can be accessed by the container
+            # in the /mdb_data folder.
+            if use_container:
+                val = Path('/mdb_data') / val
+                params_list.append('--work_dir=/mdb_data')
 
         if key == 'dtype':
             key = 'default_dtype'
