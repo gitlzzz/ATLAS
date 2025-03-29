@@ -252,6 +252,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
             return
 
         calc_count = 0
+
+        # Getting container settings
+        container_dict = self.inputs.container_settings.get_dict()
+        if container_dict.get('use_container'):
+            containerized = container_dict.get('use_container', False)
+        if self.inputs.mace_train.get('ignore_container'):
+            containerized = False
+
         for _ in range(self.inputs.committee_num_models.value):
             model_name = mdb_al_ut.generate_model_name()
 
@@ -274,20 +282,55 @@ class SimpleActiveLearningWorkChain(WorkChain):
             mace_builder.model_name = model_name
             mace_builder.mace_settings_dict = orm.Dict(mace_train_settings)
 
+            # Set the use container flag
+            mace_builder.use_container = orm.Bool(containerized)
+
             mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
                 result_dir_path=self.inputs.results_dir.value,
                 final_db_name=self.inputs.final_db_name.value,
                 node=self.node,
             )
             mace_builder.mace_train_file_path = str(mace_train_file_path)
-            code_str = self.inputs.mace_train.get_dict()['code']
-            code = orm.load_code(code_str)
-            computer = code.computer
-            mace_builder.code = code
-            mace_builder.metadata.options.withmpi = True
-            mace_builder.metadata.options = self.inputs.mace_train.get_dict()[
+
+            mace_train_calc_sched_options = self.inputs.mace_train.get_dict()[
                 'metadata'
             ].get('options')
+
+            if containerized:
+                image_name = container_dict.get('image_name', '')
+                engine_command = container_dict.get('engine_command', '')
+                num_threads = mace_train_calc_sched_options.get('resources', {}).get(
+                    'num_cores_per_mpiproc', os.cpu_count()
+                )
+                mace_train_prepend = (
+                    self.inputs.mace_train.get_dict()
+                    .get('metadata', {})
+                    .get('prepend_text', '')
+                )
+                prepend_text = (
+                    mace_train_prepend
+                    + '\n'
+                    + container_dict.get('prepend_text', '')
+                    + f'\nexport OMP_NUM_THREADS={num_threads}'
+                )
+                computer = orm.load_computer(
+                    self.inputs.mace_train.get_dict().get('computer', None)
+                )
+                code = orm.ContainerizedCode(
+                    computer=computer,
+                    image_name=image_name,
+                    filepath_executable='mace_run_train',
+                    prepend_text=prepend_text,
+                    engine_command=engine_command,
+                )
+            else:
+                code_str = self.inputs.mace_train.get_dict()['code']
+                code = orm.load_code(code_str)
+                computer = code.computer
+
+            mace_builder.code = code
+            mace_builder.metadata.options.withmpi = True
+            mace_builder.metadata.options = mace_train_calc_sched_options
             mace_builder.metadata.options.output_filename = (
                 f'train_{model_name}_iter-{self.inputs.al_loop_iteration.value}'
             )
@@ -295,16 +338,13 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # future = self.submit(mace_builder)
             # self.to_context(mace_training_results=append_(future))
-            calc_limit = mace_builder.metadata.computer.metadata.get(
-                'mdb_calc_limit', 0
-            )
+            calc_limit = computer.metadata.get('mdb_calc_limit', 0)
             if calc_limit != 0:
                 mdb_al_ut.aiida_wait_submit(
                     builder=mace_builder,
                     computer=computer,
                     calc_count=calc_count,
                 )
-
             # Submit calculation
             future = self.submit(mace_builder)
             self.report(f'Submitted calculation {future.pk}.')
@@ -472,13 +512,24 @@ class SimpleActiveLearningWorkChain(WorkChain):
             f'{MDB_ROOT_DIR}/active_learning/mace_code/combined'
         )
 
+        # Loading metadata settings
         computer = orm.load_computer(
             self.inputs.descriptor_settings['metadata']['computer']
         )
         desc_builder.metadata.computer = computer
 
+        resources_dict = self.inputs.descriptor_settings['metadata']['options'][
+            'resources'
+        ]
+        num_threads = resources_dict.get('num_cores_per_mpiproc', 2)
+
+        # Getting container settings
         container_dict = self.inputs.container_settings.get_dict()
-        containerized = container_dict.get('use_container', False)
+        if container_dict.get('use_container'):
+            containerized = container_dict.get('use_container', False)
+        if self.inputs.mace_train.get('ignore_container'):
+            containerized = False
+
         if containerized:
             image_name = container_dict.get('image_name', '')
             engine_command = container_dict.get('engine_command', '')
@@ -486,6 +537,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
                 + '\n'
                 + container_dict.get('prepend_text', '')
+                + f'\nexport OMP_NUM_THREADS={num_threads}'
             )
             code = orm.ContainerizedCode(
                 computer=desc_builder.metadata.computer,
@@ -498,6 +550,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             prepend_text = (
                 self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
                 + '\nexport PATH=$PATH:.'
+                + f'\nexport OMP_NUM_THREADS={num_threads}'
             )
             code = orm.PortableCode(
                 label='mdb-descriptors-combined',
@@ -507,11 +560,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
         desc_builder.code = code
 
-        # Loading computer and removing it from the input dictionary
+        # Loading AiiDA settings
         mace_eval_aiida_settings_dict = self.inputs.descriptor_settings['metadata'][
             'options'
         ]
-        # mace_eval_aiida_settings_dict.pop("computer", None)
 
         # Load scheduler and resources options
         desc_builder.metadata.options = mace_eval_aiida_settings_dict
@@ -879,6 +931,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.desc_min_arr = self.ctx.descriptors_min_array
             proc_seed_builder.settings_file_pth = self.inputs.toml_file
 
+            # Loading the settings file again to get updated settings
+            settings_path = Path(self.inputs.toml_file.value)
+            if settings_path.exists:
+                current_settings = mdb_al_ut.read_toml_settings(
+                    settings_file=self.inputs.toml_file.value
+                )
+            else:
+                current_settings = None
+
             # Preparing comitee dict
             commitee_dict = {}
             for model_name, model in self.ctx.commitee_models_tupl_name_uuid:
@@ -905,20 +966,44 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.commitee_models = commitee_dict
 
             # Loading computer and removing it from the input dictionary
-            metadata_dict = self.inputs.descriptor_settings['metadata']
+            if current_settings:
+                metadata_dict = current_settings.get('md', {}).get('metadata', {})
+                num_threads = (
+                    metadata_dict.get('options', {})
+                    .get('resources', {})
+                    .get('num_cores_per_mpiproc', 1)
+                )
+                prepend_text_conf = metadata_dict.get('prepend_text', '')
+            else:
+                metadata_dict = self.inputs.descriptor_settings['metadata']
+                num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
+                prepend_text_conf = self.inputs.descriptor_settings['metadata'].get(
+                    'prepend_text', ''
+                )
+
             options_dict = metadata_dict['options']
             computer = orm.load_computer(metadata_dict['computer'])
             proc_seed_builder.metadata.computer = computer
+            proc_seed_builder.metadata.label = (
+                f'process_{curr_structure.info.get("struct_name", "unknown")}'
+            )
+            proc_seed_builder.metadata.description = 'Processing structure using MD.'
 
+            # Getting container settings
             container_dict = self.inputs.container_settings.get_dict()
-            containerized = container_dict.get('use_container', False)
+            if container_dict.get('use_container'):
+                containerized = container_dict.get('use_container', False)
+            if self.inputs.mace_train.get('ignore_container'):
+                containerized = False
+
             if containerized:
                 image_name = container_dict.get('image_name', '')
                 engine_command = container_dict.get('engine_command', '')
                 prepend_text = (
-                    self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
+                    prepend_text_conf
                     + '\n'
                     + container_dict.get('prepend_text', '')
+                    + f'\nexport OMP_NUM_THREADS={num_threads}'
                 )
                 code = orm.ContainerizedCode(
                     computer=computer,
@@ -937,7 +1022,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
                 num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
                 prepend_text = (
-                    metadata_dict.get('prepend_text', '')
+                    prepend_text_conf
                     + '\nexport PATH=$PATH:.'
                     + f'\nexport OMP_NUM_THREADS={num_threads}'
                 )
@@ -1049,6 +1134,13 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 sampled_indices = [int(i * step) for i in range(dft_calc_limit)]
                 calcs_to_submit = [calcs_to_submit[idx] for idx in sampled_indices]
 
+        if len(calcs_to_submit) == 0:
+            self.report(
+                'No structures to send to DFT. '
+                'Either all explored structures are well represented or '
+                'there were problems during the processing step (MD).'
+            )
+
         # Submitting calcs
         calc_count = 0
         for struct in calcs_to_submit:
@@ -1117,6 +1209,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 struct_list=mace_calcs_struct_list,
                 row=struct.info,
                 dft_settings=self.inputs.dft_settings.get_dict(),
+                container_settings=self.inputs.container_settings.get_dict(),
             )
 
             # Get the calculation limit, from the computer metadata set to 0
