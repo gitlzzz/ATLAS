@@ -194,6 +194,15 @@ Specific settings for the layer distance filter. This sometimes helps with bulks
 
 - `max_layer_distance_ang`: (float) Maximum accepted distance between layers (in Angstrom).
 
+#### Exploding structures fitltering - `[struct_filters.exploding_structures]`
+
+Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
+
+- `enable` : (bool) Whether to enable or disable this filter. By default True.
+- `cov_rad_multiplier_max` = (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
+- `cov_rad_multiplier_min` = (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.95`.
+
+
 ### Vacancy Generation Settings - `[vacancies]`
 
 This section describes the settings for generating vacancies in structures.
@@ -247,7 +256,7 @@ instead using a `PortableCode` instance in that case.
 
 - `use_container`: (bool, optional) Whether to use a containerized version of the code. By default false
 - `image_name`: (str, optional) Path in the path specified by image_name on the calculation nodes.
-- `engine_command`: (str, optional) Command to run the container image. Docker and Singularity are supported.
+- `engine_command`: (str, optional) Command to run the container image. Docker and Singularity are supported. An option to bind the current directory as `/mdb_data` must be provided in order for the MDB codes in the container to work. For example: `singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}` for Singularity containers.
 - `prepend_text`: (str, optional) Text to prepend to the calculation script before the actual code execution. Allows loading the required modules for container use, setting the environment, etc... Check your HPC system documentation for the commands required for container usage.
 
 An example of a container section for Singularity:
@@ -300,6 +309,8 @@ This section contains keys which adjust the extrapolation and disagreement check
 
 Settings for MD simulations using an ASE calculator or LAMMPS.
 
+- `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the MD calculations.
+
 #### MD Parameters - `[md.parameters]`
 
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: [300, 350, 400]
@@ -331,7 +342,7 @@ Only use when dealing with bulks, surfaces or clusters that have no adsorbed mol
 
 - `enable`: (bool) Enable the filter. Check for structures that have atoms with no neighbors.
 
-- `cov_rad_multiplier` = (float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is 1.0
+- `covalent_radius_multiplier` = (float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is `1.0`
 
 ##### Layer distance fitltering - `[md.filters.layer_distance]`
 
@@ -340,6 +351,15 @@ Specific settings for the layer distance MD filter. This sometimes helps with bu
 - `enable`: (bool) Enable the filter. Check for structures with large separation between layers.
 
 - `max_layer_distance_ang`: (float) Maximum accepted distance between layers (in Angstrom).
+
+##### Exploding structures fitltering - `[md.filters.exploding_structures]`
+
+Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
+
+- `enable` : (bool) Whether to enable or disable this filter. By default True.
+- `cov_rad_multiplier_max` = (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
+- `cov_rad_multiplier_min` = (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.95`.
+
 
 #### MD Queue - `[md.queue]`
 
@@ -409,6 +429,7 @@ $ -l hostname="tekla2189"
 
 - `descriptor_type`: (str) Which descriptor type to use. Options: "mace", "soap". Default: "mace"
 - `dimensionality_reduction_method`: (str, optional) Dimensionality reduction method for MACE descriptors. Options: `autoencoder`, `pca`, `none`. If not set, the default is none, which means no dimensionality reduction.
+- `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the descriptors calculation.
 
 #### Descriptor Scheduler Options - `[descriptors.metadata]`
 
@@ -457,6 +478,8 @@ MACE training code and scheduler settings (aiida)
 - `result_force_weight` (float): Weight of the force when considering model performance used in:  $$Weighted\ sum = RMSE_E + (F_{weight} * RMSE_F)$$
 The lowest weighted_sum will be considered as the most performant model.
 - `code`: (str) AiiDA code name
+- `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the training calculation.
+- `multihead_finetuning`: (bool):  Whether to use multihead finetuning for MACE.
 - `metadata.options.resources.parallel_env`: (str)
 - `metadata.options.resources.tot_num_mpiprocs` = 32
 - `metadata.options.parser_name` = "mace-training-parser"
