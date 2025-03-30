@@ -157,7 +157,7 @@ def generate_descriptors(
 
     # Initialize the MACE calculator
     model = torch.load(model_path, map_location=torch.device(device))
-    model = model.to(device=device, dtype=dtype)
+    # model = model.to(device=device, dtype=dtype)
     calculator = MACECalculator(models=model, device=device, default_dtype=dtype)
 
     # Generate descriptors for all structures in the database
