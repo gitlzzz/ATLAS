@@ -535,6 +535,10 @@ class TrainMACEModelCalculation(CalcJob):
             params_list.remove('--enable_cueq')
             params_list.append('--enable_cueq=True')
 
+        # Save cpu model. This avoids a torch bug where gpu models cannot
+        # be loaded in CPU-only machines
+        params_list.append('--save_cpu')
+
         # (for MACE v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
         multihead: bool = self.inputs.multihead_finetuning
