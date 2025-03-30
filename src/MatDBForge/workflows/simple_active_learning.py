@@ -257,7 +257,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         container_dict = self.inputs.container_settings.get_dict()
         if container_dict.get('use_container'):
             containerized = container_dict.get('use_container', False)
-        if self.inputs.mace_train.get('ignore_container'):
+        if self.inputs.mace_train.get('ignore_container') is True:
             containerized = False
 
         for _ in range(self.inputs.committee_num_models.value):
@@ -522,12 +522,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
             'resources'
         ]
         num_threads = resources_dict.get('num_cores_per_mpiproc', 2)
+        ignore_container = self.inputs.descriptor_settings.get(
+            'ignore_container', False
+        )
 
         # Getting container settings
         container_dict = self.inputs.container_settings.get_dict()
         if container_dict.get('use_container'):
             containerized = container_dict.get('use_container', False)
-        if self.inputs.mace_train.get('ignore_container'):
+        if ignore_container is True:
             containerized = False
 
         if containerized:
@@ -967,6 +970,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # Loading computer and removing it from the input dictionary
             if current_settings:
+                ignore_container = current_settings.get('md', {}).get(
+                    'ignore_container', False
+                )
                 metadata_dict = current_settings.get('md', {}).get('metadata', {})
                 num_threads = (
                     metadata_dict.get('options', {})
@@ -993,7 +999,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             container_dict = self.inputs.container_settings.get_dict()
             if container_dict.get('use_container'):
                 containerized = container_dict.get('use_container', False)
-            if self.inputs.mace_train.get('ignore_container'):
+            if ignore_container is True:
                 containerized = False
 
             if containerized:
