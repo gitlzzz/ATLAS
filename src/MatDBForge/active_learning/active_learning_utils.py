@@ -156,9 +156,9 @@ def generate_descriptors(
     from mace.calculators import MACECalculator
 
     # Initialize the MACE calculator
-    calculator = MACECalculator(
-        model_paths=model_path, device=device, default_dtype=dtype
-    )
+    model = torch.load(model_path, map_location=torch.device(device))
+    model = model.to(device=device, dtype=dtype)
+    calculator = MACECalculator(models=model, device=device, default_dtype=dtype)
 
     # Generate descriptors for all structures in the database
     descriptor_dict = {}
@@ -335,7 +335,7 @@ def run_mace_md_ase(
         T_end=T_end,
     )
 
-    if traj_obj and mode == 'normal':
+    if traj_obj is not None and mode == 'normal':
         dyn.attach(
             md_write_frame_traj,
             # atoms=dyn.atoms,
