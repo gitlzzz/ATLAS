@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.23.1 (2025-03-30)
+
+### Fix
+
+- **al_loop**: fix container usage in simple active learning loop ([#674ff77](https://github.com/pol-sb/MatDBForge/commit/674ff77556c461e1bc83f648840c87ab703174c1))
+- **al_loop**: include `--save_cpu` option to allow exchange between gpu/cpu trained MACE models ([#dbaa0ef](https://github.com/pol-sb/MatDBForge/commit/dbaa0ef15899f01e67e7fa53f97d2d9d3dc444ec))
+- **al_loop**: correctly evaluate existence of traj_obj so `md_write_frame_traj` function can be attached to md ([#64e9c57](https://github.com/pol-sb/MatDBForge/commit/64e9c57fe31ad2e51fb4e27177bc52d5cd675216))
+
 ## 0.23.0 (2025-03-29)
 
 ### Feature
