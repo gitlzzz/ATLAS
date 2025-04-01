@@ -241,6 +241,54 @@ class InitialDatabase:
         mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
         mdb_cud.custom_print(f'Path: {db_path}', 'debug')
 
+
+    def load_database(self, database_path: pl.Path | str) -> pd.DataFrame:
+        """
+        Load a MDB database from a specific path.
+
+        Returns
+        -------
+        InitialDatabase
+            Object containing structure data for the initial database.
+        """
+        db_path = pl.Path(database_path)
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database '{db_path}' does not exist.")
+        mdb_cud.custom_print(f"Loading database: '{self.database_name}'", 'info')
+
+        # If no suffixes are present, add the default one.
+        if len(db_path.suffixes) == 0:
+            suffix = '.xz'
+            db_path = db_path.with_suffix(suffix)
+
+        # Compatibility with the old version of the database
+        if '.pkl' in db_path.suffixes:
+            suffix = '.pkl'
+            mdb_cud.custom_print(
+                'Using outdated version of database. Adding missing columns.',
+                'warn',
+            )
+            database = pd.read_pickle(db_path)
+            database = self._adapt_old_db(database)
+
+            return database
+
+        # Loading the database
+        elif '.xz' in db_path.suffixes or suffix == '.xz':
+            suffix = '.xz'
+            print('db_path: ', db_path)
+            with lzma.open(db_path, 'rb') as f:
+                database = pickle.load(f)
+
+                mdb_cud.custom_print(
+                    f'Using database version {self.db_version}.', 'info'
+                )
+
+            return database
+
+        mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
+        mdb_cud.custom_print(f'Path: {db_path}', 'debug')
+
     def get_db_shape(self) -> tuple:
         # Getting the amount of entries in the database
         return self.df.shape
