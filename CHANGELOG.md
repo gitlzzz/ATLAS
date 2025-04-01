@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.24.0 (2025-04-01)
+
+### Feature
+
+- **gen_db**: add report option to `mdb_gen_init_db` script ([#1bb63a4](https://github.com/pol-sb/MatDBForge/commit/1bb63a4585b6855ed3d73f02ffa958ec9b00728c))
+- **gen_db**: add user-facing `load_database` function to allow loading generated databases ([#271d2a1](https://github.com/pol-sb/MatDBForge/commit/271d2a1f341423561feb0e2b691dc78a876dc92e))
+
+### Fix
+
+- **al_loop**: fix model conversion before descriptor generation ([#b21f773](https://github.com/pol-sb/MatDBForge/commit/b21f7735d4d33035f2e4b801e7390b52bc7bd493))
+
 ## 0.23.1 (2025-03-30)
 
 ### Fix
