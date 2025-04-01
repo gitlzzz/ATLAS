@@ -7,7 +7,7 @@ import warnings
 from argparse import RawTextHelpFormatter
 
 from MatDBForge.core.command_line.command_line_utils import parse_input_toml
-from MatDBForge.core.initial_db import cli_run_gen_initial_database
+from MatDBForge.core.initial_db import cli_gen_db_report, cli_run_gen_initial_database
 
 # TODO: Remove this once the deprecation warnings are fixed
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='spglib')
@@ -50,10 +50,43 @@ def gen_initial_database(config_dict: dict):
 def run_gen_initial_database():
     parser = argparse.ArgumentParser(
         prog='mdb_gen_init_db',
-        description='Generate a MDB initial database.',
+        description='Generate and manage MDB initial databases.',
         formatter_class=RawTextHelpFormatter,
     )
-    parser.add_argument(
+
+    # Create a subparsers object
+    subparsers = parser.add_subparsers(
+        dest='command', help='List of available commands'
+    )
+
+    # Create the subparser for the 'report' command
+    report_parser = subparsers.add_parser(
+        'report',
+        help='Generate reports for MatDBForge.',
+        usage=(
+            'mdb_gen_init_db report [-h]\nGenerate a report for a MatDBForge database'
+        ),
+    )
+    report_parser.add_argument(
+        '--db_path',
+        '-d',
+        help=('Path to the database file.'),
+        metavar='<PATH>',
+        default=None,
+        required=True,
+    )
+
+    # Create the subparser for the 'report' command
+    init_db_parser = subparsers.add_parser(
+        'generate',
+        help='Generate an initial database for MatDBForge.',
+        usage=(
+            'mdb_gen_init_db generate [-h]\n'
+            'Generate an initial database for MatDBForge.'
+        ),
+    )
+
+    init_db_parser.add_argument(
         '-c',
         '--config_file',
         help=(
@@ -69,19 +102,29 @@ def run_gen_initial_database():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    # Loading TOML config file
-    try:
-        with open(args.config_file, 'rb') as f:
-            toml_dict = tomllib.load(f)
-    except FileNotFoundError as e:
-        error_message = (
-            f"The config file '{args.config_file}' does not exist. "
-            'Please make sure that is the correct name or input a different path.'
-        )
-        raise FileNotFoundError(error_message) from e
+    if args.command == 'generate':
+        # Loading TOML config file
+        try:
+            with open(args.config_file, 'rb') as f:
+                toml_dict = tomllib.load(f)
+        except FileNotFoundError as e:
+            error_message = (
+                f"The config file '{args.config_file}' does not exist. "
+                'Please make sure that is the correct name or input a different path.'
+            )
+            raise FileNotFoundError(error_message) from e
 
-    # Calling the function to generate the initial database
-    gen_initial_database(config_dict=toml_dict)
+        # Calling the function to generate the initial database
+        gen_initial_database(config_dict=toml_dict)
+    elif args.command == 'report':
+        db_path = pl.Path(args.db_path).resolve(strict=True)
+        if db_path.exists():
+            cli_gen_db_report(database_path=args.db_path)
+        else:
+            raise FileNotFoundError(
+                f"The database '{db_path}' does not exist. "
+                'Please make sure that is the correct name or input a different path.'
+            )
 
 
 if __name__ == '__main__':

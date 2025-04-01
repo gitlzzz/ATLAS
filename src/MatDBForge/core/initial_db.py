@@ -120,12 +120,13 @@ class InitialDatabase:
 
     def __init__(
         self,
-        database_name: str,
+        database_name: str = 'initial_database',
         max_num_atoms: int = 64,
-        load_db: bool = True,
+        load_db: bool = False,
         phase_diagram: mdb_pd.BinaryPhaseDiagram = None,
         use_offset: bool = True,
-        database_path: str | pl.Path = None,
+        database_path: str | pl.Path = '.',
+        create_db=True,
     ) -> None:
         self.db_version = mdb.__version__
 
@@ -150,12 +151,12 @@ class InitialDatabase:
 
         # Create the database if it does not exists
         # Load it if otherwise.
-        check_flag = self._check_database()
+        db_exists = self._check_database()
 
-        if not check_flag or not load_db:
-            self.df = self._create_database()
-        else:
+        if db_exists or load_db:
             self.df = self._load_database()
+        elif not (db_exists or load_db) and create_db:
+            self.df = self._create_database()
 
     def __iter__(self):
         return iter(self.df.iterrows())
@@ -165,11 +166,13 @@ class InitialDatabase:
         class_name = self.__class__.__name__
 
         # Getting the amount of entries in the database
-        count = self.df.shape
-
-        repr_string = (
-            f"{class_name} named '{self.database_name}' containing {count} entries."
-        )
+        if hasattr(self, 'df'):
+            count = self.df.shape
+            repr_string = (
+                f"{class_name} named '{self.database_name}' containing {count} entries."
+            )
+        else:
+            repr_string = f"Empty {class_name} named '{self.database_name}'."
 
         return repr_string
 
@@ -224,6 +227,7 @@ class InitialDatabase:
         # Loading the database
         elif '.xz' in db_path.suffixes or suffix == '.xz':
             suffix = '.xz'
+            print('db_path: ', db_path)
             with lzma.open(db_path, 'rb') as f:
                 database = pickle.load(f)
 
@@ -329,6 +333,7 @@ class InitialDatabase:
                 'vacancy': 0,
                 'deformation': 0,
                 'md': 0,
+                'init_md': 0,
             },
             'phases': {},
         }
@@ -337,23 +342,26 @@ class InitialDatabase:
             struct_info_dict['phases'][phase.name] = 0
 
         for struct in self.df.iterrows():
-            if struct[1].base:
+            if hasattr(struct[1], 'base') and struct[1].base:
                 struct_info_dict['structure_count']['base'] += 1
-            if struct[1].bulk:
+            if hasattr(struct[1], 'bulk') and struct[1].bulk:
                 struct_info_dict['structure_count']['bulk'] += 1
-            if struct[1].surface:
+            if hasattr(struct[1], 'surface') and struct[1].surface:
                 struct_info_dict['structure_count']['surface'] += 1
-            if struct[1].cluster:
+            if hasattr(struct[1], 'cluster') and struct[1].cluster:
                 struct_info_dict['structure_count']['cluster'] += 1
-            if struct[1].perturb:
+            if hasattr(struct[1], 'perturb') and struct[1].perturb:
                 struct_info_dict['structure_count']['perturb'] += 1
-            if struct[1].vacancy:
+            if hasattr(struct[1], 'vacancy') and struct[1].vacancy:
                 struct_info_dict['structure_count']['vacancy'] += 1
-            if struct[1].deformation:
+            if hasattr(struct[1], 'deformation') and struct[1].deformation:
                 struct_info_dict['structure_count']['deformation'] += 1
-            if struct[1].init_md:
+            if hasattr(struct[1], 'init_md') and struct[1].init_md:
                 struct_info_dict['structure_count']['md'] += 1
-            if struct[1].targeted_modification:
+            if (
+                hasattr(struct[1], 'targeted_modification')
+                and struct[1].targeted_modification
+            ):
                 mod_type = struct[1].targeted_modification
 
                 if mod_type == 'central_atom_perturbation':
@@ -411,10 +419,22 @@ class InitialDatabase:
         file_exists = False
         file_check = []
 
+        db_path: pl.Path = pl.Path(self.database_path)
+
         # Checking for a file with correct name and suffixes.
-        for file in pl.Path(self.database_path).iterdir():
-            if self.database_name in file.name and set(file.suffixes) & {'.xz', '.pkl'}:
-                file_check.append(file)
+        if db_path.is_dir():
+            for file in db_path.iterdir():
+                if self.database_name in file.name and set(file.suffixes) & {
+                    '.xz',
+                    '.pkl',
+                }:
+                    file_check.append(file)
+        if (
+            db_path.is_file()
+            and self.database_name in db_path.name
+            and set(db_path.suffixes) & {'.xz', '.pkl'}
+        ):
+            file_check.append(db_path)
 
         if len(file_check) > 0:
             file_exists = True
@@ -1330,8 +1350,7 @@ class InitialDatabase:
         # Run MD for all selected structures
         md_struct_list = []
         for _, entry in target_entries.iterrows():
-            # Get structure as ASE atoms
-
+            # Get MDB structure as ASE atoms
             init_conf_orig = MDBStructure().from_db_row(
                 row=entry, columns=entry.index.to_list()
             )
@@ -1381,7 +1400,7 @@ class InitialDatabase:
                     templ_entry['temperature'] = entry.temperature
                     templ_entry['calc_performed'] = False
                     templ_entry['vacancy'] = False
-                    templ_entry['vacancy'] = False
+                    templ_entry['base'] = False
                     templ_entry['init_md'] = True
 
                     curr_struct = mdb_struct.Structure(
@@ -2700,7 +2719,7 @@ class InitialDatabase:
         rc_params: dict = None,
         fig_path: str | pl.Path = '.',
         fig_name: str = 'database_composition',
-        fig_format: str = 'png',
+        # fig_format: str = 'png',
         max_phases_pie: int = 5,
     ):
         # Updating matplotlib rcParams
@@ -2727,39 +2746,44 @@ class InitialDatabase:
         empty_axis = axd['ignore']
         empty_axis.set_axis_off()
 
-        # Plotting the phase diagram of the database
-        main_plot_ax = self.phase_diagram.plot_diagram(
-            rc_params=rc_params, show_plot=False, ax=main_plot_ax
-        )
-
         # Getting base element to use in x-axis
         base_elem = self.phase_diagram.base_elem
 
         plot_dict = {
-            'bulk': {'structs': [], 'color': '#458588'},
-            'base': {'structs': [], 'color': '#076678'},
-            'surface': {'structs': [], 'color': '#fe8019'},
-            'cluster': {'structs': [], 'color': '#d3869b'},
-            'perturb': {'structs': [], 'color': '#d79921'},
-            'vacancy': {'structs': [], 'color': '#689d6a'},
-            'deformation': {'structs': [], 'color': '#b16286'},
-            'oct_perturb': {'structs': [], 'color': '#665c54'},
-            'unknown': {'structs': [], 'color': '#ee0000'},
+            'bulk': {'structs': [], 'color': '#458588', 'temperature_K': []},
+            'base': {'structs': [], 'color': '#076678', 'temperature_K': []},
+            'surface': {'structs': [], 'color': '#fe8019', 'temperature_K': []},
+            'cluster': {'structs': [], 'color': '#d3869b', 'temperature_K': []},
+            'perturb': {'structs': [], 'color': '#d79921', 'temperature_K': []},
+            'vacancy': {'structs': [], 'color': '#689d6a', 'temperature_K': []},
+            'md': {'structs': [], 'color': '#915ad3', 'temperature_K': []},
+            'deformation': {'structs': [], 'color': '#b16286', 'temperature_K': []},
+            'oct_perturb': {'structs': [], 'color': '#665c54', 'temperature_K': []},
+            'unknown': {'structs': [], 'color': '#ee0000', 'temperature_K': []},
         }
 
         # Get base element composition for every structure in the database
+        all_T = []
         for _, row in self.df.iterrows():
             curr_comp = row.structure.composition
             curr_frac = curr_comp.get_atomic_fraction(base_elem.symbol)
 
+            curr_temp = row.structure.properties.get('md_temperature', temperature_K)
+
             if row.bulk:
                 plot_dict['bulk']['structs'].append(curr_frac * 100)
+                plot_dict['bulk']['temperature_K'].append(curr_temp)
             elif row.surface:
                 plot_dict['surface']['structs'].append(curr_frac * 100)
+                plot_dict['surface']['temperature_K'].append(curr_temp)
             elif row.cluster:
                 plot_dict['cluster']['structs'].append(curr_frac * 100)
+                plot_dict['cluster']['temperature_K'].append(curr_temp)
             else:
                 plot_dict['unknown']['structs'].append(curr_frac * 100)
+                plot_dict['unknown']['temperature_K'].append(curr_temp)
+
+            all_T.append(float(curr_temp))
 
         plot_dict['bulk']['structs'] = np.array(plot_dict['bulk']['structs'])
         plot_dict['surface']['structs'] = np.array(plot_dict['surface']['structs'])
@@ -2767,12 +2791,12 @@ class InitialDatabase:
 
         for key, type_dict in plot_dict.items():
             struct_comp_base_elem = type_dict['structs']
+            temps_K = type_dict['temperature_K']
 
             if len(struct_comp_base_elem) == 0:
                 continue
-
             # The y-axis is generated at a fixed T.
-            temps_K = np.ones_like(struct_comp_base_elem) + (temperature_K - 1)
+            # temps_K = np.ones_like(struct_comp_base_elem) + (temperature_K - 1)
 
             # Plotting compositions
             main_plot_ax.scatter(
@@ -2806,6 +2830,24 @@ class InitialDatabase:
                 label=key,
             )
             hist_t_ax.tick_params(axis='x', labelbottom=False)
+
+        delta_T = max(all_T) - min(all_T)
+        if delta_T == 0:
+            delta_T = 100
+
+        main_plot_ax.set_ylim(
+            bottom=min(all_T) - (delta_T * 0.10),
+            top=max(all_T) + (delta_T * 0.10),
+        )
+
+        # Plotting the phase diagram of the database
+        main_plot_ax = self.phase_diagram.plot_diagram(
+            rc_params=rc_params,
+            show_plot=False,
+            ax=main_plot_ax,
+            max_temp_K=max(all_T) + (delta_T * 0.10),
+            min_temp_K=min(all_T) - (delta_T * 0.10),
+        )
 
         db_report: dict = self.gen_report()
 
@@ -2889,8 +2931,8 @@ class InitialDatabase:
         # Saving the figure
         fig_name = 'comp_plot_' + fig_name
         chart_img_path = pl.Path(fig_path) / fig_name
-        chart_img_path = chart_img_path.with_suffix(f'.{fig_format}')
-        plt.savefig(chart_img_path, dpi=300, format=str(fig_format))
+        plt.savefig(chart_img_path.with_suffix('.png'), dpi=300, format='png')
+        plt.savefig(chart_img_path.with_suffix('.svg'), dpi=300, format='svg')
 
         mdb_cud.custom_print(
             f"Database composition plot saved in '{chart_img_path}'.",
@@ -3050,6 +3092,43 @@ class InitialDatabase:
 #     composition_dict = db_dict.get("size")
 
 #     # Multiply number of selected phases by the number of structures per phase
+
+
+def cli_gen_db_report(database_path: pl.Path | str):
+    """
+    Generate a report of the database.
+
+    Parameters
+    ----------
+    database_path : str | Path
+        Path to the database.
+
+    Returns
+    -------
+    dict
+        Report of the database.
+    """
+    # Initialize the database
+    structures = indb.InitialDatabase(
+        create_db=False,
+    )
+    structures: InitialDatabase = structures.load_database(database_path=database_path)
+
+    # Print report on screen
+    get_database_report(structures=structures)
+
+    params = {}
+
+    # Generating and saving the composition plot
+    structures.plot_database_composition(
+        temperature_K=300,
+        rc_params=params,
+        fig_path='.',
+        fig_name=structures.database_name,
+        # fig_format=db_dict['plot_db'].get('format', 'png'),
+    )
+
+    return structures.gen_report()
 
 
 def cli_run_gen_initial_database(
@@ -3462,11 +3541,7 @@ def cli_run_gen_initial_database(
 
     # Generating report with database composition
     # Print using rich
-    report = structures.gen_report()
-    pretty = Pretty(report)
-    panel = Panel(pretty, title='Database report')
-    rprint(panel)
-    mdb_cud.custom_print(f'Database report generated:\n{report}', 'debug')
+    get_database_report(structures)
 
     # Plot the database if requested
     if db_dict.get('plot_db', {}).get('show'):
@@ -3481,7 +3556,7 @@ def cli_run_gen_initial_database(
             rc_params=params,
             fig_path=db_dict['database_path'],
             fig_name=db_dict['database_name'],
-            fig_format=db_dict['plot_db'].get('format', 'png'),
+            # fig_format=db_dict['plot_db'].get('format', 'png'),
         )
 
     # Getting the concave hull if requested
@@ -3528,6 +3603,15 @@ def cli_run_gen_initial_database(
     if db_dict.get('show_db_ase', {}).get('show'):
         mdb_cud.custom_print('Displaying database in ASE...', 'info')
         structures.display_db_ase()
+
+
+def get_database_report(structures: InitialDatabase):
+    report = structures.gen_report()
+    pretty = Pretty(report)
+    panel = Panel(pretty, title='Database report')
+    rprint(panel)
+    mdb_cud.custom_print(f'Database report generated:\n{report}', 'debug')
+    return report
 
 
 def output_db_status(database: InitialDatabase):
