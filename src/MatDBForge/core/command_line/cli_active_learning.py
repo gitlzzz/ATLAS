@@ -8,9 +8,6 @@ import tomllib
 import warnings
 from argparse import RawTextHelpFormatter
 
-from MatDBForge.active_learning import report_utils as mdb_report
-from MatDBForge.core.code_utils import check_mdb_version
-
 warnings.filterwarnings('ignore')
 
 
@@ -633,9 +630,13 @@ def run_active_learning():
     args = parser.parse_args()
 
     # Checking version
+    from MatDBForge.core.code_utils import check_mdb_version
+
     check_mdb_version()
 
     if args.command == 'report':
+        from MatDBForge.active_learning import report_utils as mdb_report
+
         if args.subcommand == 'al_loop':
             mdb_report.gen_al_loop_report(
                 args.loop_id,
