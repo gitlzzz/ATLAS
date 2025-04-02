@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.24.2 (2025-04-03)
+
+### Fix
+
+- **al_loop**: use mdb_id key instead of aiida_uuid for uuid ([#facd888](https://github.com/pol-sb/MatDBForge/commit/facd888d567bdea955c7b0e2143e653952187844))
+- **al_loop**: fix repetated uuids during db generation and active learning loop ([#9a5e612](https://github.com/pol-sb/MatDBForge/commit/9a5e61220e16b802610022a818e52bd042abd549))
+
 ## 0.24.1 (2025-04-02)
 
 ### Fix
