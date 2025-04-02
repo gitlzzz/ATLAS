@@ -98,7 +98,9 @@ def load_dataset(
     # that stores the data in a dictionary-like structure
     # with the key 'arr_0'
     if isinstance(point_arr, np.lib.npyio.NpzFile):
-        point_arr = point_arr['arr_0']
+        point_arr = point_arr.get('arr_0')
+        if point_arr is None:
+            raise ValueError("No array found in the npz file.")
 
     valid_data_size = int(point_arr.shape[0] * valid_frac)
     test_data_size = int(point_arr.shape[0] * test_frac)
