@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.24.1 (2025-04-02)
+
+### Fix
+
+- **al_loop**: adresses #99. remove unused import ([#6203e43](https://github.com/pol-sb/MatDBForge/commit/6203e4355001d09ea081edf8041328d96b202a3d))
+- **al_loop**: adresses #99. Raise error when `arr_0` not found. ([#9334eaa](https://github.com/pol-sb/MatDBForge/commit/9334eaadf94da53950d8bfd4285bc3b9931f2ad2))
+- **al_loop**: correctly load npz files for descriptors ([#797f31c](https://github.com/pol-sb/MatDBForge/commit/797f31cceb9618848fe1d850d9b897f4bc36da91))
+- **al_loop**: fix descriptor file name assignation ([#3d48ffd](https://github.com/pol-sb/MatDBForge/commit/3d48ffdc136277686d21eb7412de96e79a7a4df8))
+
 ## 0.24.0 (2025-04-01)
 
 ### Feature
