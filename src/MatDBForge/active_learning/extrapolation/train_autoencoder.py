@@ -83,13 +83,22 @@ def load_dataset(
     if not device:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # Set the RNG seed for reproducibility
     if not rng_seed:
         rng_seed = np.random.randint(1, int(1e15))
 
+    # Load the dataset
     if isinstance(data, (str, pl.Path)):
         point_arr = np.load(data)
     elif isinstance(data, np.ndarray):
         point_arr = data
+
+    # If npz file, extract the first array
+    # This is a workaround for the npz file format
+    # that stores the data in a dictionary-like structure
+    # with the key 'arr_0'
+    if isinstance(point_arr, np.lib.npyio.NpzFile):
+        point_arr = point_arr['arr_0']
 
     valid_data_size = int(point_arr.shape[0] * valid_frac)
     test_data_size = int(point_arr.shape[0] * test_frac)
