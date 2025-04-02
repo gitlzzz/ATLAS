@@ -270,15 +270,31 @@ def run_mace_md_ase(
     md_params['langevin_friction_ps-1'] = friction
     md_params['write_interval'] = write_interval
 
-    # Load the trained model as an ASE calculator and attach it to the atoms object
-    model_path = Path(prepend_path) / 'curr_model.model'
+    md_type = md_params.get('md_type', 'mace')
 
-    calculator = MACECalculator(
-        model_paths=model_path,
-        device=md_params.get('device', 'cpu'),
-        default_dtype=md_params.get('default_dtype', 'float64'),
-    )
-    init_conf.calc = calculator
+    if md_type == 'mace':
+        mace_foundation = md_params.get('mace_foundation')
+
+        if mace_foundation:
+            from mace.calculators import mace_mp
+
+            calculator = mace_mp(
+                device=md_params.get('device', 'cpu'),
+                default_dtype=md_params.get('default_dtype', 'float64'),
+            )
+        else:
+            # Load the trained model as an ASE calculator and attach it to the
+            # atoms object
+            model_path = Path(prepend_path) / 'curr_model.model'
+
+            from mace.calculators import mace_mp
+
+            calculator = MACECalculator(
+                model_paths=model_path,
+                device=md_params.get('device', 'cpu'),
+                default_dtype=md_params.get('default_dtype', 'float64'),
+            )
+        init_conf.calc = calculator
 
     # Set the momenta corresponding to the initial temperature
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)

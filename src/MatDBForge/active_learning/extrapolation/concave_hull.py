@@ -111,7 +111,7 @@ def plot_concave_hull(
 if __name__ == '__main__':
     plot_hull = True
     latent_space_file = 'latent_space.npy'
-    descriptors_file = 'descriptors.npy'
+    descriptors_file = 'descriptors.npz'
 
     # Set the random seed for reproducibility.
     rng = np.random.default_rng(seed=420)

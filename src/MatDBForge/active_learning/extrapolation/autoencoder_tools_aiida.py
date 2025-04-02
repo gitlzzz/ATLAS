@@ -110,7 +110,7 @@ class TrainAutoencoderCalculation(CalcJob):
         prepare_cli_args_autoencoder(params_list, self.inputs.settings_dict)
 
         dest_name = self.inputs.settings_dict.get_dict().get(
-            'dataset', 'all_descriptors.npy'
+            'dataset', 'all_descriptors.npz'
         )
 
         # Copying database to temporary folder

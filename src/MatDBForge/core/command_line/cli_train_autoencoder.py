@@ -55,7 +55,7 @@ def run_train_autoencoder():
     parser.add_argument(
         '--dataset',
         type=str,
-        default='all_descriptors.npy',
+        default='all_descriptors.npz',
         help='Path to the training dataset',
     )
 
