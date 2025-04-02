@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # we can keep these variables as constant.
     DATABASE_PATH = 'current_db.xyz'
     MACE_PATH = 'current_model_mace.model'
-    DESCR_PATH = 'all_descriptors.npy'
+    DESCR_PATH = 'all_descriptors.npz'
     AUTO_PATH = 'autoencoder_model.pth'
     AUTO_SETTINGS_PATH = 'settings_dict.json'
 

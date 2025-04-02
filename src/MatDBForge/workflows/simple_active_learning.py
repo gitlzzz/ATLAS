@@ -688,7 +688,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # Overwriting `model_path` in the settings dict
             train_settings['model_path'] = 'autoencoder_model.pth'
-            train_settings['dataset'] = 'all_descriptors.npy'
+            train_settings['dataset'] = 'all_descriptors.npz'
 
             # Set the settings dict
             code_builder.settings_dict = train_settings
