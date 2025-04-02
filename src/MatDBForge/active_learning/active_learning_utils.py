@@ -287,8 +287,6 @@ def run_mace_md_ase(
             # atoms object
             model_path = Path(prepend_path) / 'curr_model.model'
 
-            from mace.calculators import mace_mp
-
             calculator = MACECalculator(
                 model_paths=model_path,
                 device=md_params.get('device', 'cpu'),
