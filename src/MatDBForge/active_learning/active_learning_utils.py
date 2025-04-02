@@ -198,10 +198,10 @@ def generate_descriptors_mace(
     descriptor_dict = {}
     descriptor_list = []
     for struct in database:
-        if struct.info.get('aiida_uuid'):
-            struct_key = struct.info.get('aiida_uuid')
-        else:
+        if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
+        else:
+            struct_key = struct.info.get('aiida_uuid')
 
         descriptor_dict[struct_key] = {
             'descriptors': [],
