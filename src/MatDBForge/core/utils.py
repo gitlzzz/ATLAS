@@ -945,8 +945,8 @@ def _apply_perturbation_mdb_struct(center, row, per_idx):
         'targeted_modification',
         'from_cluster',
         'deformation',
+        'unique_id',
         'to_ase_atoms',
-
     ]:
         if func_name in row_kwargs_dict:
             row_kwargs_dict.pop(func_name)

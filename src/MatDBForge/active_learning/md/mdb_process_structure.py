@@ -9,6 +9,7 @@ the MD trajectory if necessary.
 
 import pathlib as pl
 import tomllib
+import uuid
 import warnings
 
 import numpy as np
@@ -59,8 +60,8 @@ def check_traj_in_domain(
     # concave hull by checking if the points are inside the
     # polygon formed by the concave hull.
     polygon = Polygon(concave_hull)
-    for uuid in descriptor_dict:
-        descriptors = descriptor_dict[uuid]['latent_space']
+    for c_uuid in descriptor_dict:
+        descriptors = descriptor_dict[c_uuid]['latent_space']
 
         for _, frame_desc in enumerate(descriptors):
             # c_p_in = []
@@ -136,8 +137,8 @@ def simple_extrapolation_check(
         Updated descriptor dictionary with the extrapolation check applied.
     """
     mdb_cud.custom_print('Applying basic extrapolation check...', 'info')
-    for uuid, val in descriptor_dict.items():
-        structure_uuid = uuid
+    for curr_uuid, val in descriptor_dict.items():
+        structure_uuid = curr_uuid
         descr_list = val['descriptors']
 
     for frame_idx, frame_descriptors in enumerate(descr_list):
@@ -788,6 +789,7 @@ if __name__ == '__main__':
             # Getting the energy and forces for the structure
             structure.info['REF_energy'] = structure.get_potential_energy()
             structure.arrays['REF_forces'] = structure.get_forces()
+            structure.info['mdb_id'] = uuid.uuid4()
 
             mod_extrap_frames.append(structure)
 

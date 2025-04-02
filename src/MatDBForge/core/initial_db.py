@@ -245,7 +245,6 @@ class InitialDatabase:
         mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
         mdb_cud.custom_print(f'Path: {db_path}', 'debug')
 
-
     def load_database(self, database_path: pl.Path | str) -> pd.DataFrame:
         """
         Load a MDB database from a specific path.
@@ -752,7 +751,7 @@ class InitialDatabase:
                 cluster=row['cluster'],
                 isolated_atom=row['isolated_atom'],
             )
-            ase_curr_struct.info['aiida_uuid'] = str(row['unique_id'])
+            ase_curr_struct.info['mdb_id'] = str(row['unique_id'])
             ase_curr_struct.info['struct_name'] = row['material_name']
 
             structure_list.append(ase_curr_struct)
@@ -1275,6 +1274,7 @@ class InitialDatabase:
                 new_struct_templ['calc_performed'] = False
                 new_struct_templ['vacancy'] = True
                 new_struct_templ['init_md'] = False
+                new_struct_templ['unique_id'] = None
 
                 # Remove unused method
                 try:  # noqa
@@ -1402,6 +1402,7 @@ class InitialDatabase:
                     templ_entry['vacancy'] = False
                     templ_entry['base'] = False
                     templ_entry['init_md'] = True
+                    templ_entry['unique_id'] = None
 
                     curr_struct = mdb_struct.Structure(
                         **templ_entry,
@@ -3253,7 +3254,7 @@ def cli_run_gen_initial_database(
         database_path=db_dict['database_path'],
         max_num_atoms=int(db_dict['max_num_atoms']),
         phase_diagram=phase_diagram,
-        load_db=True,
+        load_db=False,
     )
 
     read_from_db = True
