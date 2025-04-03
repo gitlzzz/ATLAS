@@ -50,7 +50,7 @@ def create_builder(toml_dict: dict):
     builder.active_learning.mace_train = Dict(value=toml_dict['mace_train'])
 
     # LAMMPS-MACE MD Settings
-    builder.active_learning.lammps_mace = Dict(value=toml_dict['lammps_mace'])
+    builder.active_learning.md_parameters = Dict(value=toml_dict['md_parameters'])
 
     # Committee Evaluation Settings
     builder.active_learning.committee_eval = Dict(value=toml_dict['committee_eval'])

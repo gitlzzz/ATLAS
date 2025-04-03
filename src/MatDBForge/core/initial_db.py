@@ -1373,7 +1373,7 @@ class InitialDatabase:
                 T_start,
                 traj_obj=None,
                 prepend_path='.',
-                explode_filter=True,
+                explode_filter_dict=True,
                 mode='db_gen',
                 md_struct_list=md_struct_list,
             )

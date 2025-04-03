@@ -133,7 +133,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             valid_type=orm.Dict,
             serializer=orm.to_aiida_type,
         )
-        spec.input('lammps_mace', valid_type=orm.Dict)
+        spec.input('md_parameters', valid_type=orm.Dict)
         spec.input('dft_method', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             'dft_calc_limit',

@@ -188,6 +188,7 @@ if __name__ == '__main__':
 
     # Parse settings
     md_params = settings.get('md', {}).get('parameters')
+    md_filters = settings.get('md', {}).get('filters', {})
     T_list = md_params['temperature_list_K']
 
     # Logging CUDA information
@@ -251,7 +252,7 @@ if __name__ == '__main__':
             traj_obj=traj_obj,
             init_conf=init_conf,
             prepend_path=prepend_path,
-            explode_filter=True,
+            explode_filter_dict=md_filters.get('exploding_structures', {}),
         )
         mdb_cud.custom_print('MD simulation completed!', 'done')
 
@@ -263,7 +264,7 @@ if __name__ == '__main__':
         mdb_cud.custom_print(f"Checking extrapolating frames for '{curr_traj}'", 'info')
         extrap_frame_idx = []
 
-        curr_temp = str(curr_traj).split('temp-')[1].split('.traj')[0]
+        curr_temp = float(str(curr_traj).split('temp-')[1].split('.traj')[0])
 
         # Read the trajectory
         md_traj = [frame for frame in TrajectoryReader(curr_traj)]
@@ -279,7 +280,6 @@ if __name__ == '__main__':
 
         # Apply MD filters and removing these frames from the trajectory
         frames_to_remove = []
-        md_filters = settings.get('md', {}).get('filters', {})
         mdb_cud.custom_print('Applying MD filters to remove outliers...', 'info')
 
         if md_filters.get('layer_distance', {}).get('enable'):
@@ -315,12 +315,21 @@ if __name__ == '__main__':
             cov_rad_multiplier_min: float = explod_filt_settings.get(
                 'cov_rad_multiplier_min', 0.25
             )
+            max_T = curr_temp * md_params.get('max_temp_multiplier', 1)
+            max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
+            remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
+
             # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_str_filters.apply_filter_exploding_structures(
-                    struct=frame,
-                    cov_rad_multiplier_max=cov_rad_multiplier_max,
-                    cov_rad_multiplier_min=cov_rad_multiplier_min,
+                is_structure_wrong: bool = (
+                    mdb_str_filters.apply_filter_exploding_structures(
+                        struct=frame,
+                        cov_rad_multiplier_max=cov_rad_multiplier_max,
+                        cov_rad_multiplier_min=cov_rad_multiplier_min,
+                        max_T=max_T,
+                        max_T_multiplier=max_T_multiplier,
+                        remove_positive_E=remove_positive_E,
+                    )
                 )
                 if is_structure_wrong:
                     exploding_structs.append(idx)

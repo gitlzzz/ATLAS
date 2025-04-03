@@ -336,6 +336,9 @@ def apply_filter_exploding_structures(
     struct: Atoms,
     cov_rad_multiplier_max: float = 10.0,
     cov_rad_multiplier_min: float = 0.775,
+    max_T: float = None,
+    max_T_multiplier: float = 10,
+    remove_positive_E: bool = False,
 ) -> bool:
     """
     Check if the given structure has an unrealistic structure (explosion).
@@ -379,5 +382,15 @@ def apply_filter_exploding_structures(
 
     # Check if the maximum distance is above the threshold
     is_exploding = np.any(max_dist > cutoffs_max) or np.any(min_dist < cutoffs_min)
+
+    if max_T and max_T_multiplier:
+        curr_struct_T = struct.info.get('md_temperature', np.nan)
+        if curr_struct_T > (max_T * max_T_multiplier):
+            return True
+
+    if remove_positive_E:
+        curr_energy = struct.info.get('REF_energy')
+        if curr_energy > 0:
+            return True
 
     return is_exploding

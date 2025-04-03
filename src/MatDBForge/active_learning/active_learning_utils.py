@@ -226,7 +226,7 @@ def run_mace_md_ase(
     T_start: float,
     traj_obj: TrajectoryWriter | None,
     prepend_path: str | Path = '.',
-    explode_filter: bool = False,
+    explode_filter_dict: dict = None,
     mode='normal',
     md_struct_list=None,
 ):
@@ -255,6 +255,9 @@ def run_mace_md_ase(
     T_multiplier = md_params.get('max_temp_multiplier', 1.0)
     T_end = T_start * T_multiplier
     timestep = md_params['timestep_duration_ps']
+
+    if not explode_filter_dict:
+        explode_filter_dict = {}
 
     if md_params.get('langevin_friction_ps-1'):
         friction = md_params['langevin_friction_ps-1']
@@ -360,11 +363,16 @@ def run_mace_md_ase(
             interval=1,
         )
 
-    if explode_filter and mode == 'normal':
+    if explode_filter_dict.get('enable') and mode == 'normal':
         dyn.attach(
             md_stop_explode_filter,
             dyn=dyn,
             interval=int(num_steps * 0.1),
+            cov_rad_multiplier_max=explode_filter_dict.get('cov_rad_multiplier_max'),
+            cov_rad_multiplier_min=explode_filter_dict.get('cov_rad_multiplier_min'),
+            max_T=T_end,
+            max_T_multiplier=explode_filter_dict.get('max_T_multiplier', 10),
+            remove_positive_E=explode_filter_dict.get('remove_positive_E', False),
         )
 
     if mode != 'normal':
@@ -388,8 +396,22 @@ def run_mace_md_ase(
         return md_struct_list
 
 
-def md_stop_explode_filter(dyn):
-    has_exploded = apply_filter_exploding_structures(dyn.atoms)
+def md_stop_explode_filter(
+    dyn,
+    cov_rad_multiplier_min,
+    cov_rad_multiplier_max,
+    max_T,
+    max_T_multiplier,
+    remove_positive_E,
+):
+    has_exploded = apply_filter_exploding_structures(
+        dyn.atoms,
+        cov_rad_multiplier_min=cov_rad_multiplier_min,
+        cov_rad_multiplier_max=cov_rad_multiplier_max,
+        max_T=max_T,
+        max_T_multiplier=max_T_multiplier,
+        remove_positive_E=remove_positive_E,
+    )
     if has_exploded:
         raise RuntimeError(f'Wrong structure in step {dyn.nsteps} :(')
 

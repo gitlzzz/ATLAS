@@ -359,6 +359,8 @@ Specific settings for the exploding structures filter. MD with overlapping atoms
 - `enable` : (bool) Whether to enable or disable this filter. By default True.
 - `cov_rad_multiplier_max` = (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
 - `cov_rad_multiplier_min` = (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.95`.
+- `max_T_multiplier` (float): Multiplier to apply to the maximum MD temperature threshold in order to decide if the structure has high kinetic energy. By default 10.
+- `remove_positive_E` (bool): Whether to remove any structures with positive energy.
 
 
 #### MD Queue - `[md.queue]`
