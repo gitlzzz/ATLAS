@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.25.0 (2025-04-03)
+
+### Feature
+
+- **al_loop**: add high T and positive E check to explode MD filter. ([#d5f3e49](https://github.com/pol-sb/MatDBForge/commit/d5f3e49b335ff7cc8566f35ee0d5b25d048261aa))
+
 ## 0.24.2 (2025-04-03)
 
 ### Fix
