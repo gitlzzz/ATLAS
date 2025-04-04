@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.25.1 (2025-04-04)
+
+### Fix
+
+- **al_loop**: change value for default parameters on md explosion filters ([#6cb6ca1](https://github.com/pol-sb/MatDBForge/commit/6cb6ca1889e8982fd89e527e882986e8abfc7965))
+
 ## 0.25.0 (2025-04-03)
 
 ### Feature
