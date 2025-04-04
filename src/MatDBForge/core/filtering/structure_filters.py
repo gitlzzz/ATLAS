@@ -335,7 +335,7 @@ def get_available_filters() -> dict:
 def apply_filter_exploding_structures(
     struct: Atoms,
     cov_rad_multiplier_max: float = 10.0,
-    cov_rad_multiplier_min: float = 0.775,
+    cov_rad_multiplier_min: float = 1.5,
     max_T: float = None,
     max_T_multiplier: float = 10,
     remove_positive_E: bool = False,
@@ -358,9 +358,14 @@ def apply_filter_exploding_structures(
         Returns `True` if the structure is exploding, `False` if otherwise.
     """
     # Get the natural cutoffs and multiply them by the cov_rad_multiplier_max
-    # cutoffs will be used as the maximum distance between atoms possible
+    # cutoffs will be used as the minimum and maximum distance between atoms possible
     # for the structure to be considered stable
+
+    # Maximum possible distance between two atoms. Should be below the maximum cell size
+    # to avoid exploding structures
     cutoffs_max: np.array = np.array(natural_cutoffs(struct)) * cov_rad_multiplier_max
+
+    # Closest possible distance between two atoms.
     cutoffs_min: np.array = np.array(natural_cutoffs(struct)) * cov_rad_multiplier_min
     max_cell_arr = np.repeat(np.max(struct.cell), repeats=len(cutoffs_max))
 
