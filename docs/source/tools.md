@@ -4,7 +4,6 @@ This section describes the command line arguments for various scripts provided b
 
 ## Run Active Learning - `mdb_active_learning`
 
-
 Handles MatDBForge active learning loop runs. Running the `mdb_active_learning` command without any subcommand or the gui subcommand will start a new run.
 In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](input.md#active-learning-loop).
 
@@ -22,6 +21,7 @@ Other available subcommands allow to generate reports or resume loops using file
 ### Subcommands
 
 #### `report`
+
 Generates a report for a MatDBForge running/finished active learning loop. This produce a plot containing information about the training and seed databases sizes, the NNP performance and the number of added and removed structures.
 
 **Usage**: `mdb_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)`
@@ -32,6 +32,7 @@ Generates a report for a MatDBForge running/finished active learning loop. This 
   - **Description**: Path to the MatDBForge log of the active learning loop.
 
 #### `resume`
+
 Resumes an active learning loop using a results folder. A resumed run will use the settings from the `.toml` file contained in the results folder.
 
 **Usage**: `mdb_active_learning resume [-h] --dir_resume <PATH> [--config_file <PATH>]`
@@ -44,6 +45,7 @@ Resumes an active learning loop using a results folder. A resumed run will use t
   - **Default**: `None`
 
 #### `gui`
+
 Launches a dashboard to track the active learning loop.
 
 **Usage:** `run_active_learning gui [-h] [--update_interval n_sec] [--port port] [--debug] [--online]`
@@ -62,7 +64,6 @@ Launches a dashboard to track the active learning loop.
 - `--online`
   - **Description**: Enable online mode.
   - **Default**: `False`
-
 
 ## Active Learning Dashboard - `monitor_al_loop`
 
@@ -89,7 +90,6 @@ Monitor a MatDBForge active learning loop using a dashboard.
   - **Description**: Enable online mode.
   - **Default**: `False`
 
-
 ## Generate Configuration File - `mdb_gen_configuration_file`
 
 Generates default configuration files for MatDBForge in the TOML format. The generated `.toml` files can be used as a template for active learning runs and initial database generation.
@@ -111,7 +111,6 @@ Generates default configuration files for MatDBForge in the TOML format. The gen
   - **Description**: Whether to overwrite the destination file if it already exists.
   - **Default**: `False`
 
-
 ## Generate Initial Database - `mdb_gen_init_db`
 
 Generates an initial database for MatDBForge. A `.toml` configuration is required, which is described in the [corresponding inputs section](input.md#database-generation)
@@ -122,7 +121,6 @@ Generates an initial database for MatDBForge. A `.toml` configuration is require
   - **Description**: Path to a TOML settings file. By default, `database_generation_settings.toml` will be searched in the CWD.
   - **Type**: `Path`
   - **Default**: `./database_generation_settings.toml`
-
 
 ## Run DFT Database - `mdb_run_dft_database`
 
@@ -139,7 +137,6 @@ Runs VASP DFT calculations for a database of structures using AiiDA-VASP. A .tom
   - `Description`: Path to the TOML file with HPC and VASP input configuration.
   - `Type`: `Path`
   - `Required`: Yes
-
 
 ## Autoencoder for Dimensionality Reduction - `mdb_train_autoencoder`
 
@@ -172,7 +169,7 @@ The model is trained on descriptors (either `SOAP` or `MACE`) which are provided
 - `--dataset`
   - **Description**: Path to the training dataset.
   - **Type**: `str`
-  - **Default**: `all_descriptors.npy`
+  - **Default**: `all_descriptors.npz`
 - `--l1_hidden_dim`
   - **Description**: Number of units in the first hidden layer.
   - **Type**: `int`

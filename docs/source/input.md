@@ -199,8 +199,8 @@ Specific settings for the layer distance filter. This sometimes helps with bulks
 Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
 
 - `enable` : (bool) Whether to enable or disable this filter. By default True.
-- `cov_rad_multiplier_max` = (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
-- `cov_rad_multiplier_min` = (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `1.5`.
+- `cov_rad_multiplier_max` = (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `15.0`.
+- `cov_rad_multiplier_min` = (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.78`.
 
 ### Vacancy Generation Settings - `[vacancies]`
 
