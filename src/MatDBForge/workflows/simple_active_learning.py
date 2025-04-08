@@ -1900,7 +1900,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         self.ctx.inputs.metadata.label = f'Step - {self.ctx.iteration + 1}'
 
-        seed_gen_db = mdb_al_ut.load_database(self.ctx.seed_db_path)
+        seed_gen_db: list = mdb_al_ut.load_database(self.ctx.seed_db_path)
+
+        # Removing structures with config_type == 'IsolatedAtom'
+        # from the seed generation database.
+        seed_gen_db = [
+            struct
+            for struct in seed_gen_db
+            if struct.info.get('config_type') != 'IsolatedAtom'
+        ]
 
         # Get seed selection type
         seed_select_settings = self.ctx.inputs.seed_select_settings
