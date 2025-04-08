@@ -8,6 +8,8 @@ import tomllib
 import warnings
 from argparse import RawTextHelpFormatter
 
+from rich.traceback import install as traceback_install
+
 warnings.filterwarnings('ignore')
 
 
@@ -189,6 +191,13 @@ def resume_al_loop_builder(
     wk_uuid = None
     wk_node = None
 
+    # Check if the provided path is a directory
+    if prev_run_dir and not prev_run_dir.is_dir():
+        raise NotADirectoryError(
+            f"The path '{prev_run_dir}' is not a directory. "
+            "Please provide a valid active learning 'run_<UUID>' directory."
+        )
+
     # Get pk/uuid of the base workchain using one of two approaches:
     # 1. Get the pk/uuid from the prev_run_dir folder name
     with contextlib.suppress(Exception):
@@ -283,6 +292,11 @@ def resume_al_loop_builder(
 
 
 def run_active_learning():
+    # Use rich formatter for tracebacks
+    traceback_install(
+        width=88,
+    )
+
     parser = argparse.ArgumentParser(
         prog='run_active_learning',
         description=(
