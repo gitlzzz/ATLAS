@@ -234,7 +234,7 @@ def resume_al_loop_builder(
         # Populating resume dictionary with last iteration
         run_tmp_path = prev_run_dir / 'run_tmp_data'
         run_tmp_files = [f for f in run_tmp_path.glob('*.pkl')]
-        run_tmp_files.sort(key=lambda x: x.stem.split('-')[-1])
+        run_tmp_files.sort(key=lambda x: int(x.stem.split('-')[-1]))
         for it_file in run_tmp_files:
             last_iteration = int(it_file.stem.split('-')[-1])
         resume_dict['last_iteration'] = last_iteration
