@@ -200,10 +200,13 @@ def get_loop_report(loop_id=None, log_path=None, title=None, model_acc_multiplie
     except IndexError:
         ini_db_size = 0
 
-    if isinstance(al_loop_node, orm.Node):
-        model_acc_multiplier = (
-            al_loop_node.inputs.active_learning.model_acc_multiplier.value
-        )
+    try:
+        if isinstance(al_loop_node, orm.Node):
+            model_acc_multiplier = (
+                al_loop_node.inputs.active_learning.model_acc_multiplier.value
+            )
+    except AttributeError:
+        model_acc_multiplier = 1.0
 
     # Match all lines containing the seed_gen_db and train_db sizes
     seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
@@ -668,7 +671,7 @@ def generate_error_plot(
         fontsize='medium',
         verticalalignment='top',
         bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
-        zorder=102
+        zorder=102,
     )
     ax2_bottom.annotate(
         'h)',
@@ -679,7 +682,7 @@ def generate_error_plot(
         fontsize='medium',
         verticalalignment='top',
         bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
-        zorder=102
+        zorder=102,
     )
 
     if save_fig_now:
