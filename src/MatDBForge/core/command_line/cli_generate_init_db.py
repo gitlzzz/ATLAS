@@ -6,8 +6,7 @@ import tomllib
 import warnings
 from argparse import RawTextHelpFormatter
 
-from MatDBForge.core.command_line.command_line_utils import parse_input_toml
-from MatDBForge.core.initial_db import cli_gen_db_report, cli_run_gen_initial_database
+from rich.traceback import install as traceback_install
 
 # TODO: Remove this once the deprecation warnings are fixed
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='spglib')
@@ -26,6 +25,9 @@ def gen_initial_database(config_dict: dict):
     toml_path : str
         Path for the TOML configuration file
     """
+    from MatDBForge.core.command_line.command_line_utils import parse_input_toml
+    from MatDBForge.core.initial_db import cli_run_gen_initial_database
+
     # Check if all required sections are present
     parse_input_toml(toml_dict=config_dict, type='generate_database')
 
@@ -102,6 +104,7 @@ def run_gen_initial_database():
     # Getting CLI arguments
     args = parser.parse_args()
 
+    # Generate an initial database
     if args.command == 'generate':
         # Loading TOML config file
         try:
@@ -116,9 +119,14 @@ def run_gen_initial_database():
 
         # Calling the function to generate the initial database
         gen_initial_database(config_dict=toml_dict)
+
+    # Generate an initial database report
     elif args.command == 'report':
         db_path = pl.Path(args.db_path).resolve(strict=True)
         if db_path.exists():
+            from MatDBForge.core.initial_db import cli_gen_db_report
+
+            # Generating the report
             cli_gen_db_report(database_path=args.db_path)
         else:
             raise FileNotFoundError(
@@ -128,4 +136,9 @@ def run_gen_initial_database():
 
 
 if __name__ == '__main__':
+    # Use rich formatter for tracebacks
+    traceback_install(
+        width=88,
+    )
+
     run_gen_initial_database()
