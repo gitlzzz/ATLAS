@@ -196,6 +196,8 @@ class CalcType(Enum):
             'sp_cluster': cls.SP_CLUSTER,
             'relax': cls.RELAX,
             'relaxation': cls.RELAX,
+            'relaxation_bulk': cls.RELAX,
+            'relaxation_surface': cls.RELAX,
             'single_point_bulk': cls.SP_BULK,
             'static': cls.SP_BULK,
             'static_bulk': cls.SP_BULK,
@@ -660,10 +662,10 @@ def run_dataframe_vasp_simulations_aiida(
 
             mdb_cud.custom_print(
                 (
-                    f"({time.strftime('%H:%M:%S')})"
-                    f" - {np.count_nonzero(node_status_list)}"
-                    f"/{len(node_status_list)} - Waiting for calculations"
-                    f" from chunk {chunk_id} to be finished..."
+                    f'({time.strftime("%H:%M:%S")})'
+                    f' - {np.count_nonzero(node_status_list)}'
+                    f'/{len(node_status_list)} - Waiting for calculations'
+                    f' from chunk {chunk_id} to be finished...'
                 ),
                 'info',
             )
@@ -991,7 +993,7 @@ def run_dataframe_vasp_aiida_queue(
         mdb_cud.custom_print(
             (
                 f'[bold blue]Step {total_loops}[/] - '
-                f'Elapsed Time: {queue_check_interval*(total_loops-1)} s '
+                f'Elapsed Time: {queue_check_interval * (total_loops - 1)} s '
                 '- Checking items in queue...'
             ),
             'info',
