@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.25.2 (2025-04-17)
+
+### Fix
+
+- **dft**: allow relaxation on mdb vasp dft ([#438eee0](https://github.com/pol-sb/MatDBForge/commit/438eee097eec74b21b7cefb3d426cf879384187e))
+- **init_db**: improve initial database report generation ([#4525418](https://github.com/pol-sb/MatDBForge/commit/4525418745c2d02b7401b42791553d0811c9737f))
+- **al_loop**: save md uuids as string to enable ase saving ([#c53f801](https://github.com/pol-sb/MatDBForge/commit/c53f801b19e4b3bd7272d53a631a6728d65e30f4))
+- **db_gen**: improve argparse speed by moving imports ([#f0689d6](https://github.com/pol-sb/MatDBForge/commit/f0689d6e0fee1408a70b0f8218b4a14f0ce86435))
+- **al_loop**: fix al_loop report gathering for old loops ([#495db6b](https://github.com/pol-sb/MatDBForge/commit/495db6b22d8e7701ceec1805c02e367744c36c91))
+- **al_loop**: fix compressed file extension ([#632c5b4](https://github.com/pol-sb/MatDBForge/commit/632c5b477b2ad360c447ae42adeee996d15dd148))
+- **al_loop**: fix compressed file extension ([#77f635e](https://github.com/pol-sb/MatDBForge/commit/77f635e2bd39f96ff59b265aedc020ef54fbbbf0))
+- **al_loop**: remove IsolatedAtom from the seed databases ([#39d7f06](https://github.com/pol-sb/MatDBForge/commit/39d7f067cd8e9ccb46e344988e0ab88c30c629cc))
+- **al_loop**: check if resume dir is a directory ([#19a3ad1](https://github.com/pol-sb/MatDBForge/commit/19a3ad1aa2b4384378e4888959d9dfa8396d5095))
+
 ## 0.25.1 (2025-04-04)
 
 ### Fix
