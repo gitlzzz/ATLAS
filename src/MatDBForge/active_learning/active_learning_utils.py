@@ -1463,9 +1463,9 @@ def remove_structs_from_seed_gen_db(
         for del_idx, struct in enumerate(seed_gen_db):
             struct: Atoms = struct.todict()
 
-            struct_uuid = struct.get('info', {}).get('mdb_id')
+            struct_uuid = struct.get('info', {}).get('mdb_id', 'NO_MDB_ID')
             if not struct_uuid:
-                struct_uuid = struct.get('info', {}).get('aiida_uuid')
+                struct_uuid = struct.get('info', {}).get('aiida_uuid', 'NO_AIIDA_ID')
 
             if curr_uuid == struct_uuid:
                 del seed_gen_db[del_idx]

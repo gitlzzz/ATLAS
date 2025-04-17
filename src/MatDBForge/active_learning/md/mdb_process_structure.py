@@ -798,7 +798,7 @@ if __name__ == '__main__':
             # Getting the energy and forces for the structure
             structure.info['REF_energy'] = structure.get_potential_energy()
             structure.arrays['REF_forces'] = structure.get_forces()
-            structure.info['mdb_id'] = uuid.uuid4()
+            structure.info['mdb_id'] = str(uuid.uuid4())
 
             mod_extrap_frames.append(structure)
 
