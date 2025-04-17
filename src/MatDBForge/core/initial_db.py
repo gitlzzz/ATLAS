@@ -308,7 +308,8 @@ class InitialDatabase:
         mdb_cud.custom_print(f"Generating report for '{self.database_name}'...", 'info')
 
         # Getting the amount of entries in the database
-        count = len(self.df.count(axis=1))
+        # count = len(self.df.count(axis=1))
+        count = len(self.df.index)
 
         # Getting the database name
         db_name = self.database_name
@@ -332,7 +333,7 @@ class InitialDatabase:
                 'vacancy': 0,
                 'deformation': 0,
                 'md': 0,
-                'init_md': 0,
+                'isolated_atom': 0,
             },
             'phases': {},
         }
@@ -341,22 +342,19 @@ class InitialDatabase:
             struct_info_dict['phases'][phase.name] = 0
 
         for struct in self.df.iterrows():
-            if hasattr(struct[1], 'base') and struct[1].base:
-                struct_info_dict['structure_count']['base'] += 1
-            if hasattr(struct[1], 'bulk') and struct[1].bulk:
-                struct_info_dict['structure_count']['bulk'] += 1
-            if hasattr(struct[1], 'surface') and struct[1].surface:
-                struct_info_dict['structure_count']['surface'] += 1
-            if hasattr(struct[1], 'cluster') and struct[1].cluster:
-                struct_info_dict['structure_count']['cluster'] += 1
-            if hasattr(struct[1], 'perturb') and struct[1].perturb:
-                struct_info_dict['structure_count']['perturb'] += 1
-            if hasattr(struct[1], 'vacancy') and struct[1].vacancy:
-                struct_info_dict['structure_count']['vacancy'] += 1
-            if hasattr(struct[1], 'deformation') and struct[1].deformation:
-                struct_info_dict['structure_count']['deformation'] += 1
             if hasattr(struct[1], 'init_md') and struct[1].init_md:
                 struct_info_dict['structure_count']['md'] += 1
+            elif hasattr(struct[1], 'phase') and struct[1].phase == 'IsolatedAtom':
+                struct_info_dict['structure_count']['isolated_atom'] += 1
+            elif hasattr(struct[1], 'base') and struct[1].base:
+                struct_info_dict['structure_count']['base'] += 1
+            elif hasattr(struct[1], 'bulk') and struct[1].bulk:
+                struct_info_dict['structure_count']['bulk'] += 1
+            elif hasattr(struct[1], 'surface') and struct[1].surface:
+                struct_info_dict['structure_count']['surface'] += 1
+            elif hasattr(struct[1], 'cluster') and struct[1].cluster:
+                struct_info_dict['structure_count']['cluster'] += 1
+
             if (
                 hasattr(struct[1], 'targeted_modification')
                 and struct[1].targeted_modification
@@ -370,6 +368,12 @@ class InitialDatabase:
                     struct_info_dict['structure_count'][mod_type] = 1
                 else:
                     struct_info_dict['structure_count'][mod_type] += 1
+            elif hasattr(struct[1], 'vacancy') and struct[1].vacancy:
+                struct_info_dict['structure_count']['vacancy'] += 1
+            elif hasattr(struct[1], 'deformation') and struct[1].deformation:
+                struct_info_dict['structure_count']['deformation'] += 1
+            elif hasattr(struct[1], 'perturb') and struct[1].perturb:
+                struct_info_dict['structure_count']['perturb'] += 1
 
             if struct[1].phase not in struct_info_dict['phases']:
                 struct_info_dict['phases'][struct[1].phase] = 1
@@ -883,8 +887,8 @@ class InitialDatabase:
             # Getting the current structures
             structure_list = filtered_df.structure.values
 
-            # Getting the names fo the current structures
-            uuid_list = filtered_df[filtered_df.phase == curr_phase]['unique_id'].values
+            # Getting the names for the current structures
+            uuid_list = filtered_df[filtered_df.phase == curr_phase]['mdb_id'].values
 
             # Getting the total structure count
             tot_structures = len(structure_list)
@@ -1343,6 +1347,9 @@ class InitialDatabase:
 
         # Load MD settings
         md_params = md_gen_dict.get('md', {}).get('parameters', {})
+        explode_filter_dict = (
+            md_gen_dict.get('md', {}).get('filters', {}).get('exploding_structures', {})
+        )
         T_start = md_params['temperature_K']
 
         from MatDBForge.active_learning.active_learning_utils import run_mace_md_ase
@@ -1373,7 +1380,7 @@ class InitialDatabase:
                 T_start,
                 traj_obj=None,
                 prepend_path='.',
-                explode_filter_dict=True,
+                explode_filter_dict=explode_filter_dict,
                 mode='db_gen',
                 md_struct_list=md_struct_list,
             )
@@ -2727,9 +2734,9 @@ class InitialDatabase:
         for key, value in rc_params.items():
             mpl.rcParams[key] = value
 
-        inner = [['pie1'], ['pie2']]
+        inner = [['bar1'], ['pie']]
         outer = [
-            ['histogram', 'ignore'],
+            ['histogram', 'bar2'],
             ['main', inner],
         ]
 
@@ -2742,10 +2749,11 @@ class InitialDatabase:
 
         hist_t_ax = axd['histogram']
         main_plot_ax = axd['main']
-        bar_chart_ax = axd['pie1']
-        pie_chart_ax = axd['pie2']
-        empty_axis = axd['ignore']
-        empty_axis.set_axis_off()
+        bar_chart_ax = axd['bar2']
+        bar_chart_ax_2 = axd['bar1']
+        pie_chart_ax = axd['pie']
+        # empty_axis = axd['ignore']
+        # empty_axis.set_axis_off()
 
         # Getting base element to use in x-axis
         base_elem = self.phase_diagram.base_elem
@@ -2760,6 +2768,7 @@ class InitialDatabase:
             'md': {'structs': [], 'color': '#915ad3', 'temperature_K': []},
             'deformation': {'structs': [], 'color': '#b16286', 'temperature_K': []},
             'oct_perturb': {'structs': [], 'color': '#665c54', 'temperature_K': []},
+            'isolated_atom': {'structs': [], 'color': '#365c54', 'temperature_K': []},
             'unknown': {'structs': [], 'color': '#ee0000', 'temperature_K': []},
         }
 
@@ -2869,22 +2878,53 @@ class InitialDatabase:
 
             return custom_format
 
-        # Plotting bar chart
-        y_pos_bar = range(len(db_report['structure_count'].keys()))
+        # Plotting bar chart (top)
+        top_dict = db_report['structure_count'].copy()
+        to_remove = ('bulk', 'surface', 'cluster', 'isolated_atom', 'base', 'md')
+        for key in to_remove:
+            top_dict.pop(key, None)
+        y_pos_bar = range(len(top_dict.keys()))
         bar_chart_ax.barh(
             y=y_pos_bar,
-            width=db_report['structure_count'].values(),
-            color=[plot_dict[key]['color'] for key in db_report['structure_count']],
+            width=top_dict.values(),
+            color=[plot_dict[key]['color'] for key in top_dict],
             alpha=0.3,
         )
-        bar_chart_ax.set_yticks(y_pos_bar, labels=db_report['structure_count'].keys())
+        bar_chart_ax.set_yticks(y_pos_bar, labels=top_dict.keys())
 
         # Writing labels in barchart
-        label_x = max(db_report['structure_count'].values()) * 0.10
-        for bar, amount in zip(
-            bar_chart_ax.patches, db_report['structure_count'].values(), strict=False
-        ):
+        label_x = max(top_dict.values()) * 0.10
+        for bar, amount in zip(bar_chart_ax.patches, top_dict.values(), strict=False):
             bar_chart_ax.text(
+                x=label_x,
+                y=bar.get_y() + bar.get_height() / 2,
+                s=amount,
+                color='#282828',
+                ha='left',
+                va='center',
+                fontsize='small',
+            )
+
+        # Plotting bar chart (bottom)
+        bottom_dict = db_report['structure_count'].copy()
+        to_remove = ('deformation', 'vacancy', 'oct_perturb', 'perturb')
+        for key in to_remove:
+            bottom_dict.pop(key, None)
+        y_pos_bar = range(len(bottom_dict.keys()))
+        bar_chart_ax_2.barh(
+            y=y_pos_bar,
+            width=bottom_dict.values(),
+            color=[plot_dict[key]['color'] for key in bottom_dict],
+            alpha=0.3,
+        )
+        bar_chart_ax_2.set_yticks(y_pos_bar, labels=bottom_dict.keys())
+
+        # Writing labels in barchart
+        label_x = max(bottom_dict.values()) * 0.10
+        for bar, amount in zip(
+            bar_chart_ax_2.patches, bottom_dict.values(), strict=False
+        ):
+            bar_chart_ax_2.text(
                 x=label_x,
                 y=bar.get_y() + bar.get_height() / 2,
                 s=amount,
