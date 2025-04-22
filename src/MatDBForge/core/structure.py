@@ -421,7 +421,7 @@ class Structure:
 
     def from_db_row(self, row: pd.Series, columns: list):
         for col_idx, col in enumerate(columns):
-            setattr(self, col, row[col_idx])
+            setattr(self, col, row.iloc[col_idx])
         return self
 
     def to_ase_atoms(self):
