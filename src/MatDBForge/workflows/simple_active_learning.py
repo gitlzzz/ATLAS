@@ -254,6 +254,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         calc_count = 0
 
         # Getting container settings
+        containerized = False
         container_dict = self.inputs.container_settings.get_dict()
         if container_dict.get('use_container'):
             containerized = container_dict.get('use_container', False)
@@ -527,6 +528,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
         # Getting container settings
+        containerized = False
         container_dict = self.inputs.container_settings.get_dict()
         if container_dict.get('use_container'):
             containerized = container_dict.get('use_container', False)
@@ -996,6 +998,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.metadata.description = 'Processing structure using MD.'
 
             # Getting container settings
+            containerized = False
             container_dict = self.inputs.container_settings.get_dict()
             if container_dict.get('use_container'):
                 containerized = container_dict.get('use_container', False)

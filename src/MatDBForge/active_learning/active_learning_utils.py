@@ -192,8 +192,15 @@ def generate_descriptors_mace(
 
     device = descriptor_settings.get('device', 'cpu')
     dtype = descriptor_settings.get('dtype', 'float32')
+
+    try:
+        # Use torch.load with map_location to ensure model loads on the correct device
+        model_loaded = torch.load(model_path, map_location=torch.device(device))
+    except RuntimeError:
+        model_loaded = torch.load(model_path, map_location=torch.device('cpu'))
+
     calculator = MACECalculator(
-        model_paths=model_path, device=device, default_dtype=dtype
+        models=[model_loaded], device=device, default_dtype=dtype
     )
 
     descriptor_dict = {}

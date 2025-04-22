@@ -426,9 +426,15 @@ if __name__ == '__main__':
         for model in model_file_list:
             comm_results[model.stem] = {'REF_energy': [], 'REF_forces': []}
 
+            # Use torch.load with map_location to ensure model loads
+            # on the correct device
+            device_str = comm_settings.get('mace', {}).get('device', 'cpu')
+            model_path = prepend_path / model
+            model_loaded = torch.load(model_path, map_location=torch.device(device_str))
+
             calculator = MACECalculator(
-                model_paths=prepend_path / model,
-                device=comm_settings.get('mace', {}).get('device', 'cpu'),
+                models=[model_loaded],
+                device=device_str,
                 default_dtype=comm_settings.get('mace', {}).get(
                     'default_dtype', 'float32'
                 ),
