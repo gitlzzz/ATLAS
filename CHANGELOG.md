@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.3 (2025-04-22)
+
+### Fix
+
+- **init_db**: change series row indexing to use .iloc to ensure compatibility with newer Pandas versions ([#b731c7a](https://github.com/pol-sb/MatDBForge/commit/b731c7a079044d7ec38dec7cd05b26fa38f2f2e1))
+- **core**: update model dtype before loading when using MACECalculator ([#ac1dc4a](https://github.com/pol-sb/MatDBForge/commit/ac1dc4a170b8e2d9879167ef8f38c280079cb0ff))
+- **core**: ensure assignation of `mdb_id` key for unique id during al_loop, md and database generation ([#3e494ce](https://github.com/pol-sb/MatDBForge/commit/3e494ceb6d33836fbad09835f12990e9898f4898))
+
 ## 0.25.2 (2025-04-17)
 
 ### Fix
