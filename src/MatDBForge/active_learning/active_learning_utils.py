@@ -7,6 +7,7 @@ import time
 import tomllib as toml
 from contextlib import redirect_stdout
 from pathlib import Path
+from uuid import uuid4
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1437,7 +1438,7 @@ def remove_structs_from_seed_gen_db(
     corresponding structures from a seed generation database. The database is accessed
     via the `seed_gen_db` object, which is loaded from the `seed_gen_path` using ASE.
     Each element of the list is an ase.Atoms object with an unique identifier
-    (`aiida_uuid`) in the info attribute.
+    (`mdb_id`/`aiida_uuid`) in the info attribute.
     The function writes the modified list back into `seed_gen_path` after the specified
     ones have been removed. No list is returned into the workchain to avoid having
     to serialize the atoms list.
@@ -1459,20 +1460,31 @@ def remove_structs_from_seed_gen_db(
     if not isinstance(seed_gen_db, list):
         seed_gen_db = seed_gen_path.get_list()
 
-    for curr_uuid in delete_indices:
-        for del_idx, struct in enumerate(seed_gen_db):
-            struct: Atoms = struct.todict()
+    # Clean delete list
+    delete_indices = [uuid for uuid in delete_indices if uuid is not None]
 
-            struct_uuid = struct.get('info', {}).get('mdb_id', 'NO_MDB_ID')
-            if not struct_uuid:
-                struct_uuid = struct.get('info', {}).get('aiida_uuid', 'NO_AIIDA_ID')
+    # Normalize database
+    new_db = []
+    for struct in seed_gen_db:
+        if isinstance(struct, dict):
+            struct = Atoms.fromdict(struct)
 
-            if curr_uuid == struct_uuid:
-                del seed_gen_db[del_idx]
+        info = struct.info
 
+        struct_uuid = info.get('mdb_id') or info.get('aiida_uuid')
+
+        # Assign uuid on the fly if missing
+        if not struct_uuid:
+            struct_uuid = str(uuid4())
+            struct.info['mdb_id'] = struct_uuid
+
+        if struct_uuid not in delete_indices:
+            new_db.append(struct)
+
+    # Write back updated database
     ase_write(
         filename=seed_gen_path.value,
-        images=seed_gen_db,
+        images=new_db,
         format='extxyz',
     )
 

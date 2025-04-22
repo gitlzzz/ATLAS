@@ -15,6 +15,7 @@ import pathlib
 import pathlib as pl
 import pickle
 import time
+import uuid
 import warnings
 from io import BytesIO, TextIOWrapper
 from os import cpu_count
@@ -829,8 +830,53 @@ class InitialDatabase:
         file_path = pl.Path(file_path) / file_name
         file_path = file_path.with_suffix(f'.{out_format}')
 
+        struct_list = self.standardize_struct_ids(struct_list)
+
         aseio.write(filename=file_path, images=struct_list, format=out_format)
         mdb_cud.custom_print(f"Database exported to '{file_path}'", 'done')
+
+    def standardize_struct_ids(self, atoms_list: list[ase_atoms]) -> list[ase_atoms]:
+        """
+        Ensure every ASE structure has a unique `mdb_id` field in its .info dict.
+
+        This function checks each structure for an existing UUID in the `mdb_id`,
+        `aiida_uuid`, or `unique_id` fields, and generates one if none are present.
+
+        Parameters
+        ----------
+        atoms_list : list of ase.Atoms
+            The list of ASE atoms objects to process.
+
+        Returns
+        -------
+        list of ase.Atoms
+            The updated list with standardized UUIDs in `info['mdb_id']`.
+        """
+        for struct in atoms_list:
+            info = struct.info
+
+            # Check existing identifiers
+            uuid_candidate = (
+                info.get('mdb_id') or info.get('aiida_uuid') or info.get('unique_id')
+            )
+
+            if uuid_candidate:
+                struct.info['mdb_id'] = str(uuid_candidate)
+            else:
+                # Generate and assign new ID
+                struct.info['mdb_id'] = str(uuid.uuid4())
+
+            # After database generation, if aiida_uuid is used instead of mdb_id,
+            # remove it and assign mdb_id
+            if info.get('mdb_al_step') == 0 and info.get('aiida_uuid'):
+                struct.info['mdb_id'] = str(info['aiida_uuid'])
+                del struct.info['aiida_uuid']
+
+            # Clean up legacy keys
+            if 'unique_id' in info:
+                del struct.info['unique_id']
+
+        return atoms_list
 
     def find_repeat_structures(
         self,
