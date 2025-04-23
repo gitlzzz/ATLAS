@@ -228,7 +228,6 @@ class InitialDatabase:
         # Loading the database
         elif '.xz' in db_path.suffixes or suffix == '.xz':
             suffix = '.xz'
-            print('db_path: ', db_path)
             with lzma.open(db_path, 'rb') as f:
                 database = pickle.load(f)
 
@@ -3488,8 +3487,8 @@ def cli_run_gen_initial_database(
             mdb_cud.custom_print('Applying deformations to lattices.', 'info')
 
             structures.apply_min_deformation(
-                frac_max=float(displ_dict['lattice_frac_displ_max']),
-                frac_min=float(displ_dict['lattice_frac_displ_min']),
+                frac_max=float(displ_dict['lattice_frac_deform_max']),
+                frac_min=float(displ_dict['lattice_frac_deform_min']),
                 repeat=int(displ_dict['num_repeats']),
                 use_phase=phase,
                 only_use_base=False,
