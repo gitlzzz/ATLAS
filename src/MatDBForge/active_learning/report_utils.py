@@ -1,5 +1,6 @@
 """Utils for generating reports."""
 
+import datetime
 import os
 import pickle
 import re
@@ -12,7 +13,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
-from aiida import orm
+from aiida import load_profile, orm
 from aiida.cmdline.utils.common import get_workchain_report
 from ase.io import read as ase_read
 from ase.io import write as ase_write
@@ -21,6 +22,7 @@ from plotly.subplots import make_subplots
 
 from MatDBForge.active_learning.active_learning_utils import (
     generate_descriptors,
+    remove_isolated_atoms,
     simplify_forces_struct,
 )
 from MatDBForge.active_learning.extrapolation.autoencoder import (
@@ -42,6 +44,23 @@ COLORS = [
 ]
 LINE_COLOR = '#28282855'
 
+# Define the process labels for the different calculation types
+TRAINING_LABEL = 'TrainMACEModelCalculation'
+DESCRIPTORS_LABEL = 'GetDescriptorsCombinedCalculation'
+MD_LABEL = 'ProcessMDSeedStructCalculation'
+DFT_LABEL = 'EvaluateMACEConfigsCalculation'
+AL_STEP_WORKCHAIN_LABEL = (
+    'SimpleActiveLearningWorkChain'  # Ensure this matches your WorkChain label
+)
+
+# Define stage keys for iteration
+STAGE_KEYS: list[str] = [
+    'training',
+    'descriptors',
+    'md',
+    'dft',
+]
+
 
 def gen_al_loop_report(
     loop_id: int | str = None,
@@ -50,7 +69,8 @@ def gen_al_loop_report(
     device='cpu',
     model_path: str | Path = None,
     database_path: str | Path = None,
-    threshold_meV: float = None,
+    threshold_E_meV: float = None,
+    threshold_F_meV: float = None,
     remove_outliers: bool = False,
     title: str = None,
     get_latent_space: bool = False,
@@ -133,7 +153,8 @@ def gen_al_loop_report(
                 ax=gs,
                 database_path=database_path,
                 model_path=model_path,
-                threshold_meV=threshold_meV,
+                threshold_E_meV=threshold_E_meV,
+                threshold_F_meV=threshold_F_meV,
                 remove_outliers=remove_outliers,
                 # train_db=ase_read(database_path, format='extxyz', index=':'),
             )
@@ -298,23 +319,18 @@ def get_mace_eval_results(
 
         training_db_cp_path = shutil.copy(training_db_path, tmp_dir)
         if not model_path:
+            custom_print('Using best model from last workchain iteration...', 'info')
             if not last_iter.is_finished and len(all_iters) > 1:
                 model_file: orm.SinglefileData = all_iters[-2].outputs.m0_model_file
             else:
                 model_file: orm.SinglefileData = last_iter.outputs.m0_model_file
             with model_file.as_path() as f:
                 model_path = shutil.copy(f, tmp_dir)
+        else:
+            custom_print(f'Using model from: {model_path}', 'info')
 
         # Load the training database
         train_db = ase_read(training_db_cp_path, format='extxyz', index=':')
-
-        # Filter reference energies
-        train_db = [
-            at
-            for at in train_db
-            if at.info.get('mdb_struct_type', '') != 'isolated_atom'
-            or at.info.get('phase', '').lower() != 'isolatedatom'
-        ]
 
         # Load model
         mace_model = MACECalculator(
@@ -369,22 +385,32 @@ def mark_and_remove_outliers(
     F_nn_list_per_at: list,
     E_dft_list_per_at: list,
     F_dft_list_per_at: list,
-    threshold_meV: float,
+    threshold_E_meV: float,
+    threshold_F_meV: float,
     remove_outliers: bool,
     train_db: list,
 ):
     outlier_list = []
     remove_indices = []
+
     # Mark outliers, appending the E difference in meV to the structure info dict.
-    for val in E_sorted_diff_list_meV[::-1]:
-        if abs(E_diff_list_meV[val]) > threshold_meV:
-            struct = train_db[int(val)]
-            struct.info['E_dft_nn_diff_meV'] = E_diff_list_meV[val]
+    # This will raise an error if the number of elements in the lists are not the same.
+    # This could happen if E or F were not calculated for all structures.
+    for E_val, F_val in zip(
+        E_sorted_diff_list_meV[::-1], F_sorted_diff_list_meV[::-1], strict=False
+    ):
+        if (
+            abs(E_diff_list_meV[E_val]) > threshold_E_meV
+            or abs(F_diff_list_meV[F_val]) > threshold_F_meV
+        ):
+            struct = train_db[int(E_val)]
+            struct.info['E_dft_nn_diff_meV'] = E_diff_list_meV[E_val]
+            struct.info['F_dft_nn_diff_meV'] = F_diff_list_meV[F_val]
             outlier_list.append(struct)
 
             # Add outler indices to list for removal
             if remove_outliers:
-                remove_indices.append(val)
+                remove_indices.append(E_val)
 
     if remove_outliers:
         train_db = [
@@ -409,7 +435,8 @@ def mark_and_remove_outliers(
             custom_print(
                 (
                     f"Saved {len(outlier_list)} outliers to 'outliers.xyz'. "
-                    f'Used {threshold_meV} meV as threshold.'
+                    f'Used E: {threshold_E_meV} meV and F: {threshold_F_meV} meV'
+                    ' as threshold.'
                 ),
                 'info',
             )
@@ -432,7 +459,8 @@ def generate_error_plot(
     ax=None,
     database_path: str = None,
     model_path: str = None,
-    threshold_meV: float = None,
+    threshold_E_meV: float = None,
+    threshold_F_meV: float = None,
     remove_outliers: bool = False,
     # train_db:list=None,
 ):
@@ -445,33 +473,13 @@ def generate_error_plot(
 
     train_db = ase_read(database_path, format='extxyz', index=':')
 
-    E_dft_list = np.array(
-        [
-            atoms.info['REF_energy']
-            for atoms in train_db
-            if atoms.info.get('mdb_struct_type', '') != 'isolated_atom'
-            or atoms.info.get('phase', '').lower() != 'isolatedatom'
-        ]
-    )
+    E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
     F_dft_list = np.array(
-        [
-            simplify_forces_struct(atoms.arrays['REF_forces'])[0]
-            for atoms in train_db
-            if atoms.info.get('mdb_struct_type', '') != 'isolated_atom'
-            or atoms.info.get('phase', '').lower() != 'isolatedatom'
-        ]
+        [simplify_forces_struct(atoms.arrays['REF_forces'])[0] for atoms in train_db]
     )
 
     # Getting atom count
-    struct_len_list = np.array(
-        [
-            len(atoms)
-            for atoms in train_db
-            if atoms.info.get('mdb_struct_type', '') != 'isolated_atom'
-            or atoms.info.get('phase', '').lower() != 'isolatedatom'
-        ]
-    )
-
+    struct_len_list = np.array([len(atoms) for atoms in train_db])
     # Getting energy per atom
     E_nn_list_per_at = E_nn_list / struct_len_list
     E_dft_list_per_at = E_dft_list / struct_len_list
@@ -506,9 +514,34 @@ def generate_error_plot(
         F_nn_list_per_at,
         E_dft_list_per_at,
         F_dft_list_per_at,
-        threshold_meV,
+        threshold_E_meV,
+        threshold_F_meV,
         remove_outliers,
         train_db,
+    )
+
+    # save stats into a numpy array file
+    export_list = []
+    for idx in range(len(E_dft_list_per_at)):
+        export_list.append(
+            [
+                train_db[idx].info.get('mdb_id'),
+                E_dft_list_per_at[idx],
+                E_nn_list_per_at[idx],
+                F_dft_list_per_at[idx],
+                F_nn_list_per_at[idx],
+                E_diff_list_meV[idx],
+                F_diff_list_meV[idx],
+            ]
+        )
+    export_array = np.array(export_list, dtype=object)
+    np.savetxt(
+        'stats.out',
+        export_array,
+        fmt='%s %.8f %.8f %.8f %.8f %.8f %.8f',
+        header='mdb_id E_dft_per_at E_nn_per_at F_dft_per_at F_nn_per_at'
+        ' E_diff_meV F_diff_meV',
+        comments='# ',
     )
 
     # Get RMSD
@@ -518,6 +551,25 @@ def generate_error_plot(
     # Get MAE
     E_mae = np.mean(np.abs(E_diff_list_meV))  # meV/atom
     F_mae = np.mean(np.abs(F_diff_list_meV))  # meV/A
+
+    # Remove isolated atoms
+    (
+        train_db,
+        E_dft_list_per_at,
+        E_nn_list_per_at,
+        F_dft_list_per_at,
+        F_nn_list_per_at,
+        E_diff_list_meV,
+        F_diff_list_meV,
+    ) = remove_isolated_atoms(
+        train_db,
+        E_dft_list_per_at,
+        E_nn_list_per_at,
+        F_dft_list_per_at,
+        F_nn_list_per_at,
+        E_diff_list_meV,
+        F_diff_list_meV,
+    )
 
     tex_x_pos = 0.1
     tex_y_pos = 0.80
@@ -590,8 +642,8 @@ def generate_error_plot(
     )
 
     ax1_bottom.plot(
-        F_dft_list,
-        F_nn_list,
+        F_dft_list_per_at,
+        F_nn_list_per_at,
         'o',
         color='#83a598',
         alpha=0.5,
@@ -599,7 +651,9 @@ def generate_error_plot(
         markeredgecolor='#282828',
         markersize=3,
     )
-    ax1_bottom.plot(F_dft_list, F_dft_list, color='#b16286', linestyle='--')
+    ax1_bottom.plot(
+        F_dft_list_per_at, F_dft_list_per_at, color='#b16286', linestyle='--'
+    )
     ax1_bottom.set_xlabel('DFT Forces [eV/A]')
     ax1_bottom.set_ylabel('NN Forces [eV/A]')
     ax1_bottom.set_title('Forces comparison')
@@ -1543,4 +1597,504 @@ def generate_latent_space_evol(
         label='AL Loop Step',
         pad=0.01,
         ax=ax1,
+    )
+
+
+def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
+    # Get all the directly called AL Step WorkChains
+    al_steps = []
+
+    for pk in al_loop_pk:
+        base_node = orm.load_node(pk)
+        custom_print(f'Loaded base node: {base_node.process_label}<{base_node.pk}>')
+        curr_loop_al_steps = [
+            node
+            for node in base_node.called
+            if isinstance(node, orm.WorkChainNode)
+            and node.process_label == AL_STEP_WORKCHAIN_LABEL
+            and node.is_finished_ok
+        ]
+        al_steps.extend(curr_loop_al_steps)
+
+    custom_print(f"Found {len(al_steps)} '{AL_STEP_WORKCHAIN_LABEL}' steps.")
+
+    if not al_steps:
+        # Maybe the structure is different, try descendants?
+        custom_print(
+            f"No direct children matched '{AL_STEP_WORKCHAIN_LABEL}'."
+            ' Checking descendants...'
+        )
+        al_steps = [
+            node
+            for node in base_node.called_descendants
+            if isinstance(node, orm.WorkChainNode)
+            and node.process_label == AL_STEP_WORKCHAIN_LABEL
+            and node.is_finished_ok
+        ]
+        custom_print(f'Found {len(al_steps)} matching descendant steps.')
+
+    if not al_steps:
+        custom_print(
+            f"Error: Could not find any AL steps ('{AL_STEP_WORKCHAIN_LABEL}') called"
+            f' by {base_node.pk}.',
+            'error',
+        )
+        exit()
+
+    # Get performance information about the AL Steps
+    all_performance_data = []
+    for i, al_step in enumerate(al_steps):
+        custom_print(
+            f'Analyzing AL Step {i + 1}/{len(al_steps)} (PK={al_step.pk})', 'debug'
+        )
+        performance_dict = get_al_step_performance(al_step)
+        if performance_dict:
+            # pprint(performance_dict)
+            all_performance_data.append(performance_dict)
+        else:
+            custom_print(f'Could not analyze step {al_step.pk}.')
+
+    return all_performance_data
+
+
+def get_ncores_from_calcjob(calcjob: orm.CalcJobNode) -> int:
+    """
+    Get the number of cores used by a CalcJob.
+
+    Parameters
+    ----------
+    calcjob : orm.CalcJobNode
+        The CalcJob node to analyze.
+
+    Returns
+    -------
+    int
+        Number of cores used by the CalcJob.
+    """
+    stdout, scheduler = gather_stdout_and_scheduler(calcjob)
+
+    if stdout is None or scheduler is None:
+        return 0
+
+    if 'slurm' in scheduler:
+        header: list[str] = stdout.splitlines()[0].split('|')
+        n_cpu_posc: int = header.index('ReqTRES')
+        content: list[str] = stdout.splitlines()[1].split('|')
+        req_cpu_data = content[n_cpu_posc]
+        n_cpus = int(req_cpu_data.split(',')[1].split('=')[1])
+    elif 'sge' in scheduler:
+        for entry in stdout.splitlines():
+            if 'slots ' in entry:
+                n_cpus = int(entry.split()[1])
+                break
+    else:
+        custom_print(
+            f'Unrecognized scheduler for CalcJob {calcjob.pk}: {scheduler}', 'error'
+        )
+        n_cpus = 0
+    return n_cpus
+
+
+def gather_stdout_and_scheduler(calcjob: orm.CalcJobNode) -> tuple[str, str]:
+    try:
+        scheduler = str(calcjob.computer.get_scheduler()).lower()
+
+        # Get job information
+        stdout = calcjob.get_detailed_job_info().get('stdout')
+
+    except Exception as e:
+        custom_print(f'Error getting scheduler for CalcJob {calcjob.pk}: {e}', 'error')
+        stdout = None
+        scheduler = None
+
+    return stdout, scheduler
+
+
+def get_runtime_from_calcjob(calcjob: orm.CalcJobNode) -> datetime.timedelta:
+    stdout, scheduler = gather_stdout_and_scheduler(calcjob)
+
+    if stdout is None or scheduler is None:
+        return 0
+
+    if 'slurm' in scheduler:
+        header: list[str] = stdout.splitlines()[0].split('|')
+        n_cpu_posc: int = header.index('CPUTimeRAW')
+        content: list[str] = stdout.splitlines()[1].split('|')
+        cpu_time = datetime.timedelta(seconds=int(content[n_cpu_posc]))
+    elif 'sge' in scheduler:
+        for entry in stdout.splitlines():
+            if 'wallclock ' in entry:
+                cpu_time = datetime.timedelta(seconds=int(entry.split()[1]))
+                break
+    else:
+        custom_print(
+            f'Unrecognized scheduler for CalcJob {calcjob.pk}: {scheduler}', 'error'
+        )
+        cpu_time = 0
+    return cpu_time
+
+
+def get_al_step_performance(al_step: orm.WorkChainNode) -> dict:
+    """
+    Get performance information about an AL Step WorkChain.
+
+    Calculates the total duration of the step and the elapsed time
+    spent within each major stage (Training, Descriptors, MD, DFT)
+    by finding the time between the start of the first calculation
+    of that type and the end of the last calculation of that type
+    within the step. Also collects individual calculation durations.
+
+    :param al_step: The AL Step WorkChain node.
+    :return: A dictionary with performance information.
+    """
+    if not isinstance(al_step, orm.WorkChainNode):
+        custom_print(f'Warning: Node {al_step.pk} is not a WorkChainNode. Skipping.')
+        return None
+    if al_step.process_label != AL_STEP_WORKCHAIN_LABEL:
+        custom_print(
+            f"Warning: Node {al_step.pk} has label '{al_step.process_label}',"
+            f" expected '{AL_STEP_WORKCHAIN_LABEL}'. Skipping."
+        )
+        return None
+
+    ctime = al_step.ctime
+    mtime = al_step.mtime
+    step_duration = mtime - ctime if mtime and ctime else datetime.timedelta(0)
+
+    # Initialize dictionaries to store times for each stage
+    stage_stats = {
+        'training': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
+        'descriptors': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
+        'md': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
+        'dft': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
+    }
+
+    # Get all descendant CalcJob nodes
+    # called_descendants includes CalcJobs run by sub-workchains within this step
+    descendant_calcjobs = [
+        node for node in al_step.called_descendants if isinstance(node, orm.CalcJobNode)
+    ]
+
+    # Categorize calculations and collect their times
+    for job in descendant_calcjobs:
+        label = job.process_label
+        job_ctime = job.ctime
+        job_mtime = job.mtime
+        job_duration = get_runtime_from_calcjob(job)
+
+        # Get the number of cores used
+        n_cores = get_ncores_from_calcjob(job)
+
+        if label == TRAINING_LABEL:
+            stage_stats['training']['ctimes'].append(job_ctime)
+            stage_stats['training']['mtimes'].append(job_mtime)
+            stage_stats['training']['durations'].append(job_duration)
+            stage_stats['training']['cores'] = n_cores
+        elif label == DESCRIPTORS_LABEL:
+            stage_stats['descriptors']['ctimes'].append(job_ctime)
+            stage_stats['descriptors']['mtimes'].append(job_mtime)
+            stage_stats['descriptors']['durations'].append(job_duration)
+            stage_stats['descriptors']['cores'] = n_cores
+        elif label == MD_LABEL:
+            stage_stats['md']['ctimes'].append(job_ctime)
+            stage_stats['md']['mtimes'].append(job_mtime)
+            stage_stats['md']['durations'].append(job_duration)
+            stage_stats['md']['cores'] = n_cores
+        elif label == DFT_LABEL:
+            stage_stats['dft']['ctimes'].append(job_ctime)
+            stage_stats['dft']['mtimes'].append(job_mtime)
+            stage_stats['dft']['durations'].append(job_duration)
+            stage_stats['dft']['cores'] = n_cores
+
+    # Calculate total elapsed time for each stage
+    performance_info = {
+        'step': {
+            'pk': al_step.pk,
+            'ctime': ctime,
+            'mtime': mtime,
+            'step_duration': step_duration,
+            'state': al_step.process_state.value,
+            'exit_status': al_step.exit_status,
+        },
+        'stages': {
+            'training': {
+                'duration_list': [],
+                'total_elapsed_time': datetime.timedelta(0),
+            },
+            'descriptors': {
+                'duration_list': [],
+                'total_elapsed_time': datetime.timedelta(0),
+            },
+            'md': {'duration_list': [], 'total_elapsed_time': datetime.timedelta(0)},
+            'dft': {'duration_list': [], 'total_elapsed_time': datetime.timedelta(0)},
+        },
+        'counts': {  # Add counts for clarity
+            'training': 0,
+            'descriptors': 0,
+            'md': 0,
+            'dft': 0,
+        },
+    }
+
+    for stage_name, stats in stage_stats.items():
+        # Check if any calculations of this type were run
+        if stats['ctimes']:
+            min_ctime = min(stats['ctimes'])
+            max_mtime = max(stats['mtimes'])
+            total_elapsed_time = max_mtime - min_ctime
+            performance_info['stages'][stage_name]['total_elapsed_time'] = (
+                total_elapsed_time
+            )
+            performance_info['stages'][stage_name]['duration_list'] = stats['durations']
+            performance_info['stages'][stage_name]['cores'] = stats['cores']
+            performance_info['counts'][stage_name] = len(stats['durations'])
+        else:
+            performance_info['counts'][stage_name] = 0
+            performance_info['stages'][stage_name] = {}
+            performance_info['stages'][stage_name]['duration_list'] = []
+            performance_info['stages'][stage_name]['cores'] = 0
+            performance_info['stages'][stage_name]['total_elapsed_time'] = (
+                datetime.timedelta(0)
+            )
+    return performance_info
+
+
+def plot_performance_stacked_bar(
+    all_performance_data: list[dict], output_filename: str = 'al_loop_performance.png'
+):
+    """
+    Generates a stacked bar chart of stage elapsed times per AL step.
+
+    Parameters
+    ----------
+    all_performance_data : List[Dict]
+        A list containing performance dictionaries for each AL step.
+    output_filename : Optional[str], optional
+        The filename to save the plot. If None, the plot is displayed
+        instead of being saved. Defaults to "al_loop_performance.png".
+    """
+    if not all_performance_data:
+        custom_print('No performance data available to plot.', 'warning')
+        return
+
+    num_steps = len(all_performance_data)
+    step_indices = np.arange(num_steps) + 1
+    step_pks = [
+        step['step']['pk'] for step in all_performance_data
+    ]  # For x-axis labels
+
+    # Prepare data for stacking (convert timedelta to seconds)
+    stage_data_seconds = {key: np.zeros(num_steps) for key in STAGE_KEYS}
+    stage_data_core_h = {key: np.zeros(num_steps) for key in STAGE_KEYS}
+    for i, step_data in enumerate(all_performance_data):
+        for key in STAGE_KEYS:
+            n_cores = step_data['stages'][key]['cores']
+            elapsed_time = step_data['stages'][key]['total_elapsed_time']
+            stage_data_seconds[key][i] = elapsed_time.total_seconds()
+            stage_data_core_h[key][i] = (elapsed_time.total_seconds() / 3600) * n_cores
+
+    # Define colors for stages (adjust as needed)
+    colors = {
+        'training': '#ffa6c8',
+        'descriptors': '#ff8834',
+        'md': '#6aa1f4',
+        'dft': '#3ed04e',
+    }
+    fig, ax = plt.subplots(
+        nrows=2, figsize=(max(10, num_steps * 0.6), 6)
+    )  # Adjust figure size dynamically
+
+    bottoms = np.zeros(num_steps)
+    bottoms_core = np.zeros(num_steps)
+    for key in STAGE_KEYS:
+        ax[0].bar(
+            step_indices,
+            stage_data_seconds[key] / 3600,  # Convert seconds to hours
+            bottom=bottoms,
+            label=key,
+            color=colors.get(key),  # Use defined color or default
+            edgecolor='#282828',
+            linewidth=1,
+        )
+        bottoms += (
+            stage_data_seconds[key] / 3600
+        )  # Add current stage height to bottom for next stack
+        ax[1].bar(
+            step_indices,
+            stage_data_core_h[key],  # Convert seconds to hours
+            bottom=bottoms_core,
+            label=key,
+            color=colors.get(key),  # Use defined color or default
+            edgecolor='#282828',
+            linewidth=1,
+        )
+        bottoms_core += stage_data_core_h[key]
+
+    ax[0].set_ylabel('Elapsed Time (hours)')
+    ax[0].set_xlabel('AL Step Index')
+    ax[0].set_title('AL Loop Performance: Elapsed Time per Stage')
+    ax[0].set_xticks(step_indices)
+
+    # Use PKs as labels, rotate if many steps
+    ax[0].set_xticklabels(
+        [f'{i + 1}' for i, pk in enumerate(step_pks)],
+        rotation=45 if num_steps > 15 else 0,
+        ha='center',
+    )
+    ax[0].legend(title='Stages')
+    ax[0].grid(axis='y', linestyle='--', alpha=0.3)
+
+    # Set y-limit for better visibility
+    ax[0].set_ylim(0, max(bottoms) * 1.1)
+
+    ax[1].set_ylabel(r'Resource consumption ($\mathrm{core} \cdot \mathrm{h}$)')
+    ax[1].set_xlabel('AL Step Index')
+    ax[1].set_title('AL Loop Performance: Resource consumption per Stage')
+    ax[1].set_xticks(step_indices)
+    ax[1].set_xticklabels(
+        [f'{i + 1}' for i, pk in enumerate(step_pks)],
+        rotation=45 if num_steps > 15 else 0,
+        ha='center',
+    )
+    ax[1].legend(title='Stages')
+    ax[1].grid(axis='y', linestyle='--', alpha=0.3)
+
+    # Set y-limit for better visibility
+    ax[1].set_ylim(0, max(bottoms_core) * 1.1)
+
+    # Adjust layout to prevent labels overlapping
+    fig.tight_layout()
+
+    if output_filename:
+        output_path = Path(output_filename)
+        try:
+            plt.savefig(output_path, dpi=300)
+            svg_path = Path(output_path.stem).with_suffix('.svg')
+            plt.savefig(svg_path, dpi=300, format='svg')
+            custom_print(f"Performance plot saved to '{output_path.resolve()}'")
+        except Exception as e:
+            custom_print(f'Error saving plot to {output_path.resolve()}: {e}', 'error')
+    else:
+        custom_print('Displaying performance plot...')
+        plt.show()
+
+
+def print_performance_report(all_performance_data):
+    custom_print('Performance data for all AL steps:')
+    total_md_time = datetime.timedelta(0)
+    total_md_core_h = 0.0
+
+    total_dft_time = datetime.timedelta(0)
+    total_dft_core_h = 0.0
+
+    total_training_time = datetime.timedelta(0)
+    total_training_core_h = 0.0
+
+    total_descriptors_time = datetime.timedelta(0)
+    total_descriptors_core_h = 0.0
+
+    final_time = datetime.timedelta(0)
+    for step_idx, step in enumerate(all_performance_data):
+        custom_print(f'Step {step_idx + 1} PK: {step["step"]["pk"]}:')
+        custom_print(f'  Step duration: {step["step"]["step_duration"]}')
+
+        training_time = step['stages']['training']['total_elapsed_time']
+        training_core_h = (training_time.total_seconds() / 3600) * step['stages'][
+            'training'
+        ].get('cores', 0)
+
+        descriptors_time = step['stages']['descriptors']['total_elapsed_time']
+        descriptors_core_h = (descriptors_time.total_seconds() / 3600) * step['stages'][
+            'descriptors'
+        ].get('cores', 0)
+
+        md_time = step['stages']['md']['total_elapsed_time']
+        md_core_h = (md_time.total_seconds() / 3600) * step['stages']['md'].get(
+            'cores', 0
+        )
+
+        dft_time = step['stages']['dft']['total_elapsed_time']
+        dft_core_h = (dft_time.total_seconds() / 3600) * step['stages']['dft'].get(
+            'cores', 0
+        )
+
+        custom_print(
+            f'  Training stage - time: {training_time},'
+            f' core hours: {training_core_h:.1f}'
+        )
+        custom_print(
+            f'  Descriptors stage stats - time: {descriptors_time},'
+            f' core hours: {descriptors_core_h:.1f}'
+        )
+        custom_print(f'  MD stage stats - time: {md_time}, core hours: {md_core_h:.1f}')
+        custom_print(
+            f'  DFT stage stats - time: {dft_time} core hours: {dft_core_h:.1f}'
+        )
+
+        total_md_time += md_time
+        total_md_core_h += md_core_h
+
+        total_dft_time += dft_time
+        total_dft_core_h += dft_core_h
+
+        total_training_time += training_time
+        total_training_core_h += training_core_h
+
+        total_descriptors_time += descriptors_time
+        total_descriptors_core_h += descriptors_core_h
+
+        final_time += step['step']['step_duration']
+        print()
+
+    custom_print('Timings for the entire AL Loop:')
+    custom_print(
+        f'  Training totals - time: {total_training_time},'
+        f' core hours: {total_training_core_h:.1f}'
+    )
+    custom_print(
+        f'  Descriptors totals - time: {total_descriptors_time},'
+        f'core hours: {total_descriptors_core_h:.1f}'
+    )
+    custom_print(
+        f'  MD totals - time: {total_md_time} s, core hours: {total_md_core_h:.1f}'
+    )
+    custom_print(
+        f'  DFT totals - time: {total_dft_time}, core hours: {total_dft_core_h:.1f}'
+    )
+    print()
+    custom_print(f'  Total loop duration: {final_time}')
+
+
+def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = None):
+    init_logger(source='get_run_performance')
+
+    try:
+        load_profile()
+        custom_print(f"AiiDA profile '{load_profile().name}' loaded.")
+    except Exception as e:
+        custom_print(f'Error loading AiiDA profile: {e}')
+        exit()
+
+    try:
+        # Get the performance data
+        all_performance_data: list[dict] = get_al_loop_performance(al_loop_pk)
+
+    except orm.NotExistent as e:
+        custom_print(f'Node with PK={al_loop_pk} does not exist.', 'error')
+        custom_print(e)
+    except Exception as e:
+        custom_print(f'An unexpected error occurred: {e}', 'error')
+        import traceback
+
+        traceback.print_exc()
+
+    print()
+
+    # Print the performance data
+    print_performance_report(all_performance_data)
+
+    # Plot the performance data
+    plot_performance_stacked_bar(
+        all_performance_data,
+        output_filename=output_filename,
     )

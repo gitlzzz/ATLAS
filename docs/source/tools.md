@@ -20,18 +20,127 @@ Other available subcommands allow to generate reports or resume loops using file
 
 ### Subcommands
 
-#### `report`
+Subcommands define the operating mode of the `mdb_active_learning` tool.
 
-Generates a report for a MatDBForge running/finished active learning loop. This produce a plot containing information about the training and seed databases sizes, the NNP performance and the number of added and removed structures.
+#### `report` - Generate reports
 
-**Usage**: `mdb_active_learning report [-h] (--loop_id <ID> | --log_path <PATH>)`
+Generates different types of reports for a MatDBForge active learning loop or a MatDBForge initial database.
 
-- `--loop_id, -i` (`<ID>`)
-  - **Description**: AiiDA PK/UUID of the active learning loop.
-- `--log_path, -log` (`<PATH>`)
-  - **Description**: Path to the MatDBForge log of the active learning loop.
+**Usage:** `mdb_active_learning report <REPORT_TYPE> [OPTIONS...]`
 
-#### `resume`
+The `report` command requires specifying a `REPORT_TYPE` as a positional argument, followed by options specific to that report type.
+
+**Available `REPORT_TYPE`s:**
+
+- `init_db`: Generate a report for a MatDBForge initial database.
+- `al_loop`: Generate a report for an active learning loop by providing an AiiDA PK/UUID or a log file path.
+- `al_loop_batch`: Generate a report for a series of active learning loops, as a way of comparing them.
+- `al_loop_performance`: Generate a performance report for an active learning loop.
+
+##### Report type: `init_db`
+
+Generates a report for a MatDBForge initial database. This can include plots of energy and force distributions, with options to handle outliers and customize data presentation.
+
+**Usage:** `mdb_active_learning report init_db [-h] --db_path <PATH> [OPTIONS...]`
+
+- `--db_path <PATH>, -d <PATH>`
+  - **Description**: Path to the database file.
+  - **Required**: Yes (as per usage string).
+- `--threshold_E <FLOAT>`
+  - **Description**: Threshold for Energy (E) to consider a structure as an outlier, in eV. If `--per_atom` is enabled, this threshold is in eV/atom.
+  - **Type**: `float`
+- `--threshold_F <FLOAT>`
+  - **Description**: Threshold for Force (F) to consider a structure as an outlier, in eV/Å (or eV/Å per atom if `--per_atom` is enabled).
+  - **Type**: `float`
+- `--remove_outliers`
+  - **Description**: If specified, removes outliers (defined by `--threshold_E` and `--threshold_F`) from the plot.
+  - **Default**: Outliers are included.
+- `--color_type {phase,struct_type}`
+  - **Description**: Specifies the criterion to use for coloring the plot.
+  - **Type**: `Choice`
+  - **Choices**: `phase`, `struct_type`
+- `--per_atom`
+  - **Description**: If specified, displays energy and force values normalized per atom.
+  - **Default**: Values are not normalized per atom.
+- `-h, --help`
+  - **Description**: Show this help message and exit.
+
+##### Report type: `al_loop`
+
+Generates a comprehensive report for a single active learning loop, identified by an AiiDA PK/UUID or a MatDBForge log file path. This report can include plots on database sizes (training and seed), NNP performance metrics, the number of structures added or removed, error analysis plots comparing DFT and NN predictions, and visualization of database evolution in latent space.
+
+**Usage:** `mdb_active_learning report al_loop [-h] (--loop_id <ID> | --log_path <PATH>) [OPTIONS...]`
+
+- `--loop_id <ID>, -i <ID>`
+  - **Description**: AiiDA PK/UUID of the active learning loop. (This or `--log_path` is required).
+- `--log_path <PATH>, -log <PATH>`
+  - **Description**: Path to the MatDBForge log of the active learning loop. (This or `--loop_id` is required).
+- `--device <DEVICE>, -d <DEVICE>`
+  - **Description**: String representing a device to run inference on (e.g., 'cpu', 'cuda:0').
+  - **Type**: `str`
+- `--get_error_plot`
+  - **Description**: If specified, generates an error plot comparing DFT and NN predictions.
+  - **Default**: Not set.
+- `--remove_outliers`
+  - **Description**: If specified (and relevant, e.g., for an error plot), removes outliers from the plot. Thresholds for outlier removal might be specified by other options (e.g., `--threshold_E_meV`, `--threshold_F_meV`, `--threshold_meV`).
+  - **Default**: Outliers are included.
+- `--model <PATH>`
+  - **Description**: Path to the model file (e.g., for generating error plots).
+  - **Type**: `Path`
+- `--database <PATH>`
+  - **Description**: Path to the database file (e.g., for error plots or latent space analysis).
+  - **Type**: `Path`
+- `--threshold_E_meV <FLOAT>`
+  - **Description**: Threshold for the difference between $E_{DFT}$ and $E_{NN}$ (in meV) to mark a structure as an outlier in error plots.
+  - **Type**: `float`
+  - **Default**: `150` (meV)
+- `--threshold_F_meV <FLOAT>`
+  - **Description**: Threshold for the difference between $F_{DFT}$ and $F_{NN}$ (in meV/Å, assuming typical units for forces converted to meV scale for comparison) to mark a structure as an outlier in error plots.
+  - **Type**: `float`
+  - **Default**: `25000` (meV)
+- `--title <TITLE>`
+  - **Description**: Custom run name to be used as the title for plots. If not provided, a name will be gathered from the calculation files.
+  - **Type**: `str`
+- `--db_latent_space_evolution`
+  - **Description**: If specified, plots the database evolution over time in latent space. Requires `--autoencoder_folder`.
+  - **Default**: Not set.
+- `--autoencoder_folder <PATH>`
+  - **Description**: Path to the autoencoder folder. This folder should contain an autoencoder model and the database files for every step, required for `--db_latent_space_evolution`.
+  - **Type**: `Path`
+- `--db_path <PATH>, --d <PATH>`
+  - **Description**: Path to the database file (alternative or additional way to specify a database, context might depend on other flags).
+  - **Type**: `Path`
+- `-h, --help`
+  - **Description**: Show this help message and exit.
+
+##### Report type: `al_loop_batch`
+
+Generates a comparative report for a series of active learning loops. This allows for assessing and contrasting the outcomes or behaviors of multiple loops, typically identified by their AiiDA PKs/UUIDs or log file paths.
+
+**Usage:** `mdb_active_learning report al_loop_batch [OPTIONS...]`
+*(Note: The specific command-line options for `al_loop_batch` were not detailed in the provided help snippets. You may need to run `mdb_active_learning report al_loop_batch --help` directly or consult the tool's source for a complete list of options. It is expected to take identifiers for multiple loops, possibly similar to `--loop_ids` in `al_loop_performance`.)*
+
+- **Description (from general help)**: "Generate a report for a series of active learning loops, as a way of comparing them by providing an AiiDA PK/UUID or a log file path."
+- **Description (from existing markdown)**: "Generate a report for a series of active learning loops, as a way of comparing them by providing an AiiDA PK."
+- `-h, --help`
+  - **Description**: Show this help message and exit.
+
+##### Report type: `al_loop_performance`
+
+Generates a performance report for an active learning loop, focusing on computational aspects. The plots typically display step durations and computational resource usage, which can be useful for identifying bottlenecks or understanding the efficiency of the loop. Multiple AiiDA PKs/UUIDs can be provided for multi-stage loops (e.g., when a loop was resumed).
+
+**Usage:** `mdb_active_learning report al_loop_performance [-h] (--loop_id <ID> | --log_path <PATH>) [OPTIONS...]`
+
+- `--loop_ids <ID> [<ID> ...], -i <ID> [<ID> ...]`
+  - **Description**: AiiDA PK/UUIDs of the active learning loop(s). Several IDs can be provided for multi-stage loops (e.g., when using `resume`) or to analyze multiple distinct loops in a performance context. Get IDs from your log or terminal output.
+  - **Type**: `List[str|int]`
+- `--output_filename <PATH>, -o <PATH>`
+  - **Description**: Filename for the report plot to be generated.
+  - **Type**: `Path`
+- `-h, --help`
+  - **Description**: Show this help message and exit.
+
+#### `resume` - Resume Stopped AL Loops
 
 Resumes an active learning loop using a results folder. A resumed run will use the settings from the `.toml` file contained in the results folder.
 

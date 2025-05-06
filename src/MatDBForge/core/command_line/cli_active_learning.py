@@ -482,10 +482,23 @@ def run_active_learning():
     )
 
     al_loop_report_parser.add_argument(
-        '--threshold_meV',
-        help=('Threshold to consider a structure as outlier, in meV. Default is 100.'),
+        '--threshold_E_meV',
+        help=(
+            'Threshold for the difference between E_DFT and E_NN to mark a structure as'
+            ' an outlier, in meV. Default is 150 meV.'
+        ),
         metavar='<FLOAT>',
-        default=100.0,
+        default=150.0,
+        required=False,
+    )
+    al_loop_report_parser.add_argument(
+        '--threshold_F_meV',
+        help=(
+            'Threshold for the difference between F_DFT and F_NN to mark a structure as'
+            ' an outlier, in meV. Default is 25000 meV.'
+        ),
+        metavar='<FLOAT>',
+        default=2.5e4,
         required=False,
     )
 
@@ -551,6 +564,43 @@ def run_active_learning():
         help=('Remove outliers from the error plot'),
         action='store_const',
         const=True,
+    )
+
+    # Create the subparser for the 'al_loop' subcommand
+    al_loop_performance_report_parser = report_subparsers.add_parser(
+        'al_loop_performance',
+        help=(
+            'Generate a performance report for an active learning loop '
+            'by providing an AiiDA PK/UUID or a log file path.'
+        ),
+        usage=(
+            'run_active_learning report al_loop_performance '
+            '(--loop_id <ID> | --log_path <PATH>)'
+            '\nGenerate a report for an active learning loop by providing an AiiDA '
+            'PK/UUID or a log file path.'
+        ),
+    )
+
+    # Add arguments specific to the 'report' subcommand
+    al_loop_performance_report_parser.add_argument(
+        '--loop_ids',
+        '-i',
+        nargs='+',
+        help=(
+            'AiiDA PK/UUIDs of the active learning loop. '
+            'Several IDs can be provided for multi-stage loops'
+            ' (e.g., when using resume)'
+        ),
+        metavar='<ID>',
+    )
+    # Add arguments specific to the 'report' subcommand
+    al_loop_performance_report_parser.add_argument(
+        '--output_filename',
+        '-o',
+        help=('Filename for the report plot to generate'),
+        metavar='<PATH>',
+        default=None,
+        required=False,
     )
 
     # Create the subparser for the 'resume' command
@@ -659,7 +709,8 @@ def run_active_learning():
                 get_error_plot=args.get_error_plot,
                 model_path=args.model,
                 database_path=args.database,
-                threshold_meV=float(args.threshold_meV),
+                threshold_E_meV=float(args.threshold_E_meV),
+                threshold_F_meV=float(args.threshold_F_meV),
                 remove_outliers=args.remove_outliers,
                 title=args.title,
                 get_latent_space=args.db_latent_space_evolution,
@@ -678,6 +729,13 @@ def run_active_learning():
         elif args.subcommand == 'al_loop_batch':
             # Generating a report for an initial database
             mdb_report.gen_batch_report(training_db_path=args.db_path)
+
+        elif args.subcommand == 'al_loop_performance':
+            # Generating a report for an initial database
+            mdb_report.gen_performance_report(
+                al_loop_pk=args.loop_ids,
+                output_filename=args.output_filename,
+            )
 
     # Resume a previous calculation
     elif args.command == 'resume':
