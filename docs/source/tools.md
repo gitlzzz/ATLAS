@@ -153,7 +153,7 @@ Resumes an active learning loop using a results folder. A resumed run will use t
   - **Description**: Path pointing to a TOML settings file. Optional, as all calculation folders should contain a TOML file.
   - **Default**: `None`
 
-#### `gui`
+#### `gui` - Launch dashboard
 
 Launches a dashboard to track the active learning loop.
 
