@@ -509,7 +509,7 @@ def apply_filters_db(
             appl_filt = filtered_df.loc[filtered_df[filt]]
             appl_filter_db_list.append(appl_filt)
             custom_print(
-                f"Applied filter: '{filt}' - {len(appl_filt)} structs filtered.",
+                f"Applied filter: '{filt}' - {len(appl_filt)} structs selected.",
                 'debug',
             )
 
