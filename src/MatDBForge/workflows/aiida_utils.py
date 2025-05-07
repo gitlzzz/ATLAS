@@ -17,7 +17,6 @@ from aiida.engine import submit
 from aiida.orm import Bool, Dict, Group, Int, List, Str, StructureData
 from aiida.orm.nodes.data.array.kpoints import KpointsData
 from aiida.plugins import WorkflowFactory
-from aiida_vasp.utils.aiida_utils import get_data_node
 from ase import Atoms
 from ase.io import write as ase_write
 from pymatgen.core.surface import Slab
@@ -184,7 +183,9 @@ class CalcType(Enum):
     SP_BULK = 'single_point_bulk'
     SP_SURFACE = 'single_point_surface'
     SP_CLUSTER = 'single_point_cluster'
-    RELAX = 'relaxation'
+    RELAX_BULK = 'relaxation_bulk'
+    RELAX_SURFACE = 'relaxation_surface'
+    RELAX_CLUSTER = 'relaxation_cluster'
     SP_ISOLATEDATOM = 'single_point_isolatedatom'
 
     @classmethod
@@ -194,10 +195,14 @@ class CalcType(Enum):
             'sp_bulk': cls.SP_BULK,
             'sp_surface': cls.SP_SURFACE,
             'sp_cluster': cls.SP_CLUSTER,
-            'relax': cls.RELAX,
-            'relaxation': cls.RELAX,
-            'relaxation_bulk': cls.RELAX,
-            'relaxation_surface': cls.RELAX,
+            # 'relax': cls.RELAX,
+            # 'relaxation': cls.RELAX,
+            'relaxation_bulk': cls.RELAX_BULK,
+            'relaxation_cluster': cls.RELAX_CLUSTER,
+            'relax_bulk': cls.RELAX_BULK,
+            'relaxation_surface': cls.RELAX_SURFACE,
+            'relax_surface': cls.RELAX_SURFACE,
+            'relax_cluster': cls.RELAX_CLUSTER,
             'single_point_bulk': cls.SP_BULK,
             'static': cls.SP_BULK,
             'static_bulk': cls.SP_BULK,
@@ -217,6 +222,7 @@ class CalcType(Enum):
             'sp_isolatedatom': cls.SP_ISOLATEDATOM,
             'IsolatedAtom': cls.SP_ISOLATEDATOM,
             'isolated_atom': cls.SP_ISOLATEDATOM,
+            'single_point_isolatedatom': cls.SP_ISOLATEDATOM,
         }
         return aliases.get(value)
 
@@ -439,7 +445,6 @@ def submit_aiida_vasp_calculation(
     )
     # print('kpoints_data: ', kpoints_data)
     # quit()
-
     # Get selective dynamics
     selective_dynamics = None
     if target_structure.site_properties.get('selective_dynamics'):
@@ -467,54 +472,62 @@ def submit_aiida_vasp_calculation(
 
     # Defining the vasp.relax workchain object
     workchain = WorkflowFactory('vasp.relax')
+    print('workchain: ', workchain)
 
     # Preparing a builder object to be able to submit the workchain
     # and pass inputs to it
     builder = workchain.get_builder()
 
     # Passing the all inputs to the builder object
-    builder['code'] = code
+    builder.vasp.code = code
 
     if selective_dynamics:
         builder['dynamics'] = selective_dynamics
 
-    # Assembling the builder object
+    # Passing structure
+    builder['structure'] = structure
+
+    # Assembling the builder.vasp object
     # Entries available for the options dict:
     # https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/calculations/usage.html?highlight=options#options
-    builder['options'] = Dict(options)
-    # builder["parameters"] = Dict(incar)
-    builder['parameters'] = Dict(upper_incar)
-    builder['potential_family'] = Str(potential_family)
-    builder['potential_mapping'] = Dict(potential_mapping)
-    builder['structure'] = structure
-    builder['metadata'] = metadata_dict
-    builder['max_iterations'] = Int(2)
-    builder['verbose'] = Bool(True)
-    builder['kpoints'] = kpoints_data
+    builder.vasp['options'] = Dict(options)
+    # builder.vasp["parameters"] = Dict(incar)
+    builder.vasp['parameters'] = Dict(upper_incar)
+    builder.vasp['potential_family'] = Str(potential_family)
+    builder.vasp['potential_mapping'] = Dict(potential_mapping)
+    builder.vasp['metadata'] = metadata_dict
+    # builder.vasp['max_iterations'] = Int(2)
+    builder.vasp['verbose'] = Bool(True)
+    builder.vasp['kpoints'] = kpoints_data
 
     if dry_run:
         options['metadata'] = {}
         options['metadata']['dry_run'] = True
 
     # Setting parser options
-    builder['settings'] = Dict(PARSER_DICT)
+    builder.vasp['settings'] = Dict(PARSER_DICT)
 
     # Setting custom settings for the critical notifications
     custom_parser_settings = aiida_vasp_settings.get('parser_settings', {})
     for key, value in custom_parser_settings.items():
-        builder['settings']['parser_settings'][key] = value
+        builder.vasp['settings']['parser_settings'][key] = value
 
     critical_notifications = custom_parser_settings.get('critical_notifications', {})
     for key, value in critical_notifications.items():
-        builder['settings']['parser_settings']['critical_notifications'][key] = value
+        builder.vasp['settings']['parser_settings']['critical_notifications'][key] = (
+            value
+        )
 
-    if calc_type.value.lower() == 'sp':
-        builder['perform_static'] = Bool(True)
-        builder['relax']['perform'] = Bool(False)
+    # Preparing relaxation settings
+    builder.relax_settings = Dict()
+    if 'single_point' in calc_type.value.lower():
+        builder.relax_settings['perform_static'] = True
+        builder.relax_settings['perform'] = False
 
-    elif calc_type.value.lower() == 'relax':
-        builder['perform_static'] = Bool(False)
-        builder['relax']['perform'] = Bool(True)
+    elif 'relaxation' in calc_type.value.lower():
+        builder.relax_settings['perform_static'] = False
+        builder.relax_settings['perform'] = True
+        builder.relax_settings['convergence_max_iterations'] = Int(1)
 
     if dry_run:
         # TODO: Generate a fake node and return it
@@ -523,7 +536,6 @@ def submit_aiida_vasp_calculation(
     if return_builder:
         mdb_cud.custom_print('Returning builder.', 'debug')
         return builder
-
     else:
         # Submitting the calculation.
         # Aiida should handle the scheduler, ssh connection and result
@@ -549,7 +561,6 @@ def submit_aiida_vasp_calculation(
 
         if group:
             group.add_nodes(node)
-
     return node
 
 
@@ -818,8 +829,8 @@ def update_db_with_dft_results(sel_struct_db, queue):
             if node.exit_status:
                 # Skipping failed calculations, and printing a warning.
                 mdb_cud.custom_print(
-                    f"[bold yellow]Skipping calc. {node.pk} ('{unique_id}') with status"
-                    f" '{node.exit_status}'.[/]",
+                    f"[bold yellow]Skipping calc. {node.pk} ('struct_id: {unique_id}')"
+                    f" with status '{node.exit_status}'.[/]",
                     'warning',
                 )
                 num_error += 1
@@ -891,7 +902,8 @@ def run_dataframe_vasp_aiida_queue(
     ctime = time.strftime('%Y%m%dT%H%M%S')
 
     # Adding the current time to the results path
-    results_path = results_path.with_stem(f'mdb_dft_{ctime}_' + results_path.stem)
+    stem = f'mdb_dft_{ctime}_{results_path.stem}'
+    results_path = results_path.with_stem(stem)
 
     # Adding xyz suffix if not present
     if results_path.suffix != '.xyz':
@@ -1095,10 +1107,10 @@ def run_dataframe_vasp_aiida_queue(
                 current_row_index += 1
                 continue
 
-            calc_type: mdb_aut.CalcType = config_dict.get('calculation', {}).get(
-                'calc_type'
+            calc_type_str = (
+                config_dict.get('calculation', {}).get('calc_type') + '_' + struct_type
             )
-            calc_type_str = calc_type + '_' + struct_type
+            # calc_type: mdb_aut.CalcType =
             calc_type = mdb_aut.CalcType.from_string(calc_type_str)
 
             incar_dict = config_dict.get('incar', {}).get(struct_type, None)
@@ -1386,7 +1398,6 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
             f'{kpoints_data.get_kpoints_mesh()}',
             'debug',
         )
-
     return kpoints_data
 
 
@@ -1516,14 +1527,6 @@ def generate_potential_mapping(assign_dict=None) -> dict:
             potential_mapping[symbol] = symbol
 
     return potential_mapping
-
-
-def default_array(name, array):
-    """Used to set ArrayData for spec.input."""
-    array_cls = get_data_node('array')
-    array_cls.set_array(name, array)
-
-    return array_cls
 
 
 def get_vdw_params(structure, incar):
