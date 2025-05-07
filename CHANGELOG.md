@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.26.0 (2025-05-07)
+
+### Feature
+
+- **al_loop**: add optional threshold filter for new NN-DFT results - Implemented `filter_dft_calcs_threshold` function to compare new DFT   results against prior NN predictions. - Modified `get_dft_calc_builder_mace_list` to ensure prior NN predictions   are stored as `curr_model_energy`/`curr_model_forces` on structures   before they are submitted for DFT. - Integrated this filtering step into the `SimpleActiveLearningWorkChain`   after DFT calculations are gathered and before they are added to the   training database. - Added new configuration options (`filter_dft_calcs`, `threshold_E_meV`,   `threshold_F_meV`) under the `dft.mace.filters` section in   `active_learning_settings.toml` and updated documentation in `input.md`. - Refactored `gather_dft_calcs_mace` to return a list of serialized ASE   Atoms objects instead of a file path, facilitating in-memory processing   such as the new filtering step. - Minor formatting adjustments in documentation. ([#88cfe57](https://github.com/pol-sb/MatDBForge/commit/88cfe57612dd54dbbd34fdc42dea300de07ef3fd))
+- **report**: Add AL performance reports and revamp docs ([#b0f0049](https://github.com/pol-sb/MatDBForge/commit/b0f0049c685e6cd0f262de120535c0ebeef05f3a))
+
+### Fix
+
+- **core**: updated aiida utils to enable compatibility with VASP DFT structure relaxation ([#2ea059e](https://github.com/pol-sb/MatDBForge/commit/2ea059e06f8059cf9a31def2680a1381f940cf1b))
+- **init_db**: replaced old `lattice_frac_displ_` keys with `lattice_frac_deform_` key usage ([#0df0563](https://github.com/pol-sb/MatDBForge/commit/0df0563a53b650ea0ce435f547864cd948e372c8))
+
 ## 0.25.3 (2025-04-22)
 
 ### Fix
