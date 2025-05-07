@@ -279,7 +279,6 @@ class InitialDatabase:
         # Loading the database
         elif '.xz' in db_path.suffixes or suffix == '.xz':
             suffix = '.xz'
-            print('db_path: ', db_path)
             with lzma.open(db_path, 'rb') as f:
                 database = pickle.load(f)
 
@@ -305,8 +304,6 @@ class InitialDatabase:
         dict
             Dictionary containing the database information in different categories.
         """
-        mdb_cud.custom_print(f"Generating report for '{self.database_name}'...", 'info')
-
         # Getting the amount of entries in the database
         # count = len(self.df.count(axis=1))
         count = len(self.df.index)
@@ -325,15 +322,19 @@ class InitialDatabase:
 
         struct_info_dict = {
             'structure_count': {
-                'bulk': 0,
-                'base': 0,
-                'surface': 0,
-                'cluster': 0,
-                'perturb': 0,
-                'vacancy': 0,
-                'deformation': 0,
-                'md': 0,
-                'isolated_atom': 0,
+                'by_type': {
+                    'bulk': 0,
+                    'base': 0,
+                    'surface': 0,
+                    'cluster': 0,
+                    'isolated_atom': 0,
+                    'md': 0,
+                },
+                'by_modification': {
+                    'perturb': 0,
+                    'vacancy': 0,
+                    'deformation': 0,
+                },
             },
             'phases': {},
         }
@@ -343,17 +344,17 @@ class InitialDatabase:
 
         for struct in self.df.iterrows():
             if hasattr(struct[1], 'init_md') and struct[1].init_md:
-                struct_info_dict['structure_count']['md'] += 1
+                struct_info_dict['structure_count']['by_type']['md'] += 1
             elif hasattr(struct[1], 'phase') and struct[1].phase == 'IsolatedAtom':
-                struct_info_dict['structure_count']['isolated_atom'] += 1
+                struct_info_dict['structure_count']['by_type']['isolated_atom'] += 1
             elif hasattr(struct[1], 'base') and struct[1].base:
-                struct_info_dict['structure_count']['base'] += 1
+                struct_info_dict['structure_count']['by_type']['base'] += 1
             elif hasattr(struct[1], 'bulk') and struct[1].bulk:
-                struct_info_dict['structure_count']['bulk'] += 1
+                struct_info_dict['structure_count']['by_type']['bulk'] += 1
             elif hasattr(struct[1], 'surface') and struct[1].surface:
-                struct_info_dict['structure_count']['surface'] += 1
+                struct_info_dict['structure_count']['by_type']['surface'] += 1
             elif hasattr(struct[1], 'cluster') and struct[1].cluster:
-                struct_info_dict['structure_count']['cluster'] += 1
+                struct_info_dict['structure_count']['by_type']['cluster'] += 1
 
             if (
                 hasattr(struct[1], 'targeted_modification')
@@ -364,16 +365,22 @@ class InitialDatabase:
                 if mod_type == 'central_atom_perturbation':
                     mod_type = 'oct_perturb'
 
-                if not struct_info_dict['structure_count'].get(mod_type):
-                    struct_info_dict['structure_count'][mod_type] = 1
+                if not struct_info_dict['structure_count']['by_modification'].get(
+                    mod_type
+                ):
+                    struct_info_dict['structure_count']['by_modification'][mod_type] = 1
                 else:
-                    struct_info_dict['structure_count'][mod_type] += 1
+                    struct_info_dict['structure_count']['by_modification'][
+                        mod_type
+                    ] += 1
             elif hasattr(struct[1], 'vacancy') and struct[1].vacancy:
-                struct_info_dict['structure_count']['vacancy'] += 1
+                struct_info_dict['structure_count']['by_modification']['vacancy'] += 1
             elif hasattr(struct[1], 'deformation') and struct[1].deformation:
-                struct_info_dict['structure_count']['deformation'] += 1
+                struct_info_dict['structure_count']['by_modification'][
+                    'deformation'
+                ] += 1
             elif hasattr(struct[1], 'perturb') and struct[1].perturb:
-                struct_info_dict['structure_count']['perturb'] += 1
+                struct_info_dict['structure_count']['by_modification']['perturb'] += 1
 
             if struct[1].phase not in struct_info_dict['phases']:
                 struct_info_dict['phases'][struct[1].phase] = 1
@@ -396,8 +403,17 @@ class InitialDatabase:
         )
 
         # Sorting structure count dictionary by values
-        struct_info_dict['structure_count'] = dict(
-            sorted(struct_info_dict['structure_count'].items(), key=lambda x: x[1])
+        struct_info_dict['structure_count']['by_type'] = dict(
+            sorted(
+                struct_info_dict['structure_count']['by_type'].items(),
+                key=lambda x: x[1],
+            )
+        )
+        struct_info_dict['structure_count']['by_modification'] = dict(
+            sorted(
+                struct_info_dict['structure_count']['by_modification'].items(),
+                key=lambda x: x[1],
+            )
         )
 
         # Sorting phase dictionary by values
@@ -2773,7 +2789,7 @@ class InitialDatabase:
         fig_path: str | pl.Path = '.',
         fig_name: str = 'database_composition',
         # fig_format: str = 'png',
-        max_phases_pie: int = 5,
+        max_phases_pie: int = 6,
     ):
         # Updating matplotlib rcParams
         for key, value in rc_params.items():
@@ -2924,10 +2940,7 @@ class InitialDatabase:
             return custom_format
 
         # Plotting bar chart (top)
-        top_dict = db_report['structure_count'].copy()
-        to_remove = ('bulk', 'surface', 'cluster', 'isolated_atom', 'base', 'md')
-        for key in to_remove:
-            top_dict.pop(key, None)
+        top_dict = db_report['structure_count']['by_modification'].copy()
         y_pos_bar = range(len(top_dict.keys()))
         bar_chart_ax.barh(
             y=y_pos_bar,
@@ -2950,11 +2963,8 @@ class InitialDatabase:
                 fontsize='small',
             )
 
-        # Plotting bar chart (bottom)
-        bottom_dict = db_report['structure_count'].copy()
-        to_remove = ('deformation', 'vacancy', 'oct_perturb', 'perturb')
-        for key in to_remove:
-            bottom_dict.pop(key, None)
+        # Plotting bar chart with modifications (bottom)
+        bottom_dict = db_report['structure_count']['by_type'].copy()
         y_pos_bar = range(len(bottom_dict.keys()))
         bar_chart_ax_2.barh(
             y=y_pos_bar,
@@ -2984,7 +2994,10 @@ class InitialDatabase:
         if len(db_report['phases']) > max_phases_pie:
             phase_count = 0
             for phase in db_report['phases']:
-                if phase_count < max_phases_pie:
+                # Remove Isolated atom from the pie chart
+                if phase == 'IsolatedAtom':
+                    continue
+                elif phase_count < max_phases_pie:
                     short_phase_dict[phase] = db_report['phases'][phase]
                     phase_count += 1
                 else:
@@ -3194,6 +3207,10 @@ def cli_gen_db_report(database_path: pl.Path | str):
     dict
         Report of the database.
     """
+    # Get logger
+    mdb_cud.init_logger(source='db_report')
+    mdb_cud.custom_print('Generating database report...', 'info')
+
     # Initialize the database
     structures = indb.InitialDatabase(
         create_db=False,
@@ -3415,7 +3432,11 @@ def cli_run_gen_initial_database(
             continue
 
         if 'bulk' in gen_dict:
-            mdb_cud.custom_print('Generating bulk structures...', 'info')
+            step_name = 'bulk generation'
+            mdb_cud.custom_print(
+                f"Step '{step_name}' - Generating bulk structures...", 'info'
+            )
+            ini_n_structs = len(structures)
 
             # Generating bulk structures.
             structures.generate_bulk_structures(
@@ -3432,10 +3453,15 @@ def cli_run_gen_initial_database(
                 seed=rng_seed,
             )
 
-            output_db_status(structures)
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
 
         if 'surface' in gen_dict:
-            mdb_cud.custom_print('Generating surface structures...', 'info')
+            step_name = 'surface generation'
+            mdb_cud.custom_print(
+                f'Step {step_name} - Generating surface structures...', 'info'
+            )
+            ini_n_structs = len(structures)
 
             # Generating surface structures.
             mdb_surf.gen_surfaces_diff_miller_parallel(
@@ -3464,8 +3490,9 @@ def cli_run_gen_initial_database(
                     gen_dict['surface'].get('n_workers', max(cpu_count() - 1, 1))
                 ),
             )
-
-            output_db_status(structures)
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
+            # output_db_status(structures)
 
         if 'cluster' in gen_dict:
             raise NotImplementedError('Cluster type not implemented yet')
@@ -3483,8 +3510,11 @@ def cli_run_gen_initial_database(
         # Lattice deformation
         if 'deformation' in config_dict:
             displ_dict = config_dict['deformation']
-
-            mdb_cud.custom_print('Applying deformations to lattices.', 'info')
+            step_name = 'lattice deformation'
+            mdb_cud.custom_print(
+                f'Step {step_name} - Applying deformations to lattices.', 'info'
+            )
+            ini_n_structs = len(structures)
 
             structures.apply_min_deformation(
                 frac_max=float(displ_dict['lattice_frac_deform_max']),
@@ -3496,7 +3526,6 @@ def cli_run_gen_initial_database(
                 filters=displ_dict.get('filter_struct_types'),
                 rng_seed=rng_seed,
             )
-            output_db_status(structures)
 
             remove_count = structures.remove_structs_out_of_cell_size_range(
                 min_cell_size=float(db_dict['min_cell_size'])
@@ -3504,12 +3533,18 @@ def cli_run_gen_initial_database(
             mdb_cud.custom_print(
                 f'Removed {remove_count} structures out of cell size range.', 'info'
             )
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
+
         if 'perturbation' in config_dict:
+            step_name = 'random perturbation'
             perturb_dict = config_dict['perturbation']
             mdb_cud.custom_print(
-                'Applying a random perturbation to the structures...',
+                f'Step {step_name} - Applying a random perturbation'
+                ' to the structures...',
                 'info',
             )
+            ini_n_structs = len(structures)
 
             ut.apply_gauss_perturb_db(
                 db_obj=structures,
@@ -3522,18 +3557,21 @@ def cli_run_gen_initial_database(
                 ),
             )
 
-            output_db_status(structures)
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
 
         # Applying vacancies to a random subset of structures
         if 'vacancies' in config_dict:
+            step_name = 'vacancy generation'
             vacancies_dict = config_dict['vacancies']
             mdb_cud.custom_print(
                 (
-                    f'Applying vacancies to a random subset of '
+                    f'Step - {step_name} - Applying vacancies to a random subset of '
                     f'{vacancies_dict["limit_max_num_vacancies"]} structures...'
                 ),
                 'info',
             )
+            ini_n_structs = len(structures)
 
             structures.apply_vacancies_random(
                 max_vac_perc=vacancies_dict['max_vacancy_percentage'],
@@ -3545,26 +3583,31 @@ def cli_run_gen_initial_database(
                 element_list=vacancies_dict['element_list'],
                 phase=phase,
             )
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
 
         # Limiting structures for current phase
         lim_phas_structs = phase_diagram_dict['phase'][phase.original_name].get(
             'limit_max_num_structures'
         )
         if lim_phas_structs:
+            step_name = 'limiting structures'
             mdb_cud.custom_print(
                 (
-                    'Limiting number of structures '
+                    f'Step - {step_name} - Limiting number of structures '
                     f"from phase '{phase.name}' to {lim_phas_structs}."
                 ),
                 'info',
             )
+            ini_n_structs = len(structures)
             structures = ut.limit_num_structures_phase(
                 structures,
                 phase,
                 lim_phas_structs,
                 rng_seed,
             )
-            output_db_status(structures)
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
 
     print()
     mdb_cud.custom_print(
@@ -3574,12 +3617,14 @@ def cli_run_gen_initial_database(
     print()
 
     if 'adsorbates' in config_dict:
+        step_name = 'adsorbate generation'
         mdb_cud.custom_print(
-            'Adding adsorbates on top of the structures...',
+            f'Step {step_name} - Adding adsorbates on top of the structures...',
             'info',
         )
-
+        ini_n_structs = len(structures)
         adsorb_dict = config_dict['adsorbates']
+
         ut.add_adsorbates(
             db_obj=structures,
             repeat=int(adsorb_dict['num_repeats']),
@@ -3589,12 +3634,19 @@ def cli_run_gen_initial_database(
             adsorbate_species=adsorb_dict['adsorbate_species'],
         )
 
-        output_db_status(structures)
+        added_structs = len(structures) - ini_n_structs
+        report_completed_step(phase, structures, added_structs, step_name=step_name)
 
     # Run short MD simulations for some unperturbed structures
     # to get some MD information.
     if 'md_gen' in config_dict:
+        mdb_cud.custom_print(
+            f'Step {step_name} - Running MD on base structures...',
+            'info',
+        )
+        step_name = 'MD generation'
         md_gen_dict: dict = config_dict['md_gen']
+        ini_n_structs = len(structures)
 
         structures.gen_init_md_frames(
             phase=structures.df.phase.unique(),
@@ -3604,15 +3656,26 @@ def cli_run_gen_initial_database(
             md_gen_dict=md_gen_dict,
         )
 
+        added_structs = len(structures) - ini_n_structs
+        report_completed_step(phase, structures, added_structs, step_name=step_name)
+
     print()
     if 'struct_filters' in config_dict:
-        filtered_idxs = apply_struct_filters_mdb_db(structures, config_dict)
+        step_name = 'applying filters'
         mdb_cud.custom_print(
-            f'Filtered {len(filtered_idxs)} structures based on user-defined filters.',
+            f'Step {step_name} - Applying user-defined filters to structures...',
             'info',
         )
-        output_db_status(structures)
+        ini_n_structs = len(structures)
 
+        # Apply user-defined filters to the structures
+        filtered_idxs = apply_struct_filters_mdb_db(structures, config_dict)
+        mdb_cud.custom_print(
+            f'Removed {len(filtered_idxs)} structures based on user-defined filters.',
+            'info',
+        )
+        added_structs = len(structures) - ini_n_structs
+        report_completed_step(phase, structures, added_structs, step_name=step_name)
     # Add function to check all atom type in database and
     # # create a structure for each atom type that contains a single atom
     # # in a vaccuum, and it is labelled with `config_type=IsolatedAtom`.
@@ -3689,6 +3752,42 @@ def cli_run_gen_initial_database(
     if db_dict.get('show_db_ase', {}).get('show'):
         mdb_cud.custom_print('Displaying database in ASE...', 'info')
         structures.display_db_ase()
+
+
+def report_completed_step(
+    phase: mdb_pd.Phase,
+    structures: InitialDatabase,
+    added_structs: int,
+    step_name: str = 'unknown',
+):
+    """
+    Report the completion of a step in the database generation process.
+
+    Parameters
+    ----------
+    phase : mdb_pd.Phase
+        The phase for which the step was completed.
+    structures : InitialDatabase
+        The database object containing the structures.
+    added_structs : int
+        The number of structures added in this step.
+    step_name : str, optional
+        The name of the step that was completed, by default 'unknown'.
+    """
+    mdb_cud.custom_print(
+        f"Step {step_name} complete for phase '{phase.name}'.", 'debug'
+    )
+    mdb_cud.custom_print(f'Structures added: {added_structs}', 'debug')
+    mdb_cud.custom_print(f'Current DB total: {len(structures)}', 'debug')
+    db_report = structures.gen_report()
+    mdb_cud.custom_print(
+        f'Current DB breakdown: {db_report["structure_count"]["by_type"]}', 'debug'
+    )
+    mdb_cud.custom_print(
+        f'Modifications applied in DB (cumulative count): '
+        f'{db_report["structure_count"]["by_modification"]}',
+        'debug',
+    )
 
 
 def get_database_report(structures: InitialDatabase):
