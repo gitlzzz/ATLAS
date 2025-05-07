@@ -536,10 +536,10 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 MACE Settings as DFT calculator. Ignored if dft_method = "vasp"
 Options intended for MACE will be passed as arguments during MACE execution. The scheduler options will be used in the builder.metadata.options from AiiDA.
 
-- `mace_potential_path`(str): Path to MACE potential file
-- `device` (str): "cuda"           # Options: "cpu", "cuda"
-- `default_dtype` (str): "float32" # Options: "float32", "float64"
-- `batch_size` (int): 64
+- `mace_potential_path`: (str) Path to MACE potential file
+- `device`: (str) "cuda"           # Options: "cpu", "cuda"
+- `default_dtype`: (str) "float32" # Options: "float32", "float64"
+- `batch_size`: (int) 64
 - `compute_stress`(bool): true     # Options: true, false
 - `options.parser_name`: "mace-eval-parser"
 - `options.code_string`: "mace_run_eval_gpu@tekla2-new-test"
@@ -547,7 +547,7 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 - `options.max_wallclock_seconds`: 117280000
 - `options.withmpi`: false
 - `options.max_memory_kb`: 102400000
-- `options.custom_scheduler_commands`(str): Additional options for the scheduler, such as setting the hostname:
+- `options.custom_scheduler_commands`: (str) Additional options for the scheduler, such as setting the hostname:
 
 ```bash
 '''
@@ -555,6 +555,10 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 #$ -l hostname="tekla2189"
 '''
 ```
+
+- `filter.filter_dft_calcs`: (bool) Whether to enable the threshold-based filtering. It will be applied to all NN DFT calcs just before adding them to the training database. Default is `false`.
+- `filter.threshold_E_meV`: (float) Threshold in meV for the energy difference between the MACE and DFT energies. If the difference is larger than this value, the structure will be filtered out.
+- `filter.threshold_F_meV`: (float) Threshold in meV for the force difference between the MACE and DFT forces. If the difference is larger than this value, the structure will be filtered out.
 
 #### VASP as DFT calculator - `[dft.vasp]`
 

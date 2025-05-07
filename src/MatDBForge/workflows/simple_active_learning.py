@@ -895,6 +895,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 'bulk_wyckoff',
                 'spacegroup_kinds',
                 'mdb_mace_eval_forces',
+                'curr_model_forces',
             ]:
                 if curr_structure.get(key):
                     curr_structure[key] = np.array(curr_structure[key])
@@ -1283,6 +1284,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         MACE models, and this check also outputted to the workchain using the
         namespace `stop_md_seed_no_disagreement`.
         """
+        self.report('Gathering DFT calculations...')
+
         # Getting the results directory if not in the context
         if not hasattr(self.ctx, 'results_dir'):
             self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
@@ -1308,10 +1311,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 )
                 if len(dft_calcs_ok) == 0:
                     self.report('No DFT calculations finished correctly.')
-                    return_list_path = ''
+                    dft_calc_list = ''
                 else:
                     dft_calc_list = mdb_al_ut.gather_dft_calcs_vasp(dft_calcs_ok)
-                    return_list_path, results_dir = (
+                    dft_calc_list, results_dir = (
                         mdb_al_ut.write_gathered_dft_calcs_to_file(
                             dft_calc_list=dft_calc_list,
                             results_dir=str(self.ctx.results_dir),
@@ -1319,7 +1322,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     )
 
             except AttributeError:
-                return_list_path = ''
+                dft_calc_list = ''
 
         elif self.inputs.dft_method == 'mace':
             if hasattr(self.ctx, 'dft_struct_seed_calcs'):
@@ -1334,19 +1337,44 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 dft_calcs_ok = [node.uuid for node in dft_calcs if node.is_finished_ok]
                 if len(dft_calcs_ok) == 0:
                     self.report('No DFT calculations finished correctly.')
-                    return_list_path = ''
+                    dft_calc_list = ''
                 else:
                     # Gather all MACE evaluations, storing results into a file,
                     # stored in `result_list_path`.
                     # Results are filtered to remove outliers. Outliers are
                     # stored in a separate file in the same folder.
-                    return_list_path: str = mdb_al_ut.gather_dft_calcs_mace(
+                    dft_calc_list: str = mdb_al_ut.gather_dft_calcs_mace(
                         dft_calc_list=dft_calcs_ok,
                         results_dir=str(self.ctx.results_dir),
                         workchain=self.node.uuid,
                     )
             except AttributeError:
-                return_list_path = ''
+                dft_calc_list = ''
+
+        # Run filtering step based on NN vs DFT difference threshold for both E and F
+        filter_settings = self.inputs.dft_settings.get('filter', {})
+        if filter_settings.get('filter_dft_calcs', False):
+            threshold_E_meV = filter_settings.get('threshold_E_meV', 1e3)
+            threshold_F_meV = filter_settings.get('threshold_F_meV', 1e4)
+            self.report(
+                'Removing DFT structures with differences higher than: '
+                f'E - {threshold_E_meV} meV, F - {threshold_F_meV} meV'
+            )
+            dft_count = len(dft_calc_list)
+            dft_calc_list = mdb_al_ut.filter_dft_calcs_threshold(
+                dft_calc_list=dft_calc_list,
+                threshold_E_meV=threshold_E_meV,
+                threshold_F_meV=threshold_F_meV,
+                workchain=self,
+            )
+            self.report(
+                f'Removed {abs(len(dft_calc_list) - dft_count)} DFT above thresholds.'
+            )
+
+        return_list_path, results_dir = mdb_al_ut.write_gathered_dft_calcs_to_file(
+            dft_calc_list=dft_calc_list,
+            results_dir=str(self.ctx.results_dir),
+        )
 
         # File containing structures
         if return_list_path:

@@ -700,6 +700,16 @@ def get_dft_calc_builder_mace_list(
             curr_struct = AseAtomsAdaptor().get_atoms(curr_struct)
 
         curr_struct.info['mdb_md_node'] = row['mdb_md_node']
+
+        # If there's an E or F evaluation from the current step, save it so it can
+        # be used for outlier detection.
+        curr_model_forces = curr_struct.arrays.get('REF_forces', None)
+        if curr_model_forces is not None:
+            curr_struct.arrays['curr_model_forces'] = curr_model_forces
+        curr_model_energy = curr_struct.info.get('REF_energy', None)
+        if curr_model_energy is not None:
+            curr_struct.info['curr_model_energy'] = curr_model_energy
+
         updated_struct_list.append(curr_struct)
 
     # Write xyz file into a string captured in the stdout,
@@ -1176,6 +1186,124 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
     return return_list
 
 
+def remove_isolated_atoms(
+    train_db,
+    E_dft_list_per_at,
+    E_nn_list_per_at,
+    F_dft_list_per_at,
+    F_nn_list_per_at,
+    E_diff_list_meV,
+    F_diff_list_meV,
+):
+    """Remove isolated atoms from the training database and associated lists.
+    This function identifies isolated atoms in the training database and
+    removes them from the database and associated lists. It returns the
+    updated training database and lists without the isolated atoms.
+    """
+    # Identify IsolatedAtom structures from the database
+    # so they can be removed when plotting
+    isolated_atom_idxs = [
+        idx
+        for idx, atoms in enumerate(train_db)
+        if atoms.info.get('mdb_struct_type', '') == 'isolated_atom'
+        or atoms.info.get('phase', '').lower() == 'isolatedatom'
+    ]
+
+    # Create a set of these indices for efficient lookup
+    isolated_atom_idxs_set = set(isolated_atom_idxs)
+
+    # Build new lists excluding elements at the identified indices
+    new_train_db = [
+        atoms for idx, atoms in enumerate(train_db) if idx not in isolated_atom_idxs_set
+    ]
+    new_E_dft_list_per_at = [
+        val
+        for idx, val in enumerate(E_dft_list_per_at)
+        if idx not in isolated_atom_idxs_set
+    ]
+    new_E_nn_list_per_at = [
+        val
+        for idx, val in enumerate(E_nn_list_per_at)
+        if idx not in isolated_atom_idxs_set
+    ]
+    new_F_dft_list_per_at = [
+        val
+        for idx, val in enumerate(F_dft_list_per_at)
+        if idx not in isolated_atom_idxs_set
+    ]
+    new_F_nn_list_per_at = [
+        val
+        for idx, val in enumerate(F_nn_list_per_at)
+        if idx not in isolated_atom_idxs_set
+    ]
+    new_E_diff_list_meV = [
+        val
+        for idx, val in enumerate(E_diff_list_meV)
+        if idx not in isolated_atom_idxs_set
+    ]
+    new_F_diff_list_meV = [
+        val
+        for idx, val in enumerate(F_diff_list_meV)
+        if idx not in isolated_atom_idxs_set
+    ]
+
+    return (
+        new_train_db,
+        new_E_dft_list_per_at,
+        new_E_nn_list_per_at,
+        new_F_dft_list_per_at,
+        new_F_nn_list_per_at,
+        new_E_diff_list_meV,
+        new_F_diff_list_meV,
+    )
+
+
+def filter_dft_calcs_threshold(
+    dft_calc_list: list, threshold_E_meV: float, threshold_F_meV: float, workchain=None
+) -> list:
+    """
+    Filter DFT calculations based on energy and force thresholds.
+
+    Returns a list of serialized ASE Atoms objects that have forces and energy
+    below the specified thresholds.
+    """
+    filtered_dft_calc_list = []
+    if workchain:
+        workchain.report('Running threshold filters...')
+
+    for calc in dft_calc_list:
+        if isinstance(calc, dict):
+            calc = aiida_serialized_ase_dict_to_atoms(calc)
+
+        # Get the energy and forces from the DFT calculation and NN
+        n_at = len(calc)
+        E_dft_at = calc.info.get('REF_energy') / n_at
+        E_nn_at = calc.info.get('curr_model_energy') / n_at
+        F_dft_at = simplify_forces_struct(calc.arrays.get('REF_forces'))[0] / n_at
+        F_nn_at = simplify_forces_struct(calc.arrays.get('curr_model_forces'))[0] / n_at
+
+        # Calculate difference between E and F from DFT and NN
+        E_diff_meV = np.abs(E_dft_at - E_nn_at) * 1000
+        F_diff_meV = np.abs(F_dft_at - F_nn_at) * 1000
+
+        # Check if the differences are above the specified thresholds
+        if E_diff_meV < threshold_E_meV and F_diff_meV < threshold_F_meV:
+            # Serialize the structure and add it to the filtered list
+            calc = serialize_ase(calc)
+            filtered_dft_calc_list.append(calc)
+        else:
+            if workchain:
+                workchain.report(
+                    f'Filtered DFT calculation {calc.info["mdb_uuid"]} '
+                    f'with E_diff_meV: {E_diff_meV} and F_diff_meV: {F_diff_meV}'
+                )
+
+    if workchain:
+        workchain.report('Done running threshold filter!')
+
+    return filtered_dft_calc_list
+
+
 def write_gathered_dft_calcs_to_file(dft_calc_list: orm.List, results_dir: str):
     # Write the results to a temporary file in the calculation directory
     if isinstance(results_dir, orm.Str):
@@ -1261,7 +1389,7 @@ def get_outliers_from_calc_list(curr_struct_res, result_list, outlier_list):
 @calcfunction
 def gather_dft_calcs_mace(
     dft_calc_list: list, results_dir: str, workchain=None
-) -> orm.Str:
+) -> orm.List:
     """Collect and preprocess MACE DFT calculation results for active learning input."""
     result_list = []
     outlier_list = []
@@ -1350,18 +1478,16 @@ def gather_dft_calcs_mace(
             f' Removed {len(outlier_list)} outliers.',
         )
 
-    results_file_path, results_dir = write_gathered_dft_calcs_to_file(
-        dft_calc_list=dft_calc_list,
-        results_dir=results_dir,
-    )
+    # Serializing the structures
+    result_list = [serialize_ase(struct) for struct in result_list]
 
     # Saving outliers
     if outlier_list:
         outliers_file_path = results_dir / 'outliers.extxyz'
         ase_write(filename=outliers_file_path, images=outlier_list)
 
-    # Return the path to the temporary file
-    return orm.Str(str(results_file_path))
+    # Return the structure list
+    return orm.List(result_list)
 
 
 def iqr_outlier_check(res_list: list) -> np.ndarray:

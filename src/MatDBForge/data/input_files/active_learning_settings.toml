@@ -406,6 +406,23 @@ custom_scheduler_commands = '''#$ -l gpu=1
 #$ -l hostname="tekla2189"'''
 withmpi = false
 
+# Threshold filter options for MACE as DFT calculator.
+# This will be run after the MACE calculation, before adding the results to the database.
+# The filter will check the energy and forces of the MACE calculation
+# against the DFT calculation. If the difference is larger than the threshold,
+# the structure will be filtered out.
+[dft.mace.filters]
+
+# (bool) Whether to enable the threshold-based filtering.
+filter_dft_calcs = false
+
+# (float) Threshold in meV for the energy difference between the MACE and DFT energies.
+# If the difference is larger than this value, the structure will be filtered out.
+threshold_E_meV = 1000
+
+# (float) Threshold in meV for the force difference between the MACE and DFT forces.
+# If the difference is larger than this value, the structure will be filtered out.
+threshold_F_meV = 10000
 
 # Settings for VASP as DFT calculator. Ignored if dft_method = "mace" 
 [dft.vasp]
