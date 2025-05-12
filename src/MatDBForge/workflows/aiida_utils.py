@@ -472,7 +472,6 @@ def submit_aiida_vasp_calculation(
 
     # Defining the vasp.relax workchain object
     workchain = WorkflowFactory('vasp.relax')
-    print('workchain: ', workchain)
 
     # Preparing a builder object to be able to submit the workchain
     # and pass inputs to it
