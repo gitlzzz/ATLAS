@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.26.1 (2025-05-12)
+
+### Fix
+
+- **al_loop**: allow steps with no DFT calculations to continue without throwing exception ([#23d84fd](https://github.com/pol-sb/MatDBForge/commit/23d84fdad9f4b10c29fb4927e27e205960aa9a5f))
+
 ## 0.26.0 (2025-05-07)
 
 ### Feature
