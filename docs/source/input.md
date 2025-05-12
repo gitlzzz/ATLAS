@@ -316,7 +316,7 @@ Settings for MD simulations using an ASE calculator or LAMMPS.
 - `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
 - `num_steps` (int) Total number of MD steps to be run in each MD simulation
 - `timestep_duration_ps`: (float) Duration of each timestep. The units are picoseconds. Note that in LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
-
+- `thermostat`: Choice of thermostat for the ASE MD. It can be either `langevin` (NVT) or `nose-hoover` (NPT). Default is `langevin`.
 - `langevin_friction_ps-1`: (float) friction coefficient for the Langevin thermostat in $ps^{-1}$
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
@@ -556,7 +556,7 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 '''
 ```
 
-- `filter.filter_dft_calcs`: (bool) Whether to enable the threshold-based filtering. It will be applied to all NN DFT calcs just before adding them to the training database. Default is `false`.
+- `filter.filter_dft_calcs`: (bool) Whether to enable the threshold-based filtering. The filter will check the energy and forces of the MACE calculation against the NN-DFT calculation. If the difference is larger than the threshold, the structure will be filtered out. It will be applied to all NN DFT calcs just before adding them to the training database. Default is `false`.
 - `filter.threshold_E_meV`: (float) Threshold in meV for the energy difference between the MACE and DFT energies. If the difference is larger than this value, the structure will be filtered out.
 - `filter.threshold_F_meV`: (float) Threshold in meV for the force difference between the MACE and DFT forces. If the difference is larger than this value, the structure will be filtered out.
 
