@@ -142,7 +142,7 @@ def md_write_frame_traj(dyn, traj):
     REF_energy = dyn.atoms.get_potential_energy()
     REF_forces = dyn.atoms.get_forces()
     dyn.atoms.info['REF_energy'] = REF_energy
-    dyn.atoms.info['REF_forces'] = REF_forces
+    dyn.atoms.arrays['REF_forces'] = REF_forces
     traj.write(dyn.atoms, energy=REF_energy, forces=REF_forces)
 
 
@@ -691,15 +691,11 @@ def get_dft_calc_builder_mace_list(
     for idx, curr_struct in enumerate(struct_list):
         curr_struct = struct_list[idx]
 
-        # Gathering row information
-        (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (
-            mdb_aut.gather_calc_data_from_row(row, curr_structure=curr_struct)
-        )
+        # Gathering material information
+        curr_material_name: str = curr_struct.info.get('struct_name')
 
         if not isinstance(curr_struct, Atoms):
             curr_struct = AseAtomsAdaptor().get_atoms(curr_struct)
-
-        curr_struct.info['mdb_md_node'] = row['mdb_md_node']
 
         # If there's an E or F evaluation from the current step, save it so it can
         # be used for outlier detection.
@@ -1304,14 +1300,23 @@ def filter_dft_calcs_threshold(
     return filtered_dft_calc_list
 
 
-def write_gathered_dft_calcs_to_file(dft_calc_list: orm.List, results_dir: str):
+def write_gathered_dft_calcs_to_file(
+    dft_calc_list: orm.List, results_dir: str, workchain=None
+) -> tuple[Path, Path]:
+    # In case the list is empty, return empty strings
+    if len(dft_calc_list) == 0:
+        if workchain:
+            workchain.report('No DFT calculations to gather.')
+        return '', ''
+
     # Write the results to a temporary file in the calculation directory
     if isinstance(results_dir, orm.Str):
         results_dir = Path(results_dir.value)
     elif isinstance(results_dir, str):
         results_dir = Path(results_dir)
 
-    results_file_path = results_dir / 'run_tmp_data' / 'gathered_dft_calcs.xyz'
+    # Gather calcualtion results from the list of DFT calculation dicts
+    results_file_path: Path = results_dir / 'run_tmp_data' / 'gathered_dft_calcs.xyz'
     if isinstance(dft_calc_list[0], dict):
         ase_atoms_list = []
         for calc in dft_calc_list:

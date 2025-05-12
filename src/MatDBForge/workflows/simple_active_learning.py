@@ -1285,7 +1285,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
         namespace `stop_md_seed_no_disagreement`.
         """
         self.report('Gathering DFT calculations...')
-
         # Getting the results directory if not in the context
         if not hasattr(self.ctx, 'results_dir'):
             self.ctx.results_dir = mdb_al_ut.get_results_dir_path(
@@ -1351,30 +1350,37 @@ class SimpleActiveLearningWorkChain(WorkChain):
             except AttributeError:
                 dft_calc_list = ''
 
-        # Run filtering step based on NN vs DFT difference threshold for both E and F
-        filter_settings = self.inputs.dft_settings.get('filter', {})
-        if filter_settings.get('filter_dft_calcs', False):
-            threshold_E_meV = filter_settings.get('threshold_E_meV', 1e3)
-            threshold_F_meV = filter_settings.get('threshold_F_meV', 1e4)
-            self.report(
-                'Removing DFT structures with differences higher than: '
-                f'E - {threshold_E_meV} meV, F - {threshold_F_meV} meV'
-            )
-            dft_count = len(dft_calc_list)
-            dft_calc_list = mdb_al_ut.filter_dft_calcs_threshold(
+        if len(dft_calc_list) > 0:
+            # Run filtering step based on NN vs DFT difference threshold
+            # for both E and F
+            filter_settings = self.inputs.dft_settings.get('filter', {})
+            if filter_settings.get('filter_dft_calcs', False):
+                threshold_E_meV = filter_settings.get('threshold_E_meV', 1e3)
+                threshold_F_meV = filter_settings.get('threshold_F_meV', 1e4)
+                self.report(
+                    'Removing DFT structures with differences higher than: '
+                    f'E - {threshold_E_meV} meV, F - {threshold_F_meV} meV'
+                )
+                dft_count = len(dft_calc_list)
+                dft_calc_list = mdb_al_ut.filter_dft_calcs_threshold(
+                    dft_calc_list=dft_calc_list,
+                    threshold_E_meV=threshold_E_meV,
+                    threshold_F_meV=threshold_F_meV,
+                    workchain=self,
+                )
+                self.report(
+                    f'Removed {abs(len(dft_calc_list) - dft_count)}'
+                    ' DFT above thresholds.'
+                )
+
+            return_list_path, results_dir = mdb_al_ut.write_gathered_dft_calcs_to_file(
                 dft_calc_list=dft_calc_list,
-                threshold_E_meV=threshold_E_meV,
-                threshold_F_meV=threshold_F_meV,
+                results_dir=str(self.ctx.results_dir),
                 workchain=self,
             )
-            self.report(
-                f'Removed {abs(len(dft_calc_list) - dft_count)} DFT above thresholds.'
-            )
-
-        return_list_path, results_dir = mdb_al_ut.write_gathered_dft_calcs_to_file(
-            dft_calc_list=dft_calc_list,
-            results_dir=str(self.ctx.results_dir),
-        )
+        else:
+            # If no DFT calculations were performed, return empty string
+            return_list_path = ''
 
         # File containing structures
         if return_list_path:
