@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.26.2 (2025-05-13)
+
+### Fix
+
+- **core**: update aiida-vasp dependency ([#195a283](https://github.com/pol-sb/MatDBForge/commit/195a2835d600589e73df463c0c8cb71f93e2aff6))
+- **dft**: remove debug print ([#f01a40e](https://github.com/pol-sb/MatDBForge/commit/f01a40eb9f3da490cc282b4727ec271a1e3696b0))
+
 ## 0.26.1 (2025-05-12)
 
 ### Fix
