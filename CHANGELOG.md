@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.27.1 (2025-05-14)
+
+### Fix
+
+- **report**: move iteration limit function inside plot function ([#b3f448c](https://github.com/pol-sb/MatDBForge/commit/b3f448c88f5616050f33db4ec433ae616557cbdc))
+- **al_loop**: allow correct builder code gathering for aiida-vasp cal… ([#e21ad69](https://github.com/pol-sb/MatDBForge/commit/e21ad69e57b2a3341c7da4196afe2a4862eb62a2))
+- **al_loop**: allow correct builder code gathering for aiida-vasp calculations ([#6f1a863](https://github.com/pol-sb/MatDBForge/commit/6f1a8635f6ae8ee01e3779f0d1ab5bf3234feeeb))
+- **report**: actually use length of xaxis to determine barchart width ([#44893e2](https://github.com/pol-sb/MatDBForge/commit/44893e2958c9116ccc0d813914b68f78da3ac696))
+- **report**: improve auto assignation of barchart width ([#e9d5b18](https://github.com/pol-sb/MatDBForge/commit/e9d5b1849bb3a98260646a1426ee804ec14c8154))
+- **report**: fix usage on instance of new `get_loop_report` ([#b8b6f61](https://github.com/pol-sb/MatDBForge/commit/b8b6f61fc16f302b727d0b28a898c7423b782f9d))
+
 ## 0.27.0 (2025-05-14)
 
 ### Feature
