@@ -316,7 +316,7 @@ if __name__ == '__main__':
                 'cov_rad_multiplier_max', 10.0
             )
             cov_rad_multiplier_min: float = explod_filt_settings.get(
-                'cov_rad_multiplier_min', 1.5
+                'cov_rad_multiplier_min', 0.8
             )
             max_T = curr_temp * md_params.get('max_temp_multiplier', 1)
             max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)

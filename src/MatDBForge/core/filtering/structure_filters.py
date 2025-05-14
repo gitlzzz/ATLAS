@@ -335,7 +335,7 @@ def get_available_filters() -> dict:
 def apply_filter_exploding_structures(
     struct: Atoms,
     cov_rad_multiplier_max: float = 10.0,
-    cov_rad_multiplier_min: float = 1.5,
+    cov_rad_multiplier_min: float = 0.8,
     max_T: float = None,
     max_T_multiplier: float = 10,
     remove_positive_E: bool = False,
