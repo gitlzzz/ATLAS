@@ -113,19 +113,9 @@ def gen_al_loop_report(
     fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
     gs = gridspec.GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
 
-    # If the number of steps in the AL loop is greater than 12,
-    # sample steps to stay below 12, always including the first
-    # and last steps
-    if limit_num_steps:
-        # Sample steps equispaced
-        it_idx = np.linspace(0, it_idx[-1], num=limit_num_steps, dtype=int).tolist()
-        seed_gen_db_sizes = [seed_gen_db_sizes[i] for i in it_idx]
-        train_db_sizes = [train_db_sizes[i] for i in it_idx]
-        mace_e = [mace_e[i] for i in it_idx]
-        mace_f = [mace_f[i] for i in it_idx]
-
+    # Get report
     filename: Path = plot_al_loop_report(
-        ini_db_size=ini_db_size,
+        limit_num_steps=limit_num_steps,
         seed_gen_db_sizes=seed_gen_db_sizes,
         train_db_sizes=train_db_sizes,
         mace_e=mace_e,
@@ -1332,7 +1322,7 @@ def gen_init_db_report(
 
 
 def plot_al_loop_report(
-    ini_db_size: int,
+    limit_num_steps: bool,
     seed_gen_db_sizes: list[int],
     train_db_sizes: list[int],
     mace_e: list[float],
@@ -1357,6 +1347,15 @@ def plot_al_loop_report(
             train_db_sizes.remove(train)
             ind.remove(idx)
     ind = np.array(ind)
+
+    # If the number of steps in the AL loop is greater than limit_num_steps,
+    # sample steps to stay below that number, always including the first
+    # and last steps
+    if limit_num_steps:
+        # Sample steps equispaced
+        ind = np.linspace(0, ind[-1], num=limit_num_steps, dtype=int).tolist()
+        seed_gen_db_sizes = [seed_gen_db_sizes[i] for i in ind]
+        train_db_sizes = [train_db_sizes[i] for i in ind]
 
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     ax1 = ax.figure.add_subplot(ax[0, 0])
@@ -1506,7 +1505,7 @@ def plot_al_loop_report(
     ax2.set_xticks(top_xaxis + width / 2, ind)
     ax2.set_xlabel('AL Loop Step')
     ax2.set_ylabel(r'$\Delta$ Number of structures')
-    ax2.set_title('Structure count change over iteration')
+    ax2.set_title('Structure count change over iteration (accumul.)')
     ax2.legend()
 
     # Plot MACE model energy performance
@@ -1528,6 +1527,17 @@ def plot_al_loop_report(
                 mace_f.pop(i)
                 ind_short.pop(i)
 
+    # If the number of steps in the AL loop is greater than limit_num_steps,
+    # sample steps to stay below that number, always including the first
+    # and last steps
+    if limit_num_steps:
+        # Sample steps equispaced
+        ind_short = np.linspace(
+            0, ind_short[-1], num=limit_num_steps, dtype=int
+        ).tolist()
+        mace_e = [mace_e[i] for i in range(len(ind_short))]
+        mace_f = [mace_f[i] for i in range(len(ind_short))]
+
     # Convert lists to numpy arrays
     ind_short = np.array(ind_short)
     mace_e = np.array(mace_e)
@@ -1536,7 +1546,8 @@ def plot_al_loop_report(
     # x_axis data should use a range of the length of the data
     # so it looks equispaced. The labels are set to the actual
     # iteration index later.
-    bottom_xaxis = np.arange(len(ind_short))
+    bottom_xaxis = np.arange(start=1, stop=len(ind_short) + 1)
+    breakpoint()
 
     ax3.plot(bottom_xaxis, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
 
