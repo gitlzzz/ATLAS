@@ -143,6 +143,10 @@ def md_write_frame_traj(dyn, traj):
     REF_forces = dyn.atoms.get_forces()
     dyn.atoms.info['REF_energy'] = REF_energy
     dyn.atoms.arrays['REF_forces'] = REF_forces
+
+    # Assign new uuid to the atoms object
+    dyn.atoms.info['mdb_id'] = str(uuid4())
+
     traj.write(dyn.atoms, energy=REF_energy, forces=REF_forces)
 
 

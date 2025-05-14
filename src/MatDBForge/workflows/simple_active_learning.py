@@ -6,6 +6,7 @@ import os
 import pickle
 import shutil
 import time
+import uuid
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -1570,6 +1571,11 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         for idx, struct in enumerate(database_training):
             struct.info['mdb_db_index'] = idx
             struct.info['mdb_al_step'] = 0
+
+            # Adding unique id
+            if not struct.info.get('mdb_id'):
+                struct.info['mdb_id'] = str(uuid.uuid4())
+
             database_training[idx] = struct
 
         ase_write(
@@ -2034,7 +2040,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Populating training seed with the selected random structures
         for idx in selected_structs:
-            current_md_seed_structs.append(seed_gen_db[idx])
+            seed_struct = seed_gen_db[idx]
+            current_md_seed_structs.append(seed_struct)
 
         self.report(
             f'Created MD seed with {seed_size} structures '
