@@ -1347,9 +1347,6 @@ def plot_al_loop_report(
     timestamp = int(time.time())
     filename = Path(f'al_loop_report_{timestamp}').resolve()
 
-    # Plot seed and train db sizes as a stacked bar chart over every iteration
-    width = 0.3
-
     # Iterate in reverse over train_db_sizes and seed_gen_db_sizes,
     # if there are None valiues, delete that index and the corresponding
     # index in ind
@@ -1361,10 +1358,19 @@ def plot_al_loop_report(
             ind.remove(idx)
     ind = np.array(ind)
 
-    # Plotting seed and train db sizes
+    # Plot seed and train db sizes as a stacked bar chart over every iteration
     ax1 = ax.figure.add_subplot(ax[0, 0])
+
+    # x_axis data should use a range of the length of the data
+    # so it looks equispaced. The labels are set to the actual
+    # iteration index later.
+    top_xaxis = np.arange(len(ind))
+
+    # Get the width as a function of the x axis data length
+    width = 0.3 + (1 / (22 * 0.75))
+
     ax1.bar(
-        ind,
+        top_xaxis,
         train_db_sizes,
         width=width,
         label='train_db',
@@ -1373,7 +1379,7 @@ def plot_al_loop_report(
         linewidth=bar_line_width,
     )
     ax1.bar(
-        ind + width,
+        top_xaxis + width,
         seed_gen_db_sizes,
         width=width,
         label='seed_gen_db',
@@ -1381,7 +1387,7 @@ def plot_al_loop_report(
         edgecolor=bar_line_color,
         linewidth=bar_line_width,
     )
-    ax1.set_xticks(ind + width / 2, ind)
+    ax1.set_xticks(top_xaxis + width / 2, labels=ind)
     ax1.set_xlabel('AL Loop Step')
     ax1.set_ylabel('Number of structures')
     ax1.legend()
@@ -1400,7 +1406,7 @@ def plot_al_loop_report(
 
     # Add text labels to top left figure bars
     for idx, seed, train in zip(
-        it_idx, seed_gen_db_sizes, train_db_sizes, strict=False
+        top_xaxis, seed_gen_db_sizes, train_db_sizes, strict=False
     ):
         ax1.text(
             idx,
@@ -1449,7 +1455,9 @@ def plot_al_loop_report(
             train_db_diff.append(train - train_db_sizes[idx - 1])
 
     # Add text labels to bars
-    for idx, seed, train in zip(it_idx, seed_gen_db_diff, train_db_diff, strict=False):
+    for idx, seed, train in zip(
+        top_xaxis, seed_gen_db_diff, train_db_diff, strict=False
+    ):
         if idx == 0:
             continue
 
@@ -1477,7 +1485,7 @@ def plot_al_loop_report(
         )
 
     ax2.bar(
-        ind,
+        top_xaxis,
         train_db_diff,
         width=width,
         label='train_db',
@@ -1486,7 +1494,7 @@ def plot_al_loop_report(
         linewidth=bar_line_width,
     )
     ax2.bar(
-        ind + width,
+        top_xaxis + width,
         seed_gen_db_diff,
         width=width,
         label='seed_gen_db',
@@ -1495,7 +1503,7 @@ def plot_al_loop_report(
         linewidth=bar_line_width,
     )
     ax2.axhline(y=0, color=LINE_COLOR, linestyle='--')
-    ax2.set_xticks(ind + width / 2, ind)
+    ax2.set_xticks(top_xaxis + width / 2, ind)
     ax2.set_xlabel('AL Loop Step')
     ax2.set_ylabel(r'$\Delta$ Number of structures')
     ax2.set_title('Structure count change over iteration')
@@ -1525,12 +1533,17 @@ def plot_al_loop_report(
     mace_e = np.array(mace_e)
     mace_f = np.array(mace_f)
 
-    ax3.plot(ind_short, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
+    # x_axis data should use a range of the length of the data
+    # so it looks equispaced. The labels are set to the actual
+    # iteration index later.
+    bottom_xaxis = np.arange(len(ind_short))
+
+    ax3.plot(bottom_xaxis, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
 
     if model_acc_multiplier:
         thresh_color = COLORS[-1]
         ax3.plot(
-            ind_short,
+            bottom_xaxis,
             mace_e * model_acc_multiplier,
             label='Energy threshold',
             color=COLORS[-1],
@@ -1538,7 +1551,7 @@ def plot_al_loop_report(
         )
         ax3.set_ylabel('Energy threshold [meV]')
 
-    ax3.set_xticks(ind_short, ind_short)
+    ax3.set_xticks(bottom_xaxis, labels=ind_short)
     ax3.set_xlabel('AL Loop Step')
     ax3.set_ylabel('RMSE E per atom [meV]')
     ax3.set_title('Evolution of best MACE Model Energy RMSE')
@@ -1562,19 +1575,19 @@ def plot_al_loop_report(
 
     # Plot MACE model force performance
     ax4 = ax.figure.add_subplot(ax[1, 1])
-    ax4.plot(ind_short, mace_f, label='MACE Forces', color=COLORS[3], marker='o')
+    ax4.plot(bottom_xaxis, mace_f, label='MACE Forces', color=COLORS[3], marker='o')
 
     if model_acc_multiplier:
         thresh_color = COLORS[-1]
         ax4.plot(
-            ind_short,
+            bottom_xaxis,
             mace_f * model_acc_multiplier,
             label='Forces threshold',
             color=thresh_color,
             marker='^',
         )
 
-    ax4.set_xticks(ind_short, ind_short)
+    ax4.set_xticks(bottom_xaxis, labels=ind_short)
     ax4.set_xlabel('AL Loop Step')
     ax4.set_ylabel('RMSE F [meV / A]')
     ax4.set_title('Evolution of best MACE Model Force RMSE')
