@@ -1,6 +1,7 @@
 """Utils for generating reports."""
 
 import datetime
+import json
 import os
 import pickle
 import re
@@ -75,21 +76,26 @@ def gen_al_loop_report(
     title: str = None,
     get_latent_space: bool = False,
     autoencoder_path: str = None,
+    limit_num_steps: int = None,
 ):
     # Init logger
     init_logger(source='al_loop_report_gen')
 
+    # Get report data and stats
     (
         title,
         al_loop_node,
         ini_db_size,
-        seed_gen_db_sizes,
-        train_db_sizes,
-        it_idx,
-        mace_e,
-        mace_f,
         model_acc_multiplier,
+        stats_dict,
     ) = get_loop_report(loop_id, log_path, title)
+
+    # Parse dict
+    it_idx = [stats_dict[i]['it_idx'] for i in stats_dict]
+    seed_gen_db_sizes = [stats_dict[i]['seed_gen_db_size'] for i in stats_dict]
+    train_db_sizes = [stats_dict[i]['train_db_size'] for i in stats_dict]
+    mace_e = [stats_dict[i]['mace_e'] for i in stats_dict]
+    mace_f = [stats_dict[i]['mace_f'] for i in stats_dict]
 
     # Adjust number of panels according to options
     num_rows = 2
@@ -106,6 +112,17 @@ def gen_al_loop_report(
 
     fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
     gs = gridspec.GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
+
+    # If the number of steps in the AL loop is greater than 12,
+    # sample steps to stay below 12, always including the first
+    # and last steps
+    if limit_num_steps:
+        # Sample steps equispaced
+        it_idx = np.linspace(0, it_idx[-1], num=limit_num_steps, dtype=int).tolist()
+        seed_gen_db_sizes = [seed_gen_db_sizes[i] for i in it_idx]
+        train_db_sizes = [train_db_sizes[i] for i in it_idx]
+        mace_e = [mace_e[i] for i in it_idx]
+        mace_f = [mace_f[i] for i in it_idx]
 
     filename: Path = plot_al_loop_report(
         ini_db_size=ini_db_size,
@@ -201,7 +218,36 @@ def gen_al_loop_report(
     custom_print('Report generation complete.', 'done')
 
 
-def get_loop_report(loop_id=None, log_path=None, title=None, model_acc_multiplier=None):
+def get_loop_report(
+    loop_id=None,
+    log_path=None,
+    title=None,
+    model_acc_multiplier=None,
+):
+    """
+    Parses an active learning loop report to extract summary statistics.
+
+    Args:
+        loop_id: Identifier for the loop (currently not used for parsing).
+        log_path: Filesystem path to the log file. Used if report_str is not provided.
+        title: Optional title for the run. If None, attempts to extract from report.
+        model_acc_multiplier: Multiplier for model accuracy (can be None).
+
+    Returns
+    -------
+        A tuple containing:
+        - title (str): The title of the run.
+        - al_loop_node (int): The active learning loop node ID.
+        - ini_db_size (int): The initial database size.
+        - model_acc_multiplier (float or None): The model accuracy multiplier.
+        - stats_dict (dict): A dictionary with statistics for each iteration.
+            Example: {
+                1: {
+                    "it_idx": 1, "mace_e": 0.778, "mace_f": 8.204,
+                    "train_db_size": 3706, "seed_gen_db_sizes": 3689, "finished": True
+                }, ...
+            }
+    """
     if loop_id:
         al_loop_node = orm.load_node(loop_id)
         report = get_workchain_report(al_loop_node, levelname='REPORT')
@@ -229,57 +275,112 @@ def get_loop_report(loop_id=None, log_path=None, title=None, model_acc_multiplie
     except AttributeError:
         model_acc_multiplier = 1.0
 
-    # Match all lines containing the seed_gen_db and train_db sizes
-    seed_gen_db_sizes, train_db_sizes, it_idx = [], [], []
-    db_lines_re = re.compile(r'Iteration \d\d?: seed_gen_db.*').findall(report)
+    stats_dict = {
+        0: {
+            'it_idx': 0,
+            'mace_e': None,
+            'mace_f': None,
+            'train_db_size': ini_db_size,  # Uses the pre-defined ini_db_size
+            'seed_gen_db_size': ini_db_size,  # Uses the pre-defined ini_db_size
+            'finished': True,
+        }
+    }
 
-    # Prepare a list of all seed_gen_db and train_db sizes from db_lines
-    for line in db_lines_re:
-        it_idx.append(int(line.split()[1].replace(':', '')))
-        seed_gen_db_sizes.append(int(line.split()[3].replace(',', '')))
-        train_db_sizes.append(int(line.split()[5].replace(',', '')))
+    # Extract iteration indices from "Starting AL Loop iteration X/Y..."
+    it_idx_list = []
+    start_loop_matches = re.finditer(r'Starting AL Loop iteration (\d+)/\d+', report)
+    for match in start_loop_matches:
+        it_idx_list.append(int(match.group(1)))
 
-    # Match all lines containing the M0 model performance
-    mace_e, mace_f = [], []
-    best_model_lines = re.compile(r'Best model of current step.*').findall(report)
+    # Extract DB sizes from "Iteration X: seed_gen_db Y, training_db: Z, entries"
+    # Store these in a dictionary keyed by iteration number for easy lookup.
+    db_data_by_iter = {}
+    db_lines_matches = re.finditer(
+        r'Iteration (\d+): seed_gen_db (\S+), training_db: (\S+) entries', report
+    )
+    for match in db_lines_matches:
+        iter_num_db = int(match.group(1))
+        db_data_by_iter[iter_num_db] = {
+            'seed_gen_db_size': int(match.group(2).replace(',', '')),
+            'train_db_size': int(match.group(3).replace(',', '')),
+        }
 
-    # Prepare a list of all mace models generated from lammps_lines
-    for line in best_model_lines:
-        mace_e.append(float(line.split()[12]))
-        mace_f.append(float(line.split()[16]))
+    # Extract MACE performance from "Best model of current step..."
+    # This is collected sequentially and assumed to correspond to
+    # the sequence of started iterations.
+    mace_data_list = []
+    best_model_matches = re.finditer(
+        r'Best model of current step .* RMSE E: (\S+) meV/at, RMSE F: (\S+) meV/Å',
+        report,
+    )
+    for match in best_model_matches:
+        mace_data_list.append(
+            {
+                'mace_e': float(match.group(1)),
+                'mace_f': float(match.group(2)),
+            }
+        )
+
+    # Populate stats_dict for iterations 1 through N
+    for i, current_iter_num in enumerate(it_idx_list):
+        stats_dict[current_iter_num] = {
+            'it_idx': current_iter_num,
+            'mace_e': None,
+            'mace_f': None,
+            'train_db_size': None,
+            'seed_gen_db_size': None,
+            'finished': False,  # Default, updated based on db_data_by_iter
+        }
+
+        # Assign MACE data if available for this sequential position
+        if i < len(mace_data_list):
+            stats_dict[current_iter_num]['mace_e'] = mace_data_list[i]['mace_e']
+            stats_dict[current_iter_num]['mace_f'] = mace_data_list[i]['mace_f']
+
+        # Check for the "Iteration X: seed_gen_db..." line for this current_iter_num
+        # If found, the step is considered "finished" and DB sizes are populated.
+        # The "Starting AL Loop iteration X..." condition is met by iterating
+        # it_idx_list.
+        if current_iter_num in db_data_by_iter:
+            stats_dict[current_iter_num]['train_db_size'] = db_data_by_iter[
+                current_iter_num
+            ]['train_db_size']
+            stats_dict[current_iter_num]['seed_gen_db_size'] = db_data_by_iter[
+                current_iter_num
+            ]['seed_gen_db_size']
+            stats_dict[current_iter_num]['finished'] = True
 
     # Get run name
-    if not title:
+    if not title:  # If title wasn't passed in or set in the omitted part
         try:
             title_regex = r'Active Learning Inputs:\s*\n({.*?})\n'
-            matches = [match for match in re.finditer(title_regex, report, re.DOTALL)]
-            settings_dict_string = matches[0].group(1)
-            import json
-
-            settings_dict_string = (
-                settings_dict_string.replace("'", '"')
-                .replace('True', '"True"')
-                .replace('False', '"False"')
-                .replace('None', '"None"')
-            )
-
-            settings_dict = json.loads(settings_dict_string)
-            title = settings_dict.get('run_name')
+            match_obj = re.search(title_regex, report, re.DOTALL)
+            if match_obj:
+                settings_dict_string = match_obj.group(1)
+                # Convert Python dict-like string to valid JSON string
+                settings_dict_string = (
+                    settings_dict_string.replace("'", '"')
+                    .replace('True', 'true')
+                    .replace('False', 'false')
+                    .replace('None', 'null')
+                )
+                settings_dict = json.loads(settings_dict_string)
+                title = settings_dict.get('run_name')
         except Exception:
-            title = None
+            # If parsing fails, title remains None or its previous value.
+            # The original code had a generic Exception, kept here.
+            # Consider more specific error handling if needed.
+            pass
 
     if not title:
-        title = f'{al_loop_node}'
+        title = f'{al_loop_node}'  # Assumes al_loop_node is defined
+
     return (
         title,
         al_loop_node,
         ini_db_size,
-        seed_gen_db_sizes,
-        train_db_sizes,
-        it_idx,
-        np.array(mace_e),
-        np.array(mace_f),
         model_acc_multiplier,
+        stats_dict,
     )
 
 
@@ -907,7 +1008,6 @@ def gen_batch_report(
 
     ax1 = ax.figure.add_subplot(ax[0, 0])
     ax1.set_xticks(ind + width / 2, labels=[d.name for d in dirs])
-
     ax1.bar(
         ind,
         train_db_sizes_plot,
@@ -1064,7 +1164,7 @@ def gen_init_db_report(
     formulas = [struct.get_chemical_formula() for struct in train_db]
     phases = [struct.info.get('phase', 'unknown') for struct in train_db]
     struct_type = [struct.info.get('mdb_struct_type', 'unknown') for struct in train_db]
-    uuids = [struct.info.get('mdb_uuid', 'unknown') for struct in train_db]
+    uuids = [struct.info.get('mdb_id', 'unknown') for struct in train_db]
 
     energy_line_color = 'rgba(177,98,134, 0.25)'
     forces_max_line_color = 'rgba(25, 95, 180, 0.50)'
@@ -1241,11 +1341,16 @@ def plot_al_loop_report(
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     width = 0.3
 
-    # Adding inital database size as iteration 0
-    it_idx = [0] + it_idx
-    ind = np.array(it_idx)
-    train_db_sizes = [ini_db_size] + train_db_sizes
-    seed_gen_db_sizes = [ini_db_size] + seed_gen_db_sizes
+    # Iterate in reverse over train_db_sizes and seed_gen_db_sizes,
+    # if there are None valiues, delete that index and the corresponding
+    # index in ind
+    ind = it_idx.copy()
+    for idx, seed, train in zip(ind, seed_gen_db_sizes, train_db_sizes, strict=False):
+        if seed is None or train is None:
+            seed_gen_db_sizes.remove(seed)
+            train_db_sizes.remove(train)
+            ind.remove(idx)
+    ind = np.array(ind)
 
     # Plotting seed and train db sizes
     ax1 = ax.figure.add_subplot(ax[0, 0])
@@ -1389,14 +1494,34 @@ def plot_al_loop_report(
 
     # Plot MACE model energy performance
     ax3 = ax.figure.add_subplot(ax[1, 0])
-    ind = np.arange(len(mace_e)) + 1
-    ax3.plot(ind, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
+
+    # Iterate in reverse over train_db_sizes and seed_gen_db_sizes,
+    # if there are None valiues, delete that index and the corresponding
+    # index in ind
+    ind_short = it_idx.copy()
+
+    # This also implies mace_e and mace_f are non-empty if they have the same length
+    if ind_short:
+        for i in range(len(ind_short) - 1, -1, -1):
+            # Access elements by index i from mace_e and mace_f
+            if mace_e[i] is None or mace_f[i] is None:
+                # Remove elements at index `i` from each list.
+                # Using .pop(i) or del list[i] is safe when iterating backwards.
+                mace_e.pop(i)
+                mace_f.pop(i)
+                ind_short.pop(i)
+
+    # Convert lists to numpy arrays
+    ind_short = np.array(ind_short)
+    mace_e = np.array(mace_e)
+    mace_f = np.array(mace_f)
+
+    ax3.plot(ind_short, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
 
     if model_acc_multiplier:
         thresh_color = COLORS[-1]
-        # ax3_twin = ax3.twinx()
         ax3.plot(
-            ind,
+            ind_short,
             mace_e * model_acc_multiplier,
             label='Energy threshold',
             color=COLORS[-1],
@@ -1404,7 +1529,7 @@ def plot_al_loop_report(
         )
         ax3.set_ylabel('Energy threshold [meV]')
 
-    ax3.set_xticks(ind, ind)
+    ax3.set_xticks(ind_short, ind_short)
     ax3.set_xlabel('AL Loop Step')
     ax3.set_ylabel('RMSE E per atom [meV]')
     ax3.set_title('Evolution of best MACE Model Energy RMSE')
@@ -1428,19 +1553,19 @@ def plot_al_loop_report(
 
     # Plot MACE model force performance
     ax4 = ax.figure.add_subplot(ax[1, 1])
-    ax4.plot(ind, mace_f, label='MACE Forces', color=COLORS[3], marker='o')
+    ax4.plot(ind_short, mace_f, label='MACE Forces', color=COLORS[3], marker='o')
 
     if model_acc_multiplier:
         thresh_color = COLORS[-1]
         ax4.plot(
-            ind,
+            ind_short,
             mace_f * model_acc_multiplier,
             label='Forces threshold',
             color=thresh_color,
             marker='^',
         )
 
-    ax4.set_xticks(ind, ind)
+    ax4.set_xticks(ind_short, ind_short)
     ax4.set_xlabel('AL Loop Step')
     ax4.set_ylabel('RMSE F [meV / A]')
     ax4.set_title('Evolution of best MACE Model Force RMSE')

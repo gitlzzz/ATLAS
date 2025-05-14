@@ -480,6 +480,14 @@ def run_active_learning():
         default=None,
         required=False,
     )
+    al_loop_report_parser.add_argument(
+        '--limit_num_steps',
+        help=('Number of steps to limit the report to.'),
+        metavar='<INT>',
+        default=None,
+        required=False,
+        type=int,
+    )
 
     al_loop_report_parser.add_argument(
         '--threshold_E_meV',
@@ -715,6 +723,7 @@ def run_active_learning():
                 title=args.title,
                 get_latent_space=args.db_latent_space_evolution,
                 autoencoder_path=args.autoencoder_folder,
+                limit_num_steps=args.limit_num_steps,
             )
         elif args.subcommand == 'init_db':
             # Generating a report for an initial database
