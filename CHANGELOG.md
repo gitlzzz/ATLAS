@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.2 (2025-05-14)
+
+### Fix
+
+- **al_loop**: change `cov_rad_multiplier_min` default to `0.8` and update docs ([#6d4a1c9](https://github.com/pol-sb/MatDBForge/commit/6d4a1c9a788c39706673e0a3364c294d9d03575c))
+
 ## 0.27.1 (2025-05-14)
 
 ### Fix
