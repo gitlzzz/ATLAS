@@ -368,14 +368,16 @@ def run_mace_md_ase(
             # REF_forces=dyn.atoms.get_forces(),
             dyn=dyn,
             traj=traj_obj,
-            interval=1,
+            interval=write_interval,
         )
 
     if explode_filter_dict.get('enable') and mode == 'normal':
         dyn.attach(
             md_stop_explode_filter,
             dyn=dyn,
-            interval=int(num_steps * 0.1),
+            interval=int(
+                num_steps * explode_filter_dict.get('explode_check_interval_perc', 0.1)
+            ),
             cov_rad_multiplier_max=explode_filter_dict.get('cov_rad_multiplier_max'),
             cov_rad_multiplier_min=explode_filter_dict.get('cov_rad_multiplier_min'),
             max_T=T_end,
