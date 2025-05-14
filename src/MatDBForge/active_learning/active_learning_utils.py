@@ -47,7 +47,17 @@ from MatDBForge.workflows import aiida_utils as mdb_aut
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
 
 
-def aiida_wait_submit(builder, computer, calc_count=0):
+def aiida_wait_submit(builder, computer:orm.Computer, calc_count:int=0, code:orm.Code|str=None):
+    # Get code label if provided
+    # If the code is not provided, use the code from the builder
+    if code is None:
+        code_label = builder.code.label
+    else:
+        if isinstance(code, str):
+            code_label = code
+        else:
+            code_label = code.label
+
     # Get the calculation limit, from the computer metadata set to 0
     # if not present.
     # `mdb_calc_limit` is a custom property set with:
@@ -68,7 +78,7 @@ def aiida_wait_submit(builder, computer, calc_count=0):
     else:
         can_submit, calc_count_sch = can_submit_calculation(
             computer=computer,
-            code=builder.code.label,
+            code=code_label,
             limit=calc_limit,
         )
     mdb_cud.custom_print(f'Can submit: {can_submit}.', 'debug')
