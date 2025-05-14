@@ -1175,13 +1175,25 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 # if not present.
                 # `mdb_calc_limit` is a custom property set with:
                 # computer.set_property(name='mdb_calc_limit', value=366)
+                calc_limit = 0
                 try:
                     calc_limit = builder.metadata.computer.metadata.get(
                         'mdb_calc_limit', 0
                     )
                 except AttributeError:
-                    calc_limit = builder.code.computer.metadata.get('mdb_calc_limit', 0)
+                    # The code namespace is in a different place in aiida-vasp 4.1.0
+                    # This except block tries to get this new namespace and use
+                    # it instead.
+                    try:
+                        calc_limit = builder.vasp.code.computer.metadata.get(
+                            'mdb_calc_limit', 0
+                        )
+                    except Exception:
+                        # Any exception in the alternative path
+                        # will result in calc_limit being 0.
+                        calc_limit = 0
                 except Exception:
+                    # If everything else fails, screw it it, 0 it is.
                     calc_limit = 0
 
                 if calc_limit != 0:
