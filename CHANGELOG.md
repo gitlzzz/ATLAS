@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.27.0 (2025-05-14)
+
+### Feature
+
+- **report**: new version of `get_loop_report` and allow limiting number of steps shown in plot by `limit_num_steps` ([#f6b1820](https://github.com/pol-sb/MatDBForge/commit/f6b1820caa6fbb2048bbaa7f9ab25c0b0cc58c69))
+- **al_loop**: add `sample_frames_during_md` to allow to sample md on the fly ([#ba8a393](https://github.com/pol-sb/MatDBForge/commit/ba8a39342926e3769ebc79d16fac3bcffdb4236f))
+
+### Fix
+
+- **al_loop**: improve robustness of uuid labelling for new structures ([#21496c4](https://github.com/pol-sb/MatDBForge/commit/21496c40e69f6719dea29626cf963ddfe1d34de7))
+- **al_loop**: update builder code check to ensure compatibility with `aiida-vasp==4.1.0` ([#109768d](https://github.com/pol-sb/MatDBForge/commit/109768d4235245449e47e9dc3a1931020c846adb))
+- **al_loop**: allow to change `md_stop_explode_filter` interval via new `explode_check_interval_perc` ([#67d83b4](https://github.com/pol-sb/MatDBForge/commit/67d83b44150a6b9d165536866a29a4ebfb1d2e6c))
+
 ## 0.26.2 (2025-05-13)
 
 ### Fix
