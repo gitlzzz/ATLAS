@@ -1172,6 +1172,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     dft_settings=self.inputs.dft_settings.get_dict(),
                 )
 
+                # Get the code and computer from the builder, updated
+                # to the current version of aiida-vasp.
+                try:
+                    curr_code = builder.code
+                    curr_computer = curr_code.computer
+                except AttributeError:
+                    curr_code = builder.vasp.code
+                    curr_computer = curr_code.computer
+
                 # Get the calculation limit, from the computer metadata set to 0
                 # if not present.
                 # `mdb_calc_limit` is a custom property set with:
@@ -1200,8 +1209,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 if calc_limit != 0:
                     mdb_al_ut.aiida_wait_submit(
                         builder=builder,
-                        computer=builder.code.computer,
+                        computer=curr_computer,
                         calc_count=calc_count,
+                        code=curr_code,
                     )
 
                 # Submitting current calculation
