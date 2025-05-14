@@ -1367,7 +1367,7 @@ def plot_al_loop_report(
     top_xaxis = np.arange(len(ind))
 
     # Get the width as a function of the x axis data length
-    width = 0.3 + (1 / (22 * 0.75))
+    width = 0.3 + (1 / (len(ind) * 0.75))
 
     ax1.bar(
         top_xaxis,
