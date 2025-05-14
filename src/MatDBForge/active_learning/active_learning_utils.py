@@ -262,7 +262,7 @@ def run_mace_md_ase(
 
     T_multiplier = md_params.get('max_temp_multiplier', 1.0)
     T_end = T_start * T_multiplier
-    timestep = md_params['timestep_duration_ps']
+    timestep_ps = md_params['timestep_duration_ps']
 
     if not explode_filter_dict:
         explode_filter_dict = {}
@@ -275,6 +275,19 @@ def run_mace_md_ase(
     num_steps = md_params['num_steps']
     write_interval = md_params.get('md_write_interval', 1)
     thermostat = md_params.get('md_thermostat', 'langevin')
+
+    # If sampling is to be done during MD, set the write interval
+    # to the number of steps divided by the number of frames to keep
+    # (this is done to avoid writing too many frames)
+    # Disabled by default
+    if md_params.get('sample_frames_during_md'):
+        # Get the number of frames to keep
+        md_duration_ps = num_steps * timestep_ps
+        keep_interval_ps = md_params['al_keep_struct_every_n_ps']
+        num_frames_to_keep = int(md_duration_ps / keep_interval_ps)
+
+        # Get write interal
+        write_interval = int(num_steps / num_frames_to_keep)
 
     md_params['T_start'] = T_start
     md_params['T_end'] = T_end
@@ -324,7 +337,7 @@ def run_mace_md_ase(
             dyn = Langevin(
                 atoms=init_conf,
                 # convert timestep in ps to fs
-                timestep=(timestep * 1000) * units.fs,
+                timestep=(timestep_ps * 1000) * units.fs,
                 temperature_K=T_start,
                 # convert friction in ps-1 to fs-1
                 friction=(friction / 1000) / units.fs,
@@ -339,7 +352,7 @@ def run_mace_md_ase(
 
             dyn = NPT(
                 atoms=init_conf,
-                timestep=(timestep * 1000) * units.fs,
+                timestep=(timestep_ps * 1000) * units.fs,
                 temperature_K=T_start,
                 externalstress=0,
                 ttime=100 * units.fs,
@@ -393,7 +406,7 @@ def run_mace_md_ase(
             md_save_gen_structs,
             dyn=dyn,
             struct_list=md_struct_list,
-            interval=1,
+            interval=write_interval,
         )
 
     # Run the MD simulation
@@ -1292,7 +1305,7 @@ def filter_dft_calcs_threshold(
         else:
             if workchain:
                 workchain.report(
-                    f'Filtered DFT calculation {calc.info["mdb_uuid"]} '
+                    f'Filtered DFT calculation {calc.info["mdb_id"]} '
                     f'with E_diff_meV: {E_diff_meV} and F_diff_meV: {F_diff_meV}'
                 )
 

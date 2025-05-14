@@ -188,6 +188,11 @@ if __name__ == '__main__':
 
     # Parse settings
     md_params = settings.get('md', {}).get('parameters')
+
+    # Adding key explicitly to display it in the log
+    if not md_params.get('sample_frames_during_md'):
+        md_params['sample_frames_during_md'] = False
+
     md_filters = settings.get('md', {}).get('filters', {})
     T_list = md_params['temperature_list_K']
 
@@ -275,8 +280,6 @@ if __name__ == '__main__':
         for frame_idx, frame in enumerate(md_traj):
             frame.info['frame_idx'] = frame_idx
             frame.info['calc_type'] = 'MACE_MD'
-            # frame.info['md_temperature'] = float(curr_temp)
-            # frame.info['mdb_id'] = str(init_conf.info['mdb_id'])
 
         # Apply MD filters and removing these frames from the trajectory
         frames_to_remove = []
@@ -412,11 +415,20 @@ if __name__ == '__main__':
         else:
             mdb_cud.custom_print('Filtered structures not saved.', 'info')
 
-        # Limit total number of frames
-        md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
-        mdb_cud.custom_print(
-            f'Limited number of frames to: {len(md_traj_short)}', 'info'
-        )
+        # Limit total number of frames if sampling during md is disabled
+        if not md_params.get('sample_frames_during_md'):
+            md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
+            mdb_cud.custom_print(
+                f'Limited number of frames to: {len(md_traj_short)}', 'info'
+            )
+        else:
+            md_traj_short = md_traj_filtered
+            short_mask = np.arange(len(md_traj_short))
+            mdb_cud.custom_print(
+                'Trajectory already shortened during MD by save interval. '
+                f'Length unchanged. Current length: {len(md_traj_short)}',
+                'info',
+            )
 
         # Running evaluation of the energies and forces using each commitee model
         mdb_cud.custom_print('Running committee evaluation...', 'info')
