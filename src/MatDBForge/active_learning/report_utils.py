@@ -914,13 +914,22 @@ def gen_batch_report(
             title,
             al_loop_node,
             ini_db_size,
-            seed_gen_db_sizes,
-            train_db_sizes,
-            it_idx,
-            mace_e,
-            mace_f,
+            model_acc_multiplier,
+            stats_dict,
         ) = get_loop_report(
             log_path=log_file[0],
+        )
+
+        # Parse dict
+        # it_idx = [stats_dict[i]['it_idx'] for i in stats_dict]
+        seed_gen_db_sizes = [stats_dict[i]['seed_gen_db_size'] for i in stats_dict]
+        train_db_sizes = [stats_dict[i]['train_db_size'] for i in stats_dict]
+        mace_e = [stats_dict[i]['mace_e'] for i in stats_dict]
+        mace_f = [stats_dict[i]['mace_f'] for i in stats_dict]
+
+        raise NotImplementedError(
+            'This report type must be updated for its use with the'
+            'new `get_loop_report` function.'
         )
 
         train_db_sizes_plot.append(train_db_sizes[-1])
