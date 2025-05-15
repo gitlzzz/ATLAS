@@ -63,6 +63,77 @@ STAGE_KEYS: list[str] = [
 ]
 
 
+def output_al_stats_dict(stats_dict: dict, title: str = None):
+    """
+    Displays a dictionary of active learning statistics in a formatted table.
+
+    Parameters
+    ----------
+    stats_dict : dict
+        A dictionary where keys are iteration numbers (or similar identifiers)
+        and values are dictionaries containing statistics for that iteration.
+        Example:
+        {
+            0: {'it_idx': 0, 'mace_e': None, ...},
+            1: {'it_idx': 1, 'mace_e': 0.778, ...},
+            ...
+        }
+    """
+    from rich.console import Console
+    from rich.table import Table
+
+    if not stats_dict:
+        print('The dictionary is empty.')
+        return
+
+    print()
+
+    title = f'AL Loop Report: {title}' if title else 'AL Loop Report'
+    caption = (
+        "Values gathered from the run's log file. Iteration 0 is the initial database."
+    )
+
+    console = Console()
+    table = Table(
+        show_header=True, header_style='bold magenta', title=title, caption=caption
+    )
+
+    # Define columns
+    # Use the keys from the first valid inner dictionary as column headers
+    first_item_key = next(iter(stats_dict))
+    if stats_dict[first_item_key] is None:
+        print('The first item in the dictionary is None, cannot determine columns.')
+        # Attempt to find a valid inner dictionary for column names
+        inner_keys = None
+        for key in stats_dict:
+            if stats_dict[key] is not None:
+                inner_keys = list(stats_dict[key].keys())
+                break
+        if inner_keys is None:
+            print('Could not determine column headers from the dictionary.')
+            return
+    else:
+        inner_keys = list(stats_dict[first_item_key].keys())
+
+    table.add_column('Iteration', style='dim', width=12)  # For the outer dictionary key
+    for key in inner_keys:
+        table.add_column(str(key))
+
+    # Add rows
+    for outer_key, inner_dict in stats_dict.items():
+        row_values = [str(outer_key)]
+        if inner_dict is not None:
+            for col_key in inner_keys:
+                value = inner_dict.get(col_key)
+                row_values.append(str(value) if value is not None else 'N/A')
+        else:
+            # If the inner_dict itself is None
+            row_values.extend(['N/A'] * len(inner_keys))
+        table.add_row(*row_values)
+
+    console.print(table)
+
+
 def gen_al_loop_report(
     loop_id: int | str = None,
     log_path: str = None,
@@ -89,8 +160,11 @@ def gen_al_loop_report(
         model_acc_multiplier,
         stats_dict,
     ) = get_loop_report(loop_id, log_path, title)
+    # Printing the stats_dict
+    output_al_stats_dict(stats_dict=stats_dict, title=title)
+    quit()
 
-    # Parse dict
+    # Parse report dict
     it_idx = [stats_dict[i]['it_idx'] for i in stats_dict]
     seed_gen_db_sizes = [stats_dict[i]['seed_gen_db_size'] for i in stats_dict]
     train_db_sizes = [stats_dict[i]['train_db_size'] for i in stats_dict]
@@ -2136,90 +2210,197 @@ def plot_performance_stacked_bar(
         plt.show()
 
 
-def print_performance_report(all_performance_data):
-    custom_print('Performance data for all AL steps:')
+def simplify_timedelta_str(tdelta: datetime.timedelta) -> str:
+    """
+    Simplifies and converts a timedelta object to a string format.
+
+    Removes the milisecond resolution.
+
+    Parameters
+    ----------
+    tdelta : datetime.timedelta
+        The timedelta object to convert.
+
+    Returns
+    -------
+    str
+        A simplified string representation of the timedelta in the format'
+        ``"X day, %HH:%MM:%SS"``.
+    """
+    return str(tdelta).split('.')[0]
+
+
+def print_performance_report(all_performance_data: list):
+    """
+    Displays AL performance data in a formatted table using the rich library.
+
+    This function takes a list of dictionaries, where each dictionary contains
+    performance data for a step in an Active Learning loop. It then prints
+    two tables: one detailing each step's performance, and another
+    summarizing the total times and core hours for each stage and the
+    overall loop.
+
+    Parameters
+    ----------
+    all_performance_data : list
+        A list of dictionaries, where each dictionary represents a step's
+        performance data. Expected structure for each element:
+        {
+            "step": {"pk": str, "step_duration": datetime.timedelta},
+            "stages": {
+                "training": {
+                    "total_elapsed_time": datetime.timedelta,
+                    "cores": float | int
+                },
+                "descriptors": {
+                    "total_elapsed_time": datetime.timedelta,
+                    "cores": float | int
+                },
+                "md": {
+                    "total_elapsed_time": datetime.timedelta,
+                    "cores": float | int
+                },
+                "dft": {
+                    "total_elapsed_time": datetime.timedelta,
+                    "cores": float | int
+                },
+            }
+        }
+    """
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+
+    if not all_performance_data:
+        console.print('[bold red]No performance data provided.[/bold red]')
+        return
+
+    console.print(
+        '[bold green]Performance data for all AL steps:[/bold green]', justify='left'
+    )
+
+    caption = (
+        'Performance data for all AL steps. '
+        "Runtimes are as reported by each Computer's queue manager. "
+        'Core hours depend only on the number of CPU cores used.'
+    )
+
+    # Table for individual step performance
+    steps_table = Table(
+        caption=caption,
+        show_header=True,
+        header_style='bold magenta',
+        show_lines=True,
+        padding=(0, 0, 0, 0),
+    )
+    steps_table.add_column('Step', style='bold', width=5, justify='right')
+    steps_table.add_column('PK', width=10, justify='center')
+    steps_table.add_column('Duration', width=18, justify='center')
+    steps_table.add_column('Train Time', style='magenta', width=15, justify='center')
+    steps_table.add_column('Train Core*h', style='magenta', width=8, justify='center')
+    steps_table.add_column('Desc. Time', style='blue', width=15, justify='center')
+    steps_table.add_column('Desc. Core*h', style='blue', width=8, justify='center')
+    steps_table.add_column('MD Time', style='yellow', width=15, justify='center')
+    steps_table.add_column('MD Core*h', style='yellow', width=8, justify='center')
+    steps_table.add_column('DFT Time', style='green', width=15, justify='center')
+    steps_table.add_column('DFT Core*h', style='green', width=8, justify='center')
+
     total_md_time = datetime.timedelta(0)
     total_md_core_h = 0.0
-
     total_dft_time = datetime.timedelta(0)
     total_dft_core_h = 0.0
-
     total_training_time = datetime.timedelta(0)
     total_training_core_h = 0.0
-
     total_descriptors_time = datetime.timedelta(0)
     total_descriptors_core_h = 0.0
+    final_loop_time = datetime.timedelta(0)
 
-    final_time = datetime.timedelta(0)
-    for step_idx, step in enumerate(all_performance_data):
-        custom_print(f'Step {step_idx + 1} PK: {step["step"]["pk"]}:')
-        custom_print(f'  Step duration: {step["step"]["step_duration"]}')
+    for step_idx, step_data in enumerate(all_performance_data):
+        step_info = step_data.get('step', {})
+        stages_info = step_data.get('stages', {})
 
-        training_time = step['stages']['training']['total_elapsed_time']
-        training_core_h = (training_time.total_seconds() / 3600) * step['stages'][
-            'training'
-        ].get('cores', 0)
+        step_pk = str(step_info.get('pk', 'N/A'))
+        step_duration = step_info.get('step_duration', datetime.timedelta(0))
 
-        descriptors_time = step['stages']['descriptors']['total_elapsed_time']
-        descriptors_core_h = (descriptors_time.total_seconds() / 3600) * step['stages'][
-            'descriptors'
-        ].get('cores', 0)
+        row_data = [str(step_idx + 1), step_pk, simplify_timedelta_str(step_duration)]
 
-        md_time = step['stages']['md']['total_elapsed_time']
-        md_core_h = (md_time.total_seconds() / 3600) * step['stages']['md'].get(
-            'cores', 0
-        )
+        for stage_name in ['training', 'descriptors', 'md', 'dft']:
+            stage = stages_info.get(stage_name, {})
+            time_val = stage.get('total_elapsed_time', datetime.timedelta(0))
+            cores = stage.get('cores', 0)
+            core_h = (time_val.total_seconds() / 3600) * cores
 
-        dft_time = step['stages']['dft']['total_elapsed_time']
-        dft_core_h = (dft_time.total_seconds() / 3600) * step['stages']['dft'].get(
-            'cores', 0
-        )
+            row_data.extend([simplify_timedelta_str(time_val), f'{core_h:.1f}'])
 
-        custom_print(
-            f'  Training stage - time: {training_time},'
-            f' core hours: {training_core_h:.1f}'
-        )
-        custom_print(
-            f'  Descriptors stage stats - time: {descriptors_time},'
-            f' core hours: {descriptors_core_h:.1f}'
-        )
-        custom_print(f'  MD stage stats - time: {md_time}, core hours: {md_core_h:.1f}')
-        custom_print(
-            f'  DFT stage stats - time: {dft_time} core hours: {dft_core_h:.1f}'
-        )
+            if stage_name == 'training':
+                total_training_time += time_val
+                total_training_core_h += core_h
+            elif stage_name == 'descriptors':
+                total_descriptors_time += time_val
+                total_descriptors_core_h += core_h
+            elif stage_name == 'md':
+                total_md_time += time_val
+                total_md_core_h += core_h
+            elif stage_name == 'dft':
+                total_dft_time += time_val
+                total_dft_core_h += core_h
 
-        total_md_time += md_time
-        total_md_core_h += md_core_h
+        steps_table.add_row(*row_data)
+        final_loop_time += step_duration
 
-        total_dft_time += dft_time
-        total_dft_core_h += dft_core_h
+    console.print(steps_table)
+    console.print()  # Add a blank line
 
-        total_training_time += training_time
-        total_training_core_h += training_core_h
-
-        total_descriptors_time += descriptors_time
-        total_descriptors_core_h += descriptors_core_h
-
-        final_time += step['step']['step_duration']
-        print()
-
-    custom_print('Timings for the entire AL Loop:')
-    custom_print(
-        f'  Training totals - time: {total_training_time},'
-        f' core hours: {total_training_core_h:.1f}'
+    # Table for totals
+    console.print(
+        '[bold green]Timings for the entire AL Loop:[/bold green]', justify='left'
     )
-    custom_print(
-        f'  Descriptors totals - time: {total_descriptors_time},'
-        f'core hours: {total_descriptors_core_h:.1f}'
+    totals_table = Table(
+        show_header=True,
+        header_style='bold cyan',
+        # expand=True,
     )
-    custom_print(
-        f'  MD totals - time: {total_md_time} s, core hours: {total_md_core_h:.1f}'
+    totals_table.add_column('Stage', style='bold', width=20)
+    totals_table.add_column('Total Time', width=25, justify='center')
+    totals_table.add_column('Total Core*h', width=15, justify='right')
+
+    totals_table.add_row(
+        'Training',
+        simplify_timedelta_str(total_training_time),
+        f'{total_training_core_h:.1f}',
+        style='magenta',
     )
-    custom_print(
-        f'  DFT totals - time: {total_dft_time}, core hours: {total_dft_core_h:.1f}'
+    totals_table.add_row(
+        'Descriptors',
+        simplify_timedelta_str(total_descriptors_time),
+        f'{total_descriptors_core_h:.1f}',
+        style='blue',
     )
-    print()
-    custom_print(f'  Total loop duration: {final_time}')
+    totals_table.add_row(
+        'MD',
+        simplify_timedelta_str(total_md_time),
+        f'{total_md_core_h:.1f}',
+        style='yellow',
+    )
+    totals_table.add_row(
+        'DFT',
+        simplify_timedelta_str(total_dft_time),
+        f'{total_dft_core_h:.1f}',
+        style='green',
+    )
+
+    total_core_h = (
+        total_dft_core_h
+        + total_md_core_h
+        + total_training_core_h
+        + total_descriptors_core_h
+    )
+    totals_table.add_row(
+        'Total', str(final_loop_time), f'{total_core_h:.1f}', style='white bold'
+    )
+
+    console.print(totals_table)
 
 
 def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = None):
