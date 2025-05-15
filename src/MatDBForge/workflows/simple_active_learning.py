@@ -1336,12 +1336,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     dft_calc_list = ''
                 else:
                     dft_calc_list = mdb_al_ut.gather_dft_calcs_vasp(dft_calcs_ok)
-                    dft_calc_list, results_dir = (
-                        mdb_al_ut.write_gathered_dft_calcs_to_file(
-                            dft_calc_list=dft_calc_list,
-                            results_dir=str(self.ctx.results_dir),
-                        )
-                    )
 
             except AttributeError:
                 dft_calc_list = ''
@@ -1365,7 +1359,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     # stored in `result_list_path`.
                     # Results are filtered to remove outliers. Outliers are
                     # stored in a separate file in the same folder.
-                    dft_calc_list: str = mdb_al_ut.gather_dft_calcs_mace(
+                    dft_calc_list: orm.List = mdb_al_ut.gather_dft_calcs_mace(
                         dft_calc_list=dft_calcs_ok,
                         results_dir=str(self.ctx.results_dir),
                         workchain=self.node.uuid,
@@ -1396,7 +1390,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     ' DFT above thresholds.'
                 )
 
-            return_list_path, results_dir = mdb_al_ut.write_gathered_dft_calcs_to_file(
+            return_list_path, _ = mdb_al_ut.write_gathered_dft_calcs_to_file(
                 dft_calc_list=dft_calc_list,
                 results_dir=str(self.ctx.results_dir),
                 workchain=self,

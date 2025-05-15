@@ -369,6 +369,7 @@ def submit_aiida_vasp_calculation(
     # Using default kspacing if not found and MDB_DEFAULT is set
     if not kspacing and kspacing_dict.get('MDB_DEFAULT'):
         kspacing = kspacing_dict.get('MDB_DEFAULT')
+
     # Raising error for missing kspacing entries if MDB_DEFAULT is not set
     elif not kspacing and phase != 'IsolatedAtom':
         raise ValueError(
@@ -443,8 +444,7 @@ def submit_aiida_vasp_calculation(
         kspacing_vec=kspacing_vec,
         calc_type=calc_type,
     )
-    # print('kpoints_data: ', kpoints_data)
-    # quit()
+
     # Get selective dynamics
     selective_dynamics = None
     if target_structure.site_properties.get('selective_dynamics'):
@@ -471,7 +471,7 @@ def submit_aiida_vasp_calculation(
         options['custom_scheduler_commands'] = ''
 
     # Defining the vasp.relax workchain object
-    workchain = WorkflowFactory('vasp.relax')
+    workchain = WorkflowFactory('vasp.v2.relax')
 
     # Preparing a builder object to be able to submit the workchain
     # and pass inputs to it
@@ -1317,7 +1317,12 @@ def generate_incar(
     if 'relax' in calc_type.value:
         mdb_cud.custom_print('Selecting relaxation INCAR...', 'debug')
         incar = INCAR_RELAX
-    elif calc_type.value in ['sp_surface', 'sp_cluster', 'sp_bulk']:
+    elif calc_type.value in [
+        'single_point_surface',
+        'single_point_cluster',
+        'single_point_bulk',
+        'single_point',
+    ]:
         mdb_cud.custom_print('Selecting single point INCAR...', 'debug')
         incar = INCAR_SP
 
@@ -1389,6 +1394,7 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
         'cluster',
         'isolatedatom',
         'sp_isolatedatom',
+        'sp_cluster',
     ]:
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh([1, 1, 1])
