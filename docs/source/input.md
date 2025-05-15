@@ -355,7 +355,7 @@ Specific settings for the layer distance MD filter. This sometimes helps with bu
 
 Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
 
-- `enable` : (bool) Whether to enable or disable this filter. By default `true`.
+- `enable`: (bool) Whether to enable or disable this filter. By default `true`.
 - `cov_rad_multiplier_max`: (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
 - `cov_rad_multiplier_min`: (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.8`.
 - `max_T_multiplier`: (float) Multiplier to apply to the maximum MD temperature threshold in order to decide if the structure has high kinetic energy. By default `10`.
@@ -374,13 +374,13 @@ The queue key can take any option from its [matching AiiDA input](https://aiida.
 
 The following are the bare minimum options for running calculations using an SGE scheduler. These can be changed for use with SLURM or other queue managers.
 
-- `metadata.options.resources.parallel_env` (str):  name for the parallel environment
-- `metadata.options.resources.tot_num_mpiprocs` (int): Total number of mpi processors
-- `metadata.options.queue_name` (str):  Name of the SGE queue
-- `metadata.options.max_memory_kb` (int):  Max memory allowed in kB.
-- `metadata.options.max_wallclock_seconds` (int):  Maximum requested wall time.
-- `metadata.options.withmpi` (bool): Use MPI.
-- `metadata.options.custom_scheduler_commands` (str): Use this to include extra options, such as GPU allocation on SGE or extra commands. Use triple quoted strings to allow for several options. E.g.:
+- `metadata.options.resources.parallel_env`: (str)  name for the parallel environment
+- `metadata.options.resources.tot_num_mpiprocs`: (int) Total number of mpi processors
+- `metadata.options.queue_name`: (str)  Name of the SGE queue
+- `metadata.options.max_memory_kb`: (int)  Max memory allowed in kB.
+- `metadata.options.max_wallclock_seconds`: (int)  Maximum requested wall time.
+- `metadata.options.withmpi`: (bool) Use MPI.
+- `metadata.options.custom_scheduler_commands`: (str) Use this to include extra options, such as GPU allocation on SGE or extra commands. Use triple quoted strings to allow for several options. E.g.:
 
 ```python
 '''
@@ -420,7 +420,7 @@ Contains settings related to the scheduler and AiiDA for the MACE Evaluations. T
 - `computer` = "tekla2-new-test"
 - `custom_scheduler_commands`:
 
-```
+```bash
 '''#$ -l gpu=1
 $ -l hostname="tekla2189"
 '''
