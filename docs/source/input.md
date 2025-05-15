@@ -428,7 +428,7 @@ $ -l hostname="tekla2189"
 
 ### Descriptor Settings - `[descriptors]`
 
-- `descriptor_type`: (str) Which descriptor type to use. Options: "mace", "soap". Default: "mace"
+- `descriptor_type`: (str) Which descriptor type to use. Options: `mace`, `soap`. Default: `mace`
 - `dimensionality_reduction_method`: (str, optional) Dimensionality reduction method for MACE descriptors. Options: `autoencoder`, `pca`, `none`. If not set, the default is none, which means no dimensionality reduction.
 - `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the descriptors calculation.
 
