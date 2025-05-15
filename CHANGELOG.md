@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.27.3 (2025-05-15)
+
+### Fix
+
+- **report**: add table view for al_loop and performance reports ([#bed2aa5](https://github.com/pol-sb/MatDBForge/commit/bed2aa597778acd590e565b3e8af2e26733c67ee))
+- **al_loop**: fixed report typo ([#817486a](https://github.com/pol-sb/MatDBForge/commit/817486ae4da550da5755b18641ea03bb2f13676f))
+- **al_loop**: commented unused version of exploding structure filters. development will be moved to a branch ([#c9372ed](https://github.com/pol-sb/MatDBForge/commit/c9372edfa7ce56be86b1f67fae9cfdb2ab4610e7))
+- **report**: remove debug breakpoints ([#3318f95](https://github.com/pol-sb/MatDBForge/commit/3318f953ba4be1e27432b7b75455353dc0730aa8))
+
 ## 0.27.2 (2025-05-14)
 
 ### Fix
