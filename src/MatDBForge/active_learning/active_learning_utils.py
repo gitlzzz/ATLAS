@@ -47,16 +47,15 @@ from MatDBForge.workflows import aiida_utils as mdb_aut
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
 
 
-def aiida_wait_submit(builder, computer:orm.Computer, calc_count:int=0, code:orm.Code|str=None):
+def aiida_wait_submit(
+    builder, computer: orm.Computer, calc_count: int = 0, code: orm.Code | str = None
+):
     # Get code label if provided
     # If the code is not provided, use the code from the builder
     if code is None:
         code_label = builder.code.label
     else:
-        if isinstance(code, str):
-            code_label = code
-        else:
-            code_label = code.label
+        code_label = code if isinstance(code, str) else code.label
 
     # Get the calculation limit, from the computer metadata set to 0
     # if not present.
@@ -102,7 +101,7 @@ def aiida_wait_submit(builder, computer:orm.Computer, calc_count:int=0, code:orm
     # slow (and safe) but not needed for the current implementation.
     # # Wait for the calculation to get recognized by the queue manager
     # while future.get_state() == CalcJobState.SUBMITTING or not future.get_state():
-    #     print('#@# future.get_state(): ', future.get_state())
+    #     print('future.get_state(): ', future.get_state())
     #     time.sleep(10)
 
 
@@ -307,6 +306,10 @@ def run_mace_md_ase(
     md_params['T_end'] = T_end
     md_params['langevin_friction_ps-1'] = friction
     md_params['write_interval'] = write_interval
+    if md_params.get('log_save_interval'):
+        log_interval = md_params['log_save_interval']
+    else:
+        log_interval = 1
 
     md_type = md_params.get('md_type', 'mace')
 
@@ -356,6 +359,7 @@ def run_mace_md_ase(
                 # convert friction in ps-1 to fs-1
                 friction=(friction / 1000) / units.fs,
                 logfile=log_folder / f'md_info-{T_start}K.log',
+                log_interval=log_interval,
             )
         case 'nose-hoover':
             # Change the simulation box to remove any small numbers not in the diagonal
@@ -372,6 +376,7 @@ def run_mace_md_ase(
                 ttime=100 * units.fs,
                 pfactor=None,
                 logfile=log_folder / f'md_info-{T_start}K.log',
+                log_interval=log_interval,
             )
     mdb_cud.custom_print('Running MD simulation using settings:', 'info')
     rprint(md_params)
