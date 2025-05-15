@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.27.4 (2025-05-15)
+
+### Misc
+
+- **core**: clean up pyproject.toml ([#75f12fa](https://github.com/pol-sb/MatDBForge/commit/75f12fab473675a675631309478e6b92928cd1fb))
+- **core**: update commitizen schema ([#d7b8c24](https://github.com/pol-sb/MatDBForge/commit/d7b8c2430c9af2838eb64e99d9148f8b740e509c))
+
 ## 0.27.3 (2025-05-15)
 
 ### Fix
