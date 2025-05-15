@@ -158,11 +158,7 @@ choices = [
     { value = "refactor", name = "refactor: ♻️ Code changes that neither fix a bug nor add a feature." },
     { value = "perf", name = "perf: 🚀 A code change that improves performance." },
     { value = "test", name = "test: ✅ Adding missing tests or correcting existing tests." },
-    { value = "chore", name = "chore: 🧹 Other changes that don't modify src or test files (build, CI, etc.)." }
-    # Note: "BREAKING CHANGE" is usually not a type itself in conventional commits,
-    # but rather indicated in the commit body/footer (e.g., with `BREAKING CHANGE:`).
-    # Your `bump_map` has "break" for MAJOR, which is good.
-    # You'll need to ensure your message template/prompts allow for adding breaking change footers.
+    { value = "chore", name = "chore: 🧹 Other changes that don't modify src or test files (build, CI, etc.)." },
 ]
 message = "Select the type of change you are committing"
 
@@ -170,15 +166,15 @@ message = "Select the type of change you are committing"
 type = "list"
 name = "scope"
 choices = [
-    {value = "", name = "none: No specific scope"}, # Option for no scope
-    {value = "al_loop", name = "Changes to the active learning loop"},
-    {value = "report", name = "Changes to the report part"},
-    {value = "core", name = "Changes to core functionality"},
-    {value = "dft", name = "Changes to dft calculators"},
-    {value = "init_db", name = "Changes to the initial database, structures and phase diagrams."},
-    {value = "domain_validity", name = "Changes to interpolation, extrapolation, dim. reduction..."}
+    { value = "", name = "none: No specific scope" },                                                                    # Option for no scope
+    { value = "al_loop", name = "al_loop: Changes to the active learning loop" },
+    { value = "report", name = "report: Changes to the report part" },
+    { value = "core", name = "core: Changes to core functionality" },
+    { value = "dft", name = "dft: Changes to dft calculators" },
+    { value = "init_db", name = "init_db: Changes to the initial database, structures and phase diagrams." },
+    { value = "domain_validity", name = "domain_validity: Changes to interpolation, extrapolation, dim. reduction..." },
 ]
-message = "What is the scope of this change? (e.g., component or file name) (press enter to skip)"
+message = "What is the scope of this change? (component)"
 
 [[tool.commitizen.customize.questions]]
 type = "input"
