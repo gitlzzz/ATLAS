@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.27.5 (2025-05-15)
+
+### Fix
+
+- **al_loop**: enable usage of `log_save_interval` in md code ([#c365f65](https://github.com/pol-sb/MatDBForge/commit/c365f65a53bbc8a1468cab60bcd510d3393e69f2))
+- **al_loop**: updated dft calculator settings in al_loop for aiida-vasp==4.1.0 ([#dfa11d3](https://github.com/pol-sb/MatDBForge/commit/dfa11d3cec55a9eef10811b0b030d8bc2ab6fc5e))
+
+### Misc
+
+- **core**: add emoji to commitizen scope descriptions ([#14b8611](https://github.com/pol-sb/MatDBForge/commit/14b8611587eb94b7176614ffae4914ade28d120f))
+
 ## 0.27.4 (2025-05-15)
 
 ### Misc
