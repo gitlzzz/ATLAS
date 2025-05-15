@@ -166,13 +166,13 @@ message = "Select the type of change you are committing"
 type = "list"
 name = "scope"
 choices = [
-    { value = "", name = "none: No specific scope" },                                                                    # Option for no scope
-    { value = "al_loop", name = "al_loop: Changes to the active learning loop" },
-    { value = "report", name = "report: Changes to the report part" },
-    { value = "core", name = "core: Changes to core functionality" },
-    { value = "dft", name = "dft: Changes to dft calculators" },
-    { value = "init_db", name = "init_db: Changes to the initial database, structures and phase diagrams." },
-    { value = "domain_validity", name = "domain_validity: Changes to interpolation, extrapolation, dim. reduction..." },
+    { value = "", name = "none: ❌ No specific scope" },                                                                    # Option for no scope
+    { value = "al_loop", name = "al_loop: 🔁 Changes to the active learning loop" },
+    { value = "report", name = "report: 📊 Changes to the report part" },
+    { value = "core", name = "core: ⚙️ Changes to core functionality" },
+    { value = "dft", name = "dft: ⚛️ Changes to dft calculators" },
+    { value = "init_db", name = "init_db: 💾 Changes to the initial database, structures and phase diagrams." },
+    { value = "domain_validity", name = "domain_validity: 📉 Changes to interpolation, extrapolation, dim. reduction..." },
 ]
 message = "What is the scope of this change? (component)"
 
