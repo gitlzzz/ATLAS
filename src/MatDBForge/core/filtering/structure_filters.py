@@ -399,3 +399,131 @@ def apply_filter_exploding_structures(
             return True
 
     return is_exploding
+
+
+# def dev_apply_filter_exploding_structures(
+#     struct: Atoms,
+#     cov_rad_multiplier_max: float = 10.0,
+#     cov_rad_multiplier_min: float = 0.8,
+#     max_T: float = None,
+#     max_T_multiplier: float = 10,
+#     remove_positive_E: bool = False,
+# ) -> bool:
+#     """
+#     Check if the given structure has an unrealistic structure (explosion).
+
+#     Parameters
+#     ----------
+#     struct : ase.Atoms
+#         Structure to check.
+#     max_distance : float
+#         Maximum distance between atoms.
+#     min_distance : float
+#         Minimum distance between atoms.
+
+#     Returns
+#     -------
+#     bool
+#         Returns `True` if the structure is exploding, `False` if otherwise.
+#     """
+#     # Get the natural cutoffs and multiply them by the cov_rad_multiplier_max
+#     # cutoffs will be used as the minimum and maximum distance between atoms possible
+#     # for the structure to be considered stable
+
+#     Maximum possible distance between two atoms. Should be below the maximum cell size
+#     to avoid exploding structures
+#     for
+#     import itertools as it
+#     from ase.build.tools import sort as ase_sort
+#     from ase.data import atomic_numbers, covalent_radii
+
+#     ### REMOVE
+#     from ase.io import read as ase_read
+
+#     struct_path = '/tmp/90d3-0999-4cf3-b560-09acddb71d3a/curr_structure.xyz'
+#     struct = ase_read(struct_path, format='extxyz')
+#     ####
+
+#     bond_cutoff_dict = {}
+#     struct = ase_sort(struct)
+
+#     # Populate the bond cutoff dictionary with the covalent radii of the elements
+#     possible_bonds = it.combinations_with_replacement(struct.symbols.species(), 2)
+#     possible_bonds = list(possible_bonds)
+#     for bond in possible_bonds:
+#         ele_1 = atomic_numbers[bond[0]]
+#         ele_2 = atomic_numbers[bond[1]]
+#         bond_cutoff_dict[bond] = covalent_radii[ele_1] + covalent_radii[ele_2]
+
+#     # Get the distances between atoms
+#     all_distances = struct.get_all_distances(mic=True)
+
+#     # Change all zeros to NaN. Zeros will be there when the
+#     # atom is compared to itself
+#     all_distances[np.where(all_distances == 0)] = np.nan
+
+#     # Get the maximum and minimum distances
+#     # max_dist = np.nanmax(all_distances, axis=0)
+#     # min_dist = np.nanmin(all_distances, axis=0)
+
+#     distances_below_min = []
+#     print('cov_rad_multiplier_min: ', cov_rad_multiplier_min)
+#     d1_list = all_distances.shape[0]
+#     d2_list = all_distances.shape[1]
+#     for d1_idx in range(d1_list):
+#         d1 = all_distances[d1_idx]
+#         distances_below_min.append([])
+#         for d2_idx in range(d1_list):
+#             print('d1: ', d1)
+#             print('d2: ', d2)
+#             breakpoint()
+#             if d1_idx == d2_idx:
+#                 distances_below_min[d1_idx].append(False)
+#                 continue
+
+#             d1_symbol = struct[d1_idx].symbol
+#             d2_symbol = struct[d2_idx].symbol
+
+#             distances_below_min[d1_idx].append(False)
+
+#             curr_bond_set = set((d1_symbol, d2_symbol))
+#             for bond_set in bond_cutoff_dict:
+#                 if curr_bond_set - set(bond_set) == set():
+#                     curr_bond_dist = bond_cutoff_dict[bond_set]
+
+#             if d2 < (curr_bond_dist * cov_rad_multiplier_min):
+#                 distances_below_min[d1_idx][d2_idx] = True
+
+#     print('distance_below_min: ', distances_below_min)
+
+#     breakpoint()
+
+#     cutoffs_max: np.array = np.array(
+#         natural_cutoffs(struct, mult=cov_rad_multiplier_max)
+#     )
+
+#     # Closest possible distance between two atoms.
+#     cutoffs_min: np.array = np.array(
+#         natural_cutoffs(struct, mult=cov_rad_multiplier_min)
+#     )
+#     # max_cell_arr = np.repeat(np.max(struct.cell), repeats=len(cutoffs_max))
+
+#     # If the cutoffs are smaller than the maximum cell size,
+#     # set them to the maximum cell size
+#     # if np.all(max_cell_arr > cutoffs_max):
+#     # cutoffs_max = max_cell_arr
+
+#     # Check if the maximum distance is above the threshold
+#     is_exploding = np.any(max_dist > cutoffs_max) or np.any(min_dist < cutoffs_min)
+
+#     if max_T and max_T_multiplier:
+#         curr_struct_T = struct.info.get('md_temperature', np.nan)
+#         if curr_struct_T > (max_T * max_T_multiplier):
+#             return True
+
+#     if remove_positive_E:
+#         curr_energy = struct.info.get('REF_energy')
+#         if curr_energy > 0:
+#             return True
+
+#     return is_exploding
