@@ -2025,7 +2025,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_size > db_length:
             seed_size = db_length
             self.report(
-                'MD seed size larger than seed generation database.'
+                'MD seed size larger than seed generation database. '
                 f"Limited size to '{db_length}'."
             )
 
