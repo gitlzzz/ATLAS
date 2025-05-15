@@ -1547,7 +1547,6 @@ def plot_al_loop_report(
     # so it looks equispaced. The labels are set to the actual
     # iteration index later.
     bottom_xaxis = np.arange(start=1, stop=len(ind_short) + 1)
-    breakpoint()
 
     ax3.plot(bottom_xaxis, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
 
