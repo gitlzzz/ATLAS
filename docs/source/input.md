@@ -233,8 +233,8 @@ This key describes the main active learning settings:
 - `aiida_profile`: (str) Name of the aiida profile to be used.
 - `run_name`: (str) Internal name for the run
 - `init_db_path`: (str) Path to the folder where the initial database is contained.
-- `results_dir`: (str) Path for final results. Will be created if not existent.
-It will contain a folder named `run_{uuid}`.
+- `results_dir`: (str) Path for final results. Will be created if not existent. It will contain a folder named `run_{uuid}`.
+- `log_path`: (str, optional) Path for the log file.  Defaults to `'mdb_<PK>_<DATETIME>.log` in the result dir if not specified.
 - `final_db_name`: (str) Name for the final database. The database will be stored in the extxyz format
 - `max_iterations`: (int) Maximum number of AL loop iterations.
 - `model_acc_multiplier`: (float)
@@ -243,8 +243,8 @@ Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresho
 <!-- - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. -->
 <!-- Influences the total number of energy evaluations and possibly DFT calculations. -->
 <!-- - `check_extrapolation`: (bool) Whether to check for extrapolation using the MACE descriptors -->
-- `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace"
-- `load_init_models`: (list[int], optional) # Load initial models from several aiida uuids/pk.
+<!-- - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace" -->
+- `load_init_models`: (list[int], optional) Load initial models from several aiida uuids/pk for the first step of the active learning loop.
 
 ### General code settings - `[code]`
 
@@ -308,7 +308,7 @@ This section contains keys which adjust the extrapolation and disagreement check
 
 Settings for MD simulations using an ASE calculator or LAMMPS.
 
-- `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the MD calculations.
+- `ignore_container`: (bool, optional) Whether to ignore the container specified in the container settings for the MD calculations.
 
 #### MD Parameters - `[md.parameters]`
 
@@ -321,7 +321,7 @@ Settings for MD simulations using an ASE calculator or LAMMPS.
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and therefore DFT calculations.
-- `log_save_interval`: (int) Every how many MD steps log energy and force information.
+- `log_save_interval`: (int, optional) Every how many MD steps log energy and force information. By default `1`.
 - `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`. Has no effect when using LAMMPS.
 - `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`. Has no effect when using LAMMPS.
 
@@ -341,7 +341,7 @@ Only use when dealing with bulks, surfaces or clusters that have no adsorbed mol
 
 - `enable`: (bool) Enable the filter. Check for structures that have atoms with no neighbors.
 
-- `covalent_radius_multiplier` = (float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is `1.0`.
+- `covalent_radius_multiplier` = (float, optional) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is `1.0`.
 
 ##### Layer distance fitltering - `[md.filters.layer_distance]`
 
@@ -355,12 +355,12 @@ Specific settings for the layer distance MD filter. This sometimes helps with bu
 
 Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
 
-- `enable`: (bool) Whether to enable or disable this filter. By default `true`.
-- `cov_rad_multiplier_max`: (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
-- `cov_rad_multiplier_min`: (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.8`.
-- `max_T_multiplier`: (float) Multiplier to apply to the maximum MD temperature threshold in order to decide if the structure has high kinetic energy. By default `10`.
-- `remove_positive_E`: (bool) Whether to consider positive potential energy as incorrect. By default `false`.
-- `explode_check_interval_perc`: (float) Every how many steps, as a percentage of the total MD steps, check if the current frame is incorrect by using the exploding structures filter. By default it is set to `0.1` (10%). In some cases it is desireable to decrease this parameter to to `0.05` (5%) or even `0.01` (1%), as it seems that MD simulations that break slow down a lot and it might take a while for the simulation to reach the next interval where the check will activate again.
+- `enable`: (bool, optional) Whether to enable or disable this filter. By default `true`.
+- `cov_rad_multiplier_max`: (float, optional) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
+- `cov_rad_multiplier_min`: (float, optional) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.8`.
+- `max_T_multiplier`: (float, optional) Multiplier to apply to the maximum MD temperature threshold in order to decide if the structure has high kinetic energy. By default `10`.
+- `remove_positive_E`: (bool, optional) Whether to consider positive potential energy as incorrect. By default `false`.
+- `explode_check_interval_perc`: (float, optional) Every how many steps, as a percentage of the total MD steps, check if the current frame is incorrect by using the exploding structures filter. By default it is set to `0.1` (10%). In some cases it is desireable to decrease this parameter to to `0.05` (5%) or even `0.01` (1%), as it seems that MD simulations that break slow down a lot and it might take a while for the simulation to reach the next interval where the check will activate again.
 
 #### MD Queue - `[md.queue]`
 
@@ -530,7 +530,7 @@ MACE Training Settings. Check the [MACE documentation on training](https://mace-
 
 ### DFT Settings - `[dft]`
 
-- `dft_method`: (str, optional) What energy and force calculation method to use, either DFT with VASP or MACE using a pre-trained MACE model.  Specified as either "vasp" or "mace", the default being 'mace'.
+- `dft_method`: (str, optional) What energy and force calculation method to use, either DFT with VASP or MACE using a pre-trained MACE model.  Specified as either `vasp` or `mace`, the default being `mace`.
 - `dft_calc_limit`: (int, optional) Maximum number of DFT calculations to perform per AL step. Default is None, so no limit will be in place.
 
 #### MACE as DFT calculator - `[dft.mace]`
