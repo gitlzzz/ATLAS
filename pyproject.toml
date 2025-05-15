@@ -121,10 +121,14 @@ version_files = [
 template = "./docs/commit_template.txt"
 
 [tool.commitizen.customize]
-message_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %}"
-example = "feature: this feature enable customize through config file"
-schema = "<type>: <body>"
-schema_pattern = "(feat|fix|chore|docs):(\\s.*)"
+#message_template = "{{change_type}}:{% if show_message %} {{message}}{% endif %}"
+#example = "feature: this feature enable customize through config file"
+#schema = "<type>: <body>"
+# schema_pattern = "(feat|fix|chore|docs):(\\s.*)"
+message_template = "{{change_type}}{% if scope %}({{scope}}){% endif %}:{% if show_message %} {{message}}{% endif %}"
+example = "feat(al_loop): this feature enables MD simulations using ASE."
+schema = "<type>(<scope>): <body>"
+schema_pattern = "(feat|fix|chore|docs|refactor|perf|style|test)(\\([^)]+\\))?:(\\s.*)"
 bump_pattern = "^(break|new|fix|hotfix|feat|chore|docs)"
 bump_map = { "break" = "MAJOR", "new" = "MINOR", 'feat' = "MINOR", "fix" = "PATCH", "hotfix" = "PATCH", 'chore' = "PATCH", 'docs' = "PATCH" }
 change_type_order = [
@@ -146,20 +150,46 @@ change_type_map = { "feat" = "Feature", "fix" = "Fix", "chore" = "Misc", "docs" 
 type = "list"
 name = "change_type"
 choices = [
-    { value = "feature", name = "feature: A new feature." },
-    { value = "bug fix", name = "bug fix: A bug fix." },
+    # The 'value' should match what your patterns expect, e.g., 'feat', 'fix'
+    { value = "feat", name = "feat: ✨ A new feature." },
+    { value = "fix", name = "fix: 🐛 A bug fix." },
+    { value = "docs", name = "docs: 📚 Documentation changes." },
+    { value = "style", name = "style: 💄 Code style changes (formatting, etc.)." },
+    { value = "refactor", name = "refactor: ♻️ Code changes that neither fix a bug nor add a feature." },
+    { value = "perf", name = "perf: 🚀 A code change that improves performance." },
+    { value = "test", name = "test: ✅ Adding missing tests or correcting existing tests." },
+    { value = "chore", name = "chore: 🧹 Other changes that don't modify src or test files (build, CI, etc.)." }
+    # Note: "BREAKING CHANGE" is usually not a type itself in conventional commits,
+    # but rather indicated in the commit body/footer (e.g., with `BREAKING CHANGE:`).
+    # Your `bump_map` has "break" for MAJOR, which is good.
+    # You'll need to ensure your message template/prompts allow for adding breaking change footers.
 ]
 message = "Select the type of change you are committing"
 
 [[tool.commitizen.customize.questions]]
+type = "list"
+name = "scope"
+choices = [
+    {value = "", name = "none: No specific scope"}, # Option for no scope
+    {value = "al_loop", name = "Changes to the active learning loop"},
+    {value = "report", name = "Changes to the report part"},
+    {value = "core", name = "Changes to core functionality"},
+    {value = "dft", name = "Changes to dft calculators"},
+    {value = "init_db", name = "Changes to the initial database, structures and phase diagrams."},
+    {value = "domain_validity", name = "Changes to interpolation, extrapolation, dim. reduction..."}
+]
+message = "What is the scope of this change? (e.g., component or file name) (press enter to skip)"
+
+[[tool.commitizen.customize.questions]]
 type = "input"
 name = "message"
-message = "Body."
+message = "Write a short and imperative summary of the changes (e.g., add new DFT calculator)"
 
 [[tool.commitizen.customize.questions]]
 type = "confirm"
 name = "show_message"
-message = "Do you want to add body message in commit?"
+message = "Do you want to add this summary as the commit body?"
+default = true
 
 
 [tool.ruff]
