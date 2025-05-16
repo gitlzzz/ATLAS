@@ -218,22 +218,30 @@ def generate_descriptors_mace(
 
     descriptor_dict = {}
     descriptor_list = []
+
+    # Getting descriptors for every structure
     for struct in database:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         else:
             struct_key = struct.info.get('aiida_uuid')
 
-        descriptor_dict[struct_key] = {
-            'descriptors': [],
-            'latent_space': [],
-        }
+        # Creating empty lists to store the descriptors if not already present
+        if descriptor_dict.get(struct_key) is None:
+            descriptor_dict[struct_key] = {
+                'descriptors': [],
+                'latent_space': [],
+            }
 
-    for struct in database:
+        # Getting the descriptors for the current structure
         curr_struct_descriptors = calculator.get_descriptors(struct)
         descriptor_list.append(curr_struct_descriptors)
+
+        # Appending the descriptors to the dictionary
         descriptor_dict[struct_key]['descriptors'].append(curr_struct_descriptors)
 
+    # Generating a numpy array from the list of all descriptors, stacked
+    # vertically.
     descriptor_arr = np.vstack(descriptor_list)
     return descriptor_dict, descriptor_arr
 

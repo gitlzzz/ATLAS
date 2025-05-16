@@ -725,7 +725,6 @@ if __name__ == '__main__':
                 )
 
         print()
-
         # Advanced extrapolation (concave hull) check
         if extrap_type == 'advanced':
             mdb_cud.custom_print('Applying advanced extrapolation check...', 'info')
