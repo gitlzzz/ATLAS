@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.27.6 (2025-05-16)
+
+### Fix
+
+- **al_loop**: modified high T check in `apply_filter_exploding_structures()` for T_list usage ([#f9842ce](https://github.com/pol-sb/MatDBForge/commit/f9842ce7af0c1b2c0d7d5cd9ebe1a9b0e1baad2a))
+- **al_loop**: renamed incorrect `log_interval` to `loginterval` for ase calculator ([#d3a47e7](https://github.com/pol-sb/MatDBForge/commit/d3a47e7776e621064aca149a517a1bd3422e4be5))
+- **al_loop**: write descriptors for every structure in `descriptor_dict`. ([#a85053d](https://github.com/pol-sb/MatDBForge/commit/a85053ded59db7c0d5e636fddf99a87bc40983e4))
+
+### Misc
+
+- **core**: added 'md' scope to commitizen template ([#a559b72](https://github.com/pol-sb/MatDBForge/commit/a559b7221c53c44e0b8e5404817e99f0873e8fef))
+- **core**: updated authors ([#2b4a5a2](https://github.com/pol-sb/MatDBForge/commit/2b4a5a263ba9b4698c800622ab97ae5f59cd118c))
+
 ## 0.27.5 (2025-05-15)
 
 ### Fix
