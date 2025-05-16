@@ -330,6 +330,7 @@ if __name__ == '__main__':
                         cov_rad_multiplier_max=cov_rad_multiplier_max,
                         cov_rad_multiplier_min=cov_rad_multiplier_min,
                         max_T=max_T,
+                        T_list=[frame.info.get('md_temperature')],
                         max_T_multiplier=max_T_multiplier,
                         remove_positive_E=remove_positive_E,
                     )

@@ -105,7 +105,7 @@ def aiida_wait_submit(
     #     time.sleep(10)
 
 
-def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
+def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
     """
     Function to compute the temperature ramp during ASE MD simulations.
 
@@ -125,6 +125,9 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end):
     float
         Temperature to set for the current step in the MD simulation.
     """
+    # Adding current T value to the list
+    T_list.append(dyn.todict()['temperature_K'])
+
     # Update the temperature using the ramp function
     current_temperature = T_start + (T_end - T_start) * dyn.nsteps / total_steps
 
@@ -321,6 +324,8 @@ def run_mace_md_ase(
 
     md_type = md_params.get('md_type', 'mace')
 
+    T_list = []
+
     if md_type == 'mace':
         mace_foundation = md_params.get('mace_foundation')
 
@@ -398,6 +403,7 @@ def run_mace_md_ase(
         total_steps=num_steps,
         T_start=T_start,
         T_end=T_end,
+        T_list=T_list,
     )
 
     if traj_obj is not None and mode == 'normal':
@@ -422,6 +428,7 @@ def run_mace_md_ase(
             cov_rad_multiplier_min=explode_filter_dict.get('cov_rad_multiplier_min'),
             max_T=T_end,
             max_T_multiplier=explode_filter_dict.get('max_T_multiplier', 10),
+            T_list=T_list,
             remove_positive_E=explode_filter_dict.get('remove_positive_E', False),
         )
 
@@ -452,6 +459,7 @@ def md_stop_explode_filter(
     cov_rad_multiplier_max,
     max_T,
     max_T_multiplier,
+    T_list,
     remove_positive_E,
 ):
     has_exploded = apply_filter_exploding_structures(
@@ -460,6 +468,7 @@ def md_stop_explode_filter(
         cov_rad_multiplier_max=cov_rad_multiplier_max,
         max_T=max_T,
         max_T_multiplier=max_T_multiplier,
+        T_list=T_list,
         remove_positive_E=remove_positive_E,
     )
     if has_exploded:

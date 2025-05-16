@@ -338,6 +338,7 @@ def apply_filter_exploding_structures(
     cov_rad_multiplier_min: float = 0.8,
     max_T: float = None,
     max_T_multiplier: float = 10,
+    T_list: list[float] = None,
     remove_positive_E: bool = False,
 ) -> bool:
     """
@@ -347,10 +348,18 @@ def apply_filter_exploding_structures(
     ----------
     struct : ase.Atoms
         Structure to check.
-    max_distance : float
-        Maximum distance between atoms.
-    min_distance : float
-        Minimum distance between atoms.
+    max_T : float, optional
+        Maximum temperature for the structure, by default None.
+    max_T_multiplier : float, optional
+        Multiplier for the maximum temperature, by default 10.
+    cov_rad_multiplier_max : float, optional
+        Maximum covalent radius multiplier, by default 10.0.
+    cov_rad_multiplier_min : float, optional
+        Minimum covalent radius multiplier, by default 0.8.
+    T_list : list[float], optional
+        List of temperatures for the structure, by default None.
+    remove_positive_E : bool, optional
+        If `True`, structures with positive energy will be removed, by default False.
 
     Returns
     -------
@@ -388,10 +397,12 @@ def apply_filter_exploding_structures(
     # Check if the maximum distance is above the threshold
     is_exploding = np.any(max_dist > cutoffs_max) or np.any(min_dist < cutoffs_min)
 
-    if max_T and max_T_multiplier:
-        curr_struct_T = struct.info.get('md_temperature', np.nan)
-        if curr_struct_T > (max_T * max_T_multiplier):
+    # Check if any of the previous T are above the threshold
+    if max_T and max_T_multiplier and T_list:
+        T_arr = np.array(T_list)
+        if np.any(T_arr) > (max_T * max_T_multiplier):
             return True
+        T_list.clear()
 
     if remove_positive_E:
         curr_energy = struct.info.get('REF_energy')
