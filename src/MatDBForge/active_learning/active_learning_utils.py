@@ -367,7 +367,7 @@ def run_mace_md_ase(
                 # convert friction in ps-1 to fs-1
                 friction=(friction / 1000) / units.fs,
                 logfile=log_folder / f'md_info-{T_start}K.log',
-                log_interval=log_interval,
+                loginterval=log_interval,
             )
         case 'nose-hoover':
             # Change the simulation box to remove any small numbers not in the diagonal
@@ -384,7 +384,7 @@ def run_mace_md_ase(
                 ttime=100 * units.fs,
                 pfactor=None,
                 logfile=log_folder / f'md_info-{T_start}K.log',
-                log_interval=log_interval,
+                loginterval=log_interval,
             )
     mdb_cud.custom_print('Running MD simulation using settings:', 'info')
     rprint(md_params)
