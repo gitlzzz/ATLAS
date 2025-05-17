@@ -322,6 +322,7 @@ Settings for MD simulations using an ASE calculator or LAMMPS.
 - `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and therefore DFT calculations.
 - `log_save_interval`: (int, optional) Every how many MD steps log energy and force information. By default `1`.
+- `max_energy_threshold_per_atom`: (float, optional) Maximum energy threshold per atom in eV. For instance, if a system has 8 atoms, the max total energy threshold will be defined as 8000 eV if this variable is set to 1000eV. Default is `1000.0` eV.
 - `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`. Has no effect when using LAMMPS.
 - `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`. Has no effect when using LAMMPS.
 
