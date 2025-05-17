@@ -284,6 +284,8 @@ def run_mace_md_ase(
     """
     from mace.calculators import MACECalculator
 
+    from MatDBForge.active_learning.md.ase_calculators import MDBSafeCalculatorWrapper
+
     T_multiplier = md_params.get('max_temp_multiplier', 1.0)
     T_end = T_start * T_multiplier
     timestep_ps = md_params['timestep_duration_ps']
@@ -332,7 +334,7 @@ def run_mace_md_ase(
         if mace_foundation:
             from mace.calculators import mace_mp
 
-            calculator = mace_mp(
+            nn_calculator = mace_mp(
                 device=md_params.get('device', 'cpu'),
                 default_dtype=md_params.get('default_dtype', 'float64'),
             )
@@ -341,12 +343,21 @@ def run_mace_md_ase(
             # atoms object
             model_path = Path(prepend_path) / 'curr_model.model'
 
-            calculator = MACECalculator(
+            nn_calculator = MACECalculator(
                 model_paths=model_path,
                 device=md_params.get('device', 'cpu'),
                 default_dtype=md_params.get('default_dtype', 'float64'),
             )
-        init_conf.calc = calculator
+
+        # Wrap the calculator in a custom calculator to check for
+        # unphysical states
+        wrapped_calc = MDBSafeCalculatorWrapper(
+            calculator=nn_calculator,
+            max_energy_threshold_per_atom=md_params.get(
+                'max_energy_threshold_per_atom', 1000
+            ),
+        )
+        init_conf.calc = wrapped_calc
 
     # Set the momenta corresponding to the initial temperature
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)
@@ -463,7 +474,7 @@ def md_stop_explode_filter(
     remove_positive_E,
 ):
     has_exploded = apply_filter_exploding_structures(
-        dyn.atoms,
+        dyn,
         cov_rad_multiplier_min=cov_rad_multiplier_min,
         cov_rad_multiplier_max=cov_rad_multiplier_max,
         max_T=max_T,

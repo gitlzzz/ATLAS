@@ -251,7 +251,6 @@ if __name__ == '__main__':
         print()
         mdb_cud.custom_print(f"Running MD simulation for 'T={T_start} K'", 'info')
         mdb_al_ut.run_mace_md_ase(
-            # temperature_ramp=mdb_al_ut.md_apply_temperature_ramp,
             md_params=md_params,
             T_start=T_start,
             traj_obj=traj_obj,

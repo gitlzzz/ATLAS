@@ -7,6 +7,7 @@ import numpy as np
 import rich.progress as riprg
 from ase import Atoms, geometry
 from ase import io as aseio
+from ase.md.md import MolecularDynamics
 from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
@@ -333,7 +334,8 @@ def get_available_filters() -> dict:
 
 
 def apply_filter_exploding_structures(
-    struct: Atoms,
+    dyn: MolecularDynamics = None,
+    struct: Atoms = None,
     cov_rad_multiplier_max: float = 10.0,
     cov_rad_multiplier_min: float = 0.8,
     max_T: float = None,
@@ -366,6 +368,10 @@ def apply_filter_exploding_structures(
     bool
         Returns `True` if the structure is exploding, `False` if otherwise.
     """
+    if struct is None and dyn:
+        # Get current structure
+        struct = dyn.atoms
+
     # Get the natural cutoffs and multiply them by the cov_rad_multiplier_max
     # cutoffs will be used as the minimum and maximum distance between atoms possible
     # for the structure to be considered stable
