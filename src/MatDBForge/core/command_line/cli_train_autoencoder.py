@@ -4,14 +4,14 @@ import argparse
 import warnings
 
 import MatDBForge.active_learning.extrapolation.train_autoencoder as train_ae
-import MatDBForge.core.code_utils as mdb_cud
+import MatDBForge.core.code_utils as mdb_cut
 
 warnings.filterwarnings('ignore')
 
 
 def run_train_autoencoder():
     # Set up the logger
-    mdb_cud.init_logger('train_autoencoder', log_path='.')
+    mdb_cut.init_logger('train_autoencoder', log_path='.')
 
     # Argument parser
     parser = argparse.ArgumentParser(

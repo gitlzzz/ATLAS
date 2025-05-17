@@ -9,7 +9,7 @@ import torch.optim as optim
 import wandb
 
 import MatDBForge.active_learning.extrapolation.autoencoder as ae
-import MatDBForge.core.code_utils as mdb_cud
+import MatDBForge.core.code_utils as mdb_cut
 
 
 def train_loop(data_loader, model, loss_fn, optimizer):
@@ -135,10 +135,10 @@ def load_dataset(
     train_data = torch.Tensor(point_arr).to(device=device, dtype=dtype)
     valid_data = torch.Tensor(valid_arr).to(device=device, dtype=dtype)
     test_data = torch.Tensor(test_arr).to(device=device, dtype=dtype)
-    mdb_cud.custom_print('Data loaded:', 'info')
-    mdb_cud.custom_print(f'  Training data array shape: {train_data.shape}', 'clean')
-    mdb_cud.custom_print(f'  Validation data array shape: {valid_data.shape}', 'clean')
-    mdb_cud.custom_print(f'  Test data array shape: {test_data.shape}', 'clean')
+    mdb_cut.custom_print('Data loaded:', 'info')
+    mdb_cut.custom_print(f'  Training data array shape: {train_data.shape}', 'clean')
+    mdb_cut.custom_print(f'  Validation data array shape: {valid_data.shape}', 'clean')
+    mdb_cut.custom_print(f'  Test data array shape: {test_data.shape}', 'clean')
     print()
 
     return train_data, valid_data, test_data
@@ -206,7 +206,7 @@ def run_training(args):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     else:
         device = args.device
-    mdb_cud.custom_print(f"Running on device: '{device}'", 'info')
+    mdb_cut.custom_print(f"Running on device: '{device}'", 'info')
 
     # Setting verbosity
     if 'verbose' in vars(args):
@@ -229,12 +229,12 @@ def run_training(args):
                 args.dtype = torch.float64
             case _:
                 args.dtype = torch.float32
-    mdb_cud.custom_print(f"Using dtype: '{args.dtype}'", 'info')
+    mdb_cut.custom_print(f"Using dtype: '{args.dtype}'", 'info')
 
     # If no seed is given, generate a random seed
     if not hasattr(args, 'rng_seed'):
         args.rng_seed = np.random.randint(1, int(1e15))
-    mdb_cud.custom_print(f"Using RNG seed: '{args.rng_seed}'.", 'info')
+    mdb_cut.custom_print(f"Using RNG seed: '{args.rng_seed}'.", 'info')
 
     # Load data
     train_data, valid_data, test_data = load_dataset(
@@ -325,7 +325,7 @@ def run_training(args):
         # shuffle=True,
     )
 
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f'Starting autoencoder training for {args.num_epochs} epochs...', 'info'
     )
 
@@ -352,7 +352,7 @@ def run_training(args):
                 loss_fn=criterion,
             )
             if args.verbose:
-                mdb_cud.custom_print(
+                mdb_cut.custom_print(
                     {
                         'Epoch': epoch,
                         'Train Avg. MSE': train_avg_loss,
@@ -376,7 +376,7 @@ def run_training(args):
         # Log metrics for normal epoch
         else:
             if args.verbose:
-                mdb_cud.custom_print(
+                mdb_cut.custom_print(
                     {
                         'Epoch': epoch,
                         'Train Avg. MSE': train_avg_loss,
@@ -398,7 +398,7 @@ def run_training(args):
 
         scheduler.step(metrics=val_loss)
 
-    mdb_cud.custom_print('Training complete!', 'done')
+    mdb_cut.custom_print('Training complete!', 'done')
 
     if hasattr(args, 'model_path'):
         # Save the model
@@ -406,8 +406,8 @@ def run_training(args):
         save_path = pl.Path(args.model_path).absolute()
         torch.save(model, save_path)
 
-        mdb_cud.custom_print(f"Autoencoder model saved to '{save_path}'.", 'info')
+        mdb_cut.custom_print(f"Autoencoder model saved to '{save_path}'.", 'info')
     else:
-        mdb_cud.custom_print('Autoencoder model not saved.', 'info')
+        mdb_cut.custom_print('Autoencoder model not saved.', 'info')
 
     return model

@@ -39,7 +39,7 @@ from rich.pretty import pprint as rprint
 from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.core import code_utils as mdb_cud
+from MatDBForge.core import code_utils as mdb_cut
 from MatDBForge.core.filtering.structure_filters import (
     apply_filter_exploding_structures,
 )
@@ -80,7 +80,7 @@ def aiida_wait_submit(
             code=code_label,
             limit=calc_limit,
         )
-    mdb_cud.custom_print(f'Can submit: {can_submit}.', 'debug')
+    mdb_cut.custom_print(f'Can submit: {can_submit}.', 'debug')
     if calc_count == 0:
         calc_count = calc_count_sch
 
@@ -402,7 +402,7 @@ def run_mace_md_ase(
                 logfile=log_folder / f'md_info-{T_start}K.log',
                 loginterval=log_interval,
             )
-    mdb_cud.custom_print('Running MD simulation using settings:', 'info')
+    mdb_cut.custom_print('Running MD simulation using settings:', 'info')
     rprint(md_params)
 
     # Attach the thermostat function to increase the temperature
@@ -458,7 +458,7 @@ def run_mace_md_ase(
     try:
         dyn.run(num_steps)
     except Exception as e:
-        print(f'Error in MD simulation: {e}')
+        mdb_cut.custom_print(f'Error in MD simulation: {e}', 'error')
 
     if mode != 'normal':
         return md_struct_list

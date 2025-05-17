@@ -13,7 +13,7 @@ from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning.active_learning_utils import generate_descriptors
 from MatDBForge.active_learning.extrapolation import train_autoencoder as mdb_train_ae
-from MatDBForge.core import code_utils as mdb_cud
+from MatDBForge.core import code_utils as mdb_cut
 
 
 def is_advanced_extrapolation_set(input_dict: dict):
@@ -128,7 +128,7 @@ def get_concave_hull_julia_new(latent_space: np.ndarray, k: float = 1) -> np.nda
     concave_hull_np = np.vstack(np.array(concave_hull.vertices))
 
     # Output information
-    mdb_cud.custom_print(f'Concave hull (K = {k}) has area: {hull_area}.')
+    mdb_cut.custom_print(f'Concave hull (K = {k}) has area: {hull_area}.')
 
     return concave_hull_np
 
@@ -149,15 +149,15 @@ if __name__ == '__main__':
     # Initialize the logger
     log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
-    logger = mdb_cud.init_logger(
+    logger = mdb_cut.init_logger(
         source='check_extrapolation_combined', log_path=log_folder
     )
 
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         'Initializing descriptor generation, dimensionality reduction, '
         'and concave hull computation for the structure database.'
     )
-    mdb_cud.custom_print(f"Storing results in '{res_folder.resolve()}'.")
+    mdb_cut.custom_print(f"Storing results in '{res_folder.resolve()}'.")
 
     # Read TOML file with settings
     with open(prepend_path / 'settings.toml', 'rb') as f:
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     auto_train_settings = auto_settings.get('train_settings', {})
     auto_path = auto_train_settings.get('model_path', 'autoencoder_model.pth')
 
-    mdb_cud.custom_print(f'Using device {device} and dtype {dtype}', 'info')
+    mdb_cut.custom_print(f'Using device {device} and dtype {dtype}', 'info')
 
     # Load data
     structs_database = ase_read(
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         descriptor_type = descriptor_settings.get('descriptor_type', 'mace')
         match descriptor_type:
             case 'mace':
-                mdb_cud.custom_print('Generating MACE descriptors...')
+                mdb_cut.custom_print('Generating MACE descriptors...')
                 descriptor_dict, descriptor_arr = generate_descriptors(
                     model_path=prepend_path / 'curr_iter_best.model',
                     database=structs_database,
@@ -191,7 +191,7 @@ if __name__ == '__main__':
                     dtype=dtype,
                 )
     else:
-        mdb_cud.custom_print('Reading descriptors from file...')
+        mdb_cut.custom_print('Reading descriptors from file...')
         descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')
         with open(res_folder / 'curr_it_db_descriptors.pkl', 'rb') as f:
             descriptor_dict = pickle.load(f)
@@ -206,7 +206,7 @@ if __name__ == '__main__':
 
     # Saving descriptor array
     np.savez_compressed(prepend_path / 'all_descriptors.npz', descriptor_arr)
-    mdb_cud.custom_print('Descriptors generated.')
+    mdb_cut.custom_print('Descriptors generated.')
 
     latent_space = None
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
         latent_space_file = res_folder / 'latent_space.npy'
 
         if not pl.Path(prepend_path / auto_path).exists():
-            mdb_cud.custom_print('Training the autoencoder model...')
+            mdb_cut.custom_print('Training the autoencoder model...')
 
             # Check if the dataset path exists, if not prepend the prepend_path
             if not pl.Path(auto_train_settings['dataset']).exists():
@@ -230,9 +230,9 @@ if __name__ == '__main__':
 
             # Train the autoencoder model
             mdb_train_ae.run_training(AttributeDict(auto_train_settings))
-            mdb_cud.custom_print('Autoencoder model trained.')
+            mdb_cut.custom_print('Autoencoder model trained.')
         else:
-            mdb_cud.custom_print('Loading Autoencoder model...')
+            mdb_cut.custom_print('Loading Autoencoder model...')
 
         # Load autoencoder model
         import torch
@@ -252,11 +252,11 @@ if __name__ == '__main__':
         model.eval()
 
         # Reduce the dimensionality of the input points to 2D
-        mdb_cud.custom_print('Computing latent space for all structures...')
+        mdb_cut.custom_print('Computing latent space for all structures...')
         latent_space_all = []
         with torch.no_grad():  # No need to compute gradients for inference
             for idx, struct in enumerate(structs_database):
-                mdb_cud.custom_print(
+                mdb_cut.custom_print(
                     f'Structure {idx}/{len(structs_database)}', 'debug'
                 )
 
@@ -297,12 +297,12 @@ if __name__ == '__main__':
         # Compute the concave hull using Julia.
         match descriptor_settings.get('dimensionality_reduction_method'):
             case 'autoencoder':
-                mdb_cud.custom_print('Computing concave hull using GMT.jl...', 'info')
+                mdb_cut.custom_print('Computing concave hull using GMT.jl...', 'info')
                 concave_hull = get_concave_hull_julia(latent_space_all)
                 concave_hull_path = res_folder / 'concave_hull.npy'
                 np.save(file=concave_hull_path, arr=concave_hull)
 
-                mdb_cud.custom_print(
+                mdb_cut.custom_print(
                     f"Concave hull computed, saved to '{concave_hull_path}'.", 'done'
                 )
 
@@ -315,12 +315,12 @@ if __name__ == '__main__':
                         filename=res_folder / 'concave_hull.png',
                     )
 
-                    mdb_cud.custom_print('Concave hull plotted.', 'done')
+                    mdb_cut.custom_print('Concave hull plotted.', 'done')
             case 'pca':
                 raise NotImplementedError('PCA not implemented yet')
     else:
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             'Latent space was not computed. Skipping concave hull computation.',
             'warn',
         )
-    mdb_cud.custom_print('Calculation done.', 'done')
+    mdb_cut.custom_print('Calculation done.', 'done')

@@ -12,7 +12,7 @@ import numpy as np
 from pymatgen.core.structure import Lattice, Structure
 from pymatgen.core.surface import Slab, SlabGenerator
 
-import MatDBForge.core.code_utils as mdb_cud
+import MatDBForge.core.code_utils as mdb_cut
 import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_pd
@@ -280,7 +280,7 @@ def process_row_parallel(
 
     # Randomly choosing a subset of the slabs
     max_slab_num = min(max_slab_num, len(total_slabs))
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         (
             f"Generated {len(total_slabs)} slabs for {row.material_id}."
             f" Limited to {max_slab_num} slabs."
@@ -307,7 +307,7 @@ def process_row_parallel(
         # Fix the bottom `fixed_layers` number of layers
         # TODO: Implement this feature and remove warning
         if fixed_layers and fix_layers_warn:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 "`fixed_layers` specified, but not implemented yet.",
                 "debug",
             )
@@ -393,7 +393,7 @@ def process_row_parallel(
         # for the new structures
         subst_base_elem_perc = mdb_ut.gen_base_elem_perc(phase, num_replacements)
 
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f"Random base element % for surface to gen: {subst_base_elem_perc*100}",
             "debug",
         )
@@ -464,13 +464,13 @@ def process_row_parallel(
 
     # Limiting the number of generated supercells to
     # the supercell limit.
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f"Length of the supercell+replacement list: {len(generated_structures)}",
         "debug",
     )
 
     if len(generated_structures) > limit_total_num_struct:
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             (
                 f"Limiting the number of slabs ({len(generated_structures)})"
                 f" to {limit_total_num_struct}."
@@ -561,14 +561,14 @@ def gen_surfaces_diff_miller_parallel(
         n_workers = min(n_workers, len(base_structs))
 
     if phase.use_cache:
-        temp_dir = mdb_cud.get_cache_path() / "mdb"
+        temp_dir = mdb_cut.get_cache_path() / "mdb"
         temp_dir = temp_dir / f"mdb_gen_init_db_surface_{phase.name}"
         temp_dir.mkdir(parents=False, exist_ok=True)
     else:
         temp_dir = tempfile.mkdtemp(
             prefix="mdb_gen_init_db_",
         )
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", "debug"
     )
 
@@ -590,7 +590,7 @@ def gen_surfaces_diff_miller_parallel(
                 "[green]Generating structures:", total=len(base_structs)
             )
 
-            mdb_cud.custom_print(f"Using '{n_workers}' workers.", "debug")
+            mdb_cut.custom_print(f"Using '{n_workers}' workers.", "debug")
 
             # iterate over the jobs we need to run
             with ProcessPoolExecutor(
@@ -644,7 +644,7 @@ def gen_surfaces_diff_miller_parallel(
                     total=len(base_structs),
                 )
     else:
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", "info"
         )
     # Reading stored temporary files
@@ -659,20 +659,20 @@ def gen_surfaces_diff_miller_parallel(
     # Concatenating lists
     generated_structures = np.concatenate(generated_structures)
 
-    mdb_cud.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+    mdb_cut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
 
     # Saving the structures in the db.
     if save_in_db:
-        mdb_cud.custom_print("Saving replaced structures in dataframe.", "debug")
+        mdb_cut.custom_print("Saving replaced structures in dataframe.", "debug")
         for slab in generated_structures:
             slab.save_to_db(db_obj=db_obj)
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
         )
 
     # Removing temporary directory
     if not phase.use_cache:
-        mdb_cud.custom_print(f"Removing temporary directory: '{temp_dir}'.", "debug")
+        mdb_cut.custom_print(f"Removing temporary directory: '{temp_dir}'.", "debug")
 
         # Removing contents
         for file in pl.Path(temp_dir).glob("*"):
@@ -692,7 +692,7 @@ def apply_replacement_surface(
     num_replacement_repeats: int = 2,
     limit_replacements: int = None,
 ):
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f"Applying replacements to {len(slabs_to_replace)} structures...", "debug"
     )
     rng = np.random.default_rng()
@@ -762,7 +762,7 @@ def apply_replacement_surface(
 
                 replacement_list.append(new_struct_symm)
 
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f"Generated {len(replacement_list)} replaced surfaces.", "debug"
     )
 
@@ -772,15 +772,15 @@ def apply_replacement_surface(
             replacement_list, size=limit_replacements, replace=False
         )
 
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f"Limited number of replaced surfaces to {len(replacement_list)}.", "debug"
         )
 
     if save_in_db:
-        mdb_cud.custom_print("Saving replaced surfaces in dataframe.", "debug")
+        mdb_cut.custom_print("Saving replaced surfaces in dataframe.", "debug")
         for slab in replacement_list:
             slab.save_to_db(db_obj=db_obj)
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
         )
 

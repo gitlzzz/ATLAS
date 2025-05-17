@@ -37,7 +37,7 @@ def main():
 
     from ase.io import read as ase_read
 
-    from MatDBForge.core import code_utils as mdb_cud
+    from MatDBForge.core import code_utils as mdb_cut
     from MatDBForge.core import initial_db as mdb_indb
     from MatDBForge.workflows import aiida_utils as mdb_aut
 
@@ -46,7 +46,7 @@ def main():
 
     # Start logger
     log_path = config.get("general", {}).get("log_path", "/tmp/")
-    _, log_file_path = mdb_cud.init_logger(
+    _, log_file_path = mdb_cut.init_logger(
         source="run_vasp_database", log_path=log_path
     )
 

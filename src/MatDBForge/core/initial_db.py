@@ -47,7 +47,7 @@ from slugify import slugify
 
 import MatDBForge as mdb
 import MatDBForge.core.clusters as mdb_clust
-import MatDBForge.core.code_utils as mdb_cud
+import MatDBForge.core.code_utils as mdb_cut
 import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
@@ -145,7 +145,7 @@ class InitialDatabase:
 
         # Using the offset
         if use_offset:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 'Using an offset for computing the phases concentrations.', 'info'
             )
             self.use_offset = use_offset
@@ -205,7 +205,7 @@ class InitialDatabase:
             Dataframe containing structure data for the initial database.
         """
         db_path = pl.Path(self.database_path) / pl.Path(self.database_name)
-        mdb_cud.custom_print(f"Loading database: '{self.database_name}'", 'debug')
+        mdb_cut.custom_print(f"Loading database: '{self.database_name}'", 'debug')
         self.database_name = db_path.name.replace(db_path.suffix, '')
 
         # If no suffixes are present, add the default one.
@@ -216,7 +216,7 @@ class InitialDatabase:
         # Compatibility with the old version of the database
         if '.pkl' in db_path.suffixes:
             suffix = '.pkl'
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 'Using outdated version of database. Adding missing columns.',
                 'debug',
             )
@@ -236,14 +236,14 @@ class InitialDatabase:
                 self.max_num_atoms = database.max_num_atoms
                 self.db_version = database.db_version
 
-                mdb_cud.custom_print(
+                mdb_cut.custom_print(
                     f'Using database version {self.db_version}.', 'debug'
                 )
 
             return database.df
 
-        mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
-        mdb_cud.custom_print(f'Path: {db_path}', 'debug')
+        mdb_cut.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
+        mdb_cut.custom_print(f'Path: {db_path}', 'debug')
 
     def load_database(self, database_path: pl.Path | str) -> pd.DataFrame:
         """
@@ -257,7 +257,7 @@ class InitialDatabase:
         db_path = pl.Path(database_path)
         if not db_path.exists():
             raise FileNotFoundError(f"Database '{db_path}' does not exist.")
-        mdb_cud.custom_print(f"Loading database: '{self.database_name}'", 'info')
+        mdb_cut.custom_print(f"Loading database: '{self.database_name}'", 'info')
 
         # If no suffixes are present, add the default one.
         if len(db_path.suffixes) == 0:
@@ -267,7 +267,7 @@ class InitialDatabase:
         # Compatibility with the old version of the database
         if '.pkl' in db_path.suffixes:
             suffix = '.pkl'
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 'Using outdated version of database. Adding missing columns.',
                 'warn',
             )
@@ -282,14 +282,14 @@ class InitialDatabase:
             with lzma.open(db_path, 'rb') as f:
                 database = pickle.load(f)
 
-                mdb_cud.custom_print(
+                mdb_cut.custom_print(
                     f'Using database version {self.db_version}.', 'info'
                 )
 
             return database
 
-        mdb_cud.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
-        mdb_cud.custom_print(f'Path: {db_path}', 'debug')
+        mdb_cut.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
+        mdb_cut.custom_print(f'Path: {db_path}', 'debug')
 
     def get_db_shape(self) -> tuple:
         # Getting the amount of entries in the database
@@ -464,7 +464,7 @@ class InitialDatabase:
         if name_as_path.exists():
             file_exists = True
 
-        mdb_cud.custom_print(f'Database found: {file_exists}.', 'debug')
+        mdb_cut.custom_print(f'Database found: {file_exists}.', 'debug')
 
         return file_exists
 
@@ -512,11 +512,11 @@ class InitialDatabase:
         )
 
         df.attrs['db_version'] = self.db_version
-        mdb_cud.custom_print(f"Created database '{self.database_name}'.", 'done')
+        mdb_cut.custom_print(f"Created database '{self.database_name}'.", 'done')
 
         return df
 
-    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
+    @mdb_cut.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _find_supercell_indices(
         self,
         structure,
@@ -570,7 +570,7 @@ class InitialDatabase:
         supercell_vec_list.append(supercell_vec)
 
         if verbose:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Supercell generated {supercell_vec}'
                 f' - total atoms: {len(new_structure.species)}',
                 'debug',
@@ -611,7 +611,7 @@ class InitialDatabase:
                         supercell_vec_list.append(supercell_vec)
 
                         if verbose:
-                            mdb_cud.custom_print(
+                            mdb_cut.custom_print(
                                 (
                                     f'Supercell generated (diff.) {supercell_vec} '
                                     f'- total atoms: {struct_size}'
@@ -663,7 +663,7 @@ class InitialDatabase:
         )
 
         if np.count_nonzero(comp_arr) > 0:
-            mdb_cud.custom_print('Duplicate structure found!', 'warn')
+            mdb_cut.custom_print('Duplicate structure found!', 'warn')
             return True
 
         else:
@@ -848,7 +848,7 @@ class InitialDatabase:
         struct_list = self.standardize_struct_ids(struct_list)
 
         aseio.write(filename=file_path, images=struct_list, format=out_format)
-        mdb_cud.custom_print(f"Database exported to '{file_path}'", 'done')
+        mdb_cut.custom_print(f"Database exported to '{file_path}'", 'done')
 
     def standardize_struct_ids(self, atoms_list: list[ase_atoms]) -> list[ase_atoms]:
         """
@@ -922,7 +922,7 @@ class InitialDatabase:
         n_max = 4
         l_max = 4
 
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Setting up SOAP with: r_cut = {r_cut}, n_max = {n_max}, l_max = {l_max}',
             'debug',
         )
@@ -983,7 +983,7 @@ class InitialDatabase:
                     tot_duplicate_uuid_list.append(uuid_list[struct_idx])
                     tot_equival += 1
 
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 (
                     f"Phase '{curr_phase.name}' - Total selected structures:"
                     f' {tot_structures}, equivalent: {tot_equival}'
@@ -996,7 +996,7 @@ class InitialDatabase:
 
         # If the deletion flag is set, the function will delete the duplicate stuctures.
         if delete:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'{len(duplicate_structure_names)} structures marked for deletion.',
                 'debug',
             )
@@ -1014,17 +1014,17 @@ class InitialDatabase:
 
             self.df = init_df_after_removal
 
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Deleted {len(duplicate_structures_df)} structures.',
                 'warn',
             )
 
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Dataframe shape after deleting: {self.df.shape}', 'debug'
             )
 
         else:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 (
                     f'{len(duplicate_structure_names)} repeated structures found. '
                     "Database untouched as 'delete' is set to False."
@@ -1034,7 +1034,7 @@ class InitialDatabase:
 
     def gather_base_structures(self, phase_diag_phases):
         # Querying materials project database.
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             'Gathering base structures by querying the MP API...', 'info'
         )
 
@@ -1115,7 +1115,7 @@ class InitialDatabase:
                                 replace_dict.pop('M')
 
                             if report_replacements:
-                                mdb_cud.custom_print(
+                                mdb_cut.custom_print(
                                     (
                                         f'Applying substitution to '
                                         f'base structures: {replace_dict}...'
@@ -1151,7 +1151,7 @@ class InitialDatabase:
 
     def read_base_structures(self, path: str, target_structures=None):
         """Reads base structures from a given path and stores them in the database."""
-        mdb_cud.custom_print('Reading relaxed structures...')
+        mdb_cut.custom_print('Reading relaxed structures...')
 
         # Getting the path where the calculations will be searched for.
         read_path = pathlib.Path(path) if path else pathlib.Path()
@@ -1173,7 +1173,7 @@ class InitialDatabase:
         for calc_fold in list_dir:
             # Getting information about the current calculation
             curr_phase = pathlib.PurePath(calc_fold).name
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f"Loading calculation for '{curr_phase}' as a base structure.", 'debug'
             )
 
@@ -1235,7 +1235,7 @@ class InitialDatabase:
         with lzma.open(file_path, 'wb') as f:
             pickle.dump(self, f)
 
-        mdb_cud.custom_print(f'Database saved in {file_path}', 'info')
+        mdb_cut.custom_print(f'Database saved in {file_path}', 'info')
 
     def _apply_user_filters(self, filters: list, target_entries: pd.DataFrame):
         # Creating a empty DataFrame with the same column dtypes but no entries.
@@ -1401,7 +1401,7 @@ class InitialDatabase:
         # Get rows with unique values using the 'material_id' column
         target_entries = filtered_df.drop_duplicates(subset='material_id')
 
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             (f'Running MD for {len(target_entries)} base structures...'),
             'info',
         )
@@ -1581,7 +1581,7 @@ class InitialDatabase:
         # Limiting number of structures
         if limit_num_structures:
             limit_num_structures = min(limit_num_structures // repeat, self.df.shape[0])
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Limiting number of deformations to  {limit_num_structures}', 'debug'
             )
             rng_idxs = rng.choice(
@@ -1806,7 +1806,7 @@ class InitialDatabase:
 
         # Reading structure from database
         if read:
-            mdb_cud.custom_print('Using structure from the DB as template...', 'info')
+            mdb_cut.custom_print('Using structure from the DB as template...', 'info')
             try:
                 if isinstance(phase, mdb_pd.Phase):
                     phase_name = phase.name
@@ -1896,7 +1896,7 @@ class InitialDatabase:
                             replace_dict.pop('M')
 
                         if report_replacements:
-                            mdb_cud.custom_print(
+                            mdb_cut.custom_print(
                                 (
                                     'Applying substitution to'
                                     ' all base structures from phase.'
@@ -1951,7 +1951,7 @@ class InitialDatabase:
         return struct_obj_list, query_result, idx_list
 
     def query_mp_api_prototype(self, prototype):
-        mdb_cud.custom_print('Querying the MP API...', 'debug')
+        mdb_cut.custom_print('Querying the MP API...', 'debug')
         with MPRester(ut.gather_secrets()['API_KEY'], mute_progress_bars=True) as mpr:
             if isinstance(prototype, list):
                 query_result = mpr.summary.search(material_ids=prototype)
@@ -1967,7 +1967,7 @@ class InitialDatabase:
 
         return query_result, material_id_prefix, structure
 
-    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
+    @mdb_cut.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _create_symmetrical_prototype(
         self,
         structure: Structure,
@@ -2037,7 +2037,7 @@ class InitialDatabase:
 
         return structure
 
-    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
+    @mdb_cut.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _gen_base_elem_perc(self, phase, num_struct):
         # Computing base_elem percentages using offset
         if self.use_offset:
@@ -2062,7 +2062,7 @@ class InitialDatabase:
 
         return subst_base_elem_perc
 
-    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
+    @mdb_cut.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _fit_replacements_phase(
         self,
         phase,
@@ -2104,7 +2104,7 @@ class InitialDatabase:
 
         return n_at_replacement_upd
 
-    @mdb_cud.deprecated('Moved to `core.utils`', since_ver='0.13.0')
+    @mdb_cut.deprecated('Moved to `core.utils`', since_ver='0.13.0')
     def _apply_replacement(
         self, structure: Structure, phase, n_target_at: int | float, rng=None
     ):
@@ -2184,7 +2184,7 @@ class InitialDatabase:
                 shuffle=True,
             )
         except ValueError:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 (
                     f"No replaceable sites for composition: '{curr_comp}'."
                     "Add one of the formula's elements to the current phase"
@@ -2269,7 +2269,7 @@ class InitialDatabase:
             seed = np.random.randint(0, 2**32 - 1)
 
         rng = np.random.default_rng(seed=seed)
-        mdb_cud.custom_print(f'Bulk generation RNG seed: {str(seed)}', 'debug')
+        mdb_cut.custom_print(f'Bulk generation RNG seed: {str(seed)}', 'debug')
 
         # If the current phase is in overwrite_read_from_db_list,
         # the read flag is set to True
@@ -2310,7 +2310,7 @@ class InitialDatabase:
             # Preparing an array of randomly generated base elem percentages
             # for the new structures
             subst_base_elem_perc = self._gen_base_elem_perc(phase, num_struct)
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Random base element % for bulk to gen: {subst_base_elem_perc * 100}',
                 'debug',
             )
@@ -2589,7 +2589,7 @@ class InitialDatabase:
         path = path / 'input.data'
 
         # Gathering nodes from the given group
-        mdb_cud.custom_print('Getting nodes...')
+        mdb_cut.custom_print('Getting nodes...')
 
         # Preparing a query in the aiida db
         qb = orm.QueryBuilder()
@@ -2605,7 +2605,7 @@ class InitialDatabase:
                 qb.append(VaspCalculation, with_group='group', filters=filter_dict)
             result_nodes = qb.all(flat=True)
 
-        mdb_cud.custom_print(f'{len(result_nodes)} nodes found.', 'info')
+        mdb_cut.custom_print(f'{len(result_nodes)} nodes found.', 'info')
 
         # Writing the file
         with open(path, 'w') as curr_f:
@@ -2618,7 +2618,7 @@ class InitialDatabase:
 
                 # Writing the information to the buffer
                 self._add_entry_to_n2p2_input(buffer=curr_f, data_dict=data_dict)
-        mdb_cud.custom_print(f"All calculations saved in '{path}'.", 'done')
+        mdb_cut.custom_print(f"All calculations saved in '{path}'.", 'done')
 
     def remove_structs_out_of_atom_count_range(
         self, min_num_atoms: int, max_num_atoms: int, remove_base=False
@@ -2655,7 +2655,7 @@ class InitialDatabase:
                         structure_obj, msonable=False
                     )
                 except TypeError as e:
-                    mdb_cud.custom_print(
+                    mdb_cut.custom_print(
                         f"Row {row} resulted in TypeError: '{e}'. Removing.", 'warning'
                     )
                     self.df.drop(row, inplace=True)
@@ -2756,20 +2756,20 @@ class InitialDatabase:
 
         # Adding a dimer
         if add_dimer:
-            mdb_cud.custom_print('Adding base dimers...', 'debug')
+            mdb_cut.custom_print('Adding base dimers...', 'debug')
             clust_obj = mdb_clust.make_clean_dimer(self, phase=phase)
             cluster_list.append(clust_obj)
-            mdb_cud.custom_print('Base dimers done...', 'debug')
+            mdb_cut.custom_print('Base dimers done...', 'debug')
 
         # Create clusters over all size range given, from smallest to largest.
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Adding base clusters with n_atoms: {size_range[0]}-{size_range[-1]}...',
             'debug',
         )
         for size in size_range:
             clust_obj = mdb_clust.make_clean_cluster(self, size=size, phase=phase)
             cluster_list.append(clust_obj)
-        mdb_cud.custom_print('Base clusters done...', 'debug')
+        mdb_cut.custom_print('Base clusters done...', 'debug')
 
         # If True, store the structures along with their information
         # into the MatDBForge InitialDatabase object
@@ -2779,7 +2779,7 @@ class InitialDatabase:
 
         # Return the cluster list in case the user just wants the clusters
         # but not storing them into the database.
-        mdb_cud.custom_print(f'Generated {len(cluster_list)} base clusters.', 'debug')
+        mdb_cut.custom_print(f'Generated {len(cluster_list)} base clusters.', 'debug')
         return cluster_list
 
     def plot_database_composition(
@@ -3033,7 +3033,7 @@ class InitialDatabase:
         plt.savefig(chart_img_path.with_suffix('.png'), dpi=300, format='png')
         plt.savefig(chart_img_path.with_suffix('.svg'), dpi=300, format='svg')
 
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f"Database composition plot saved in '{chart_img_path}'.",
             'done',
         )
@@ -3105,7 +3105,7 @@ class InitialDatabase:
         # Get the descriptors using the selected descriptor type
         match descriptor_type:
             case 'soap':
-                mdb_cud.custom_print('Generating descriptors using SOAP...', 'info')
+                mdb_cut.custom_print('Generating descriptors using SOAP...', 'info')
                 # Get the SOAP descriptors
                 descriptors: dict = self.get_soap_descriptors(**descriptor_settings)
             case 'mace':
@@ -3113,13 +3113,13 @@ class InitialDatabase:
                 raise NotImplementedError(
                     'MACE descriptors are not yet implementedin database generation.'
                 )
-                mdb_cud.custom_print('Generating descriptors using MACE...', 'info')
+                mdb_cut.custom_print('Generating descriptors using MACE...', 'info')
             case 'acsf':
                 # Get the ACSF descriptors
                 raise NotImplementedError(
                     'ASCF descriptors are not yet implementedin database generation'
                 )
-        mdb_cud.custom_print('Generated descriptors.', 'done')
+        mdb_cut.custom_print('Generated descriptors.', 'done')
 
         # Reduce dimensionality of the descriptors
         match (load_autoencoder_path, dimensionality_reduction_method):
@@ -3175,7 +3175,7 @@ class InitialDatabase:
             [val['latent_space'] for key, val in descriptors.items()]
         )
 
-        mdb_cud.custom_print('Getting concave hull...', 'info')
+        mdb_cut.custom_print('Getting concave hull...', 'info')
         concave_hull = mdb_ch.get_concave_hull_julia(latent_space)
         concave_hull = mdb_ch.plot_concave_hull(
             concave_hull=concave_hull,
@@ -3208,8 +3208,8 @@ def cli_gen_db_report(database_path: pl.Path | str):
         Report of the database.
     """
     # Get logger
-    mdb_cud.init_logger(source='db_report')
-    mdb_cud.custom_print('Generating database report...', 'info')
+    mdb_cut.init_logger(source='db_report')
+    mdb_cut.custom_print('Generating database report...', 'info')
 
     # Initialize the database
     structures = indb.InitialDatabase(
@@ -3272,10 +3272,10 @@ def cli_run_gen_initial_database(
     log_path = pl.Path(db_path) / 'logs'
     if not log_path.exists():
         log_path.mkdir(parents=True)
-    logger, _ = mdb_cud.init_logger(source=pl.Path(__file__).stem, log_path=log_path)
+    logger, _ = mdb_cut.init_logger(source=pl.Path(__file__).stem, log_path=log_path)
 
     # Checking last version of the library
-    mdb_cud.check_mdb_version(logger=logger)
+    mdb_cut.check_mdb_version(logger=logger)
 
     # Get timestamp for the entire run
     timestamp = int(time.time())
@@ -3288,7 +3288,7 @@ def cli_run_gen_initial_database(
         # Get timestamp based on host and current time
         # db_dict["database_path"] = pl.Path(db_path) / f"gen_db_{timestamp}"
         db_dict['database_name'] = db_dict['database_name'] + f'_{timestamp}'
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             (
                 'Overwriting disabled. Creating new database in'
                 f" {db_dict['database_path']} named '{db_dict['database_name']}'."
@@ -3300,12 +3300,12 @@ def cli_run_gen_initial_database(
     if not db_path:
         db_path = pl.Path.cwd()
 
-    mdb_cud.custom_print('Starting generation of initial database...', 'info')
+    mdb_cut.custom_print('Starting generation of initial database...', 'info')
     print()
 
     # Get seed from input file or generate one
     rng_seed = int(db_dict.get('rng_seed', np.random.randint(0, 2**32 - 1)))
-    mdb_cud.custom_print(f"Using RNG seed: '{rng_seed}'.", 'info')
+    mdb_cut.custom_print(f"Using RNG seed: '{rng_seed}'.", 'info')
 
     # Assemble phase diagram
     phase_diagram = mdb_pd.PhaseDiagram(
@@ -3376,7 +3376,7 @@ def cli_run_gen_initial_database(
     target_mod_dict = config_dict.get('targeted_modification', {})
     if target_mod_dict.get('central_atom_octahedral'):
         cen_at_oh_dict = target_mod_dict['central_atom_octahedral']
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             'Applying central atom octahedral modifications...', 'info'
         )
         ut.apply_central_atom_octahedral(
@@ -3392,7 +3392,7 @@ def cli_run_gen_initial_database(
         phases_read_from_db.extend(cen_at_oh_dict['filter_phases'])
         output_db_status(structures)
 
-    mdb_cud.custom_print('Generating structures from initial structures...', 'debug')
+    mdb_cut.custom_print('Generating structures from initial structures...', 'debug')
 
     # TODO: Implement this function
     # estimate_final_struct_number(
@@ -3411,7 +3411,7 @@ def cli_run_gen_initial_database(
 
         # Creating surfaces from the base structures, generating
         # different supercells and applying replacements.
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             (
                 f'[bold][{phase_idx + 1}/{len(selected_phases)}] '
                 f'- Current phase: {phase}[/]'
@@ -3425,7 +3425,7 @@ def cli_run_gen_initial_database(
         # If modifications are not allowed, don't do anything for the
         # current phase.
         if not phase.allow_modifications:
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f"Modifications are not allowed for phase: '{phase.name}'. Skipping.",
                 'warn',
             )
@@ -3433,7 +3433,7 @@ def cli_run_gen_initial_database(
 
         if 'bulk' in gen_dict:
             step_name = 'bulk generation'
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f"Step '{step_name}' - Generating bulk structures...", 'info'
             )
             ini_n_structs = len(structures)
@@ -3458,7 +3458,7 @@ def cli_run_gen_initial_database(
 
         if 'surface' in gen_dict:
             step_name = 'surface generation'
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Step {step_name} - Generating surface structures...', 'info'
             )
             ini_n_structs = len(structures)
@@ -3502,7 +3502,7 @@ def cli_run_gen_initial_database(
             min_num_atoms=int(db_dict['min_num_atoms']),
             max_num_atoms=int(db_dict['max_num_atoms']),
         )
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Removed {remove_count} structures out of atom count range.', 'info'
         )
         output_db_status(structures)
@@ -3511,7 +3511,7 @@ def cli_run_gen_initial_database(
         if 'deformation' in config_dict:
             displ_dict = config_dict['deformation']
             step_name = 'lattice deformation'
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Step {step_name} - Applying deformations to lattices.', 'info'
             )
             ini_n_structs = len(structures)
@@ -3530,7 +3530,7 @@ def cli_run_gen_initial_database(
             remove_count = structures.remove_structs_out_of_cell_size_range(
                 min_cell_size=float(db_dict['min_cell_size'])
             )
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Removed {remove_count} structures out of cell size range.', 'info'
             )
             added_structs = len(structures) - ini_n_structs
@@ -3539,7 +3539,7 @@ def cli_run_gen_initial_database(
         if 'perturbation' in config_dict:
             step_name = 'random perturbation'
             perturb_dict = config_dict['perturbation']
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 f'Step {step_name} - Applying a random perturbation'
                 ' to the structures...',
                 'info',
@@ -3564,7 +3564,7 @@ def cli_run_gen_initial_database(
         if 'vacancies' in config_dict:
             step_name = 'vacancy generation'
             vacancies_dict = config_dict['vacancies']
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 (
                     f'Step - {step_name} - Applying vacancies to a random subset of '
                     f'{vacancies_dict["limit_max_num_vacancies"]} structures...'
@@ -3592,7 +3592,7 @@ def cli_run_gen_initial_database(
         )
         if lim_phas_structs:
             step_name = 'limiting structures'
-            mdb_cud.custom_print(
+            mdb_cut.custom_print(
                 (
                     f'Step - {step_name} - Limiting number of structures '
                     f"from phase '{phase.name}' to {lim_phas_structs}."
@@ -3610,7 +3610,7 @@ def cli_run_gen_initial_database(
             report_completed_step(phase, structures, added_structs, step_name=step_name)
 
     print()
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         'Finishing populating structures from every phase.',
         'done',
     )
@@ -3618,7 +3618,7 @@ def cli_run_gen_initial_database(
 
     if 'adsorbates' in config_dict:
         step_name = 'adsorbate generation'
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Step {step_name} - Adding adsorbates on top of the structures...',
             'info',
         )
@@ -3640,7 +3640,7 @@ def cli_run_gen_initial_database(
     # Run short MD simulations for some unperturbed structures
     # to get some MD information.
     if 'md_gen' in config_dict:
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Step {step_name} - Running MD on base structures...',
             'info',
         )
@@ -3662,7 +3662,7 @@ def cli_run_gen_initial_database(
     print()
     if 'struct_filters' in config_dict:
         step_name = 'applying filters'
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Step {step_name} - Applying user-defined filters to structures...',
             'info',
         )
@@ -3670,7 +3670,7 @@ def cli_run_gen_initial_database(
 
         # Apply user-defined filters to the structures
         filtered_idxs = apply_struct_filters_mdb_db(structures, config_dict)
-        mdb_cud.custom_print(
+        mdb_cut.custom_print(
             f'Removed {len(filtered_idxs)} structures based on user-defined filters.',
             'info',
         )
@@ -3681,7 +3681,7 @@ def cli_run_gen_initial_database(
     # # in a vaccuum, and it is labelled with `config_type=IsolatedAtom`.
     structures.add_single_atoms()
 
-    mdb_cud.custom_print('Database generation complete!', 'done')
+    mdb_cut.custom_print('Database generation complete!', 'done')
     print()
 
     structures.save_database(
@@ -3694,7 +3694,7 @@ def cli_run_gen_initial_database(
 
     # Plot the database if requested
     if db_dict.get('plot_db', {}).get('show'):
-        mdb_cud.custom_print('Plotting database composition...', 'info')
+        mdb_cut.custom_print('Plotting database composition...', 'info')
 
         # Selecting plot style settings for the plot
         params = db_dict['plot_db'].get('rc_params')
@@ -3712,7 +3712,7 @@ def cli_run_gen_initial_database(
     if config_dict.get('concave_hull', {}).get('gen_concave_hull', False):
         concave_dict = config_dict['concave_hull']
         print()
-        mdb_cud.custom_print('Generating concave hull...', 'info')
+        mdb_cut.custom_print('Generating concave hull...', 'info')
         structures.descriptors_concave_hull(
             descriptor_type=concave_dict.get('descriptor', 'soap').lower(),
             dimensionality_reduction_method=concave_dict.get(
@@ -3725,7 +3725,7 @@ def cli_run_gen_initial_database(
             device=concave_dict.get('device', 'cpu'),
             rng_seed=rng_seed,
         )
-        mdb_cud.custom_print('Concave hull generated!', 'done')
+        mdb_cut.custom_print('Concave hull generated!', 'done')
         print()
 
     # Export the database if requested
@@ -3740,7 +3740,7 @@ def cli_run_gen_initial_database(
 
         out_format = db_dict['export'].get('format')
 
-        mdb_cud.custom_print(f"Exporting database as '{out_format}'...", 'info')
+        mdb_cut.custom_print(f"Exporting database as '{out_format}'...", 'info')
 
         structures.export_db(
             out_format=out_format,
@@ -3750,7 +3750,7 @@ def cli_run_gen_initial_database(
 
     # Display the database if requested
     if db_dict.get('show_db_ase', {}).get('show'):
-        mdb_cud.custom_print('Displaying database in ASE...', 'info')
+        mdb_cut.custom_print('Displaying database in ASE...', 'info')
         structures.display_db_ase()
 
 
@@ -3774,16 +3774,16 @@ def report_completed_step(
     step_name : str, optional
         The name of the step that was completed, by default 'unknown'.
     """
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f"Step {step_name} complete for phase '{phase.name}'.", 'debug'
     )
-    mdb_cud.custom_print(f'Structures added: {added_structs}', 'debug')
-    mdb_cud.custom_print(f'Current DB total: {len(structures)}', 'debug')
+    mdb_cut.custom_print(f'Structures added: {added_structs}', 'debug')
+    mdb_cut.custom_print(f'Current DB total: {len(structures)}', 'debug')
     db_report = structures.gen_report()
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f'Current DB breakdown: {db_report["structure_count"]["by_type"]}', 'debug'
     )
-    mdb_cud.custom_print(
+    mdb_cut.custom_print(
         f'Modifications applied in DB (cumulative count): '
         f'{db_report["structure_count"]["by_modification"]}',
         'debug',
@@ -3795,10 +3795,10 @@ def get_database_report(structures: InitialDatabase):
     pretty = Pretty(report)
     panel = Panel(pretty, title='Database report')
     rprint(panel)
-    mdb_cud.custom_print(f'Database report generated:\n{report}', 'debug')
+    mdb_cut.custom_print(f'Database report generated:\n{report}', 'debug')
     return report
 
 
 def output_db_status(database: InitialDatabase):
     shape = database.get_db_shape()
-    mdb_cud.custom_print(f'DB Info: {shape[0]} entries, {shape[1]} fields', 'info')
+    mdb_cut.custom_print(f'DB Info: {shape[0]} entries, {shape[1]} fields', 'info')
