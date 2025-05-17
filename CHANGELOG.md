@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.0 (2025-05-17)
+
+### Feature
+
+- **md**: Added `MDBSafeCalculatorWrapper` to wrap ASE MD calculations and detect unphysical energies or forces. ([#774bf52](https://github.com/pol-sb/MatDBForge/commit/774bf52709cbe3ba4f25fc893658b893fa320cef))
+
 ## 0.27.6 (2025-05-16)
 
 ### Fix
