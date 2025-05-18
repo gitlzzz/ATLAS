@@ -16,6 +16,7 @@ import numpy as np
 import plotly.graph_objects as go
 from aiida import load_profile, orm
 from aiida.cmdline.utils.common import get_workchain_report
+from aiida.common.exceptions import NotExistent
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from matplotlib import colormaps, gridspec
@@ -2417,7 +2418,7 @@ def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = N
         # Get the performance data
         all_performance_data: list[dict] = get_al_loop_performance(al_loop_pk)
 
-    except orm.NotExistent as e:
+    except NotExistent as e:
         custom_print(f'Node with PK={al_loop_pk} does not exist.', 'error')
         custom_print(e)
     except Exception as e:
