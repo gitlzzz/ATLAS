@@ -1121,6 +1121,11 @@ def serialize_ase(curr_s: dict | Atoms) -> dict:
     for key, val in curr_s.items():
         if key != 'forces' and isinstance(val, np.ndarray):
             curr_s[key] = list(val)
+        # Check for inf or nan values in key initial_magmoms
+        # and convert them to 0.0
+        if key == 'initial_magmoms':
+            curr_s[key] = np.nan_to_num(val, copy=False)
+            curr_s[key] = list(curr_s[key])
 
     return curr_s
 
@@ -1547,6 +1552,10 @@ def gather_dft_calcs_mace(
 
     # Serializing the structures
     result_list = [serialize_ase(struct) for struct in result_list]
+
+    # Converting results directory to Path object if it's an aiida string
+    if isinstance(results_dir, orm.Str) and results_dir.value is not None:
+        results_dir = Path(results_dir.value)
 
     # Saving outliers
     if outlier_list:
