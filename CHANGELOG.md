@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.1 (2025-05-18)
+
+### Fix
+
+- **al_loop**: Add check for inf or nan values in `initial_magmoms` ([#f098089](https://github.com/pol-sb/MatDBForge/commit/f0980897171f7e3bcaaf4df9f1aca759d14abcb6))
+- **report**: add missing `NonExistent` import ([#bc25cd2](https://github.com/pol-sb/MatDBForge/commit/bc25cd25679ccb1361f97d060ec9f87883815062))
+
 ## 0.28.0 (2025-05-17)
 
 ### Feature
