@@ -163,7 +163,8 @@ def gen_al_loop_report(
     ) = get_loop_report(loop_id, log_path, title)
     # Printing the stats_dict
     output_al_stats_dict(stats_dict=stats_dict, title=title)
-    quit()
+
+    print()
 
     # Parse report dict
     it_idx = [stats_dict[i]['it_idx'] for i in stats_dict]
