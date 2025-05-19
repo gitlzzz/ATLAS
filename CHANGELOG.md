@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.2 (2025-05-19)
+
+### Fix
+
+- **report**: removed quit() statement blocking al_loop report from saving images ([#041cd27](https://github.com/pol-sb/MatDBForge/commit/041cd279972f2b1b4d24bf9e1e67db9321e5be75))
+
 ## 0.28.1 (2025-05-18)
 
 ### Fix
