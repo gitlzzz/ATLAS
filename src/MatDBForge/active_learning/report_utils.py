@@ -31,7 +31,9 @@ from MatDBForge.active_learning.extrapolation.autoencoder import (
     get_latent_space_autoencoder,
     load_autoencoder_model,
 )
-from MatDBForge.active_learning.extrapolation.concave_hull import get_concave_hull_julia
+from MatDBForge.active_learning.extrapolation.concave_hull import (
+    get_concave_hull_python,
+)
 from MatDBForge.core.code_utils import custom_print, init_logger
 
 # Define colors from the gruvbox palette
@@ -215,9 +217,11 @@ def gen_al_loop_report(
 
         if not database_path:
             try:
-                database_path = al_loop_node.inputs.active_learning.init_db_path.value
+                database_path = al_loop_node[
+                    0
+                ].inputs.active_learning.init_db_path.value
                 custom_print(
-                    'Database path not provided. Using the one from the AL loop.',
+                    'Database path not provided. Using the one from the first AL loop.',
                     'warn',
                 )
             except Exception:
@@ -249,9 +253,59 @@ def gen_al_loop_report(
             'info',
         )
 
-        # TODO: Get the autoencoder model from the first iteration
+        # Get the autoencoder model from the workchain. If not available, train a new
+        # one using the descriptors from the first iteration.
         if not autoencoder_path:
-            ...
+            # TODO: Get the autoencoder model from the first iteration
+            first_al_step = al_loop_node[0].called[0]
+            descr_calc = [
+                calc
+                for calc in first_al_step.called
+                if calc.process_label == DESCRIPTORS_LABEL
+            ]
+
+            if len(descr_calc) == 0:
+                descr_calc = 'missing'
+            else:
+                # Get autoencoder model from the first iteration
+                descr_calc = descr_calc[0]
+                autoencoder_model = descr_calc.outputs.autoencoder_model
+
+                try:
+                    last_iter = al_loop_node[0].called[-1]
+                    train_calc = [
+                        calc
+                        for calc in last_iter.called
+                        if calc.process_label == TRAINING_LABEL and calc.is_finished_ok
+                    ][0]
+                except IndexError:
+                    last_iter = al_loop_node[0].called[-2]
+                    train_calc = [
+                        calc
+                        for calc in last_iter.called
+                        if calc.process_label == TRAINING_LABEL and calc.is_finished_ok
+                    ][0]
+
+                # Get last iteration database
+                if not database_path:
+                    custom_print(
+                        'No database path provided. Using the one from the last '
+                        'iteration.',
+                        'warn',
+                    )
+                    database_path = train_calc.inputs.mace_train_file_path.value
+
+                # Get model path from last iteration
+                if not model_path:
+                    custom_print(
+                        'No model path provided. Using the one from the last '
+                        'iteration.',
+                        'warn',
+                    )
+                    model_path: orm.SinglefileData = train_calc.outputs.model_file
+
+                database_files = None
+
         else:
             autoencoder_model = list(Path(autoencoder_path).glob('*.pth'))[0]
             database_files = list(Path(autoencoder_path).glob('database*.xyz'))
@@ -259,17 +313,24 @@ def gen_al_loop_report(
             database_files.sort(
                 key=lambda x: int(str(x).replace('.xyz', '').split('_')[-1])
             )
+            descr_calc = None
 
-        generate_latent_space_evol(
-            al_loop_node=al_loop_node,
-            device_str=device,
-            ax=gs,
-            database_path=database_path,
-            model_path=model_path,
-            autoencoder_model=autoencoder_model,
-            autoencoder_path=autoencoder_path,
-            databases=database_files,
-        )
+        if descr_calc == 'missing':
+            custom_print(
+                'No descriptors calculation found in the first iteration.',
+                'error',
+            )
+        else:
+            generate_latent_space_evol(
+                al_loop_node=al_loop_node,
+                device_str=device,
+                ax=gs,
+                database_path=database_path,
+                model_path=model_path,
+                autoencoder_model=autoencoder_model,
+                autoencoder_path=autoencoder_path,
+                databases=database_files,
+            )
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.925, bottom=0.0725, right=0.95, left=0.075)
@@ -321,9 +382,14 @@ def get_loop_report(
         with open(log_path) as f:
             report = f.read()
         loop_id = re.compile(r'.*ActiveLearningBaseWorkChain\|setup].*').findall(report)
-        loop_id = int(loop_id[0].split('|')[0].replace('[', '').strip())
+        print('loop_id: ', loop_id)
+
+        loop_id: list[int] = np.unique(
+            np.array([int(i.replace('[', '').split('|')[0].strip()) for i in loop_id])
+        )
+        # loop_id = int(loop_id[0].split('|')[0].replace('[', '').strip())
         try:
-            al_loop_node = orm.load_node(loop_id)
+            al_loop_node = [orm.load_node(loop_id) for loop_id in loop_id]
         except Exception:
             al_loop_node = loop_id
 
@@ -334,7 +400,11 @@ def get_loop_report(
         ini_db_size = 0
 
     try:
-        if isinstance(al_loop_node, orm.Node):
+        if isinstance(al_loop_node, list):
+            model_acc_multiplier = al_loop_node[
+                0
+            ].inputs.active_learning.model_acc_multiplier.value
+        elif isinstance(al_loop_node, orm.Node):
             model_acc_multiplier = (
                 al_loop_node.inputs.active_learning.model_acc_multiplier.value
             )
@@ -451,7 +521,11 @@ def get_loop_report(
 
 
 def get_mace_eval_results(
-    al_loop_node, database_path, device_str='cpu', model_path=None, folder_path=None
+    al_loop_node: list[orm.Node],
+    database_path: str | Path,
+    device_str: str = 'cpu',
+    model_path: str | Path = None,
+    folder_path: str | Path = None,
 ):
     from mace.calculators import MACECalculator
     from mace.tools import torch_tools
@@ -464,12 +538,17 @@ def get_mace_eval_results(
     with tempfile.TemporaryDirectory(dir=folder_path) as tmp_dir:
         # Get last iteration from aiida
         try:
-            all_iters = [
-                stp
-                for stp in al_loop_node.called
-                if stp.process_type == 'aiida.workflows:mdb-active-learning'
-                or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
-            ]
+            all_iters = []
+            for node in al_loop_node:
+                all_iters.extend(
+                    [
+                        stp
+                        for stp in node.called
+                        if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                        or stp.process_type
+                        == 'aiida.workflows:mdb-simple-active-learning'
+                    ]
+                )
             last_iter = all_iters[-1]
         except AttributeError:
             last_iter = al_loop_node
@@ -621,7 +700,7 @@ def mark_and_remove_outliers(
 
 
 def generate_error_plot(
-    al_loop_node,
+    al_loop_node: list[orm.Node],
     device_str: str = 'cpu',
     ax=None,
     database_path: str = None,
@@ -1693,85 +1772,141 @@ def plot_al_loop_report(
     return filename
 
 
+def get_latent_spaces_workchain(
+    database_path: str | Path,
+    model_path: str | Path,
+    device_str: str,
+    latent_spaces: list,
+    autoencoder_model: str | Path = None,
+    latent_spaces_list: list = None,
+):
+    curr_db = ase_read(database_path, format='extxyz', index=':')
+    tot_num_steps = max([int(at.info.get('mdb_al_step', 0)) for at in curr_db])
+    with autoencoder_model.as_path() as autoencoder_model_path:
+        autoencoder = load_autoencoder_model(
+            model_path=autoencoder_model_path,
+            data_arr=None,
+        )
+
+    for step_idx in range(tot_num_steps):
+        custom_print(
+            f"Getting latent space for the database at step '{step_idx}'...",
+            'info',
+        )
+
+        # steps_to_consider = range(0, step_idx+1)
+        steps_to_consider = [step_idx]
+        breakpoint()
+        curr_step_db = [
+            struct
+            for struct in curr_db
+            if int(struct.info.get('mdb_al_step', 0)) in steps_to_consider
+        ]
+
+        print('curr_step_db: ', len(curr_step_db))
+        if isinstance(model_path, (str, Path)):
+            descr_dict, arr = generate_descriptors(
+                model_path=model_path,
+                database=curr_step_db,
+                device=device_str,
+                # descriptor_dict=curr_step_db,
+            )
+        elif isinstance(model_path, orm.SinglefileData):
+            with model_path.as_path() as model_path_str:
+                descr_dict, arr = generate_descriptors(
+                    model_path=model_path_str,
+                    database=curr_step_db,
+                    device=device_str,
+                    # descriptor_dict=curr_step_db,
+                )
+
+        latent_space_dict = get_latent_space_autoencoder(
+            model=autoencoder,
+            descriptor_dict=descr_dict,
+            device=device_str,
+            quiet=True,
+        )
+        latent_spaces.append(latent_space_dict)
+    return latent_spaces
+
+
 def generate_latent_space_evol(
-    al_loop_node: orm.Node,
+    al_loop_node: orm.Node | list[orm.Node],
     device_str: str,
     ax,
-    database_path: str,
     model_path: str,
-    autoencoder_path: str,
-    autoencoder_model: str,
-    databases: list[str],
+    database_path: str,
+    autoencoder_model: orm.Node | Path | str,
+    autoencoder_path: str = None,
+    databases: list[str] = None,
 ):
-    # all_steps = [
-    #     stp
-    #     for stp in al_loop_node.called
-    #     if stp.process_type == 'aiida.workflows:mdb-active-learning'
-    #     or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
-    # ]
-
-    # auto_steps = []
-
-    # for node in all_steps:
-    #     for substep in node.called:
-    #         if substep.process_type == 'aiida.calculations:mdb-descriptors-combined':
-    #             auto_steps.append(substep)
-
-    # if len(auto_steps) == 0:
-    #     return
-
-    # # Get autoencoder for first step
-    # main_auto_model: orm.SinglefileData = auto_steps[0].outputs.autoencoder_model
-
-    # for step in auto_steps:
-    #     ...
-    #     # TODO: Database is not stored in any of the aiida nodes
-
-    autoencoder_file_path = Path(autoencoder_model)
-    autoencoder = None
-    descr_dict = None
-
-    # Load pickle file
+    # Try loading pickle file before doing anything else
     if Path('./latent_spaces.pkl').exists():
         with open('latent_spaces.pkl', 'rb') as f:
             latent_spaces = pickle.load(f)
     else:
         latent_spaces = []
 
+    # If pickle file does not exist, check if the latent spaces
+    # can be gathered from the workchain
+    if len(latent_spaces) == 0:
+        all_steps = []
+        for node in al_loop_node:
+            all_steps.extend(
+                [
+                    stp
+                    for stp in node.called
+                    if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                    or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
+                ]
+            )
+
+        auto_steps = []
+
+        for node in all_steps:
+            for substep in node.called:
+                if (
+                    substep.process_type
+                    == 'aiida.calculations:mdb-descriptors-combined'
+                ):
+                    auto_steps.append(substep)
+
+        if len(auto_steps) == 0:
+            return
+
+        for step in auto_steps:
+            curr_latent_space = step.outputs.latent_space.get_array('default')
+            latent_spaces.append(curr_latent_space)
+
     # Get number of steps saved
     num_steps_saved = len(latent_spaces)
 
     # Computing latent space for all structures
     if num_steps_saved == 0:
-        for step_idx, database in enumerate(databases):
-            custom_print(
-                f"Getting latent space for the database at step '{step_idx}'...",
-                'info',
-            )
+        if databases:
+            autoencoder_file_path = Path(autoencoder_model)
+            autoencoder = None
+            descr_dict = None
 
-            curr_db = ase_read(
-                Path(autoencoder_path) / database, format='extxyz', index=':'
+            get_latent_spaces_database_files(
+                device_str,
+                model_path,
+                autoencoder_path,
+                databases,
+                autoencoder_file_path,
+                autoencoder,
+                latent_spaces,
+                descr_dict,
             )
-            descr_dict, arr = generate_descriptors(
+        else:
+            get_latent_spaces_workchain(
+                database_path=database_path,
                 model_path=model_path,
-                database=curr_db,
-                device=device_str,
-                descriptor_dict=descr_dict,
+                device_str=device_str,
+                latent_spaces=latent_spaces,
+                autoencoder_model=autoencoder_model,
+                latent_spaces_list=latent_spaces,
             )
-
-            if not autoencoder:
-                autoencoder = load_autoencoder_model(
-                    model_path=autoencoder_file_path,
-                    data_arr=arr,
-                )
-
-            latent_space_dict = get_latent_space_autoencoder(
-                model=autoencoder,
-                descriptor_dict=descr_dict,
-                device=device_str,
-                quiet=True,
-            )
-            latent_spaces.append(latent_space_dict)
 
         # Saving latent spaces to pickle file
         if len(latent_spaces) > 0:
@@ -1780,57 +1915,155 @@ def generate_latent_space_evol(
 
     # Getting colormap for step number
     cmap = colormaps.get_cmap('viridis')
-    colors = cmap(np.linspace(0, 1, num_steps_saved))
+
+    mappable = mpl.cm.ScalarMappable(
+        norm=mpl.colors.Normalize(1, num_steps_saved),
+        cmap=cmap,
+    )
 
     # Plotting latent space
-    ax1 = ax.figure.add_subplot(ax[2, :])
-    for idx, latent_dict in enumerate(latent_spaces):
+    # Add sub-subplot in ax1
+    bottom_row_spec = ax[2, :]
+    plot_to_cbar_width_ratio = [42, 1]
+    gs_bottom = gridspec.GridSpecFromSubplotSpec(
+        # Number of rows in this nested grid
+        1,
+        # Number of columns in this nested grid
+        2,
+        subplot_spec=bottom_row_spec,
+        width_ratios=plot_to_cbar_width_ratio,
+        # Horizontal space between the plot and colorbar (adjust as needed)
+        wspace=0.05,
+    )
+    ax1 = ax.figure.add_subplot(gs_bottom[0, 0])
+
+    for idx, latent_space in enumerate(latent_spaces):
         latent_space_vals = []
 
-        for structure in latent_dict:
-            curr_struct_latent = latent_dict[structure]['latent_space'][0]
-            latent_space_vals.append(curr_struct_latent)
-        latent_space_vals = np.vstack(latent_space_vals)
+        # Different structures for latent_space list when coming from
+        # workchain or from on the fly generation.
+        if isinstance(latent_space, dict):
+            for structure in latent_space:
+                curr_struct_latent = latent_space[structure]['latent_space'][0]
+                latent_space_vals.append(curr_struct_latent)
+            latent_space_vals = np.vstack(latent_space_vals)
+        else:
+            latent_space_vals = latent_space
 
         # Get concave hull if step is 0
+        concave_hull = get_concave_hull_python(latent_space_vals)
+
+        # Initial concave hull. Do scatter and fill.
         if idx == 0:
-            concave_hull = get_concave_hull_julia(latent_space_vals)
             ax1.plot(
                 concave_hull[:, 0],
                 concave_hull[:, 1],
                 color='#fb4934',
                 linestyle='solid',
-                zorder=10,
-                label='Concave Hull',
+                # zorder=5,
+                label='Initial Concave Hull',
                 linewidth=1,
+            )
+            ax1.scatter(
+                concave_hull[:, 0],
+                concave_hull[:, 1],
+                s=12,
+                color='#fb4934',
+                alpha=1,
+                linewidth=0.33,
+                edgecolors='#282828',
+            )
+            ax1.fill(concave_hull[:, 0], concave_hull[:, 1], '#fb4934', alpha=0.15)
+
+        # Other steps plotted as scatter points
+        else:
+            from matplotlib import colors as mpl_colors
+
+            color = mappable.to_rgba(idx)
+            color = mpl_colors.rgb2hex(color)
+            ax1.scatter(
+                concave_hull[:, 0],
+                concave_hull[:, 1],
+                s=12,
+                color=color,
+                alpha=1,
+                linewidth=0.25,
+                edgecolors='#282828',
             )
 
         ax1.set_title('Latent Space Evolution')
         ax1.set_xlabel('Reduced dimension 1')
         ax1.set_ylabel('Reduced dimension 2')
         ax1.set_title('Latent Space Evolution')
-        ax1.scatter(
-            x=latent_space_vals[:, 0],
-            y=latent_space_vals[:, 1],
-            color=colors[idx],
-            alpha=0.1,
-            # label=f'Step {idx}',
-            s=2,
-            edgecolors='#282828',
-            linewidth=0.25,
-        )
+        # ax1.scatter(
+        #     x=latent_space_vals[:, 0],
+        #     y=latent_space_vals[:, 1],
+        #     color=colors[idx],
+        #     alpha=0.1,
+        #     # label=f'Step {idx}',
+        #     s=2,
+        #     edgecolors='#282828',
+        #     linewidth=0.25,
+        #     zorder=1,
+        # )
+
         ax1.legend()
 
     # Adding colorbar once all iterations are plotted
+    # cax = ax1.inset_axes([1.0, 0.2, 0.5, 1])
+    cax = ax.figure.add_subplot(gs_bottom[0, 1])
     plt.colorbar(
-        mpl.cm.ScalarMappable(
-            norm=mpl.colors.Normalize(1, num_steps_saved),
-            cmap=cmap,
-        ),
+        mappable=mappable,
         label='AL Loop Step',
-        pad=0.01,
-        ax=ax1,
+        # pad=0.01,
+        cax=cax,
     )
+    # ax1.colorbar(
+    #     mappable=mappable,
+    #     label='AL Loop Step',
+    #     pad=0.01,
+    #     ax=ax1,)
+
+
+def get_latent_spaces_database_files(
+    device_str,
+    model_path,
+    autoencoder_path,
+    databases,
+    autoencoder_file_path,
+    autoencoder,
+    latent_spaces,
+    descr_dict,
+):
+    for step_idx, database in enumerate(databases):
+        custom_print(
+            f"Getting latent space for the database at step '{step_idx}'...",
+            'info',
+        )
+
+        curr_db = ase_read(
+            Path(autoencoder_path) / database, format='extxyz', index=':'
+        )
+        descr_dict, arr = generate_descriptors(
+            model_path=model_path,
+            database=curr_db,
+            device=device_str,
+            descriptor_dict=descr_dict,
+        )
+
+        if not autoencoder:
+            autoencoder = load_autoencoder_model(
+                model_path=autoencoder_file_path,
+                data_arr=arr,
+            )
+
+        latent_space_dict = get_latent_space_autoencoder(
+            model=autoencoder,
+            descriptor_dict=descr_dict,
+            device=device_str,
+            quiet=True,
+        )
+        latent_spaces.append(latent_space_dict)
 
 
 def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
@@ -1882,7 +2115,6 @@ def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
         )
         performance_dict = get_al_step_performance(al_step)
         if performance_dict:
-            # pprint(performance_dict)
             all_performance_data.append(performance_dict)
         else:
             custom_print(f'Could not analyze step {al_step.pk}.')
@@ -2319,6 +2551,8 @@ def print_performance_report(all_performance_data: list):
     final_loop_time = datetime.timedelta(0)
 
     for step_idx, step_data in enumerate(all_performance_data):
+        print('step_idx: ', step_idx)
+        breakpoint()
         step_info = step_data.get('step', {})
         stages_info = step_data.get('stages', {})
 
@@ -2352,7 +2586,9 @@ def print_performance_report(all_performance_data: list):
         final_loop_time += step_duration
 
     console.print(steps_table)
-    console.print()  # Add a blank line
+
+    # Add a blank line
+    console.print()
 
     # Table for totals
     console.print(

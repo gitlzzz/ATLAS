@@ -100,25 +100,35 @@ class Autoencoder(nn.Module):
         return self.decoder(self.encoder(x))
 
 
-def load_autoencoder_model(model_path: str, data_arr: np.ndarray):
-    model = torch.load(model_path)
-
-    state_dict = model if isinstance(model, dict) else model.state_dict()
-
-    input_dim = data_arr.shape[1]
-    l1_dim = state_dict['encoder.0.weight'].shape[0]
-    l2_dim = state_dict['encoder.2.weight'].shape[0]
-
-    # Check if the model already exists
-    if pl.Path(model_path).exists() and isinstance(model, dict):
-        # model = torch.load(model_path)
-        model = Autoencoder(
-            input_dim=input_dim,
-            l1_dim=l1_dim,
-            l2_dim=l2_dim,
+def load_autoencoder_model(model_path: str, data_arr: np.ndarray = None):
+    try:
+        model = torch.load(model_path)
+    except Exception as e:
+        custom_print(
+            f'Error loading model from {model_path}. '
+            f'Please check the file path and format. Error: {e}',
+            'error',
         )
-        model.load_state_dict(state_dict)
-        custom_print('Model loaded successfully!', 'done')
+        raise
+
+    state_dict = model if isinstance(model, dict) else False
+
+    if state_dict:
+        input_dim = data_arr.shape[1]
+        l1_dim = state_dict['encoder.0.weight'].shape[0]
+        l2_dim = state_dict['encoder.2.weight'].shape[0]
+
+        # Check if the model already exists
+        if pl.Path(model_path).exists() and isinstance(model, dict):
+            # model = torch.load(model_path)
+            model = Autoencoder(
+                input_dim=input_dim,
+                l1_dim=l1_dim,
+                l2_dim=l2_dim,
+            )
+            model.load_state_dict(state_dict)
+
+    custom_print('Model loaded successfully!', 'done')
 
     return model
 
