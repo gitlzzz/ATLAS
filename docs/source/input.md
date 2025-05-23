@@ -559,7 +559,7 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 '''
 ```
 
-- `filter.filter_dft_calcs`: (bool) Whether to enable the threshold-based filtering. The filter will check the energy and forces of the MACE calculation against the NN-DFT calculation. If the difference is larger than the threshold, the structure will be filtered out. It will be applied to all NN DFT calcs just before adding them to the training database. Default is `false`.
+- `filter.filter_dft_calcs`: (bool) Whether to enable a threshold-based filtering. The filter will check the energy and forces of the MACE calculation against the NN-DFT calculation. If the difference is larger than the threshold, the structure will be filtered out. It will be applied to all NN DFT calcs just before adding them to the training database. Default is `false`.
 - `filter.threshold_E_meV`: (float) Threshold in meV for the energy difference between the MACE and DFT energies. If the difference is larger than this value, the structure will be filtered out.
 - `filter.threshold_F_meV`: (float) Threshold in meV for the force difference between the MACE and DFT forces. If the difference is larger than this value, the structure will be filtered out.
 
@@ -567,11 +567,15 @@ Options intended for MACE will be passed as arguments during MACE execution. The
 
 Settings for VASP as DFT calculator using the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin. Ignored if `dft_method = "mace"`.
 
-- `potential_family` = "vasp-5.3-PBE"
-- `potential_family` = "vasp-5.4-PBE-2023"
-- `structure_types` = ['bulk', 'surface', 'cluster']
+- `potential_family`: (str) String name of the aiida-vasp potential family, e.g.: `"vasp-5.4-PBE-2023"`
+- `structure_types`: (list[str]) List of structure types to choose from, e.g.: `['bulk', 'surface', 'cluster']`
 
 See [the potentials section in the aiida-vasp documentation](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html) to setup the potentials for VASP.
+
+- `calc_type`: (str) Type of calculation. Different INCAR settings can be defined for the different structure types (bulk, surface, cluster) in the incar section. Compatible settings should be set in the incar section. Default is `static`. Available options:
+
+  - `static`: Single point calculation.
+  - `relaxation`: Geometry optimization.
 
 ##### Scheduler settings for aiida-vasp - `[dft.vasp.queue]`
 
@@ -717,7 +721,7 @@ This section contains the general settings for the database batch DFT execution 
 
 This section defines the settings for the calculations.
 
-- `calc_type`: (str) Type of calculation. Different INCAR settings can be defined for the different structure types (bulk, surface, cluster) in the incar section. Default is static. Options:
+- `calc_type`: (str) Type of calculation. Different INCAR settings can be defined for the different structure types (bulk, surface, cluster) in the incar section. Default is `static`. Options:
   - `static`: Single point calculation.
   - `relaxation`: Geometry optimization.
 - `aiida_potential_family`: (str) AiiDA potential family name. Example: vasp-5.4-PBE-2023.
