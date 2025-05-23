@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.28.3 (2025-05-23)
+
+### Fix
+
+- **report**: update autoencoder report generation ([#8e7cb64](https://github.com/pol-sb/MatDBForge/commit/8e7cb649abfa4c48b5fab44696525bcc0f172117))
+- **al_loop**: ensure compatibility with aiida-vasp v2 workflows and enable partial relaxation ([#3249a3a](https://github.com/pol-sb/MatDBForge/commit/3249a3a603ff452dc6edebb785f71dc515d38314))
+
+### Misc
+
+- **core**: add pdb dependency in dev install optional ([#daca7a2](https://github.com/pol-sb/MatDBForge/commit/daca7a2b0e31150a494b22171af2b8a13c64547e))
+
 ## 0.28.2 (2025-05-19)
 
 ### Fix
