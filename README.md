@@ -26,7 +26,7 @@ To install MatDBForge, you can use pip in a python virtual environment or conda 
 
 First, **create a virtual environment** and activate it. This can be done using `conda` or python `venv`.
 
-#### Option A - conda
+#### Option A - `conda`
 
 ```bash
 # Create a conda environment named matdbforge which uses python 3.11
@@ -36,7 +36,7 @@ conda create -n matdbforge python=3.11
 conda activate matdbforge
 ```
 
-#### Option B - venv
+#### Option B - `venv`
 
 An example for an Ubuntu 22.04 system, using python3.11 and venv:
 
@@ -49,6 +49,30 @@ python3 -m venv matdbforge
 source matdbforge/bin/activate
 ```
 
+#### Option C - `uv`
+
+First, install the `uv` tool. Either as shown below using the standalone installer, or please refer to the [official uv installation guide](https://www.google.com/search?q=%5Bhttps://docs.astral.sh/uv/installation/%5D(https://docs.astral.sh/uv/installation/)) for more options.
+
+```bash
+wget -qO- https://astral.sh/uv/install.sh | sh
+```
+
+Once `uv` is isntalled, create an environment named matdbforge specifically with Python 3.11:
+
+```bash
+# Create the virtual environment
+uv venv matdbforge --python 3.11
+```
+
+Make sure to navigate to a folder where you would like your python environment to be located, or specify the desired path.
+You can activate the newly created environment as follows:
+
+```bash
+source matdbforge/bin/activate
+```
+
+With the environment now activated, the library can be installed.
+
 ### 2. Getting the MatDBForge code
 
 ```bash
@@ -56,11 +80,20 @@ source matdbforge/bin/activate
 git clone https://github.com/pol-sb/MatDBForge.git
 ```
 
-### 3. Installing the library using pip in the activated python environment
+### 3. Installing the library in the activated python environment
 
-```shell
+#### Using `pip`
+
+```bash
 # Install the library in the venv using pip
 python3 -m pip install ./MatDBForge
+```
+
+#### Using `uv`
+
+```bash
+# Install the library using uv
+uv pip install ./MatDBForge
 ```
 
 ### 4. Initialize configuration files
