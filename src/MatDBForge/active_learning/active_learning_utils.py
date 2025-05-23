@@ -701,8 +701,14 @@ def get_dft_calc_builder_vasp(
     dft_settings: dict,
 ):
     """Generate a aiida-vasp calculation builder for a given structure and row."""
+    # The dft_settings dict corresponds to the [dft.vasp] key in the input toml.
     struct_type = row['mdb_struct_type']
-    struct_type = mdb_aut.CalcType.from_string('single_point_' + struct_type)
+    struct_type = (
+        dft_settings.get('calc_type', 'single_point_')
+        + '_'
+        + struct_type
+    )
+    struct_type = mdb_aut.CalcType.from_string(struct_type)
 
     # Gathering row information
     (curr_structure, curr_material_name, curr_unique_id, curr_phase) = (

@@ -528,7 +528,7 @@ def run_active_learning():
     )
 
     al_loop_report_parser.add_argument(
-        '--autoencoder_folder',
+        '--autoencoder_path',
         help=(
             'Path to the autoencoder folder. '
             'Should contain an autoencoder model and the database files for every step'
@@ -722,7 +722,7 @@ def run_active_learning():
                 remove_outliers=args.remove_outliers,
                 title=args.title,
                 get_latent_space=args.db_latent_space_evolution,
-                autoencoder_path=args.autoencoder_folder,
+                autoencoder_path=args.autoencoder_path,
                 limit_num_steps=args.limit_num_steps,
             )
         elif args.subcommand == 'init_db':

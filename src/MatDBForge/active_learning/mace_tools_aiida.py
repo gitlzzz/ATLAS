@@ -373,13 +373,17 @@ class TrainMACEModelCalculationParser(Parser):
 
         # If there are some missing variables, return failed code
         if not rmse_e or not rmse_f or not model_file or not train_file:
-            return self.exit_codes.ERROR_INVALID_OUTPUT
+            return self.exit_codes.ERROR_INVALID_OUTPUT.format(
+                node_id=self.node.pk,
+            )
 
         # Really weird data will make the training results NaN
         # Training will run 'fine', but model can't be used like that.
         # Return an error
         if np.isnan(rmse_e) or np.isnan(rmse_f):
-            return self.exit_codes.ERROR_NAN_TRAINING_RESULTS
+            return self.exit_codes.ERROR_NAN_TRAINING_RESULTS.format(
+                node_id=self.node.pk,
+            )
 
         # Return CalcJob outputs
         self.out('model_file', model_file)
@@ -498,7 +502,9 @@ class TrainMACEModelCalculation(CalcJob):
             help='Validation RMSE for the forces, in meV / Å.',
         )
         spec.exit_code(
-            420, 'ERROR_INVALID_OUTPUT', 'training calculation could not run'
+            420,
+            'ERROR_INVALID_OUTPUT',
+            'Training calculation ({node_id}) could not run',
         )
         spec.exit_code(
             421,
@@ -506,7 +512,7 @@ class TrainMACEModelCalculation(CalcJob):
             (
                 'Error table after training contains NaN values. '
                 'This is likely due to bad training data. Check the generated '
-                'structures'
+                'structures in {node_id}.'
             ),
         )
 

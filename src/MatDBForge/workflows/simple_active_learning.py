@@ -235,22 +235,26 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # The most accurate model (during validation) will be chosen as the main model,
         # and used to drive the MD simulations. The remaining models will act as
         # committee models and will only be used to evaluate energies.
-        self.report(
-            f'Training {self.inputs.committee_num_models.value} models using '
-            'current training dataset.'
-        )
 
         # Stop the calculation if initial models must be loaded
         if (
             self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0
         ) or (
-            self.inputs.load_init_models and self.inputs.al_start_mode.value == 'resume'
+            self.inputs.load_init_models
+            and self.inputs.al_start_mode.value == 'resume'
+            and not hasattr(self.ctx, 'loaded_init_models')
         ):
             self.report(
                 'Loading models from nodes: '
                 f"'{self.inputs.load_init_models.get_list()}'."
             )
             return
+        # Run the training
+        else:
+            self.report(
+                f'Training {self.inputs.committee_num_models.value} models using '
+                'current training dataset.'
+            )
 
         calc_count = 0
 
@@ -1319,23 +1323,23 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if self.inputs.dft_method == 'vasp':
             try:
                 dft_calcs = len(self.ctx.dft_struct_seed_calcs)
-                self.report(
-                    f'Gathered {str(dft_calcs)} VASP DFT calculations in total.'
-                )
+
+                # After setting
                 dft_calcs_ok = [
                     node.uuid
-                    for node in self.ctx.dft_struct_seed_calcs
-                    if node.is_finished_ok
+                    for node in self.ctx.dft_struct_seed_calcs if node.is_finished_ok
+                    # if node.is_finished and node.exit_status in [0, 504, 503]
                 ]
-                self.report(
-                    f'Gathered {dft_calcs_ok} VASP DFT calculations '
-                    'that finished correctly.'
-                )
                 if len(dft_calcs_ok) == 0:
                     self.report('No DFT calculations finished correctly.')
                     dft_calc_list = ''
                 else:
+                    self.report(
+                        f'Gathering {len(dft_calcs_ok)} VASP DFT calculations '
+                        'that finished correctly...'
+                    )
                     dft_calc_list = mdb_al_ut.gather_dft_calcs_vasp(dft_calcs_ok)
+                    self.report('Done gathering VASP DFT calculations!')
 
             except AttributeError:
                 dft_calc_list = ''
@@ -1573,8 +1577,13 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Adding the database indexes to the info dict of the structures
         # and the current active learning loop step index (0).
         for idx, struct in enumerate(database_training):
-            struct.info['mdb_db_index'] = idx
-            struct.info['mdb_al_step'] = 0
+            # Storing position in the database
+            if not struct.info.get('mdb_db_index'):
+                struct.info['mdb_db_index'] = idx
+
+            # Adding step index
+            if not struct.info.get('mdb_al_step'):
+                struct.info['mdb_al_step'] = 0
 
             # Adding unique id
             if not struct.info.get('mdb_id'):
