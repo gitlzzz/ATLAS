@@ -14,7 +14,7 @@ import numpy as np
 import pymatgen.core.structure as pymg_struct
 from aiida import load_profile, orm
 from aiida.engine import submit
-from aiida.orm import Bool, Dict, Group, Int, List, Str, StructureData
+from aiida.orm import Bool, Dict, Group, List, Str, StructureData
 from aiida.orm.nodes.data.array.kpoints import KpointsData
 from aiida.plugins import WorkflowFactory
 from ase import Atoms
@@ -71,6 +71,10 @@ PARSER_DICT = {
             'add_edddav_zhegv': True,
             'add_eddrmm_zhegv': True,
         },
+        'critical_notification_errors': [
+            'add_edddav_zhegv',
+            'add_eddrmm_zhegv',
+        ],
     }
 }
 
@@ -429,7 +433,7 @@ def submit_aiida_vasp_calculation(
         target_structure = _convert_Slab_to_Structure(target_structure)
 
     # Centering the structure if it is a cluster
-    if calc_type == 'cluster':
+    if 'cluster' in calc_type_str:
         target_structure = center_structure(target_structure)
 
     # Getting structure as an aiida structure from pymatgen.
@@ -471,14 +475,16 @@ def submit_aiida_vasp_calculation(
         options['custom_scheduler_commands'] = ''
 
     # Defining the vasp.relax workchain object
-    workchain = WorkflowFactory('vasp.v2.relax')
+    if 'single_point' in calc_type.value.lower():
+        workchain = WorkflowFactory('vasp.v2.vasp')
+    elif 'relaxation' in calc_type.value.lower():
+        workchain = WorkflowFactory('vasp.v2.relax')
 
     # Preparing a builder object to be able to submit the workchain
     # and pass inputs to it
     builder = workchain.get_builder()
 
     # Passing the all inputs to the builder object
-    builder.vasp.code = code
 
     if selective_dynamics:
         builder['dynamics'] = selective_dynamics
@@ -488,45 +494,106 @@ def submit_aiida_vasp_calculation(
 
     # Assembling the builder.vasp object
     # Entries available for the options dict:
-    # https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/calculations/usage.html?highlight=options#options
-    builder.vasp['options'] = Dict(options)
-    # builder.vasp["parameters"] = Dict(incar)
-    builder.vasp['parameters'] = Dict(upper_incar)
-    builder.vasp['potential_family'] = Str(potential_family)
-    builder.vasp['potential_mapping'] = Dict(potential_mapping)
-    builder.vasp['metadata'] = metadata_dict
-    # builder.vasp['max_iterations'] = Int(2)
-    builder.vasp['verbose'] = Bool(True)
-    builder.vasp['kpoints'] = kpoints_data
+    # https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/calculations/usage.html
+    # Two different ways to set the code, depending on the workchain.
+    if workchain.get_name() == 'VaspRelaxWorkChain':
+        builder.vasp.code = code
+        builder.vasp['options'] = Dict(options)
+        # builder.vasp["parameters"] = Dict(incar)
+        builder.vasp['parameters'] = Dict(upper_incar)
+        builder.vasp['potential_family'] = Str(potential_family)
+        builder.vasp['potential_mapping'] = Dict(potential_mapping)
+        builder.vasp['metadata'] = metadata_dict
+        # builder.vasp['max_iterations'] = Int(2)
+        builder.vasp['verbose'] = Bool(True)
+        builder.vasp['kpoints'] = kpoints_data
+
+        # Setting parser options
+        builder.vasp['settings'] = Dict(PARSER_DICT)
+
+        # Setting custom settings for the critical notifications
+        custom_parser_settings = aiida_vasp_settings.get('parser_settings', {})
+        for key, value in custom_parser_settings.items():
+            builder.vasp['settings']['parser_settings'][key] = value
+
+        critical_notifications = custom_parser_settings.get(
+            'critical_notifications', {}
+        )
+        for key, value in critical_notifications.items():
+            builder.vasp['settings']['parser_settings']['critical_notifications'][
+                key
+            ] = value
+
+            if value:
+                builder.vasp['settings']['parser_settings'][
+                    'critical_notification_errors'
+                ].append(key)
+
+    elif workchain.get_name() == 'VaspWorkChain':
+        builder.code = code
+        builder['options'] = Dict(options)
+        # builder["parameters"] = Dict(incar)
+        builder['parameters'] = Dict(upper_incar)
+        builder['potential_family'] = Str(potential_family)
+        builder['potential_mapping'] = Dict(potential_mapping)
+        builder['metadata'] = metadata_dict
+        # builder['max_iterations'] = Int(2)
+        builder['verbose'] = Bool(True)
+        builder['kpoints'] = kpoints_data
+
+        # Setting parser options
+        builder['settings'] = Dict(PARSER_DICT)
+
+        # Setting custom settings for the critical notifications
+        custom_parser_settings = aiida_vasp_settings.get('parser_settings', {})
+        for key, value in custom_parser_settings.items():
+            builder['settings']['parser_settings'][key] = value
+
+        critical_notifications = custom_parser_settings.get(
+            'critical_notifications', {}
+        )
+        for key, value in critical_notifications.items():
+            builder['settings']['parser_settings']['critical_notifications'][key] = (
+                value
+            )
 
     if dry_run:
         options['metadata'] = {}
         options['metadata']['dry_run'] = True
 
-    # Setting parser options
-    builder.vasp['settings'] = Dict(PARSER_DICT)
-
-    # Setting custom settings for the critical notifications
-    custom_parser_settings = aiida_vasp_settings.get('parser_settings', {})
-    for key, value in custom_parser_settings.items():
-        builder.vasp['settings']['parser_settings'][key] = value
-
-    critical_notifications = custom_parser_settings.get('critical_notifications', {})
-    for key, value in critical_notifications.items():
-        builder.vasp['settings']['parser_settings']['critical_notifications'][key] = (
-            value
-        )
-
     # Preparing relaxation settings
-    builder.relax_settings = Dict()
+    # builder.relax_settings = Dict()
     if 'single_point' in calc_type.value.lower():
-        builder.relax_settings['perform_static'] = True
-        builder.relax_settings['perform'] = False
+        builder['settings']['parser_settings']['critical_notifications'][
+            'ionic_convergence_not_reached'
+        ] = False
 
-    elif 'relaxation' in calc_type.value.lower():
-        builder.relax_settings['perform_static'] = False
+        for error_name in [
+            'ionic_convergence_not_reached',
+            'electronic_convergence_not_reached',
+        ]:
+            builder['settings']['parser_settings'][
+                'critical_notification_errors'
+            ].append(error_name)
+
+        builder['settings']['parser_settings']['check_errors'] = False
+        builder.handler_overrides = Dict(dict={'check_ionic_converged': False})
+        builder.handler_overrides = Dict(dict={'check_electronic_converged': False})
+        builder['settings']['CHECK_IONIC_CONVERGENCE'] = False
+        builder['settings']['CHECK_ELECTRONIC_CONVERGENCE'] = False
+    #     builder.relax_settings['perform_static'] = True
+    #     builder.relax_settings['perform'] = False
+    #     builder.relax_settings['convergence_on'] = False
+
+    #     # TODO: If this works, add a specific setting that allows partial relaxations
+    #     builder.relax_settings['convergence_max_iterations'] = Int(1)
+    #     builder.vasp.max_iterations = Int(1)
+
+    if 'relaxation' in calc_type.value.lower():
+        builder.relax_settings = Dict()
+        builder.relax_settings['perform_static'] = True
         builder.relax_settings['perform'] = True
-        builder.relax_settings['convergence_max_iterations'] = Int(1)
+        # builder.relax_settings['convergence_max_iterations'] = Int(1)
 
     if dry_run:
         # TODO: Generate a fake node and return it
@@ -1109,7 +1176,6 @@ def run_dataframe_vasp_aiida_queue(
             calc_type_str = (
                 config_dict.get('calculation', {}).get('calc_type') + '_' + struct_type
             )
-            # calc_type: mdb_aut.CalcType =
             calc_type = mdb_aut.CalcType.from_string(calc_type_str)
 
             incar_dict = config_dict.get('incar', {}).get(struct_type, None)
@@ -1390,12 +1456,16 @@ def generate_kpoints_data(structure, calc_type, kspacing=None, kspacing_vec=None
         )
 
     # Clusters and reference strucures
-    elif calc_name.lower() in [
-        'cluster',
-        'isolatedatom',
-        'sp_isolatedatom',
-        'sp_cluster',
-    ]:
+    check_list = (
+        item in calc_name.lower()
+        for item in [
+            'cluster',
+            'isolatedatom',
+            'sp_isolatedatom',
+            'sp_cluster',
+        ]
+    )
+    if any(check_list):
         kpoints_data.set_cell_from_structure(structuredata=structure)
         kpoints_data.set_kpoints_mesh([1, 1, 1])
         mdb_cut.custom_print(
