@@ -4,11 +4,6 @@ base (unperturbed) structures and a certain number of structures
 with an applied perturbation with respect to the temperature.
 """
 
-# This needs to be here to avoid segfaults when using Julia
-# and pytorch.
-from juliacall import Main as jl  # noqa
-from juliacall import convert as jl_convert  # noqa
-
 import itertools as it
 import lzma
 import pathlib
@@ -20,7 +15,7 @@ import warnings
 from io import BytesIO, TextIOWrapper
 from os import cpu_count
 from types import SimpleNamespace
-from MatDBForge.core.structure import Structure as MDBStructure
+
 import ase.io as aseio
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -52,11 +47,12 @@ import MatDBForge.core.exceptions as mdb_exc
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 import MatDBForge.core.surfaces as mdb_surf
+from MatDBForge.core import initial_db as indb
+from MatDBForge.core import utils as ut
 
 # from MatDBForge.active_learning.active_learning_utils import AVAILABLE_FILTERS
 from MatDBForge.core.filtering.structure_filters import apply_struct_filters_mdb_db
-from MatDBForge.core import initial_db as indb
-from MatDBForge.core import utils as ut
+from MatDBForge.core.structure import Structure as MDBStructure
 
 # Filtering certain warnings
 warnings.filterwarnings('ignore', category=vasp.outputs.UnconvergedVASPWarning)
@@ -3176,7 +3172,7 @@ class InitialDatabase:
         )
 
         mdb_cut.custom_print('Getting concave hull...', 'info')
-        concave_hull = mdb_ch.get_concave_hull_julia(latent_space)
+        concave_hull = mdb_ch.get_concave_hull_python(latent_space)
         concave_hull = mdb_ch.plot_concave_hull(
             concave_hull=concave_hull,
             latent_space=latent_space,

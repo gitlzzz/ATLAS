@@ -337,7 +337,7 @@ if __name__ == '__main__':
     # Get descriptors array
     descriptors = np.load(descriptors_file)
 
-    # Compute the concave hull using Julia.
+    # Compute the concave hull.
     concave_hull = get_concave_hull_python(latent_space)
 
     # Check if the random points are inside the concave hull.

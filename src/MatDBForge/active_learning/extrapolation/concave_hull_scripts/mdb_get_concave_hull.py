@@ -305,7 +305,7 @@ if __name__ == '__main__':
     latent_space = np.load(latent_space_file)
     print('Latent space read.')
 
-    # Compute the concave hull using Julia.
+    # Compute the concave hull.
     print('Computing concave hull...')
     concave_hull = get_concave_hull_python(latent_space)
     np.save('concave_hull', concave_hull)

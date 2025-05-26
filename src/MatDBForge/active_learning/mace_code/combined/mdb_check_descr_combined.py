@@ -514,7 +514,6 @@ if __name__ == '__main__':
     # Check for the existence of the latent_space variable
     if latent_space is not None or latent_space_all is not None:
         # Get concave hull
-        # Compute the concave hull using Julia.
         match descriptor_settings.get('dimensionality_reduction_method'):
             case 'autoencoder':
                 mdb_cut.custom_print('Computing concave hull...', 'info')
