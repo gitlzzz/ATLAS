@@ -1582,11 +1582,20 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if not struct.info.get('mdb_db_index'):
                 struct.info['mdb_db_index'] = idx
 
-            # Adding step index
-            if not struct.info.get('mdb_al_step'):
+            # If workchain is resumed from a previous run, we should keep
+            # the step index from the previous run.
+            if self.inputs.resume_dict:
+                # However, structures without step numbers will be set to 0.
+                if not struct.info.get('mdb_al_step'):
+                    struct.info['mdb_al_step'] = 0
+
+            # On the other hand, if starting from scratch, we set the step index to 0,
+            # as this is the first step of the active learning loop.
+            else:
+                # Adding step index
                 struct.info['mdb_al_step'] = 0
 
-            # Adding unique id
+            # Adding unique id to structures that don't have it.
             if not struct.info.get('mdb_id'):
                 struct.info['mdb_id'] = str(uuid.uuid4())
 
