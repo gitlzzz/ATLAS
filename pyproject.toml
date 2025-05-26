@@ -37,7 +37,6 @@ dependencies = [
     "pymatgen",
     "python-slugify[unidecode]",
     "flask",
-    "juliacall",
     "wandb",
     "tomli >= 1.1.0 ; python_version < '3.11'",
 ]
@@ -110,7 +109,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.28.3"
+version = "0.29.0"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [

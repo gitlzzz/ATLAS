@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.29.0 (2025-05-26)
+
+### Feature
+
+- **domain_validity**: Updated concave hull algorithm with python implementation and automatic alpha selection ([#e2f904b](https://github.com/pol-sb/MatDBForge/commit/e2f904b0c95ffe34a53a3a653e481f9d5328d9d3))
+
+### Fix
+
+- **al_loop**: better tracking of `mdb_al_step` in database during active learning runs ([#7858443](https://github.com/pol-sb/MatDBForge/commit/78584438f630e59d003f10196d977c5a4ad8e5e6))
+- **core**: allow loglevel below 20 to show in stdout ([#c337e1a](https://github.com/pol-sb/MatDBForge/commit/c337e1a0691a57529d9e133b0d4bb0a606c80b34))
+- **report**: enable latent space exploration plot for runs without latent space in workchain ([#c9267d4](https://github.com/pol-sb/MatDBForge/commit/c9267d484157aec706f3ba2f9c030ab8b0f53b97))
+- **al_loop**: modify tracking of current step in initial database ([#d01df1d](https://github.com/pol-sb/MatDBForge/commit/d01df1d2c39a056f0ca0566bea53e94ae03162e6))
+- **md**: improve extrapolation robustness and compatibility in `mdb_process_structure.py` script ([#866d165](https://github.com/pol-sb/MatDBForge/commit/866d16584f94f0483a8590daf2e64f1f539db814))
+
 ## 0.28.3 (2025-05-23)
 
 ### Fix

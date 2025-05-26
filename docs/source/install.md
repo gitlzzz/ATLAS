@@ -2,17 +2,13 @@
 
 ## Installation procedure
 
-To install MatDBForge, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda. Additionally, [Julia](https://julialang.org/downloads/) is needed to accelerate some parts of the active learning loop.
+To install MatDBForge, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
 1. First, **create a virtual environment** and activate it. This can be done using `conda` or python `venv`. One example for an ubuntu system, using python3.11 and venv:
 
 ```bash
 # Install python3.11 and venv
 sudo apt install python3.11 python3.11-venv
-
-# Install Julia if you dont have it.
-# Follow the instructions in:
-# https://julialang.org/downloads/
 
 # Using python venv - create and activate the environment
 python3 -m venv mdb

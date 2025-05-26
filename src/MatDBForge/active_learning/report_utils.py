@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -28,11 +29,15 @@ from MatDBForge.active_learning.active_learning_utils import (
     simplify_forces_struct,
 )
 from MatDBForge.active_learning.extrapolation.autoencoder import (
+    Autoencoder,
     get_latent_space_autoencoder,
     load_autoencoder_model,
 )
 from MatDBForge.active_learning.extrapolation.concave_hull import (
     get_concave_hull_python,
+)
+from MatDBForge.active_learning.extrapolation.train_autoencoder import (
+    run_training,
 )
 from MatDBForge.core.code_utils import custom_print, init_logger
 
@@ -258,14 +263,105 @@ def gen_al_loop_report(
         if not autoencoder_path:
             # TODO: Get the autoencoder model from the first iteration
             first_al_step = al_loop_node[0].called[0]
-            descr_calc = [
+
+            model_path = first_al_step.outputs.m0_model_file
+
+            descr_calc_ini = [
                 calc
                 for calc in first_al_step.called
                 if calc.process_label == DESCRIPTORS_LABEL
             ]
+            descr_calc = [
+                calc
+                for calc in descr_calc_ini
+                if hasattr(calc.outputs, 'autoencoder_model')
+            ]
 
-            if len(descr_calc) == 0:
-                descr_calc = 'missing'
+            # If no descriptors calculation is found, we don't do anything.
+            if len(descr_calc) == 0 and len(descr_calc_ini) == 0:
+                descr_calc = 'missing_descriptor_calc'
+
+            # If there is a descriptors calculation but no autoencoder model,
+            # we assume that the run was performed without dimensionality reduction.
+            # In this case, we train the autoencoder model with data from the
+            # first iteration and use it to generate the latent space evolution plot.
+            elif len(descr_calc) == 0 and len(descr_calc_ini) > 0:
+                custom_print(
+                    'No autoencoder model found in the first iteration. '
+                    'Training a new autoencoder model using the descriptors from the '
+                    'first iteration.',
+                    'warn',
+                )
+                descr_calc = 'missing_autoencoder'
+
+                # Get initial database from the first iteration
+                db_path = descr_calc_ini[0].inputs.training_database_path.value
+                db = ase_read(db_path, format='extxyz', index=':')
+                init_db = [st for st in db if st.info.get('mdb_al_step') == 0]
+
+                if not Path('all_descriptors.npz').exists():
+                    custom_print(
+                        'Getting descriptors from the first iteration database...',
+                        'info',
+                    )
+                    # Getting model path
+                    with model_path.as_path() as model_path_load:
+                        # Get descriptors from the first iteration
+                        _, desc_array = generate_descriptors(
+                            model_path=model_path_load,
+                            database=init_db,
+                            device=device,
+                        )
+                        np.savez_compressed('./all_descriptors.npz', desc_array)
+                else:
+                    custom_print(
+                        "Loading descriptors from file: 'all_descriptors.npz'",
+                        'info',
+                    )
+                    with np.load('all_descriptors.npz') as data:
+                        desc_array = data['arr_0']
+
+                if not Path('autoencoder_model.pth').exists():
+                    # Train autoencoder model
+                    custom_print(
+                        'Training autoencoder model with descriptors from the first '
+                        'iteration.',
+                        'info',
+                    )
+
+                    autoencoder_args = SimpleNamespace(
+                        device=device,
+                        dtype='float32',
+                        dataset=desc_array,
+                        test_frac=0.1,
+                        valid_frac=0.1,
+                        train_frac=0.8,
+                        wandb=False,
+                        l1_hidden_dim=256,
+                        l2_hidden_dim=32,
+                        bias_flag=True,
+                        loss='mse',
+                        patience=5,
+                        lr=1e-3,
+                        batch_size=4096,
+                        num_epochs=250,
+                        model_path='./autoencoder_model.pth',
+                        weight_decay=1e-5,
+                        verbose=True,
+                    )
+                    autoencoder_model = run_training(autoencoder_args)
+                else:
+                    custom_print(
+                        'Autoencoder model already trained. Loading from file.',
+                        'info',
+                    )
+                    autoencoder_model = load_autoencoder_model(
+                        model_path='./autoencoder_model.pth', data_arr=desc_array
+                    )
+
+                # Setting to None so the database files are read from the workchain.
+                database_files = None
+
             else:
                 # Get autoencoder model from the first iteration
                 descr_calc = descr_calc[0]
@@ -315,11 +411,12 @@ def gen_al_loop_report(
             )
             descr_calc = None
 
-        if descr_calc == 'missing':
+        if descr_calc == 'missing_descriptor_calc':
             custom_print(
                 'No descriptors calculation found in the first iteration.',
-                'error',
+                'warning',
             )
+
         else:
             generate_latent_space_evol(
                 al_loop_node=al_loop_node,
@@ -382,7 +479,6 @@ def get_loop_report(
         with open(log_path) as f:
             report = f.read()
         loop_id = re.compile(r'.*ActiveLearningBaseWorkChain\|setup].*').findall(report)
-        print('loop_id: ', loop_id)
 
         loop_id: list[int] = np.unique(
             np.array([int(i.replace('[', '').split('|')[0].strip()) for i in loop_id])
@@ -1777,16 +1873,21 @@ def get_latent_spaces_workchain(
     model_path: str | Path,
     device_str: str,
     latent_spaces: list,
-    autoencoder_model: str | Path = None,
+    autoencoder_model: str | Path | Autoencoder = None,
     latent_spaces_list: list = None,
 ):
     curr_db = ase_read(database_path, format='extxyz', index=':')
     tot_num_steps = max([int(at.info.get('mdb_al_step', 0)) for at in curr_db])
-    with autoencoder_model.as_path() as autoencoder_model_path:
-        autoencoder = load_autoencoder_model(
-            model_path=autoencoder_model_path,
-            data_arr=None,
-        )
+
+    # Loading autoencoder model if not loaded
+    if isinstance(autoencoder_model, (str, Path)):
+        with autoencoder_model.as_path() as autoencoder_model_path:
+            autoencoder = load_autoencoder_model(
+                model_path=autoencoder_model_path,
+                data_arr=None,
+            )
+    else:
+        autoencoder = autoencoder_model
 
     for step_idx in range(tot_num_steps):
         custom_print(
@@ -1796,37 +1897,49 @@ def get_latent_spaces_workchain(
 
         # steps_to_consider = range(0, step_idx+1)
         steps_to_consider = [step_idx]
-        breakpoint()
         curr_step_db = [
             struct
             for struct in curr_db
             if int(struct.info.get('mdb_al_step', 0)) in steps_to_consider
         ]
-
-        print('curr_step_db: ', len(curr_step_db))
-        if isinstance(model_path, (str, Path)):
-            descr_dict, arr = generate_descriptors(
-                model_path=model_path,
-                database=curr_step_db,
-                device=device_str,
-                # descriptor_dict=curr_step_db,
+        if len(curr_step_db) == 0:
+            custom_print(
+                f'No structures found for step {step_idx}. Skipping...',
+                'warning',
             )
-        elif isinstance(model_path, orm.SinglefileData):
-            with model_path.as_path() as model_path_str:
+            continue
+        else:
+            if isinstance(model_path, (str, Path)):
                 descr_dict, arr = generate_descriptors(
-                    model_path=model_path_str,
+                    model_path=model_path,
+                    database=curr_step_db,
+                    device=device_str,
+                    # descriptor_dict=curr_step_db,
+                )
+            elif isinstance(model_path, orm.SinglefileData):
+                with model_path.as_path() as model_path_str:
+                    descr_dict, arr = generate_descriptors(
+                        model_path=model_path_str,
+                        database=curr_step_db,
+                        device=device_str,
+                        # descriptor_dict=curr_step_db,
+                    )
+            elif isinstance(model_path, Autoencoder):
+                descr_dict, arr = generate_descriptors(
+                    model_path=model_path,
                     database=curr_step_db,
                     device=device_str,
                     # descriptor_dict=curr_step_db,
                 )
 
-        latent_space_dict = get_latent_space_autoencoder(
-            model=autoencoder,
-            descriptor_dict=descr_dict,
-            device=device_str,
-            quiet=True,
-        )
-        latent_spaces.append(latent_space_dict)
+            latent_space_dict = get_latent_space_autoencoder(
+                model=autoencoder,
+                descriptor_dict=descr_dict,
+                device=device_str,
+                quiet=True,
+            )
+            latent_spaces.append(latent_space_dict)
+
     return latent_spaces
 
 
@@ -1834,7 +1947,7 @@ def generate_latent_space_evol(
     al_loop_node: orm.Node | list[orm.Node],
     device_str: str,
     ax,
-    model_path: str,
+    model_path: str | Path | orm.SinglefileData,
     database_path: str,
     autoencoder_model: orm.Node | Path | str,
     autoencoder_path: str = None,
@@ -1875,12 +1988,19 @@ def generate_latent_space_evol(
             return
 
         for step in auto_steps:
-            curr_latent_space = step.outputs.latent_space.get_array('default')
-            latent_spaces.append(curr_latent_space)
+            try:
+                curr_latent_space = step.outputs.latent_space.get_array('default')
+                latent_spaces.append(curr_latent_space)
+            except Exception:
+                custom_print(
+                    f'Could not get latent space from step {step.pk}. '
+                    'Computing latent space on the fly...',
+                    'warning',
+                )
+                break
 
     # Get number of steps saved
     num_steps_saved = len(latent_spaces)
-
     # Computing latent space for all structures
     if num_steps_saved == 0:
         if databases:
@@ -1899,19 +2019,38 @@ def generate_latent_space_evol(
                 descr_dict,
             )
         else:
-            get_latent_spaces_workchain(
-                database_path=database_path,
-                model_path=model_path,
-                device_str=device_str,
-                latent_spaces=latent_spaces,
-                autoencoder_model=autoencoder_model,
-                latent_spaces_list=latent_spaces,
-            )
+            # Getting latent spaces from workchain. Using the model_path
+            # as the model to use.
+            if isinstance(model_path, (str, Path)):
+                latent_spaces = get_latent_spaces_workchain(
+                    database_path=database_path,
+                    model_path=model_path,
+                    device_str=device_str,
+                    latent_spaces=latent_spaces,
+                    autoencoder_model=autoencoder_model,
+                    latent_spaces_list=latent_spaces,
+                )
+            # If model path is a SinglefileData node, a context manager
+            # must be loaded to provide a temporary path and then use it
+            # to load the model
+            elif isinstance(model_path, orm.SinglefileData):
+                with model_path.as_path() as model_path_load:
+                    get_latent_spaces_workchain(
+                        database_path=database_path,
+                        model_path=model_path_load,
+                        device_str=device_str,
+                        latent_spaces=latent_spaces,
+                        autoencoder_model=autoencoder_model,
+                        latent_spaces_list=latent_spaces,
+                    )
 
         # Saving latent spaces to pickle file
         if len(latent_spaces) > 0:
             with open('latent_spaces.pkl', 'wb') as f:
                 pickle.dump(latent_spaces, file=f)
+
+    # Update number of steps saved
+    num_steps_saved = len(latent_spaces)
 
     # Getting colormap for step number
     cmap = colormaps.get_cmap('viridis')
@@ -2551,8 +2690,6 @@ def print_performance_report(all_performance_data: list):
     final_loop_time = datetime.timedelta(0)
 
     for step_idx, step_data in enumerate(all_performance_data):
-        print('step_idx: ', step_idx)
-        breakpoint()
         step_info = step_data.get('step', {})
         stages_info = step_data.get('stages', {})
 

@@ -20,7 +20,7 @@ MatDBForge is a Python library that aids in the generation of chemical structure
 
 ## Installation
 
-To install MatDBForge, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda. Additionally, [Julia](https://julialang.org/downloads/) is needed to accelerate some parts of the active learning loop.
+To install MatDBForge, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
 ### 1. Creating a pyton environment
 
