@@ -360,7 +360,7 @@ def run_training(args):
                         'Test Avg. MSE': test_loss,
                         'lr': scheduler.get_last_lr()[0],
                     },
-                    'info',
+                    'none',
                 )
             # log metrics to wandb
             if args.wandb:
@@ -383,7 +383,7 @@ def run_training(args):
                         'Validation Avg. MSE': val_loss,
                         'lr': scheduler.get_last_lr()[0],
                     },
-                    'info',
+                    'none',
                 )
             # log metrics to wandb
             if args.wandb:
@@ -408,6 +408,6 @@ def run_training(args):
 
         mdb_cut.custom_print(f"Autoencoder model saved to '{save_path}'.", 'info')
     else:
-        mdb_cut.custom_print('Autoencoder model not saved.', 'info')
+        mdb_cut.custom_print('Autoencoder model not saved.', 'warning')
 
     return model

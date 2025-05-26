@@ -304,6 +304,21 @@ This section contains keys which adjust the extrapolation and disagreement check
   - `basic`: Check for extrapolation using the ranges of the MACE descriptors + EF disagreement.
   - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement. Dimensionality is reduced with an autoencoder trained on the current iteration data descriptors.
 
+#### Concave Hull Settings - `[extrapolation.concave_hull]`
+
+Parameters related to the concave hull, calculated by the alpha-shape algorithm.
+
+:::{attention}
+Some of the next options are related to the alpha value in the alpha-shape algorithm the for concave hull.
+
+A triangle from the Delaunay triangulation is considered part of the alpha-complex (and thus contributes to the alpha-shape) if its circum-radius R is less than 1/alpha. Thus, with large alpha, only triangles with very small circum-radii are kept. This leads to a "tighter," more concave shape that might exclude some points or form holes. A smaller alpha allows to keep more triangles so the resulting shape will be closer to the convex hull. If alpha is small enough (approaching 0), all Delaunay triangles are kept, and the boundary of the alpha-shape becomes the convex hull.
+:::
+
+- `target_alpha_range_min`: (float, optional) Minimum alpha value allowed for the concave hull. Default `3.0`.
+- `target_alpha_range_max`: (float, optional) Maximum alpha value allowed for the concave hull. Default `8.0`.
+- `default_alpha_if_issues`: (float, optional) Default alpha value to use if nearest neighbor distance calculation is not possible (e.g., too few points) or other issues arise. Defaults to `5.0` (midpoint of default 3-8 range).
+- `nn_dist_scale_factor`: Scaling factor for the alpha candidate calculation: `alpha_candidate = nn_dist_scale_factor / mean_nn_dist`. Defaults to `1.5`.
+
 ### MD Settings - `[md]`
 
 Settings for MD simulations using an ASE calculator or LAMMPS.
