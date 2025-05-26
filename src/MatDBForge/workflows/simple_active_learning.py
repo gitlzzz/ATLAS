@@ -1327,7 +1327,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 # After setting
                 dft_calcs_ok = [
                     node.uuid
-                    for node in self.ctx.dft_struct_seed_calcs if node.is_finished_ok
+                    for node in self.ctx.dft_struct_seed_calcs
+                    if node.is_finished_ok
                     # if node.is_finished and node.exit_status in [0, 504, 503]
                 ]
                 if len(dft_calcs_ok) == 0:
