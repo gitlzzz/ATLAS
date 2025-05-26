@@ -26,7 +26,7 @@ def init_logger(source, log_path=None, show_log_path=True):
                 'logging.level.[ ! ]': 'yellow',
                 'logging.level.[...]': 'white',
                 'logging.level.[ ✔ ]': 'green',
-                'logging.level.[ X ]': 'red',
+                'logging.level.[ x ]': 'red',
             }
         )
     )
@@ -44,8 +44,9 @@ def init_logger(source, log_path=None, show_log_path=True):
         log_time_format='[%m/%d/%y %H:%M:%S]',
         omit_repeated_times=False,
         console=console,
+        # 11 is one level above DEBUG (10). Allows to show custom low-priority messages
+        level=11,
     )
-    ch.setLevel(logging.INFO)
     formatter_con = logging.Formatter('%(message)s')
     ch.setFormatter(formatter_con)
     logger.addHandler(ch)
@@ -87,8 +88,8 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
         Text to be printed
     print_type : str, optional, `default=info`
         Style to use when printing. Available styles are:
-            - `info/default`: prefixes [i] before the string.
-            - `warning/warn`: prefixes [!] before the string.
+            - `info/default`: prefixes [ i ] before the string.
+            - `warning/warn`: prefixes [ ! ] before the string.
             - `debug/extra`: prefixes [...] before the string.
             - `done/ok`: prefixes [ ✔ ] before the string.
             - `error/problem`: prefixes [ X ] before the string.
@@ -209,7 +210,7 @@ def init_config_dir(config_dir, config_file: str):
         file_path = config_dir / config_file
 
         with open(file_path, 'x') as f:
-            f.write('{\n' '"API_KEY": ""\n' '}')
+            f.write('{\n"API_KEY": ""\n}')
 
         # Limiting the permissions of the secrets file
         # to the owner only
