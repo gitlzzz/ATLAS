@@ -21,8 +21,8 @@ from mace.calculators import MACECalculator
 from shapely.geometry import Point, Polygon
 
 import MatDBForge.active_learning.active_learning_utils as mdb_al_ut
-import MatDBForge.active_learning.extrapolation.concave_hull as mdb_chull
 from MatDBForge.active_learning.extrapolation import autoencoder as mdb_ae
+from MatDBForge.active_learning.extrapolation.concave_hull import plot_concave_hull
 from MatDBForge.core import code_utils as mdb_cut
 from MatDBForge.core.filtering import structure_filters as mdb_str_filters
 
@@ -204,7 +204,7 @@ if __name__ == '__main__':
                 f'device_count: {torch.cuda.device_count()}, '
                 f'current_device: {torch.cuda.current_device()}'
             ),
-            'debug',
+            'info',
         )
 
     # Get the EF disagreement type
@@ -304,8 +304,7 @@ if __name__ == '__main__':
                 'debug',
             )
 
-            exploding_structs = []
-
+        exploding_structs = []
         if md_filters.get('exploding_structures', {}).get('enable'):
             mdb_cut.custom_print("Running 'exploding structures' filter...", 'info')
 
@@ -344,8 +343,8 @@ if __name__ == '__main__':
             )
 
         if md_filters.get('check_atoms_no_neighbor', {}).get('enable'):
-            mdb_cut.custom_print("Running 'no neighbor' filter...", 'info')
             neighbor_r_frames = []
+            mdb_cut.custom_print("Running 'no neighbor' filter...", 'info')
 
             # Getting multiplier from input
             cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
@@ -359,9 +358,10 @@ if __name__ == '__main__':
                 if is_structure_wrong:
                     neighbor_r_frames.append(idx)
             frames_to_remove.extend(neighbor_r_frames)
-        mdb_cut.custom_print(
-            f'Marked by no neighbor filter: {len(neighbor_r_frames)}', 'debug'
-        )
+
+            mdb_cut.custom_print(
+                f'Marked by no neighbor filter: {len(neighbor_r_frames)}', 'debug'
+            )
 
         # Remove duplicate frames
         frames_to_remove = list(set(frames_to_remove))
@@ -729,8 +729,22 @@ if __name__ == '__main__':
         if extrap_type == 'advanced':
             mdb_cut.custom_print('Applying advanced extrapolation check...', 'info')
 
-            # Read the concave hull
-            concave_hull = np.load(prepend_path / 'concave_hull.npy')
+            # Read the concave hull. If it fails, notify the user and proceed
+            # without extrapolation check.
+            try:
+                concave_hull = np.load(prepend_path / 'concave_hull.npy')
+            except FileNotFoundError:
+                mdb_cut.custom_print(
+                    (
+                        'Concave hull file not found! '
+                        'Please make sure that the extrapolation check has finished '
+                        'correctly during the active learning loop. Proceeding '
+                        'without extrapolation check...'
+                    ),
+                    'error',
+                )
+                extrap_type = 'none'
+                break
 
             # Get latent space for the trajectory
             if dim_red_method == 'pca':
@@ -761,7 +775,7 @@ if __name__ == '__main__':
                 concave_hull=concave_hull, descriptor_dict=descriptor_dict
             )
 
-            mdb_chull.plot_concave_hull(
+            plot_concave_hull(
                 concave_hull=concave_hull,
                 point_inside=point_inside,
                 point_outside=point_outside,
@@ -788,7 +802,10 @@ if __name__ == '__main__':
         # already applied.
         elif extrap_type == 'none':
             mdb_cut.custom_print(
-                ('No extrapolation check applied. Only EF commitee check applied.'),
+                (
+                    'No extrapolation check applied. Only interpolation (EF commitee)'
+                    'check applied.'
+                ),
                 'warn',
             )
 
