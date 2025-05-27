@@ -989,6 +989,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 )
                 prepend_text_conf = metadata_dict.get('prepend_text', '')
             else:
+                # TODO: The self input.descriptor_settings should be replaced with
+                # the MD metadata section in the toml file, which should be read when
+                # preparing the workchain inputs.
+
                 metadata_dict = self.inputs.descriptor_settings['metadata']
                 num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
                 prepend_text_conf = self.inputs.descriptor_settings['metadata'].get(
@@ -1035,7 +1039,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 # should be included, and this should be changed to the section
                 # name.
 
-                num_threads = self.inputs.descriptor_settings.get('num_cpus', 1)
                 prepend_text = (
                     prepend_text_conf
                     + '\nexport PATH=$PATH:.'
