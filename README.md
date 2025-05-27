@@ -24,7 +24,7 @@ To install MatDBForge, you can use pip in a python virtual environment or conda 
 
 ### 1. Creating a pyton environment
 
-First, **create a virtual environment** and activate it. This can be done using `conda` or python `venv`.
+First, **create a virtual environment** and activate it. This can be done in several ways, but we provide some examples using `conda`, python `venv` or `uv`.
 
 #### Option A - `conda`
 

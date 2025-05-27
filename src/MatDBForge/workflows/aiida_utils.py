@@ -191,6 +191,7 @@ class CalcType(Enum):
     RELAX_SURFACE = 'relaxation_surface'
     RELAX_CLUSTER = 'relaxation_cluster'
     SP_ISOLATEDATOM = 'single_point_isolatedatom'
+    DEFAULT = SP_BULK
 
     @classmethod
     def from_string(cls, value):
@@ -228,7 +229,16 @@ class CalcType(Enum):
             'isolated_atom': cls.SP_ISOLATEDATOM,
             'single_point_isolatedatom': cls.SP_ISOLATEDATOM,
         }
-        return aliases.get(value)
+        return_value = aliases.get(value)
+
+        # Return default if no match found
+        if return_value is None:
+            return_value = cls.DEFAULT
+            mdb_cut.custom_print(
+                f"Unknown calculation type '{value}'. Using default '{cls.DEFAULT}'.",
+                'error',
+            )
+        return return_value
 
 
 def choose_queue(node_type: int, tot_procs: int = None):

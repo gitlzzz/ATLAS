@@ -703,11 +703,7 @@ def get_dft_calc_builder_vasp(
     """Generate a aiida-vasp calculation builder for a given structure and row."""
     # The dft_settings dict corresponds to the [dft.vasp] key in the input toml.
     struct_type = row['mdb_struct_type']
-    struct_type = (
-        dft_settings.get('calc_type', 'single_point_')
-        + '_'
-        + struct_type
-    )
+    struct_type = dft_settings.get('calc_type', 'single_point') + '_' + struct_type
     struct_type = mdb_aut.CalcType.from_string(struct_type)
 
     # Gathering row information
