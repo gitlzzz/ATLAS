@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.29.2 (2025-05-27)
+
+### Fix
+
+- **al_loop**: allow gathering of num_threads during active learning md setup ([#06cba1d](https://github.com/pol-sb/MatDBForge/commit/06cba1d7c913e45beea3d2160ffc84b70658a450))
+
 ## 0.29.1 (2025-05-27)
 
 ### Fix
