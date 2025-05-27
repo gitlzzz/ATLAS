@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools-git-versioning"]
+requires = ["setuptools", "wheel", "setuptools-git-versioning", 'pip']
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -166,7 +166,7 @@ message = "Select the type of change you are committing"
 type = "list"
 name = "scope"
 choices = [
-    { value = "", name = "none: ❌ No specific scope." },                                                                    # Option for no scope
+    { value = "", name = "none: ❌ No specific scope." },
     { value = "al_loop", name = "al_loop: 🔁 Changes to the active learning loop." },
     { value = "report", name = "report: 📊 Changes to the report part." },
     { value = "core", name = "core: ⚙️ Changes to general or core functionality." },
