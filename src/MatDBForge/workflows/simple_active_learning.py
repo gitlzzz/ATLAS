@@ -982,11 +982,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     'ignore_container', False
                 )
                 metadata_dict = current_settings.get('md', {}).get('metadata', {})
-                num_threads = (
-                    metadata_dict.get('options', {})
-                    .get('resources', {})
-                    .get('num_cores_per_mpiproc', 1)
-                )
+                resc_dict = metadata_dict.get('options', {}).get('resources', {})
+                num_threads = resc_dict.get('num_cores_per_mpiproc')
+
+                # In case the number of threads is not set in the first try
+                # try to get an additional key. If it does not work, set it to 1.
+                if num_threads is None:
+                    num_threads = resc_dict.get('tot_num_mpiprocs', 1)
+
                 prepend_text_conf = metadata_dict.get('prepend_text', '')
             else:
                 # TODO: The self input.descriptor_settings should be replaced with
