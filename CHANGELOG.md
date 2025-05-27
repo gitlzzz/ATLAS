@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.1 (2025-05-27)
+
+### Fix
+
+- **md**: read num_cpus setting properly from MD input file ([#13a8568](https://github.com/pol-sb/MatDBForge/commit/13a8568a33edce8148c244ccaac326ce2170dfb7))
+- **dft**: add correct default values for CalcType and DFT calc builder ([#d7fbc15](https://github.com/pol-sb/MatDBForge/commit/d7fbc15d4c308f0b89ff66142b33bb4249125078))
+
+### Misc
+
+- **core**: clean pyproject and add pip dependency ([#c94a58e](https://github.com/pol-sb/MatDBForge/commit/c94a58ebfceefdb8d907fd4630d560c470f89167))
+
 ## 0.29.0 (2025-05-26)
 
 ### Feature
