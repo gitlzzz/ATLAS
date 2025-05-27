@@ -24,7 +24,7 @@ To install MatDBForge, you can use pip in a python virtual environment or conda 
 
 ### 1. Creating a pyton environment
 
-First, **create a virtual environment** and activate it. This can be done using `conda` or python `venv`.
+First, **create a virtual environment** and activate it. This can be done in several ways, but we provide some examples using `conda`, python `venv` or `uv`.
 
 #### Option A - `conda`
 
@@ -51,7 +51,7 @@ source matdbforge/bin/activate
 
 #### Option C - `uv`
 
-First, install the `uv` tool. Either as shown below using the standalone installer, or please refer to the [official uv installation guide](https://www.google.com/search?q=%5Bhttps://docs.astral.sh/uv/installation/%5D(https://docs.astral.sh/uv/installation/)) for more options.
+First, install the `uv` tool. Either as shown below using the standalone installer, or please refer to the [official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/)) for more options.
 
 ```bash
 wget -qO- https://astral.sh/uv/install.sh | sh
