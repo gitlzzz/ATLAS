@@ -51,7 +51,7 @@ source matdbforge/bin/activate
 
 #### Option C - `uv`
 
-First, install the `uv` tool. Either as shown below using the standalone installer, or please refer to the [official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/)) for more options.
+First, install the `uv` tool. Either as shown below using the standalone installer, or please refer to the [official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/) for more options.
 
 ```bash
 wget -qO- https://astral.sh/uv/install.sh | sh
