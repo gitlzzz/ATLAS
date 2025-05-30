@@ -258,13 +258,22 @@ def gen_al_loop_report(
             'info',
         )
 
+        if not model_path:
+            try:
+                first_al_step = al_loop_node[0].called[0]
+                model_path = first_al_step.outputs.m0_model_file
+            except Exception:
+                custom_print(
+                    'Error getting model path from first AL step. '
+                    'Using the provided model path if available.',
+                    'error',
+                )
+                model_path = None
+
         # Get the autoencoder model from the workchain. If not available, train a new
         # one using the descriptors from the first iteration.
         if not autoencoder_path:
             # TODO: Get the autoencoder model from the first iteration
-            first_al_step = al_loop_node[0].called[0]
-
-            model_path = first_al_step.outputs.m0_model_file
 
             descr_calc_ini = [
                 calc
@@ -400,16 +409,15 @@ def gen_al_loop_report(
                     )
                     model_path: orm.SinglefileData = train_calc.outputs.model_file
 
-                database_files = None
-
         else:
-            autoencoder_model = list(Path(autoencoder_path).glob('*.pth'))[0]
-            database_files = list(Path(autoencoder_path).glob('database*.xyz'))
-            database_files = [file.name for file in database_files]
-            database_files.sort(
-                key=lambda x: int(str(x).replace('.xyz', '').split('_')[-1])
+            autoencoder_model = Path(autoencoder_path)
+            custom_print(
+                f"Loaded autoencoder from '{autoencoder_model}'",
             )
             descr_calc = None
+            ignore_latent_spaces = True
+
+        database_files = None
 
         if descr_calc == 'missing_descriptor_calc':
             custom_print(
@@ -427,6 +435,7 @@ def gen_al_loop_report(
                 autoencoder_model=autoencoder_model,
                 autoencoder_path=autoencoder_path,
                 databases=database_files,
+                ignore_latent_spaces=ignore_latent_spaces,
             )
 
     plt.tight_layout()
@@ -1881,6 +1890,11 @@ def get_latent_spaces_workchain(
 
     # Loading autoencoder model if not loaded
     if isinstance(autoencoder_model, (str, Path)):
+        autoencoder = load_autoencoder_model(
+            model_path=autoencoder_model,
+            data_arr=None,
+        )
+    elif isinstance(autoencoder_model, orm.SinglefileData):
         with autoencoder_model.as_path() as autoencoder_model_path:
             autoencoder = load_autoencoder_model(
                 model_path=autoencoder_model_path,
@@ -1909,6 +1923,10 @@ def get_latent_spaces_workchain(
             )
             continue
         else:
+            custom_print(
+                'Getting descriptors...',
+                'info',
+            )
             if isinstance(model_path, (str, Path)):
                 descr_dict, arr = generate_descriptors(
                     model_path=model_path,
@@ -1952,7 +1970,34 @@ def generate_latent_space_evol(
     autoencoder_model: orm.Node | Path | str,
     autoencoder_path: str = None,
     databases: list[str] = None,
+    ignore_latent_spaces=False,
 ):
+    """
+    Generate latent space evolution plot for the active learning loop.
+
+    Parameters
+    ----------
+    al_loop_node : orm.Node | list[orm.Node]
+        The AiiDA node or list of nodes representing the active learning loop.
+        If a list is provided, it should contain nodes that have been executed
+        in the active learning loop.
+    device_str : str
+        The device string to use for the model, i.e., 'cpu' or 'cuda'.
+    ax : _type_
+        The matplotlib axes to plot the latent space evolution on.
+    model_path : str | Path | orm.SinglefileData
+        The path to the MLIP model file or a SinglefileData node containing the model.
+    database_path : str
+        The path to the database file containing structures for which to compute
+    autoencoder_model : orm.Node | Path | str
+        The path to the autoencoder model file or a SinglefileData node
+    autoencoder_path : str, optional
+        Loaded autoencoder model, by default None
+    databases : list[str], optional
+        Loaded training data, by default None
+    ignore_latent_spaces : bool, optional
+        Whether to ignore latent spaces, by default False
+    """
     # Try loading pickle file before doing anything else
     if Path('./latent_spaces.pkl').exists():
         with open('latent_spaces.pkl', 'rb') as f:
@@ -1962,7 +2007,7 @@ def generate_latent_space_evol(
 
     # If pickle file does not exist, check if the latent spaces
     # can be gathered from the workchain
-    if len(latent_spaces) == 0:
+    if len(latent_spaces) == 0 and not ignore_latent_spaces:
         all_steps = []
         for node in al_loop_node:
             all_steps.extend(
@@ -2002,6 +2047,7 @@ def generate_latent_space_evol(
     # Get number of steps saved
     num_steps_saved = len(latent_spaces)
     # Computing latent space for all structures
+    print('#@# num_steps_saved: ', num_steps_saved)
     if num_steps_saved == 0:
         if databases:
             autoencoder_file_path = Path(autoencoder_model)
@@ -2043,6 +2089,13 @@ def generate_latent_space_evol(
                         autoencoder_model=autoencoder_model,
                         latent_spaces_list=latent_spaces,
                     )
+            else:
+                custom_print(
+                    'Model path is missing or is not a valid type. '
+                    'Expected str, Path or SinglefileData. '
+                    f"Got '{model_path}'.",
+                    'error',
+                )
 
         # Saving latent spaces to pickle file
         if len(latent_spaces) > 0:
