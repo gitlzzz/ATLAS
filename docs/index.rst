@@ -13,7 +13,7 @@ Intro to MatDBForge
 
 |
 
-MatDBForge is a Python library that aids in the generation of chemical structures database for training NNPs (Neural Network Potential) for heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling.
+MatDBForge is a Python library that aids in the generation of chemical structures databases for training MLIPs (Machine Learning Interatomic Potential) to be used in heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling and active learning procedure.
 
 
 .. toctree::

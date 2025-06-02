@@ -300,7 +300,7 @@ This section contains keys which adjust the extrapolation and disagreement check
   - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
   - `md_threshold`: Compare E&F with a unique threshold for every MD, defined as $committee\_mean + 3 * committee\_std\_dev$.
 - `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently the following options are allowed:
-  - `none`: Only use committee disagreement for EF as extrapolation criteria.
+  - `none`: Disable extrapolation check, only leaving committee disagreement on EF for the domain validity check.
   - `basic`: Check for extrapolation using the ranges of the MACE descriptors + EF disagreement.
   - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement. Dimensionality is reduced with an autoencoder trained on the current iteration data descriptors.
 
@@ -309,9 +309,7 @@ This section contains keys which adjust the extrapolation and disagreement check
 Parameters related to the concave hull, calculated by the alpha-shape algorithm.
 
 :::{attention}
-Some of the next options are related to the alpha value in the alpha-shape algorithm the for concave hull.
-
-A triangle from the Delaunay triangulation is considered part of the alpha-complex (and thus contributes to the alpha-shape) if its circum-radius R is less than 1/alpha. Thus, with large alpha, only triangles with very small circum-radii are kept. This leads to a "tighter," more concave shape that might exclude some points or form holes. A smaller alpha allows to keep more triangles so the resulting shape will be closer to the convex hull. If alpha is small enough (approaching 0), all Delaunay triangles are kept, and the boundary of the alpha-shape becomes the convex hull.
+Some of the next options are related to the alpha value in the alpha-shape algorithm the for concave hull. A triangle from the Delaunay triangulation is considered part of the alpha-complex (and thus contributes to the alpha-shape) if its circum-radius $R$ is less than $1 / \alpha$. Thus, with large $\alpha$, only triangles with very small circum-radii are kept. This leads to a "tighter", more concave shape that might exclude some points or form holes. A smaller alpha allows to keep more triangles so the resulting shape will be closer to the convex hull. If alpha is small enough (approaching 0), all Delaunay triangles are kept, and the boundary of the alpha-shape becomes the convex hull.
 :::
 
 - `target_alpha_range_min`: (float, optional) Minimum alpha value allowed for the concave hull. Default `3.0`.
