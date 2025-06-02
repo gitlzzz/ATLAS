@@ -545,14 +545,18 @@ class TrainMACEModelCalculation(CalcJob):
         # be loaded in CPU-only machines
         params_list.append('--save_cpu')
 
-        # (for MACE v0.3.7) Enabling multiheads finetuning for 'mp'
+        # (for mace-torch == v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
         multihead: bool = self.inputs.multihead_finetuning
         if foundation_model and multihead:
             params_list.append('--multiheads_finetuning=True')
             params_list.append("--pt_train_file='mp'")
         else:
-            params_list.append('--multiheads_finetuning=False')
+            if '--multiheads_finetuning=False' not in params_list:
+                params_list.append('--multiheads_finetuning=False')
+
+        # Remove duplicate parameters
+        params_list = list(set(params_list))
 
         # Copying database to temporary folder
         final_db_path = self.inputs.mace_train_file_path.value

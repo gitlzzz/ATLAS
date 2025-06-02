@@ -342,6 +342,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
             mace_builder.metadata.label = model_name
 
+            if not hasattr(mace_builder.metadata.options, 'prepend_text'):
+                mace_builder.metadata.options.prepend_text = (
+                    self.inputs.mace_train.get_dict()
+                    .get('metadata', {})
+                    .get('options', {})
+                    .get('prepend_text', '')
+                )
+
             # future = self.submit(mace_builder)
             # self.to_context(mace_training_results=append_(future))
             calc_limit = computer.metadata.get('mdb_calc_limit', 0)
