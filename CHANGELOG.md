@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.29.3 (2025-06-02)
+
+### Fix
+
+- **al_loop**: improve argument parsing for model training ([#a22ead7](https://github.com/pol-sb/MatDBForge/commit/a22ead7c55b4678189fe1c463884d10e35a19c36))
+- **report**: enable loading autoencoder for al_loop report ([#13baca3](https://github.com/pol-sb/MatDBForge/commit/13baca3c60657401033293cce29aebf7b0255cc9))
+
 ## 0.29.2 (2025-05-27)
 
 ### Fix
