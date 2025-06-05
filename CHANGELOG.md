@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.29.4 (2025-06-05)
+
+### Misc
+
+- **core**: bumped up mace-torch version from 0.3.7 to 0.3.12 ([#e2b653f](https://github.com/pol-sb/MatDBForge/commit/e2b653fb8da4cb3cce1afcca5d5cc37e7e4aead9))
+
 ## 0.29.3 (2025-06-02)
 
 ### Fix
