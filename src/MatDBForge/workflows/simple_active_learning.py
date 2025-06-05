@@ -1701,10 +1701,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
         # outputs = self._attach_outputs(node)
+
         # Sending seed disagreement flag to context
-        self.ctx.stop_md_seed_no_disagreement = node.outputs[
-            'stop_md_seed_no_disagreement'
-        ]
+        if hasattr(node.outputs, 'stop_md_seed_no_disagreement'):
+            self.ctx.stop_md_seed_no_disagreement = node.outputs[
+                'stop_md_seed_no_disagreement'
+            ]
+        else:
+            self.ctx.stop_al_loop_error = orm.Bool(True)
+
         self.ctx.last_workchain_completed = node
         return None
 
@@ -1933,6 +1938,13 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         `self.ctx.stop_md_seed_no_disagreement.value`,
         and `self.ctx.seed_gen_db_all_structs_removed.value`
         """
+        if hasattr(self.ctx, 'stop_al_loop_error'):
+            self.report(
+                f'Last step ({self.ctx.last_workchain_completed.pk}) '
+                'did not finish correctly. Stopping AL Loop.'
+            )
+            return False
+
         max_iterations = self.inputs.active_learning.max_iterations.value
 
         # This will be True if the workchain still needs to be running due
@@ -2130,22 +2142,27 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.out('final_training_db', train_db)
 
-        # Returning final model as orm.SinglefileData object
-        final_model_singlefile = self.ctx.last_workchain_completed.outputs[
-            'm0_model_file'
-        ]
-        self.out(
-            'final_model_file',
-            self.ctx.last_workchain_completed.outputs['m0_model_file'],
-        )
+        if not hasattr(self.ctx, 'stop_al_loop_error'):
+            # Returning final model as orm.SinglefileData object
+            final_model_singlefile = self.ctx.last_workchain_completed.outputs[
+                'm0_model_file'
+            ]
+            self.out(
+                'final_model_file',
+                self.ctx.last_workchain_completed.outputs['m0_model_file'],
+            )
 
-        target_file_name = f'al_loop_{self.inputs.active_learning.run_name.value}.model'
-        target_file_path = self.ctx.curr_run_results_dir / target_file_name
+            target_file_name = (
+                f'al_loop_{self.inputs.active_learning.run_name.value}.model'
+            )
+            target_file_path = self.ctx.curr_run_results_dir / target_file_name
 
-        with (
-            final_model_singlefile.open(mode='rb') as source,
-            open(target_file_path, mode='wb') as target,
-        ):
-            shutil.copyfileobj(source, target)
+            with (
+                final_model_singlefile.open(mode='rb') as source,
+                open(target_file_path, mode='wb') as target,
+            ):
+                shutil.copyfileobj(source, target)
 
-        self.report('Workchain completed!')
+            self.report('Workchain completed correctly!')
+        else:
+            self.report(f"Workchain '{self.node.pk}' exited with errors...")
