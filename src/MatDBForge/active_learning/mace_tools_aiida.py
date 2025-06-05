@@ -392,6 +392,7 @@ class TrainMACEModelCalculationParser(Parser):
         self.out('m_rmse_f', orm.Float(rmse_f))
 
 
+# mace-train
 class TrainMACEModelCalculation(CalcJob):
     """Implementation of a CalcJob to perform a MACE training using a settings dir.
 
@@ -523,40 +524,22 @@ class TrainMACEModelCalculation(CalcJob):
         :return: `CalcInfo` instance
         """
         # Parsing mace settings dict
-        # TODO: Add a way of checking if validation_file was given.
-        params_list = []
-
-        # Adding cli parameters to list
-        prepare_cli_args_mace(
-            params_list=params_list,
-            settings_dict=self.inputs.mace_settings_dict,
-            use_container=self.inputs.use_container,
-        )
+        params_dict = self.inputs.mace_settings_dict.get_dict()
 
         # Adding random seed
-        params_list.append(f'--seed={np.random.randint(1, 100000000)}')
-
-        # Properly formatting enable_cueq flag
-        if '--enable_cueq' in params_list:
-            params_list.remove('--enable_cueq')
-            params_list.append('--enable_cueq=True')
+        seed = np.random.randint(1, 100000000)
+        params_dict['seed'] = seed
 
         # Save cpu model. This avoids a torch bug where gpu models cannot
         # be loaded in CPU-only machines
-        params_list.append('--save_cpu')
+        params_dict['save_cpu'] = True
 
         # (for mace-torch == v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
         multihead: bool = self.inputs.multihead_finetuning
         if foundation_model and multihead:
-            params_list.append('--multiheads_finetuning=True')
-            params_list.append("--pt_train_file='mp'")
-        else:
-            if '--multiheads_finetuning=False' not in params_list:
-                params_list.append('--multiheads_finetuning=False')
-
-        # Remove duplicate parameters
-        params_list = list(set(params_list))
+            params_dict['multiheads_finetuning'] = True
+            params_dict['pt_train_file'] = 'mp'
 
         # Copying database to temporary folder
         final_db_path = self.inputs.mace_train_file_path.value
@@ -569,7 +552,7 @@ class TrainMACEModelCalculation(CalcJob):
         with tempfile.NamedTemporaryFile(
             mode='w', delete=True, suffix='.yaml', prefix='mdb_mace_train-'
         ) as f:
-            yaml.dump(self.inputs.mace_settings_dict.get_dict(), f)
+            yaml.dump(params_dict, f)
             folder.insert_path(
                 src=f.name,
                 dest_name='settings.yaml',
@@ -582,7 +565,7 @@ class TrainMACEModelCalculation(CalcJob):
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
         codeinfo.stdout_name = self.options.output_filename
-        codeinfo.cmdline_params = params_list
+        codeinfo.cmdline_params = ['--config=settings.yaml']
 
         calcinfo = CalcInfo()
         calcinfo.codes_info = [codeinfo]
