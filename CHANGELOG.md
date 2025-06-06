@@ -2,6 +2,10 @@
 
 ## 0.30.1 (2025-06-06)
 
+NOTE: It seems that documentation commits were not being detected by commitizen changelog up until this point. 
+
+- **docs**: several documentation changes. 
+
 ## 0.30.0 (2025-06-06)
 
 ### Feature
