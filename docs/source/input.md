@@ -234,11 +234,11 @@ This key describes the main active learning settings:
 - `run_name`: (str) Internal name for the run
 - `init_db_path`: (str) Path to the folder where the initial database is contained.
 - `results_dir`: (str) Path for final results. Will be created if not existent. It will contain a folder named `run_{uuid}`.
-- `log_path`: (str, optional) Path for the log file.  Defaults to `'mdb_<PK>_<DATETIME>.log` in the result dir if not specified.
+- `log_path`: (str, optional) Path for the log file containing reports from the active learning loop.  Defaults to `mdb_<PK>_<DATETIME>.log` in the result dir if not specified.
 - `final_db_name`: (str) Name for the final database. The database will be stored in the extxyz format
 - `max_iterations`: (int) Maximum number of AL loop iterations.
 - `model_acc_multiplier`: (float)
-Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any values that meet: $$RMSE_E\ or\ RMSE_F > chem\_acc \cdot chem\_acc\_multiplier$$ will be considered wrong.
+Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any values that meet: $\mathrm{RMSE}_E\ or\ \mathrm{RMSE}_F > \mathrm{chem\_acc} \cdot \mathrm{chem\_acc\_multiplier}$ will be considered wrong.
 
 <!-- - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. -->
 <!-- Influences the total number of energy evaluations and possibly DFT calculations. -->
@@ -255,7 +255,9 @@ instead using a `PortableCode` instance in that case.
 
 - `use_container`: (bool, optional) Whether to use a containerized version of the code. By default false
 - `image_name`: (str, optional) Path in the path specified by image_name on the calculation nodes.
-- `engine_command`: (str, optional) Command to run the container image. Docker and Singularity are supported. An option to bind the current directory as `/mdb_data` must be provided in order for the MDB codes in the container to work. For example: `singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}` for Singularity containers.
+- `engine_command`: (str, optional) Command to run the container image. Docker and Singularity are supported. An option to bind the current directory as `/mdb_data` must be provided in order for the MDB codes in the container to work. \
+For example: `singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}` for Singularity containers.
+
 - `prepend_text`: (str, optional) Text to prepend to the calculation script before the actual code execution. Allows loading the required modules for container use, setting the environment, etc... Check your HPC system documentation for the commands required for container usage.
 
 An example of a container section for Singularity:
