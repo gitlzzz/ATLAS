@@ -64,18 +64,31 @@ git clone https://github.com/pol-sb/MatDBForge.git
 
 ### 3. Installing the library in the activated python environment
 
+There are several installation mechanisms, and several optional dependencies depending on what packages you want to use. Check the list and details of optional dependencies in the [pyproject.toml](../../pyproject.toml). Currently, the following are available:
+
+- `mace`
+- `dev`
+
+Optional dependencies are installed using the following syntax:
+
+```bash
+python3 -m pip install ./MatDBForge['OPTIONAL_DEPENDENCY_NAME']
+```
+
+Some installation examples follow:
+
 #### Using `pip`
 
 ```bash
-# Install the library in the venv using pip
-python3 -m pip install ./MatDBForge
+# Install the library and the MACE dependencies in the venv using pip
+python3 -m pip install ./MatDBForge['mace']
 ```
 
 #### Using `uv`
 
 ```bash
-# Install the library using uv
-uv pip install ./MatDBForge
+# Install the library and the MACE dependencies using uv
+uv pip install ./MatDBForge['mace']
 ```
 
 ### 4. Initialize configuration files
