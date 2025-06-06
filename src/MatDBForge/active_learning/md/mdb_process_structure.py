@@ -197,6 +197,7 @@ if __name__ == '__main__':
     T_list = md_params['temperature_list_K']
 
     # Logging CUDA information
+    enable_cueq = False
     if md_params.get('device') == 'cuda':
         mdb_cut.custom_print(
             (
@@ -206,6 +207,13 @@ if __name__ == '__main__':
             ),
             'info',
         )
+
+        if md_params.get('enable_cueq'):
+            mdb_cut.custom_print(
+                'Using CUEQ to accelerate MD simulations...',
+                'info',
+            )
+            enable_cueq = True
 
     # Get the EF disagreement type
     ef_disagreement_type = settings.get('extrapolation', {}).get(
@@ -257,6 +265,7 @@ if __name__ == '__main__':
             init_conf=init_conf,
             prepend_path=prepend_path,
             explode_filter_dict=md_filters.get('exploding_structures', {}),
+            enable_cueq=enable_cueq,
         )
         mdb_cut.custom_print('MD simulation completed!', 'done')
 

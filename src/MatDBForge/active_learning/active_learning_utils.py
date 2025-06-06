@@ -261,6 +261,7 @@ def run_mace_md_ase(
     explode_filter_dict: dict = None,
     mode='normal',
     md_struct_list=None,
+    enable_cueq=False,
 ):
     """
     Run MD simulations using ASE and MACE.
@@ -281,6 +282,10 @@ def run_mace_md_ase(
         Whether to apply the MD explode filter.
     mode: str
         Operation mode for this function. One of 'normal' or 'init_db'.
+    enable_cueq: bool, optional
+        Whether to enable the CUEQ mode for the MD simulation.
+        If True, the MD simulation will be run in CUEQ mode.
+        Default is False.
     """
     from mace.calculators import MACECalculator
 
@@ -347,6 +352,7 @@ def run_mace_md_ase(
                 model_paths=model_path,
                 device=md_params.get('device', 'cpu'),
                 default_dtype=md_params.get('default_dtype', 'float64'),
+                enable_cueq=enable_cueq,
             )
 
         # Wrap the calculator in a custom calculator to check for

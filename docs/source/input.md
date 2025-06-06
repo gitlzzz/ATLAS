@@ -325,19 +325,20 @@ Settings for MD simulations using an ASE calculator or LAMMPS.
 
 #### MD Parameters - `[md.parameters]`
 
-- `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: [300, 350, 400]
+- `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: `[300, 350, 400]`
 - `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
 - `num_steps` (int) Total number of MD steps to be run in each MD simulation
 - `timestep_duration_ps`: (float) Duration of each timestep. The units are picoseconds. Note that in LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
-- `thermostat`: Choice of thermostat for the ASE MD. It can be either `langevin` (NVT) or `nose-hoover` (NPT). Default is `langevin`.
+- `thermostat`: (optional, str) Choice of thermostat for the ASE MD. It can be either `langevin` (NVT) or `nose-hoover` (NPT). Default is `langevin`.
 - `langevin_friction_ps-1`: (float) friction coefficient for the Langevin thermostat in $ps^{-1}$
 - `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
-- `use_kokkos`: (bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
+- `use_kokkos`: (optional, bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
+- `enable_cueq`: (optional, bool) Whether to use the cuEquivariance library for acceleration when using MACE. By default, `false`.
 - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and therefore DFT calculations.
-- `log_save_interval`: (int, optional) Every how many MD steps log energy and force information. By default `1`.
-- `max_energy_threshold_per_atom`: (float, optional) Maximum energy threshold per atom in eV. For instance, if a system has 8 atoms, the max total energy threshold will be defined as 8000 eV if this variable is set to 1000eV. Default is `1000.0` eV.
+- `log_save_interval`: (optional, int) Every how many MD steps log energy and force information. By default `1`.
+- `max_energy_threshold_per_atom`: (optional, float) Maximum energy threshold per atom in eV. For instance, if a system has 8 atoms, the max total energy threshold will be defined as 8000 eV if this variable is set to 1000 eV. Default is `1000.0` eV.
 - `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`. Has no effect when using LAMMPS.
-- `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`. Has no effect when using LAMMPS.
+- `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`. Only has an effect when using MACE, and has no effect when using LAMMPS.
 
 #### MD Filters - `[md.filters]`
 

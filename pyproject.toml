@@ -26,13 +26,11 @@ dependencies = [
     "scipy==1.14.1",
     "seaborn==0.13.2",
     "pymatgen==2024.10.3",
-    "mace-torch==0.3.12",
     "e3nn==0.4.4",
     "aiida-core==2.6.2",
     "aiida-lammps==1.0.1",
     "aiida-vasp==4.1.0",
     "wonderwords==2.2.0",
-    "torch==2.4.0",
     "shapely",
     "pymatgen",
     "python-slugify[unidecode]",
@@ -43,7 +41,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==4.1.1", "ipdb"]
-
+mace = [
+    "mace-torch==0.3.12",
+    "torch==2.5.0",
+    "cuequivariance",
+    "cuequivariance-torch",
+    "cuequivariance-ops-torch-cu12",
+]
 
 [project.urls]
 Homepage = "https://github.com/pol-sb/MatDBForge"
