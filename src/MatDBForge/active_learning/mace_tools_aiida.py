@@ -340,6 +340,7 @@ class TrainMACEModelCalculationParser(Parser):
         retrieved_temporary_folder: Path = Path(kwargs['retrieved_temporary_folder'])
 
         model_file = None
+        train_file = None
         rmse_e = None
         rmse_f = None
 
@@ -367,12 +368,13 @@ class TrainMACEModelCalculationParser(Parser):
 
                 rmse_e = float(last_dict['rmse_e_per_atom']) * 1000  # meV / atom
                 rmse_f = float(last_dict['rmse_f']) * 1000  # meV / A
+                continue
 
-            if 'train_' in child_file.name:
+            if child_file.name.startswith('train_'):
                 train_file = orm.SinglefileData(file=child_file)
 
         # If there are some missing variables, return failed code
-        if not rmse_e or not rmse_f or not model_file or not train_file:
+        if None in (rmse_e, rmse_f, model_file, train_file):
             return self.exit_codes.ERROR_INVALID_OUTPUT.format(
                 node_id=self.node.pk,
             )
