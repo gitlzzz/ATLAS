@@ -159,7 +159,11 @@ class ProcessMDSeedStructCalculation(CalcJob):
             help=('File containing a figure showing the extrapolation results.'),
             required=False,
         )
-        spec.exit_code(420, 'ERROR_INVALID_OUTPUT', 'structure could not be processed')
+        spec.exit_code(
+            420,
+            'ERROR_INVALID_OUTPUT',
+            "Structure '{node_id}' could not be processed.",
+        )
 
     def prepare_for_submission(self, folder):
         """Write the input files that are required for the code to run.
@@ -313,7 +317,9 @@ class ProcessMDSeedStructCalculationParser(Parser):
 
         # Return failed code
         if not extrapolating_structures:
-            return self.exit_codes.ERROR_INVALID_OUTPUT
+            return self.exit_codes.ERROR_INVALID_OUTPUT.format(
+                node_id=self.node.pk,
+            )
 
         # TODO: extrapolating_plot can be None, but the output will result in error,
         # as the required=False is not having an effect? This is a workaround for that
