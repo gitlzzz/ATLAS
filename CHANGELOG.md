@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.30.0 (2025-06-06)
+
+### Feature
+
+- **md**: enable cueq with MD using ASE-MACE ([#0a6c216](https://github.com/pol-sb/MatDBForge/commit/0a6c216fbdafad439bec1a4407384f7d85004a6c))
+
+### Fix
+
+- **al_loop**: improve robustness of `TrainMACEModelCalculationParser` ([#2336d8c](https://github.com/pol-sb/MatDBForge/commit/2336d8c38b9968471729710d2d62935649726a94))
+- **al_loop**: fix `mace-training-parser` as the parser for mace training calculations ([#f1d49a3](https://github.com/pol-sb/MatDBForge/commit/f1d49a34526f7269de851bf86b6a941001d02f35))
+
 ## 0.29.4 (2025-06-05)
 
 ### Misc
