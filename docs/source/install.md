@@ -88,7 +88,7 @@ python3 -m pip install ./MatDBForge['mace']
 
 ```bash
 # Install the library and the MACE dependencies using uv
-uv pip install ./MatDBForge['mace']
+uv pip install ./MatDBForge['mace', 'dev']
 ```
 
 ### 4. Initialize configuration files
