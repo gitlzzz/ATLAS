@@ -335,8 +335,13 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 computer = code.computer
 
             mace_builder.code = code
-            mace_builder.metadata.options.withmpi = True
+
             mace_builder.metadata.options = mace_train_calc_sched_options
+
+            # Manually setting parser. Default is 'mace-training-parser'
+            # It might be interesting to allow the user to override in the future?
+            mace_builder.metadata.options.parser_name = 'mace-training-parser'
+
             mace_builder.metadata.options.output_filename = (
                 f'train_{model_name}_iter-{self.inputs.al_loop_iteration.value}'
             )
