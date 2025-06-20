@@ -2,9 +2,9 @@
 
 ## 0.30.1 (2025-06-06)
 
-NOTE: It seems that documentation commits were not being detected by commitizen changelog up until this point. 
+NOTE: It seems that documentation commits were not being detected by commitizen changelog up until this point.
 
-- **docs**: several documentation changes. 
+- **docs**: several documentation changes.
 
 ## 0.30.0 (2025-06-06)
 
@@ -882,7 +882,7 @@ NOTE: It seems that documentation commits were not being detected by commitizen 
 - **docs**: updated docs ([#b0b2e7c](https://github.com/pol-sb/MatDBForge/commit/b0b2e7c25a18cd46bada965e32553c2c471b7bd0))
 - **docs**: added favicon ([#f865d30](https://github.com/pol-sb/MatDBForge/commit/f865d30592ef32becc4e4343f46a5ad26621e117))
 - **docs**: added favicon ([#83c015e](https://github.com/pol-sb/MatDBForge/commit/83c015e5d193f6747186192d8a68d2cf300b6841))
-- **core**: updated `InitialDatabase` and `Phase` __repr__ methods ([#593cd76](https://github.com/pol-sb/MatDBForge/commit/593cd76c916767187fe9dac72a9ee8f6b81444f4))
+- **core**: updated `InitialDatabase` and `Phase` **repr** methods ([#593cd76](https://github.com/pol-sb/MatDBForge/commit/593cd76c916767187fe9dac72a9ee8f6b81444f4))
 - **core**: marked conf.py as a version file ([#78c8b63](https://github.com/pol-sb/MatDBForge/commit/78c8b6367cf670fd70f1d350c95a84e5aaeb7a5f))
 - **docs**: updated documentation ([#2e300ba](https://github.com/pol-sb/MatDBForge/commit/2e300ba157b6988620e3cafe502b150f158810fe))
 - **docs**: updated docs ([#95760e1](https://github.com/pol-sb/MatDBForge/commit/95760e1757a05a8484c6f2da876fc9f1c321b76a))
@@ -946,7 +946,7 @@ NOTE: It seems that documentation commits were not being detected by commitizen 
 
 ### Fix
 
-- **core**: added __version__ directly to __init__.py ([#5429dd1](https://github.com/pol-sb/MatDBForge/commit/5429dd163c00b34f8627754a6c7f941a99c47a94))
+- **core**: added **version** directly to **init**.py ([#5429dd1](https://github.com/pol-sb/MatDBForge/commit/5429dd163c00b34f8627754a6c7f941a99c47a94))
 
 ### Misc
 
@@ -1157,4 +1157,5 @@ NOTE: It seems that documentation commits were not being detected by commitizen 
 - **core**: separated command line scripts into individual files ([#2df2e93](https://github.com/pol-sb/MatDBForge/commit/2df2e9368325d16fef4d96dc55fdf4113336a2ab))
 
 ## v0.3.9 (2024-06-19)
+
 development version
