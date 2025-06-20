@@ -146,7 +146,7 @@ change_type_order = [
     'test',
     'chore',
 ]
-commit_parser = "^(?P<change_type>feat|fix|chore)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
+commit_parser = "^(?P<change_type>feat|fix|chore|docs)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
 changelog_pattern = "^(feat|fix|docs|chore)?(!)?"
 change_type_map = { "feat" = "Feature", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs" }
 

@@ -1,0 +1,78 @@
+# This is the Citation File Format file for this software.
+# See: https://citation-file-format.github.io/
+
+cff-version: 1.2.0
+message: "If you use this software in your work, please cite it using the following metadata."
+
+# ----------------------------------------------------------------
+# CITATION FOR THE SOFTWARE
+# ----------------------------------------------------------------
+title: "MatDBForge"
+abstract: "An automatic workflow for generating data and training NNPs"
+type: software
+version: 0.30.1
+# TODO: Update with the release date
+date-released: 2025-06-20
+repository-code: "https://github.com/pol-sb/MatDBForge"
+keywords:
+  - machine-learning interatomic potentials
+  - active learning
+  - materials science
+  - computational chemistry
+  - neural network potentials
+  - NNP
+  - DFT
+  - NN-MD
+
+authors:
+  - given-names: "Pol"
+    family-name: "Sanz"
+    email: "psanz@iciq.es"
+    orcid: "https://orcid.org/0000-0001-8736-404X"
+  - given-names: "Lulu"
+    family-name: "Li"
+    email: "lli@iciq.es"
+    orcid: "https://orcid.org/0000-0002-7790-090X"
+  - given-names: "Zan"
+    family-name: "Lian"
+    email: "zlian@iciq.es"
+    orcid: "https://orcid.org/0000-0001-6922-406X"
+  - given-names: "Núria"
+    family-name: "López"
+    email: "nlopez@iciq.es"
+    orcid: "https://orcid.org/0000-0001-9150-5941"
+    affiliation: "Institute of Chemical Research of Catalonia (ICIQ), The Barcelona Institute of Science and Technology (BIST)"
+
+# ----------------------------------------------------------------
+# PREFERRED CITATION (The research paper)
+# ----------------------------------------------------------------
+preferred-citation:
+  type: article
+  title: "Efficient Strategies for Constructing Robust Machine Learning Potentials"
+  abstract: "Machine Learning Interatomic Potentials, MLIPs, hold the key for the design of materials with tailored properties. Although a rigorous and robust conceptual framework has been built for these methodologies leading to the first foundational models the accuracy and adaptability to particular applications needs to be streamlined. Here we have developed a systematic approach based on comprehensive database generation and descriptor-driven intelligent phase space exploration via active learning to accelerate the rate of learning from new structures thus minimizing the cost of active learning strategies. Our work paves the way to the development of unbiased active learning strategies to tailor foundational MLP models to practical applications."
+
+  # TODO: Uncomment and fill in these details when the paper is published
+  # doi: "10.XXXX/journal.XXXXXXX"
+  # journal: "Name of the Journal"
+  # year: 2025
+  # volume: 1
+  # issue: 1
+  # start: 1 # Starting page
+  # end: 10 # Ending page
+
+  authors:
+    - given-names: "Pol"
+      family-name: "Sanz"
+      orcid: "https://orcid.org/0000-0001-8736-404X"
+      affiliation: "Institute of Chemical Research of Catalonia (ICIQ), The Barcelona Institute of Science and Technology (BIST)"
+    - given-names: "Zan"
+      family-name: "Lian"
+      orcid: "https://orcid.org/0000-0001-6922-406X"
+      affiliation: "Stanford University"
+    - given-names: "Lulu"
+      family-name: "Li"
+      affiliation: "Institute of Chemical Research of Catalonia (ICIQ), The Barcelona Institute of Science and Technology (BIST)"
+    - given-names: "Núria"
+      family-name: "López"
+      email: "nlopez@iciq.es"
+      affiliation: "Institute of Chemical Research of Catalonia (ICIQ), The Barcelona Institute of Science and Technology (BIST)"
