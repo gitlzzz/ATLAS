@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.30.2 (2025-06-20)
+
+### Misc
+
+- **core**: fix broken field in CITATION.cff ([#cef1871](https://github.com/pol-sb/MatDBForge/commit/cef18712ba13543310337acc9fa7500850c17f8e))
+- **core**: update CITATION.cff ([#19099d5](https://github.com/pol-sb/MatDBForge/commit/19099d557a98d984a003fee831a56fbd9fc39792))
+- **core**: add first version of `CITATION.cff` ([#a0a8329](https://github.com/pol-sb/MatDBForge/commit/a0a8329e7788116bee1c374685a8120dd65a4e9d))
+
 ## 0.30.1 (2025-06-06)
 
 NOTE: It seems that documentation commits were not being detected by commitizen changelog up until this point.

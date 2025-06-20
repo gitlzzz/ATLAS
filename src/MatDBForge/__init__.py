@@ -3,7 +3,7 @@
 import pathlib as pl
 
 # Version of the package (managed with commitizen)
-__version__ = '0.30.1'
+__version__ = '0.30.2'
 __repo__ = "git@github.com:pol-sb/MatDBForge.git"
 
 # Root of package
