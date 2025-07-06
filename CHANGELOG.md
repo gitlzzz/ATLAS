@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.1 (2025-07-06)
+
+### Fix
+
+- **al_loop**: updated descriptor gathering to use generic `generate_descriptors()` ([#077bd8b](https://github.com/pol-sb/MatDBForge/commit/077bd8bdce5e135f14fbd2289cc74351774bf330))
+
 ## 0.31.0 (2025-07-06)
 
 ### Feature
