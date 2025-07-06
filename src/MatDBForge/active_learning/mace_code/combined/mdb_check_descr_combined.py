@@ -397,15 +397,12 @@ if __name__ == '__main__':
     # Generate descriptors
     if not pl.Path(res_folder / 'curr_it_db_descriptors.pkl').exists():
         descriptor_type = descriptor_settings.get('descriptor_type', 'mace')
-        match descriptor_type:
-            case 'mace':
-                mdb_cut.custom_print('Generating MACE descriptors...')
-                descriptor_dict, descriptor_arr = generate_descriptors(
-                    model_path=prepend_path / 'curr_iter_best.model',
-                    database=structs_database,
-                    device=device,
-                    dtype=dtype,
-                )
+        descriptor_dict, descriptor_arr = generate_descriptors(
+            descriptor_type=descriptor_type,
+            database=structs_database,
+            descriptor_settings=descriptor_settings,
+            model_path=prepend_path / 'curr_iter_best.model',
+        )
     else:
         mdb_cut.custom_print('Reading descriptors from file...')
         try:
