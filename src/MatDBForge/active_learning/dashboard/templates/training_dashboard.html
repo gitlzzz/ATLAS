@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="{{ refresh_interval }}" />
-    <title>Active Learning Loop</title>
+    <title>MatDBForge Dashboard - Status - {{ workchain_node_id }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -30,6 +30,8 @@
             <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
         </div>
     </div>
+
+    <!-- Navigation Tabs -->
     <div class="container-fluid my-2">
         <div class="row gx-0">
             <ul class="nav nav-pills nav-fill">
@@ -54,7 +56,8 @@
             <div class="col-md-8 col-sm-12 gy-2">
                 <div class="g-2 left-box">
                     <div class="top-box-title">
-                        <h3 class="title-upper">Workchain: {{ workchain_node_id }} - Current Iteration: {{ curr_iter }}</h3>
+                        <h3 class="title-upper">Workchain: {{ workchain_node_id }} - Current Iteration: {{ curr_iter }}
+                        </h3>
                         <h3 class="last-updated">({{ update_time }})</h3>
                     </div>
                     <div class="top-box-left-headers">
@@ -95,7 +98,8 @@
                         <div class="subprocess-list subprocess-row">
                             <button id="{{  sub_pr['children']['child_pk'] }}" type="calcjob-button"
                                 value="{{ sub_pr['children']['child_pk'] }}" onclick="copy_pk(this.value)">
-                                {{ [sub_pr['children']["exit_status_str"]][0] }} &nbsp&nbsp&nbsp&nbsp|&nbsp {{ sub_pr['children']["child_process_label"]
+                                {{ [sub_pr['children']["exit_status_str"]][0] }} &nbsp&nbsp&nbsp&nbsp|&nbsp {{
+                                sub_pr['children']["child_process_label"]
                                 }} ({{ (sub_pr['children']["child_pk"]) }})</button>
                         </div>
                         {% endfor %}

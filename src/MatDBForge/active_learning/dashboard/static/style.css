@@ -70,6 +70,20 @@ body {
     animation: BackgroundGradient 18s ease infinite;
 }
 
+.bg-body {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+.chart-container {
+    position: relative;
+    height: 35vh;
+    background-color: var(--panel-bg-color, #2978c6);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
 
 @-webkit-keyframes HeaderGradient {
     0% {
@@ -551,6 +565,9 @@ body {
     background-color: var(--button-hover-bg-color);
 }
 
+.nav-item {
+    margin: 0.25%;
+}
 
 .switch {
     position: relative;

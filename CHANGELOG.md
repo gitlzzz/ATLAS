@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.31.0 (2025-07-06)
+
+### Feature
+
+- **al_loop**: Add ranking algorithms to md seed selection phase ([#4a21367](https://github.com/pol-sb/MatDBForge/commit/4a21367b65a071dfb6117b47c6a1232ce2dee5f4))
+
+### Misc
+
+- **core**: update formatting for CITATION.cff in pyproject.toml ([#2beee8a](https://github.com/pol-sb/MatDBForge/commit/2beee8af91f84a0882ba4bddb70d591fb69e5a06))
+
 ## 0.30.2 (2025-06-20)
 
 ### Misc

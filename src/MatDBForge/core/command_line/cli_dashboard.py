@@ -98,7 +98,7 @@ def run_dashboard_app(process_id, port, update_interval, debug, online):
     debug = ['--log-level', 'debug'] if debug else ['--log-level', 'info']
 
     # print('reload_mode: ', reload_mode)
-    # Laucnh the dashboard in a separate process
+    # Launch the dashboard in a separate process
     sb.call(
         [
             'gunicorn',
@@ -106,6 +106,7 @@ def run_dashboard_app(process_id, port, update_interval, debug, online):
             '--bind',
             f'{url}:{port}',
             # reload_mode,
+            '--reload',
             *debug,
             '--capture-output',
             '--error-logfile',

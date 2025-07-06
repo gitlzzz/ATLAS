@@ -4,108 +4,257 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="{{ refresh_interval }}" />
-    <title>Active Learning Loop</title>
+    <!-- The page will refresh at the specified interval to fetch new data -->
+    <meta http-equiv="refresh" content="{{ refresh_interval }}">
+    <title>MatDBForge Dashboard - Results - {{ workchain_node_id }}</title>
+
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Bootstrap for base styling -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+        xintegrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <!-- FancyTree CSS for the process tree -->
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.3/skin-bootstrap-n/ui.fancytree.min.css"
-        integrity="sha512-EBvHpOwGOGuLpWdqdYttXRCi3KxMMb6WDnLeO77I/mE33lekVOeS5BmK9nVGKibuK22tFEYO2PbzttjvdSOTdQ=="
+        xintegrity="sha512-EBvHpOwGOGuLpWdqdYttXRCi3KxMMb6WDnLeO77I/mE33lekVOeS5BmK9nVGKibuK22tFEYO2PbzttjvdSOTdQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.svg') }}">
+
 </head>
 
 <body>
+    <!-- Header -->
     <div class="row header g-0 px-2">
-
         <div class="col-md-10 col-sm-10 col-10">
             <h1 class="title">Active Learning Loop</h1>
         </div>
-
         <div class="col-md-1 col-sm-1 col-2">
             <label class="switch">
                 <input type="checkbox" onclick="changeTheme()">
                 <span class="slider round"></span>
             </label>
         </div>
-
         <div class="col-md-1 col-sm-1 d-none d-lg-block">
             <img src="{{ url_for('static', filename='logo_dark.png') }}" class="logo-left" alt="Logo">
         </div>
     </div>
 
-    <div class="container-fluid my-2">
-        <div class="row gx-0">
-            <ul class="nav nav-pills nav-fill">
-                <a class="nav-link" href="/status"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                        fill="currentColor" class="bi bi-body-text" viewBox="0 0 16 16">
+    <!-- Navigation Tabs -->
+    <div class="row gx-0 mt-2">
+        <ul class="nav nav-pills nav-fill">
+            <li class="nav-item">
+                <!-- FIX: Added flexbox classes to align icon and text horizontally -->
+                <a class="nav-link d-flex align-items-center justify-content-center" href="/status">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                        class="bi bi-body-text me-2" viewBox="0 0 16 16">
                         <path fill-rule="evenodd"
                             d="M0 .5A.5.5 0 0 1 .5 0h4a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 0 .5m0 2A.5.5 0 0 1 .5 2h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m9 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-9 2A.5.5 0 0 1 .5 4h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m5 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m7 0a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-12 2A.5.5 0 0 1 .5 6h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5m8 0a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-8 2A.5.5 0 0 1 .5 8h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m7 0a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-7 2a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 0 1h-8a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
-                    </svg> Status</a>
-                <a class="nav-link active" href="/results"><svg xmlns="http://www.w3.org/2000/svg" width="16"
-                        height="16" fill="currentColor" class="bi bi-clipboard-data" viewBox="0 0 16 16">
+                    </svg> Status
+                </a>
+            </li>
+            <li class="nav-item">
+                <!-- FIX: Added flexbox classes to align icon and text horizontally -->
+                <a class="nav-link active d-flex align-items-center justify-content-center" aria-current="page"
+                    href="/results">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                        class="bi bi-clipboard-data me-2" viewBox="0 0 16 16">
                         <path
                             d="M4 11a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0zm6-4a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0zM7 9a1 1 0 0 1 2 0v3a1 1 0 1 1-2 0z" />
                         <path
                             d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z" />
                         <path
                             d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z" />
-                    </svg> </i>Results</a>
-            </ul>
-        </div>
-
+                    </svg> Results
+                </a>
+            </li>
+        </ul>
     </div>
 
-    <script>
-        function copy_pk(clicked_id) {
-            var copyText = clicked_id;
-            // copyText.select();
-            // copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText);
-        }
 
-        const setTheme = (theme) => { document.documentElement.className = theme; localStorage.setItem('theme', theme); }
-        const getTheme = () => { const theme = localStorage.getItem('theme'); theme && setTheme(theme); }
-        getTheme();
+    <!-- Main Container -->
+    <div class="result-main-container container-fluid my-2">
+        <!-- Top Information Panel (for consistency with status page) -->
+        <div class="row">
+            <div class="col-md-8 col-sm-12 gy-2">
+                <div class="g-2 left-box">
+                    <div class="top-box-title">
+                        <h3 class="title-upper">Workchain: {{ workchain_node_id }} - Current Iteration: {{ curr_iter }}
+                        </h3>
+                        <h3 class="last-updated">({{ update_time }})</h3>
+                    </div>
+                    <div class="top-box-left-headers">
+                        <div class="workchain-progress-container">
+                            <p class="top-text">Total progress:</p>
+                            <progress class="{{ progbar_class_name }}" id="progress-update" value="{{ progbar_iter }}"
+                                max="{{ max_iters }}"></progress>
+                            <p id="iter-text" class="top-text">{{ iter_text }}</p>
+                        </div>
+                    </div>
 
-        // function to change the current theme to the opposite one
-        function changeTheme() {
-            var currentTheme = localStorage.getItem('theme')
-            var newTheme = currentTheme === "light" ? "dark" : "light";
-            setTheme(newTheme);
-        }
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-12 gy-2">
+                <div class="g-2 right-box">
+                    <h3 class="title-upper">Results Dashboard</h3>
+                    <p id="model-score-text" class="top-text">Displaying visualization for the active learning run.</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Graph Grid -->
+        <div class="p-4 bg-transparent">
+            <!-- Row 1 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="chart-container"><canvas id="rmseEnergyChart"></canvas></div>
+                <div class="chart-container"><canvas id="rmseForcesChart"></canvas></div>
+                <div class="chart-container"><canvas id="trainingDbSizeChart"></canvas></div>
+                <div class="chart-container"><canvas id="seedDbSizeChart"></canvas></div>
+            </div>
+            <!-- Row 2 -->
+            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 gap-4 mt-4">
+                <div class="chart-container"><canvas id="scatterPlot1"></canvas></div>
+                <div class="chart-container"><canvas id="scatterPlot2"></canvas></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- This script tag holds the JSON data from the backend -->
+    <script id="cache-data" type="application/json">
+        {{ cache|safe }}
     </script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
-        integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous">
-        </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.3/jquery.fancytree-all-deps.min.js"
-        integrity="sha512-qCGTrUtUNlAuOAJyFgipKZFSa175os1bqfpuvbX5Z7iKsp5onINDk6lt39Qszz7HiZeZy/9D2zALInUVTbTb1Q=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.3/jquery.fancytree-all-deps.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <script>
+        // --- Theme handling ---
+        const chartInstances = {};
 
-    <script type="text/javascript">
-        // console.log("{{ subprocess_list }}")
-        var subprocess_list = [
-            {% for entry in subprocess_list %}
-                {"title": "{{ entry['child_process_label'] }}"},
-            {% endfor %}
-        ]
+        const setTheme = (theme) => {
+            document.documentElement.className = theme === 'dark' ? 'dark' : '';
+            localStorage.setItem('theme', theme);
+            updateAllChartsTheme(theme);
+        };
 
-        $(function () {  // on page load
-            // Create the tree inside the <div id="tree"> element.
-            $("#tree").fancytree({
-                extensions: ["edit", "filter"],
-                source: subprocess_list
+        const getTheme = () => {
+            const theme = localStorage.getItem('theme') || 'light';
+            setTheme(theme);
+            const isDark = (theme === 'dark');
+            if (document.querySelector('.switch input')) {
+                document.querySelector('.switch input').checked = isDark;
+            }
+        };
+
+        function changeTheme() {
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            setTheme(currentTheme === 'light' ? 'dark' : 'light');
+        }
+
+        // --- Charting Logic ---
+        function createChart(type, canvasId, title, labels, datasets) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if (!ctx) return;
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const textColor = isDark ? '#f8f9fa' : '#495057';
+
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+            }
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: type,
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: textColor } },
+                        title: { display: true, text: title, color: textColor }
+                    },
+                    scales: {
+                        y: { beginAtZero: type !== 'scatter', grid: { color: gridColor }, ticks: { color: textColor } },
+                        x: { grid: { color: gridColor }, ticks: { color: textColor } }
+                    }
+                }
             });
-            // Note: Loading and initialization may be asynchronous, so the nodes may not be accessible yet.
+        }
+
+        function updateAllChartsTheme(theme) {
+            const isDark = theme === 'dark';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const textColor = isDark ? '#f8f9fa' : '#495057';
+
+            for (const chartId in chartInstances) {
+                const chart = chartInstances[chartId];
+                if (chart.options) {
+                    chart.options.plugins.legend.labels.color = textColor;
+                    chart.options.plugins.title.color = textColor;
+                    chart.options.scales.x.grid.color = gridColor;
+                    chart.options.scales.x.ticks.color = textColor;
+                    chart.options.scales.y.grid.color = gridColor;
+                    chart.options.scales.y.ticks.color = textColor;
+                    chart.update();
+                }
+            }
+        }
+
+        // --- Page Load Initialization ---
+        document.addEventListener('DOMContentLoaded', (event) => {
+            getTheme();
+
+            const jsonData = document.getElementById('cache-data').textContent;
+            if (!jsonData) return;
+            const cacheData = JSON.parse(jsonData);
+
+            const colMap = {};
+            cacheData.columns.forEach((col, i) => { colMap[col] = i; });
+
+            const steps = [], rmseEnergy = [], rmseForces = [];
+            const trainingDbSize = [], seedDbSize = [], scatterData1 = [], scatterData2 = [];
+
+            cacheData.data.forEach(row => {
+                const step = row[colMap['step']];
+                const trainingData = row[colMap['training']];
+                const trainDBSize = row[colMap['train_db_size']];
+                const seedDBSize = row[colMap['seed_db_size']];
+                if (trainingData && trainingData.energy !== null) {
+                    steps.push(step);
+                    rmseEnergy.push(trainingData.energy);
+                    rmseForces.push(trainingData.forces);
+                    trainingDbSize.push(trainDBSize);
+                    seedDbSize.push(seedDBSize);
+                    /* trainingDbSize.push(50 + step * 10 + Math.random() * 10); */
+                    /*  seedDbSize.push(100 - step * 5 + Math.random() * 5); */
+
+                    scatterData1.push({ x: step, y: Math.random() * 100 });
+                    scatterData2.push({ x: Math.random() * 10, y: Math.random() * 20 });
+                }
+            });
+
+            if (steps.length > 0) {
+                createChart('bar', 'rmseEnergyChart', 'RMSE Energy vs. AL Step', steps, [{ label: 'RMSE Energy (meV/at)', data: rmseEnergy, backgroundColor: 'rgba(255, 99, 132, 0.5)' }]);
+                createChart('bar', 'rmseForcesChart', 'RMSE Forces vs. AL Step', steps, [{ label: 'RMSE Forces (meV/Å)', data: rmseForces, backgroundColor: 'rgba(54, 162, 235, 0.5)' }]);
+                createChart('bar', 'trainingDbSizeChart', 'Training DB Size', steps, [{ label: 'Number of Structures', data: trainingDbSize, backgroundColor: 'rgba(153, 102, 255, 0.5)' }]);
+                createChart('bar', 'seedDbSizeChart', 'Seed DB Size', steps, [{ label: 'Number of Structures', data: seedDbSize, backgroundColor: 'rgba(255, 159, 64, 0.5)' }]);
+                createChart('scatter', 'scatterPlot1', 'Energy Comparison', null, [{ label: 'DFT Energy [eV / atom]', data: scatterData1, backgroundColor: 'rgba(255, 206, 86, 0.7)' }]);
+                createChart('scatter', 'scatterPlot2', 'Forces Comparison', null, [{ label: 'DFT Forces [eV / A]', data: scatterData2, backgroundColor: 'rgba(75, 192, 192, 0.7)' }]);
+            }
+
         });
     </script>
 
-    <div id="tree"></div>
 </body>
 
 </html>

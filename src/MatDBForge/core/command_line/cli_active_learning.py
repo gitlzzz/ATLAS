@@ -105,9 +105,7 @@ def create_active_learning_builder(
         toml_dict['al_seed']['seed_max_num_structs']
     )
 
-    builder.active_learning.seed_select_settings = toml_dict['al_seed'][
-        'seed_select_settings'
-    ]
+    builder.active_learning.seed_select_settings = toml_dict['al_seed']
 
     # Delete structures from MD seed if they are well represented
     # Default is True
