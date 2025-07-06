@@ -2019,32 +2019,6 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if struct.info.get('config_type') != 'IsolatedAtom'
         ]
 
-        # Get seed selection type
-        seed_select_settings = self.ctx.inputs.seed_select_settings
-
-        # In order to use small_first, the current iteration number must be
-        # less than small_first_max_iter.
-        if (
-            seed_select_settings['seed_select_type'] == 'small_first'
-            and self.ctx.iteration + 1 <= seed_select_settings['small_first_max_iter']
-        ):
-            self.report("Using 'small_first' seed selection type.")
-            seed_select_type = 'small_first'
-        else:
-            seed_select_type = 'random'
-
-        # Filter the structure database and only use the small structures.
-        if seed_select_type == 'small_first':
-            max_size = seed_select_settings['small_first_max_size']
-            seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
-            if len(seed_gen_db) == 0:
-                raise mdb_excp.FilterError(
-                    f'There are no structures with less than '
-                    f'{max_size} atoms in the given database. '
-                    "Please, remove the 'small_first' seed selection mode. "
-                    'and try again.'
-                )
-
         # Getting length of the seed generating database
         db_length = len(seed_gen_db)
 
@@ -2079,22 +2053,157 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             seed_size = 1
             self.report('MD seed size is 0. Set to 1.')
 
-        # Choosing structures at random to create the training seed
-        selected_structs = np.random.choice(
-            range(db_length),
-            size=seed_size,
-            replace=False,
-        )
+        # Get seed selection type
+        seed_select_settings = self.ctx.inputs.seed_select_settings[
+            'seed_select_settings'
+        ]
 
-        self.ctx.inputs.current_md_seed_structs_idx = list(selected_structs)
+        # Apply small-cell training-like seed selection if enabled.
+        # In order to use small_first, the current iteration number must be
+        # less than small_first_max_iter.
+        if (
+            seed_select_settings['seed_select_type'] == 'small_first'
+            and self.ctx.iteration + 1 <= seed_select_settings['small_first_max_iter']
+        ):
+            self.report("Using 'small_first' seed selection type.")
+            seed_select_type = 'small_first'
+        else:
+            seed_select_type = 'random'
+
+        # Filter the structure database and only use the small structures.
+        if seed_select_type == 'small_first':
+            max_size = seed_select_settings['small_first_max_size']
+            seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
+            if len(seed_gen_db) == 0:
+                raise mdb_excp.FilterError(
+                    f'There are no structures with less than '
+                    f'{max_size} atoms in the given database. '
+                    "Please, remove the 'small_first' seed selection mode. "
+                    'and try again.'
+                )
+
+        # Load algorithm for seed selection
+        # Set score for structures in the seed generation database
+        # and use it to select the structures for the MD seed.
+        seed_ranking_algo_settings = self.ctx.inputs.seed_select_settings[
+            'seed_ranking_settings'
+        ]
+
+        # If enabled, use Farthest Point Sampling (FPS) on the descriptors
+        # starting from an initially selected structure to get new points.
+        seed_ranking_algorithm = seed_ranking_algo_settings.get(
+            'seed_ranking_algorithm', 'random'
+        )
+        if seed_ranking_algorithm == 'descriptor_fps':
+            descriptor_fps_settings = seed_ranking_algo_settings.get(
+                'descriptor_fps', {}
+            )
+            self.report(
+                'Ranking structures according to Use Farthest Point Sampling...'
+            )
+            # Select an initial structure depending on the seed ranking algorithm
+            # `initial_structure` parameter.
+            init_struct_type = descriptor_fps_settings.get(
+                'initial_structure', 'random'
+            )
+            self.report(
+                f"Selecting initial structure using '{init_struct_type}' method..."
+            )
+
+            # Sorting the seed generation database by the REF_energy so that the
+            # lowest energy structure goes first
+            if init_struct_type == 'lowest_energy':
+                sorted_seed_db = sorted(
+                    seed_gen_db, key=lambda x: float(x.info['REF_energy'])
+                )
+                init_structure_uuid = sorted_seed_db[0].info['mdb_id']
+            elif init_struct_type == 'random':
+                # If the initial structure is random, we will select a random
+                # structure from the seed generation database.
+                sorted_seed_db = seed_gen_db
+                init_structure_uuid = np.random.choice(
+                    [s.info['mdb_id'] for s in seed_gen_db]
+                )
+
+            # If the seed selection algorithm is descriptor_fps, we need to
+            # calculate the fingerprints for the structures in the seed generation
+            # database.
+            self.report('Calculating descriptors for seed generation database...')
+            descriptor_settings_dict = (
+                self.inputs.active_learning.descriptor_settings.get_dict()
+            )
+
+            # Setting the average type for the descriptor to get global descriptors.
+            if descriptor_settings_dict.get('descriptor', {}).get('average') is None:
+                descriptor_settings_dict.get('descriptor', {})['average'] = 'inner'
+
+            descr_dict, _ = mdb_al_ut.generate_descriptors(
+                database=sorted_seed_db,
+                descriptor_type=descriptor_fps_settings.get('descriptor_type', 'soap'),
+                descriptor_settings=descriptor_fps_settings.get(
+                    'descriptor_settings', {}
+                ),
+            )
+            self.report('Done calculating descriptors!')
+
+            # Compute FPS to get the scoring
+            self.report('Performing farthest point sampling...')
+            scores = mdb_al_ut.calculate_fps_scores_descriptor(
+                init_structure_uuid=init_structure_uuid,
+                descriptor_dict=descr_dict,
+            )
+
+            # Add scores to the structures in the seed generation database
+            for struct in seed_gen_db:
+                # If the structure is not in the scores, set the score to 0
+                if struct.info['mdb_id'] not in scores:
+                    scores[struct.info['mdb_id']] = 0.0
+
+                # Add the score to the structure info
+                struct.info['md_seed_ranking_score'] = scores[struct.info['mdb_id']]
+
+            sorted_seed_db = sorted(
+                seed_gen_db,
+                key=lambda x: x.info['md_seed_ranking_score'],
+                reverse=True,
+            )
+
+        elif seed_ranking_algorithm == 'random':
+            # If the seed selection algorithm is random, we will select structures
+            # at random from the seed generation database, and we will use a 1 as
+            # the score for all structures.
+            self.report('Using random seed selection algorithm.')
+            scores = {s.info['mdb_id']: 1.0 for s in seed_gen_db}
+
+            # Add scores to the structures in the seed generation database
+            for struct in seed_gen_db:
+                # If the structure is not in the scores, set the score to 0
+                if struct.info['mdb_id'] not in scores:
+                    scores[struct.info['mdb_id']] = 0.0
+
+                # Add the score to the structure info
+                struct.info['md_seed_ranking_score'] = scores[struct.info['mdb_id']]
+
+            # Apply random shuffling to the seed generation database
+            # TODO: Use numpy new random number generator class, not default one.
+            sorted_seed_db = seed_gen_db.copy()
+            np.random.shuffle(seed_gen_db)
+
+        # Selecting first db_length structures from the seed generation database
+        # to be used in the training seed.
+        # Seed generation database is already sorted by the
+        # seed ranking algorithm, so we can just take the first `seed_size` structures.
+        selected_structs_idxs = range(seed_size)
+
+        self.ctx.inputs.current_md_seed_structs_idx = list(selected_structs_idxs)
 
         # The set of random structures selected from the seed generation
         # database to be used in training.
         current_md_seed_structs = []
 
         # Populating training seed with the selected random structures
-        for idx in selected_structs:
-            seed_struct = seed_gen_db[idx]
+        for idx in selected_structs_idxs:
+            seed_struct = sorted_seed_db[idx]
             current_md_seed_structs.append(seed_struct)
 
         self.report(

@@ -34,14 +34,25 @@ def check_traj_in_domain(
     concave_hull: np.ndarray, descriptor_dict: dict
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Check if the descriptors are inside the concave hull.
+    Check if the generated descriptors are inside the precomputed concave hull.
 
     Parameters
     ----------
     concave_hull : np.ndarray
-        Concave hull of the latent space for the database.
+        Concave hull of the latent space for the database, corresponding
+        to its convex or concave hull.
     descriptor_dict : dict
         Descriptor dictionary containing the descriptors for each frame.
+        The structure is as follows:
+        ```python
+        {
+            uuid: {
+                'latent_space': np.ndarray,
+                'descriptors': np.ndarray,
+                'is_extrapolating': np.ndarray,
+            }
+        }
+        ```
 
     Returns
     -------

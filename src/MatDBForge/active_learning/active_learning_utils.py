@@ -164,39 +164,126 @@ def md_write_frame_traj(dyn, traj):
 
 # TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
 def generate_descriptors(
-    model_path: str,
-    database,
-    device='cpu',
-    dtype='float32',
-    descriptor_dict: dict = None,
+    database: list[Atoms] | np.ndarray,
+    descriptor_type: str,
+    descriptor_settings: dict,
+    model_path: str = None,
 ):
-    from mace.calculators import MACECalculator
+    """
+    Wrapper function to generate descriptors for a given database.
 
-    # Initialize the MACE calculator
-    model = torch.load(model_path, map_location=torch.device(device))
-    # model = model.to(device=device, dtype=dtype)
-    calculator = MACECalculator(models=model, device=device, default_dtype=dtype)
+    Allows for the generation of descriptors using different methods
+    (e.g., MACE, SOAP) based on the `descriptor_type` parameter.
 
-    # Generate descriptors for all structures in the database
-    descriptor_dict = {}
-    descriptor_list = []
+    Parameters
+    ----------
+    database : list[Atoms] | np.ndarray
+        List or array of structures for which to generate descriptors.
+    descriptor_type : str
+        Type of descriptor to generate. Options are 'soap' or 'mace'.
+    device : str, optional
+        Compute device, by default 'cpu'
+    dtype : str, optional
+        Floating point number precision, by default 'float32'
+    model_path : str, optional
+        For MLIP based descriptors, the pretrained model path, by default None
+    descriptor_settings : dict, optional
+        Descriptor settings dictionary.
 
-    for struct in database:
-        if struct.info.get('mdb_id'):
-            struct_key = struct.info.get('mdb_id')
-        else:
-            struct_key = struct.info.get('aiida_uuid')
+    Returns
+    -------
+    tuple[dict, np.ndarray]
+        A tuple containing a dictionary of descriptors and a numpy array
+        of vstacked descriptors.
+    """
+    if descriptor_type == 'soap':
+        return generate_descriptors_soap(
+            database=database, descriptor_settings=descriptor_settings
+        )
+    elif descriptor_type == 'mace':
+        return generate_descriptors_mace(
+            model_path=model_path,
+            database=database,
+            descriptor_settings=descriptor_settings,
+        )
 
-        descriptor_dict[struct_key] = {
-            'descriptors': [],
-            'latent_space': [],
-        }
-        curr_struct_descriptors = calculator.get_descriptors(struct)
-        descriptor_list.append(curr_struct_descriptors)
-        descriptor_dict[struct_key]['descriptors'].append(curr_struct_descriptors)
 
-    descriptor_arr = np.vstack(descriptor_list)
-    return descriptor_dict, descriptor_arr
+def calculate_fps_scores_descriptor(
+    init_structure_uuid: str, descriptor_dict: dict
+) -> dict[str, float]:
+    """
+    Calculates a diversity score for each structure using Farthest Point Sampling.
+
+    The function iteratively selects the farthest point from the already selected
+    set and assigns a score based on its selection order (rank). Structures
+    selected earlier receive a higher score.
+
+    The score is calculated as: Total Structures - Rank.
+
+    Parameters
+    ----------
+    init_structure_uuid : str
+        The UUID of the initial structure to start the sampling from.
+    descriptor_dict : dict
+        A dictionary where keys are structure UUIDs and values are dictionaries
+        containing at least a 'descriptors' key with a numpy array.
+
+    Returns
+    -------
+    dict[str, float]
+        A dictionary mapping each structure UUID to its calculated FPS score.
+    """
+    candidate_pool = descriptor_dict.copy()
+    total_structures = len(candidate_pool)
+
+    scores = {}
+
+    # Start at rank 1 for scoring.
+    rank = 0
+
+    # Get the descriptor of the initial structure and remove it from the candidate pool
+    initial_descriptor = candidate_pool.pop(init_structure_uuid)['descriptors']
+    selected_descriptors = [initial_descriptor]
+    scores[init_structure_uuid] = float(total_structures - rank) / total_structures
+
+    # Advance rank
+    rank += 1
+
+    # Initialize lists to hold the selected UUIDs and their descriptors
+    # selected_uuids = [init_structure_uuid]
+
+    # Sample all structures and assign them a score based on when were they selected
+    while candidate_pool:
+        min_distances_to_set = []
+        candidate_uuids = list(candidate_pool.keys())
+
+        # For each candidate, find its minimum distance to the set of selected points
+        for uuid in candidate_uuids:
+            candidate_descriptor = candidate_pool[uuid]['descriptors']
+
+            distances = np.linalg.norm(
+                candidate_descriptor - np.array(selected_descriptors), axis=1
+            )
+
+            min_distance = np.min(distances)
+            min_distances_to_set.append(min_distance)
+
+        # Find the candidate that has the maximum among minimum distances
+        farthest_candidate_index = np.argmax(min_distances_to_set)
+        farthest_uuid = candidate_uuids[farthest_candidate_index]
+
+        # Assign score based on rank
+        scores[farthest_uuid] = float(total_structures - rank) / total_structures
+        rank += 1
+
+        # Update the state: add the selected point to our set
+        # selected_uuids.append(farthest_uuid)
+
+        # Remove the selected point from the pool of candidates
+        selected_descriptors.append(candidate_pool[farthest_uuid]['descriptors'])
+        candidate_pool.pop(farthest_uuid)
+
+    return scores
 
 
 def generate_descriptors_mace(
@@ -249,7 +336,78 @@ def generate_descriptors_mace(
     return descriptor_dict, descriptor_arr
 
 
-def generate_descriptors_soap(database, descriptor_settings: dict): ...
+def get_species_from_database(database: list[Atoms]) -> list[str]:
+    """
+    Get the list of species from the database of structures.
+
+    Parameters
+    ----------
+    database : list[Atoms]
+        List of ASE Atoms objects.
+
+    Returns
+    -------
+    list[str]
+        List of unique species in the database.
+    """
+    species = set()
+    for struct in database:
+        species.update(struct.get_chemical_symbols())
+    return sorted(species)
+
+
+def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
+    # Initializing the SOAP calculator
+    from dscribe.descriptors import SOAP
+
+    # Setting default SOAP parameters
+    r_cut = descriptor_settings.get('r_cut', 6.0)
+    n_max = int(descriptor_settings.get('n_max', 8))
+    l_max = int(descriptor_settings.get('l_max', 6))
+    periodic = descriptor_settings.get('periodic', True)
+    average = descriptor_settings.get('average', 'off')
+
+    # Getting the species from the database
+    species = get_species_from_database(database)
+
+    # Setting up the SOAP descriptor
+    soap = SOAP(
+        species=species,
+        periodic=periodic,
+        r_cut=r_cut,
+        n_max=n_max,
+        average=average,
+        l_max=l_max,
+    )
+
+    descriptor_dict = {}
+    descriptor_list = []
+
+    # Getting descriptors for every structure
+    for struct in database:
+        if struct.info.get('mdb_id'):
+            struct_key = struct.info.get('mdb_id')
+        else:
+            struct_key = struct.info.get('aiida_uuid')
+
+        # Creating empty lists to store the descriptors if not already present
+        if descriptor_dict.get(struct_key) is None:
+            descriptor_dict[struct_key] = {
+                'descriptors': [],
+                'latent_space': [],
+            }
+
+        # Getting the descriptors for the current structure
+        curr_struct_descriptors = soap.create(struct)
+        descriptor_list.append(curr_struct_descriptors)
+
+        # Appending the descriptors to the dictionary
+        descriptor_dict[struct_key]['descriptors'].append(curr_struct_descriptors)
+
+    # Generating a numpy array from the list of all descriptors, stacked
+    # vertically.
+    descriptor_arr = np.vstack(descriptor_list)
+    return descriptor_dict, descriptor_arr
 
 
 def run_mace_md_ase(

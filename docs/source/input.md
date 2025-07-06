@@ -290,9 +290,45 @@ Use the parameters below to customize the seed size:
 
 Parameters to tune the structure selection while creating the AL seeds.
 
-- `seed_select_type`: MD seed selection mode. `random` selects random structures from the seed pool `small_first` selects random structures smaller than small_first_max_size for the first small_first_max_iter iters. random (default) / small_first
+- `seed_select_type`: (str, optional) MD seed selection mode. `random` selects random structures from the seed pool `small_first` selects random structures smaller than small_first_max_size for the first small_first_max_iter iters. Default is `random`.
 - `small_first_max_size`: (int) Maximum size in number of atoms for the structures selected with small_first mode
 - `small_first_max_iter`: (int) Apply small_first mode for the first n iterations
+
+#### Seed ranking settings -  `[al_seed.seed_ranking_settings]`
+
+Settings for the seed ranking methods.
+
+- `seed_ranking_algorithm`: (str, optional) Algorithm used for seed selection. Default is `random` Either one of:
+  - `random`: (default) No structure ranking is performed and a score of 1 is assigned to all structures.
+  - `descriptor_fps`: Uses Farthest Point Sampling (FPS) from the descriptors of an initially selected structure.
+
+#### Seed ranking descriptor FPS settings -  `[al_seed.seed_ranking_settings.descriptor_fps]`
+
+- `descriptor_type`: (str, optional) What descriptors to use. Must be one of:
+  - `soap` (default)
+  - `mace`
+
+- `initial_structure`: (str, optional) Whether to gather a structure at random or select the one with the lowest energy available. Must be one of:
+  - `random` (default)
+  - `lowest_energy`
+
+##### Seed ranking descriptor FPS descriptor settings  -  `[al_seed.seed_ranking_settings.descriptor_fps.descriptor]`
+
+Entry containing settings that depend on the descriptor type selected. For `soap`:
+
+- `r_cut`: (float, optional) = Default 6.0
+- `n_max`: (int, optional) = Default 8
+- `l_max`: (float, optional) Default 6.0
+- `periodic`: (bool, optional) Whether to consider the system as periodic. By default `True`.
+- `average`: (str, optional) One of `inner`, `outer`, `off`. 'Default `off`.
+
+For `mace`:
+
+- `model_path` (str): Path to the trained MACE model.
+- `device` (str, optional): What device to use, by default `cpu`.
+- `dtype` (str, optional) = Floating point number precision, by default `float32`
+
+The default values here do not reflect the default values for their respective codes, just the ones selected for this stage of the active learning by MatDBForge.
 
 ### Extrapolation Settings - `[extrapolation]`
 
