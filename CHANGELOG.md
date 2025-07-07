@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.2 (2025-07-07)
+
+### Fix
+
+- **core**: update manually version ([#837d2e3](https://github.com/pol-sb/MatDBForge/commit/837d2e341e2975a7a3691030cf07381e5639d043))
+
 ## 0.31.1 (2025-07-06)
 
 ### Fix
