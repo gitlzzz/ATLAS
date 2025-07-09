@@ -17,7 +17,7 @@ authors = [
 dependencies = [
     "ase",
     "dscribe==2.1.0",
-    "gunicorn==22.0.0",
+    "gunicorn==23.0.0",
     "matplotlib==3.8.0",
     "mp_api>=0.45.3",
     "pandas",
