@@ -215,11 +215,11 @@ def resume_al_loop_builder(
 
         wk_node = load_node(wk_uuid)
 
-    # REMOVE: Disable wk_node until implemented
-    wk_node = None
+    resume_dict['prev_workchain_uuid'] = wk_uuid
 
+    # REMOVE: Disable wk_node until implemented
     # Node found, reading settings from aiida node
-    if wk_node:
+    if wk_node and False:  # noqa
         # TODO: Implement this part
         ...
     # Node not found, using file-based approach

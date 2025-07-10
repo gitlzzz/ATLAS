@@ -113,10 +113,12 @@ def get_complete_steps_uuid(node):
     )
 
 
-def get_missing_cache_steps_uuid(node, cache: pd.DataFrame):
+def get_missing_cache_steps_uuid(node_pk, cache: pd.DataFrame):
     """Identifies workchain steps that are not yet in the cache."""
     missing_uuid_list = []
-    children = orm.load_node(node).called
+
+    workchain = orm.load_node(node_pk)
+    children = workchain.called
     children = [
         child
         for child in children
@@ -124,6 +126,26 @@ def get_missing_cache_steps_uuid(node, cache: pd.DataFrame):
         in ('ActiveLearningWorkChain', 'SimpleActiveLearningWorkChain')
     ]
 
+    # If workchain is resumed from a previous workchain, previous nodes
+    # must be included in the cache.
+    # Thus, prepend the children list with the children nodes of the
+    # previous calculation
+    if hasattr(workchain.inputs, 'resume_dict'):
+        resume_dict = workchain.inputs.resume_dict
+
+        prev_workchain = resume_dict.get('prev_workchain_uuid')
+
+        if prev_workchain is not None:
+            prev_children_all = orm.load_node(prev_workchain).called
+            prev_children = [
+                prev_child
+                for prev_child in prev_children_all
+                if prev_child.process_label
+                in ('ActiveLearningWorkChain', 'SimpleActiveLearningWorkChain')
+            ]
+            children[:0] = prev_children
+
+    # Check if the cache already has the UUIDs of the children
     for child in children:
         if child.uuid not in cache['uuid'].values:
             missing_uuid_list.append(child.uuid)
@@ -274,6 +296,7 @@ def create_cache(workchain_node_id):
 
     cache.attrs['base_workchain'] = workchain_node_id
     base_workchain = orm.load_node(workchain_node_id)
+
     try:
         max_iters = base_workchain.inputs.active_learning.max_iterations.value
     except AttributeError:
@@ -291,6 +314,7 @@ def gather_information(workchain_node_id, app):
 
     cache_path = '/tmp'
     cache_filename = f'mdb_cache_{workchain_node_id}.pkl'
+    print('#@# cache_filename: ', cache_filename)
     cache_full_path = pl.Path(cache_path) / cache_filename
 
     wkc = orm.load_node(workchain_node_id)
