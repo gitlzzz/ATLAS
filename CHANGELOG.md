@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.31.3 (2025-07-15)
+
+### Fix
+
+- **core**: improve al_loop logging ([#887afdd](https://github.com/pol-sb/MatDBForge/commit/887afdd40eab105ff4d000cdb6b3e3a859319417))
+- **al_loop**: fix resume mode model loading ([#50276ca](https://github.com/pol-sb/MatDBForge/commit/50276ca5f9d44c98c02642694877240bec54ec4c))
+- **report**: enable resumed al_loops in dashboard view ([#bf89b40](https://github.com/pol-sb/MatDBForge/commit/bf89b4055dd85289b8c6428ace46d33a2a872c2e))
+
+### Misc
+
+- **deps**: bump gunicorn from 22.0.0 to 23.0.0 ([#ed61846](https://github.com/pol-sb/MatDBForge/commit/ed61846e17d8d9b87bc108932bc7712d2e3c983a))
+- **deps**: bump gunicorn from 22.0.0 to 23.0.0 ([#3ea8534](https://github.com/pol-sb/MatDBForge/commit/3ea85347bed0a1ce550afc73504b582b90aa0fff))
+
 ## 0.31.2 (2025-07-07)
 
 ### Fix

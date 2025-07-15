@@ -133,7 +133,10 @@ def get_missing_cache_steps_uuid(node_pk, cache: pd.DataFrame):
     if hasattr(workchain.inputs, 'resume_dict'):
         resume_dict = workchain.inputs.resume_dict
 
-        prev_workchain = resume_dict.get('prev_workchain_uuid')
+        # HACK: Change uuid to None
+        prev_workchain = resume_dict.get(
+            'prev_workchain_uuid', '357724c3-2d61-4c61-a4f1-c9c3eb79023b'
+        )
 
         if prev_workchain is not None:
             prev_children_all = orm.load_node(prev_workchain).called
@@ -191,14 +194,13 @@ def get_model_stats(node):
     """Extracts model training statistics (RMSE) if available."""
     has_model = False
     rmse_e, rmse_f = None, None
-    for child in node.called:
-        if child.process_label == 'TrainMACEModelCalculation':
-            try:
-                rmse_e = child.outputs.m_rmse_e.value
-                rmse_f = child.outputs.m_rmse_f.value
-                has_model = True
-            except AttributeError:
-                pass
+    if hasattr(node.outputs, 'm0_model_file'):
+        best_model = node.outputs.m0_model_file
+        model_name = best_model.filename.split('_')[0]
+        best_model_calcjob = orm.load_node(model_name)
+        rmse_e = best_model_calcjob.outputs.m_rmse_e.value
+        rmse_f = best_model_calcjob.outputs.m_rmse_f.value
+        has_model = True
 
     if has_model:
         model_stats = {'energy': rmse_e, 'forces': rmse_f}
@@ -314,7 +316,6 @@ def gather_information(workchain_node_id, app):
 
     cache_path = '/tmp'
     cache_filename = f'mdb_cache_{workchain_node_id}.pkl'
-    print('#@# cache_filename: ', cache_filename)
     cache_full_path = pl.Path(cache_path) / cache_filename
 
     wkc = orm.load_node(workchain_node_id)
