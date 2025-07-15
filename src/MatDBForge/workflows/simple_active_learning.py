@@ -32,7 +32,7 @@ import MatDBForge.core.exceptions as mdb_excp
 from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.core.code_utils import get_mdb_version_info
+from MatDBForge.core.code_utils import LevelNameFilter, get_mdb_version_info
 
 
 class SimpleActiveLearningWorkChain(WorkChain):
@@ -1564,9 +1564,31 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         cli_handler = aiida_logger.handlers[0]
         aiida_logger.removeHandler(cli_handler)
 
+        # Set the PARENT logger to INFO to silence framework debug messages
+        aiida_logger.setLevel(15)
+
+        # We only want to see our custom debug messages and our reports.
+        log_filter = LevelNameFilter(
+            levels_to_keep=[
+                'MDB_DEBUG',
+                'REPORT',
+                '[ ✔ ]',
+                '[ ! ]',
+                '[ X ]',
+            ]
+        )
+
         # Create a file handle
         file_handler = logging.FileHandler(log_path)
         file_handler.setLevel(1)
+        file_handler.addFilter(log_filter)
+
+        # Create a formatter and set it for the file handler
+        file_formatter = logging.Formatter(
+            '[%(asctime)s] [%(levelname)s] - %(message)s',
+            datefmt='%m/%d/%y %H:%M:%S',
+        )
+        file_handler.setFormatter(file_formatter)
         aiida_logger.addHandler(file_handler)
 
         # Adding console logger
@@ -1574,7 +1596,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         ch = RichHandler(
             markup=True,
             show_path=False,
-            log_time_format='[%m/%d/%y %H:%M:%S]',
+            log_time_format='[%d/%m/%y %H:%M:%S]',
             omit_repeated_times=False,
             console=console,
         )

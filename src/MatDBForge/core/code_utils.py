@@ -67,7 +67,7 @@ def init_logger(source, log_path=None, show_log_path=True):
 
     logging.addLevelName(10, '[...]')
     logging.addLevelName(19, '     ')
-    logging.addLevelName(15, '     ')
+    logging.addLevelName(15, "MDB_DEBUG")
     logging.addLevelName(20, '[ i ]')
     logging.addLevelName(25, '[ ✔ ]')
     logging.addLevelName(30, '[ ! ]')
@@ -77,6 +77,17 @@ def init_logger(source, log_path=None, show_log_path=True):
         custom_print(f"Logging in '{filename}'", print_type='info')
 
     return logger, filename
+
+
+class LevelNameFilter(logging.Filter):
+    """Filters log records based on a list of allowed level names."""
+
+    def __init__(self, levels_to_keep):
+        super().__init__()
+        self.levels_to_keep = set(levels_to_keep)
+
+    def filter(self, record):
+        return record.levelname in self.levels_to_keep
 
 
 def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=False):
