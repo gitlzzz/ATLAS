@@ -231,6 +231,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
             structure_list=database_training,
         )
 
+        # Determining if resume mode is activated
+        self.ctx.resume_mode = self.inputs.al_start_mode.value == 'resume'
+
         # Train n models (M0-Mn)
         # The most accurate model (during validation) will be chosen as the main model,
         # and used to drive the MD simulations. The remaining models will act as
@@ -241,7 +244,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             self.inputs.load_init_models and self.inputs.al_loop_iteration.value == 0
         ) or (
             self.inputs.load_init_models
-            and self.inputs.al_start_mode.value == 'resume'
+            and self.ctx.resume_mode
             and not hasattr(self.ctx, 'loaded_init_models')
         ):
             self.report(
@@ -389,17 +392,17 @@ class SimpleActiveLearningWorkChain(WorkChain):
         """
         # Get the current iteration and resume mode
         curr_iter = self.inputs.al_loop_iteration.value
-        resume_mode = self.inputs.al_start_mode.value == 'resume'
 
         # Ensure that models are loaded only for the first resumed step
         if self.inputs.load_init_models:
             if curr_iter == 0 or (
-                resume_mode and not hasattr(self.ctx, 'loaded_init_models')
+                self.ctx.resume_mode and not hasattr(self.ctx, 'loaded_init_models')
             ):
                 mace_training_results = [
                     orm.load_node(node) for node in self.inputs.load_init_models
                 ]
-                self.ctx.loaded_init_models = True  # Mark that models have been loaded
+                # Mark that models have been loaded
+                self.ctx.loaded_init_models = True
             else:
                 mace_training_results = self.ctx.mace_training_results
         else:
@@ -462,6 +465,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
                 # Storing best model file in the context
                 self.ctx.best_model_file = model_file
+
+                # Adding best model name as an extra to the model file
+                self.ctx.best_model_file.base.extras.set(
+                    'model_name', self.ctx.best_model_name
+                )
 
                 # Convert model to LAMMPS compatible format
                 # and return it to workchain context
@@ -1431,6 +1439,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # orm.SinglefileData for the MACE model with the best performance
         self.out('m0_model_file', self.ctx.best_model_file)
+        self.logger.log(
+            15,
+            f"Saved best model '{self.ctx.best_model_file.extras.get('model_name')}'"
+            f' ({self.ctx.best_model_file.pk}) in workchain.',
+        )
 
         self.out(
             'stop_md_seed_no_disagreement',
@@ -1519,6 +1532,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # It will loop `self.ctx.inputs.max_al_iterations` times.
             # while_(cls.should_run_process)(
             while_(cls.check_al_loop_conditions)(
+                # Check status of resume mode.
+                cls.check_resume_mode,
                 # Get random structures from Ds to generate the MD seed.
                 cls.get_md_seed,
                 # Run training seed
@@ -1698,11 +1713,44 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     def get_results_loop(self):
         """Attach the outputs specified in the spec from the last completed process."""
-        if self.inputs.resume_dict:
+        self.logger.log(15, f'Getting results for iteration {self.ctx.iteration}.')
+
+        # Mark last iteration differently for first resume step.
+        first_resume_step = False
+        is_resume_run = hasattr(self.inputs, 'resume_dict')
+        if is_resume_run:
+            # If resuming, we need to check if this is the first step after resuming.
+            # If it is, we need to get the last iteration from the resume_dict.
+            # Otherwise, we can just use the current iteration.
+            first_resume_step = (
+                self.inputs.resume_dict['last_iteration'] == self.ctx.iteration - 1
+            )
+
+        if first_resume_step is True and is_resume_run is True:
             last_iteration = self.inputs.resume_dict['last_iteration']
+            self.logger.log(
+                15,
+                f'Detected resume mode, first step. Last iteration:  {last_iteration}',
+            )
             node = self.ctx.children[self.ctx.iteration - (last_iteration - 1) - 2]
+
+        # If resuming, but not the first step
+        elif first_resume_step is False and is_resume_run is True:
+            self.logger.log(
+                15,
+                f'Detected resume mode but NOT first step. '
+                f'Last iteration: {self.ctx.iteration}',
+            )
+            node = self.ctx.children[-1]
         else:
+            self.logger.log(
+                15, f'Detected resume mode OFF. Last iteration:  {last_iteration}'
+            )
             node = self.ctx.children[self.ctx.iteration - 1]
+
+        self.logger.log(
+            15, f"ActiveLearningWorkChain to gather results from: '{node.uuid}'"
+        )
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
         # outputs = self._attach_outputs(node)
@@ -1716,6 +1764,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.stop_al_loop_error = orm.Bool(True)
 
         self.ctx.last_workchain_completed = node
+        self.logger.log(15, f'Done getting results for iteration {self.ctx.iteration}.')
         return None
 
     def add_dft_results_to_db(self):
@@ -1876,6 +1925,20 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
 
         self.report('Workchain setup finished.')
+
+    def check_resume_mode(self):
+        # If resuming, we need to check if the last iteration is the same as the
+        # current iteration. If it is, we keep resume mode for this first resume
+        # iteration. Otherwise this means that resume mode has run for one step,
+        # and we can disable it.
+        self.ctx.resume_mode = self.ctx.inputs.al_start_mode.value == 'resume'
+        if self.ctx.resume_mode:
+            curr_iteration = self.ctx.iteration
+            prev_iteration = self.inputs.resume_dict.get('last_iteration')
+            is_first_resume_step = curr_iteration == prev_iteration
+
+            if not is_first_resume_step:
+                self.ctx.inputs.al_start_mode = orm.Str('normal')
 
     def get_input_report(self):
         console = Console(color_system='truecolor')
@@ -2085,9 +2148,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Load algorithm for seed selection
         # Set score for structures in the seed generation database
         # and use it to select the structures for the MD seed.
-        seed_ranking_algo_settings = self.ctx.inputs.seed_select_settings[
-            'seed_ranking_settings'
-        ]
+        seed_ranking_algo_settings = self.ctx.inputs.seed_select_settings.get(
+            'seed_ranking_settings', {}
+        )
 
         # If enabled, use Farthest Point Sampling (FPS) on the descriptors
         # starting from an initially selected structure to get new points.
@@ -2172,7 +2235,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # If the seed selection algorithm is random, we will select structures
             # at random from the seed generation database, and we will use a 1 as
             # the score for all structures.
-            self.report('Using random seed selection algorithm.')
+            self.report("Using 'random' seed selection algorithm.")
             scores = {s.info['mdb_id']: 1.0 for s in seed_gen_db}
 
             # Add scores to the structures in the seed generation database
