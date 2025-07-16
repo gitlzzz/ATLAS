@@ -914,7 +914,10 @@ def get_dft_calc_builder_mace_list(
     """Get a MACE calculation builder for a given structure list and row."""
     updated_struct_list = []
 
-    containerized: bool = container_settings.get('use_container', False)
+    # Whether to use a containerized version of the evaluator
+    containerized: bool = container_settings.get(
+        'use_container', False
+    ) and not dft_settings.get('ignore_container')
 
     for idx, curr_struct in enumerate(struct_list):
         curr_struct = struct_list[idx]
