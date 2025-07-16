@@ -2047,7 +2047,6 @@ def generate_latent_space_evol(
     # Get number of steps saved
     num_steps_saved = len(latent_spaces)
     # Computing latent space for all structures
-    print('#@# num_steps_saved: ', num_steps_saved)
     if num_steps_saved == 0:
         if databases:
             autoencoder_file_path = Path(autoencoder_model)
