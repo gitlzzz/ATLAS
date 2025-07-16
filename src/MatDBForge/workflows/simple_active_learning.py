@@ -1116,7 +1116,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
     def send_calc_or_remove_structures(self):
         """Decide which structures to keep and send to DFT or remove from db."""
-        self.report('Deciding which structures to keep...')
+        self.report(
+            'Selecting which structures need performing DFT or removing from DB...'
+        )
 
         # Get all of the processed structures
         processed_structures = self.ctx.process_committee_results
