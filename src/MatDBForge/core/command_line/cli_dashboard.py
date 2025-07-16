@@ -115,6 +115,7 @@ def run_dashboard_app(process_id, port, update_interval, debug, online):
             './.mdb_dashboard.pid',
             '--name',
             'mdb_dashboard',
+            '--timeout=180',
             f"MatDBForge.active_learning.dashboard.training_dashboard_flask:run_training_dashboard(workchain_node_id='{process_id}',refresh_interval='{update_interval}',port='{port}')",
         ]
     )

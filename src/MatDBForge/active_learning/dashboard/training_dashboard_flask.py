@@ -15,7 +15,19 @@ def get_report(node):
     if isinstance(node, (int, str)):
         node = orm.load_node(node)
 
-    report = get_workchain_report(node, levelname='REPORT')
+    node_list = [node]
+    if hasattr(node.inputs, 'resume_dict'):
+        if node.inputs.resume_dict.get_dict().get('prev_workchain_uuid'):
+            node_list.append(
+                orm.load_node(node.inputs.resume_dict['prev_workchain_uuid'])
+            )
+        node = node_list
+
+    node_list = sorted(node_list, key=lambda x: x.pk)
+
+    report = ''
+    for node in node_list:
+        report += get_workchain_report(node, levelname='REPORT', max_depth=1)
     report_lines = report.split('\n')
     pattern = r'\[\d+\|[A-Za-z]+\|[A-Za-z_]+\]'
 
@@ -267,7 +279,7 @@ def update_cache(
             idx = cache.index[cache['uuid'] == uuid][0]
             cache.loc[idx] = cache_df_row.loc[0]
 
-    # At this point, `cache` is guaranteed to have its attributes.
+    # At this point, cache is guaranteed to have its attributes.
     al_loop_steps = [
         c
         for c in orm.load_node(cache.attrs['base_workchain']).called
