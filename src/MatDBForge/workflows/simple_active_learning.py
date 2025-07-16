@@ -1312,6 +1312,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
             f'{len(delete_indices)} delete.'
         )
 
+        self.logger.log(15, f"Structures to delete: '{delete_indices}'")
+
         # Deleting well represented structures from seed_gen_db (Ds), if
         # there are any and the seed deletion is enabled in the configuration
         # file.
