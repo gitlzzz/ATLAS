@@ -7,7 +7,7 @@ secrets.json
 .VSCode*
 build
 _build
-src/MatDBForge/benchmarks/
 src/MatDBForge/devel
+src/MatDBForge/benchmarks/other
 src/MatDBForge/display_db
 *sync-conflict*
