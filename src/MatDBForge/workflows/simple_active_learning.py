@@ -1101,8 +1101,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             future = self.submit(proc_seed_builder)
 
             if curr_structure.info.get('aiida_uuid'):
-                future.base.extras.set('unique_id', curr_structure.info['aiida_uuid'])
-            elif curr_structure.info.get('mdb_id'):
+                future.base.extras.set(
+                    'unique_id_old', curr_structure.info['aiida_uuid']
+                )
+            if curr_structure.info.get('mdb_id'):
                 future.base.extras.set('unique_id', curr_structure.info['mdb_id'])
 
             future.base.extras.set('mdb_db_index', curr_structure.info['mdb_db_index'])
@@ -1313,6 +1315,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
         self.logger.log(15, f"Structures to delete: '{delete_indices}'")
+
+        if set(delete_indices) == {'unknown'}:
+            self.report("All structures to delete marked as 'unknown'. ")
+            raise ChildProcessError
 
         # Deleting well represented structures from seed_gen_db (Ds), if
         # there are any and the seed deletion is enabled in the configuration
@@ -1743,7 +1749,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Mark last iteration differently for first resume step.
         first_resume_step = False
-        is_resume_run = hasattr(self.inputs, 'resume_dict')
+        is_resume_run = (
+            hasattr(self.inputs, 'resume_dict') and self.inputs.resume_dict is not None
+        )
         if is_resume_run:
             # If resuming, we need to check if this is the first step after resuming.
             # If it is, we need to get the last iteration from the resume_dict.
@@ -1769,10 +1777,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
             node = self.ctx.children[-1]
         else:
-            self.logger.log(
-                15, f'Detected resume mode OFF. Last iteration:  {last_iteration}'
-            )
             node = self.ctx.children[self.ctx.iteration - 1]
+            self.logger.log(
+                15, f'Detected resume mode OFF. Last iteration:  {node.uuid}'
+            )
 
         self.logger.log(
             15, f"ActiveLearningWorkChain to gather results from: '{node.uuid}'"
@@ -2175,20 +2183,20 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Set score for structures in the seed generation database
         # and use it to select the structures for the MD seed.
         seed_ranking_algo_settings = self.ctx.inputs.seed_select_settings.get(
-            'seed_ranking_settings', {}
+            'seed_ranking_algorithm', {}
+        )
+        seed_ranking_algorithm = seed_ranking_algo_settings.get(
+            'seed_ranking_algorithm', 'random'
         )
 
         # If enabled, use Farthest Point Sampling (FPS) on the descriptors
         # starting from an initially selected structure to get new points.
-        seed_ranking_algorithm = seed_ranking_algo_settings.get(
-            'seed_ranking_algorithm', 'random'
-        )
         if seed_ranking_algorithm == 'descriptor_fps':
             descriptor_fps_settings = seed_ranking_algo_settings.get(
                 'descriptor_fps', {}
             )
             self.report(
-                'Ranking structures according to Use Farthest Point Sampling...'
+                'Initializing farthest point sampling ranking...'
             )
             # Select an initial structure depending on the seed ranking algorithm
             # `initial_structure` parameter.
@@ -2229,18 +2237,17 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             descr_dict, _ = mdb_al_ut.generate_descriptors(
                 database=sorted_seed_db,
                 descriptor_type=descriptor_fps_settings.get('descriptor_type', 'soap'),
-                descriptor_settings=descriptor_fps_settings.get(
-                    'descriptor_settings', {}
-                ),
+                descriptor_settings=descriptor_fps_settings.get('descriptor', {}),
             )
             self.report('Done calculating descriptors!')
 
             # Compute FPS to get the scoring
-            self.report('Performing farthest point sampling...')
+            self.report('Ranking using farthest point sampling...')
             scores = mdb_al_ut.calculate_fps_scores_descriptor(
                 init_structure_uuid=init_structure_uuid,
                 descriptor_dict=descr_dict,
             )
+            self.report('Ranking completed!')
 
             # Add scores to the structures in the seed generation database
             for struct in seed_gen_db:
@@ -2261,7 +2268,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # If the seed selection algorithm is random, we will select structures
             # at random from the seed generation database, and we will use a 1 as
             # the score for all structures.
-            self.report("Using 'random' seed selection algorithm.")
+            self.report("Using 'random' seed ranking algorithm.")
             scores = {s.info['mdb_id']: 1.0 for s in seed_gen_db}
 
             # Add scores to the structures in the seed generation database
@@ -2290,7 +2297,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # database to be used in training.
         current_md_seed_structs = []
 
-        # Populating training seed with the selected random structures
+        # Populating MD seed with the selected random structures
         for idx in selected_structs_idxs:
             seed_struct = sorted_seed_db[idx]
             current_md_seed_structs.append(seed_struct)

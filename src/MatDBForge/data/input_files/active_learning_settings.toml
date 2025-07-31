@@ -107,6 +107,33 @@ small_first_max_size = 50
 small_first_max_iter = 5
 
 
+[al_seed.seed_ranking_algorithm]
+# (str) Algorithm to be used for ranking the structures in the seed generation database.
+# Either one of:
+# - random: (default) No structure ranking is performed and a score of 1 is assigned to all structures.
+# - descriptor_fps: Uses Farthest Point Sampling (FPS) from the descriptors of an initially selected structure.
+seed_ranking_algorithm = 'descriptor_fps'
+
+
+[al_seed.seed_ranking_algorithm.descriptor_fps]
+# What descriptors to use.
+descriptor_type = 'soap'
+
+# Whether to gather a structure at random or select the one with the lowest energy available
+# Either one of:
+# - random: (default) Structure picked randomly
+# - lowest_energy: Structure with the lowest energy is selected.
+initial_structure = 'lowest_energy'
+
+
+[al_seed.seed_ranking_settings.descriptor_fps.descriptor]
+r_cut = 6.0
+n_max = 8.0
+l_max = 6.0
+periodic =  true
+average = 'inner'
+
+
 ###############################################
 
 [extrapolation]
@@ -124,6 +151,9 @@ disagreement_check_type = "training"
 # - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement
 check_extrapolation_type = 'none'
 
+[extrapolation.concave_hull]
+target_alpha_range_min = 3.0
+target_alpha_range_max = 8.0
 
 ###############################################
 

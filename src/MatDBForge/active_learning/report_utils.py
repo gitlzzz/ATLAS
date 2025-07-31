@@ -521,8 +521,8 @@ def get_loop_report(
             'it_idx': 0,
             'mace_e': None,
             'mace_f': None,
-            'train_db_size': ini_db_size,  # Uses the pre-defined ini_db_size
-            'seed_gen_db_size': ini_db_size,  # Uses the pre-defined ini_db_size
+            'train_db_size': ini_db_size,
+            'seed_gen_db_size': ini_db_size,
             'finished': True,
         }
     }
@@ -570,7 +570,8 @@ def get_loop_report(
             'mace_f': None,
             'train_db_size': None,
             'seed_gen_db_size': None,
-            'finished': False,  # Default, updated based on db_data_by_iter
+            # Default, updated based on db_data_by_iter
+            'finished': False,
         }
 
         # Assign MACE data if available for this sequential position
@@ -592,8 +593,11 @@ def get_loop_report(
             stats_dict[current_iter_num]['finished'] = True
 
     # Get run name
-    if not title:  # If title wasn't passed in or set in the omitted part
+    # If title wasn't passed in or set in the omitted part
+    if not title:
         try:
+            title = al_loop_node.inputs.active_learning.run_name.value
+        except Exception:
             title_regex = r'Active Learning Inputs:\s*\n({.*?})\n'
             match_obj = re.search(title_regex, report, re.DOTALL)
             if match_obj:
@@ -607,14 +611,9 @@ def get_loop_report(
                 )
                 settings_dict = json.loads(settings_dict_string)
                 title = settings_dict.get('run_name')
-        except Exception:
-            # If parsing fails, title remains None or its previous value.
-            # The original code had a generic Exception, kept here.
-            # Consider more specific error handling if needed.
-            pass
 
     if not title:
-        title = f'{al_loop_node}'  # Assumes al_loop_node is defined
+        title = f'{al_loop_node}'
 
     return (
         title,

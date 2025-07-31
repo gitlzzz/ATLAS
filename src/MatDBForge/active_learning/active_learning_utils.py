@@ -402,7 +402,7 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
         descriptor_list.append(curr_struct_descriptors)
 
         # Appending the descriptors to the dictionary
-        descriptor_dict[struct_key]['descriptors'].append(curr_struct_descriptors)
+        descriptor_dict[struct_key]['descriptors'] = [curr_struct_descriptors]
 
     # Generating a numpy array from the list of all descriptors, stacked
     # vertically.
