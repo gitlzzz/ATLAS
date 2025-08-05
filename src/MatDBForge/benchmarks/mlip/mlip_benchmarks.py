@@ -601,35 +601,6 @@ def run_energy_md_benchmark(args, model_paths: list[pl.Path]):
     mdb_b_ut.custom_print('Energy MD data collected for final plot', 'info')
 
 
-def run_accuracy_test_set_benchmark(args, model_paths: list[pl.Path]):
-    """Calculates and plots energy and force RMSE on a held-out test set."""
-    mdb_b_ut.custom_print('Running Accuracy Benchmark on Test Set', 'info')
-    if not args.test_set_path or not args.test_set_path.exists():
-        mdb_b_ut.custom_print(
-            'Test set path not provided or does not exist. Skipping.', 'error'
-        )
-        return
-
-    benchmark_dir = args.output_dir / 'accuracy_test_set'
-    benchmark_dir.mkdir(exist_ok=True)
-
-    # 1. Load the test set structures.
-    # test_structures = ase_read(args.test_set_path, index=':')
-
-    # 2. For each model, iterate through the test set.
-    #    - Set the calculator on each structure.
-    #    - Calculate MLIP energy and forces.
-    #    - Assume DFT energy/forces are in structure.info/arrays.
-    #    - Store the differences.
-
-    # 3. Calculate RMSE for energies (meV/atom) and forces (eV/A).
-
-    # 4. Save results to a file (e.g., CSV or JSON).
-
-    # 5. Generate a bar plot comparing the RMSE values for each model.
-    mdb_b_ut.custom_print('Accuracy test set benchmark not implemented yet.', 'warn')
-
-
 def run_elastic_properties_benchmark(args, model_paths: list[pl.Path]):
     """Calculates and plots elastic constants and bulk modulus."""
     mdb_b_ut.custom_print('Running Elastic Properties Benchmark', 'info')
