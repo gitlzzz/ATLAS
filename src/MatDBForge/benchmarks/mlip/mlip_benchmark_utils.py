@@ -1,4 +1,5 @@
 """General utilities for the MLIP benchmark suite in MDBForge."""
+
 import argparse
 import atexit
 import math
@@ -191,6 +192,17 @@ def parse_arguments():
         action='store_true',
         help='Compare final database sizes from AL runs.',
     )
+    benchmark_group.add_argument(
+        '--run_evaluate_database',
+        action='store_true',
+        help='Evaluate models against a user-provided structure database.',
+    )
+    benchmark_group.add_argument(
+        '--database_path',
+        type=pl.Path,
+        help='Path to the structure database file for evaluation '
+        '(required for --run_evaluate_database).',
+    )
 
     # UI options
     ui_group = parser.add_argument_group('UI Options')
@@ -229,8 +241,13 @@ def load_model_from_aiida(identifier: int, output_dir: pl.Path):
             # Fallback to using the identifier as the name
             run_name = f'workchain_{identifier}'
 
+        if hasattr(base_workchain.outputs, 'final_model_file'):
+            final_model_singlefile_node = base_workchain.outputs.final_model_file
+        else:
+            final_model_singlefile_node = last_workchain.outputs.m0_model_file
+
         # Saving model file to output directory
-        with last_workchain.outputs.m0_model_file.as_path() as model_file:
+        with final_model_singlefile_node.as_path() as model_file:
             model_file_path = pl.Path(model_file)
 
             # Copying model to cwd
@@ -660,6 +677,155 @@ def create_final_multi_panel_plot(args):
                         va='bottom',
                         fontsize=9,
                     )
+
+        elif plot_type == 'database_evaluation':
+            # Database evaluation with energy and force error comparison
+            model_names = plot_info['model_names']
+            mean_energy_errors = plot_info['mean_energy_errors']
+            mean_force_errors = plot_info['mean_force_errors']
+
+            # Clear and hide the main axis to prevent background interference
+            ax.clear()
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+
+            # Create a 2x1 gridspec within this subplot
+            from matplotlib.gridspec import GridSpecFromSubplotSpec
+
+            gs = GridSpecFromSubplotSpec(
+                2, 1, ax.get_subplotspec(), height_ratios=[1, 1], hspace=0.4
+            )
+
+            # Create the two subaxes
+            ax_energy = ax.figure.add_subplot(gs[0])
+            ax_force = ax.figure.add_subplot(gs[1])
+
+            # Colors for bars
+            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+
+            # Energy errors subplot
+            bars_energy = ax_energy.bar(model_names, mean_energy_errors, color=colors)
+            ax_energy.set_ylabel('Energy Error\n(meV/atom)', fontsize=9)
+            ax_energy.set_title('Database Evaluation Results', fontsize=11, pad=10)
+            ax_energy.grid(True, linestyle='--', alpha=0.6)
+            ax_energy.tick_params(axis='both', which='major', labelsize=8)
+            ax_energy.set_xticklabels([])  # Remove x-labels from top plot
+
+            # Add value labels on energy bars
+            for bar, error in zip(bars_energy, mean_energy_errors, strict=True):
+                height = bar.get_height()
+                ax_energy.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height + max(mean_energy_errors) * 0.02,
+                    f'{error:.1f}',
+                    ha='center',
+                    va='bottom',
+                    fontsize=8,
+                )
+
+            # Force errors subplot
+            bars_force = ax_force.bar(model_names, mean_force_errors, color=colors)
+            ax_force.set_xlabel('Model', fontsize=10)
+            ax_force.set_ylabel('Force Error\n(eV/Å)', fontsize=9)
+            ax_force.grid(True, linestyle='--', alpha=0.6)
+            ax_force.tick_params(axis='both', which='major', labelsize=8)
+
+            # Rotate x-axis labels if needed
+            if len(model_names) > 3:
+                ax_force.tick_params(axis='x', rotation=45)
+
+            # Add value labels on force bars
+            for bar, error in zip(bars_force, mean_force_errors, strict=True):
+                height = bar.get_height()
+                ax_force.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height + max(mean_force_errors) * 0.02,
+                    f'{error:.3f}',
+                    ha='center',
+                    va='bottom',
+                    fontsize=8,
+                )
+
+        elif plot_type == 'database_evaluation_detailed':
+            # Structure-by-structure error plots
+            model_names = plot_info['model_names']
+            results = plot_info['results']
+
+            # Clear and hide the main axis to prevent background interference
+            ax.clear()
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+
+            # Create a 2x1 gridspec within this subplot
+            from matplotlib.gridspec import GridSpecFromSubplotSpec
+
+            gs = GridSpecFromSubplotSpec(
+                2, 1, ax.get_subplotspec(), height_ratios=[1, 1], hspace=0.4
+            )
+
+            # Create the two subaxes
+            ax_energy = ax.figure.add_subplot(gs[0])
+            ax_force = ax.figure.add_subplot(gs[1])
+
+            # Use consistent color scheme
+            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+
+            # Plot energy errors for each model
+            for i, model_name in enumerate(model_names):
+                model_data = results[model_name]
+                struct_indices = model_data['structure_indices']
+                energy_errors = model_data['energy_errors_meV_per_atom']
+
+                ax_energy.plot(
+                    struct_indices,
+                    energy_errors,
+                    label=model_name,
+                    color=colors[i],
+                    marker='o',
+                    markersize=2,
+                    linewidth=1,
+                    alpha=0.8,
+                )
+
+            ax_energy.set_ylabel('Energy Error\n(meV/atom)', fontsize=9)
+            ax_energy.set_title('Structure-by-Structure Errors', fontsize=11, pad=10)
+            ax_energy.legend(fontsize=8)
+            ax_energy.grid(True, alpha=0.3)
+            ax_energy.set_yscale('log')
+            ax_energy.tick_params(axis='both', which='major', labelsize=8)
+            ax_energy.set_xticklabels([])  # Remove x-labels from top plot
+
+            # Plot force errors for each model
+            for i, model_name in enumerate(model_names):
+                model_data = results[model_name]
+                struct_indices = model_data['structure_indices']
+                force_errors = model_data['force_errors_eV_per_A']
+
+                ax_force.plot(
+                    struct_indices,
+                    force_errors,
+                    label=model_name,
+                    color=colors[i],
+                    marker='o',
+                    markersize=2,
+                    linewidth=1,
+                    alpha=0.8,
+                )
+
+            ax_force.set_xlabel('Structure Index', fontsize=10)
+            ax_force.set_ylabel('Force Error\n(eV/Å)', fontsize=9)
+            ax_force.legend(fontsize=8)
+            ax_force.grid(True, alpha=0.3)
+            ax_force.set_yscale('log')
+            ax_force.tick_params(axis='both', which='major', labelsize=8)
 
         plot_idx += 1
 

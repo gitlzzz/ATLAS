@@ -1,8 +1,10 @@
 """Collection of MDB-trained benchmarks for MLIPs."""
+
 import copy
 import json
 import pathlib as pl
 
+import matplotlib.pyplot as plt
 import numpy as np
 from ase import units
 from ase.build import bulk, surface
@@ -1454,3 +1456,296 @@ def run_learning_curves_benchmark(args, model_paths: list[pl.Path]):
         mdb_b_ut.custom_print(f'Results saved to {results_file}', 'info')
     else:
         mdb_b_ut.custom_print('No learning curve results to save.', 'warn')
+
+
+def run_evaluate_database(args, model_paths: list[pl.Path]):
+    """
+    Evaluate MLIP models against a user-provided structure database.
+
+    This benchmark loads structures from a database file and compares
+    MLIP predictions with reference values stored in the structures.
+    Reference energies should be in atoms.info['REF_energy'] and
+    reference forces in atoms.arrays['REF_forces'].
+    """
+    mdb_b_ut.custom_print('Running Database Evaluation Benchmark', 'info')
+
+    if not hasattr(args, 'database_path') or not args.database_path:
+        mdb_b_ut.custom_print(
+            'No database path provided. Use --database_path to specify '
+            'the database file.',
+            'error',
+        )
+        return
+
+    if not args.database_path.exists():
+        mdb_b_ut.custom_print(f'Database file not found: {args.database_path}', 'error')
+        return
+
+    benchmark_dir = args.output_dir / 'evaluate_database'
+    benchmark_dir.mkdir(exist_ok=True)
+
+    # Load database structures
+    mdb_b_ut.custom_print(f'Loading database from: {args.database_path}', 'info')
+    try:
+        structures = ase_read(args.database_path, index=':')
+        mdb_b_ut.custom_print(f'Loaded {len(structures)} structures', 'info')
+    except Exception as e:
+        mdb_b_ut.custom_print(f'Failed to load database: {e}', 'error')
+        return
+
+    # Validate reference data
+    valid_structures = []
+    for i, atoms in enumerate(structures):
+        has_ref_energy = 'REF_energy' in atoms.info
+        has_ref_forces = 'REF_forces' in atoms.arrays
+
+        if not has_ref_energy:
+            mdb_b_ut.custom_print(
+                f'Structure {i}: Missing REF_energy in info. Skipping.', 'warn'
+            )
+            continue
+
+        if not has_ref_forces:
+            mdb_b_ut.custom_print(
+                f'Structure {i}: Missing REF_forces in arrays. Skipping.', 'warn'
+            )
+            continue
+
+        valid_structures.append(atoms)
+
+    if not valid_structures:
+        mdb_b_ut.custom_print(
+            'No valid structures found with reference data. Exiting.', 'error'
+        )
+        return
+
+    mdb_b_ut.custom_print(
+        f'{len(valid_structures)} structures contain reference data', 'info'
+    )
+
+    # Results storage
+    results = {}
+
+    # Evaluate each model
+    for _, model_path in enumerate(model_paths):
+        model_name = mdb_b_ut.get_model_display_name(model_path)
+        mdb_b_ut.custom_print(f'Evaluating model: {model_name}', 'info')
+
+        # Skip if already calculated
+        results_file = benchmark_dir / f'{model_name}_database_evaluation.json'
+        if results_file.exists():
+            mdb_b_ut.custom_print(
+                f"Results for '{model_name}' already exist. Loading from file.", 'warn'
+            )
+            with open(results_file) as f:
+                results[model_name] = json.load(f)
+            continue
+
+        try:
+            # Set up calculator
+            calculator = MACECalculator(
+                model_paths=str(model_path),
+                device=args.device,
+                default_dtype=args.dtype,
+            )
+
+            # Storage for this model's results
+            energy_errors = []
+            force_errors = []
+            ref_energies = []
+            pred_energies = []
+            structure_indices = []
+
+            # Evaluate each structure
+            for struct_idx, atoms in enumerate(valid_structures):
+                # Make a copy to avoid modifying original
+                test_atoms = atoms.copy()
+                test_atoms.set_calculator(calculator)
+
+                # Get reference values
+                ref_energy = atoms.info['REF_energy']
+                ref_forces = atoms.arrays['REF_forces']
+
+                # Get MLIP predictions
+                try:
+                    pred_energy = test_atoms.get_potential_energy()
+                    pred_forces = test_atoms.get_forces()
+
+                    # Calculate errors
+                    # Energy error per atom (in meV/atom)
+                    energy_error = abs(pred_energy - ref_energy) / len(atoms) * 1000
+
+                    # Force error (RMSE in eV/Å)
+                    force_diff = pred_forces - ref_forces
+                    force_error = np.sqrt(np.mean(force_diff**2))
+
+                    # Store results
+                    energy_errors.append(energy_error)
+                    force_errors.append(force_error)
+                    ref_energies.append(ref_energy)
+                    pred_energies.append(pred_energy)
+                    structure_indices.append(struct_idx)
+
+                except Exception as e:
+                    mdb_b_ut.custom_print(
+                        f'Failed to evaluate structure {struct_idx}: {e}', 'warn'
+                    )
+                    continue
+
+            if not energy_errors:
+                mdb_b_ut.custom_print(
+                    f'No successful evaluations for model {model_name}', 'error'
+                )
+                continue
+
+            # Calculate statistics
+            mean_energy_error = np.mean(energy_errors)
+            std_energy_error = np.std(energy_errors)
+            mean_force_error = np.mean(force_errors)
+            std_force_error = np.std(force_errors)
+
+            # Store results for this model
+            model_results = {
+                'n_structures_evaluated': len(energy_errors),
+                'energy_errors_meV_per_atom': energy_errors,
+                'force_errors_eV_per_A': force_errors,
+                'ref_energies_eV': ref_energies,
+                'pred_energies_eV': pred_energies,
+                'structure_indices': structure_indices,
+                'mean_energy_error_meV_per_atom': mean_energy_error,
+                'std_energy_error_meV_per_atom': std_energy_error,
+                'mean_force_error_eV_per_A': mean_force_error,
+                'std_force_error_eV_per_A': std_force_error,
+            }
+
+            results[model_name] = model_results
+
+            # Save individual results
+            with open(results_file, 'w') as f:
+                json.dump(model_results, f, indent=2)
+
+            mdb_b_ut.custom_print(
+                f'{model_name}: Evaluated {len(energy_errors)} structures. '
+                f'Mean energy error: {mean_energy_error:.2f}±{std_energy_error:.2f} '
+                f'meV/atom, Mean force error: {mean_force_error:.3f}±'
+                f'{std_force_error:.3f} eV/Å',
+                'done',
+            )
+
+        except Exception as e:
+            mdb_b_ut.custom_print(
+                f"Failed to evaluate database for '{model_name}': {e}", 'error'
+            )
+            continue
+
+    # Save combined results and generate plots
+    if results:
+        # Save all results
+        all_results_file = benchmark_dir / 'all_database_evaluations.json'
+        with open(all_results_file, 'w') as f:
+            json.dump(results, f, indent=2)
+
+        # Generate plots
+        mdb_b_ut.custom_print('Generating evaluation plots...', 'info')
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+
+        # Color map for different models
+        colors = plt.cm.tab10(np.linspace(0, 1, len(results)))
+
+        # Plot energy errors
+        for i, (model_name, model_data) in enumerate(results.items()):
+            struct_indices = model_data['structure_indices']
+            energy_errors = model_data['energy_errors_meV_per_atom']
+
+            ax1.plot(
+                struct_indices,
+                energy_errors,
+                label=model_name,
+                color=colors[i],
+                marker='o',
+                markersize=3,
+                linewidth=1,
+            )
+
+        ax1.set_xlabel('Structure Index')
+        ax1.set_ylabel('Energy Error (meV/atom)')
+        ax1.set_title('Energy Prediction Errors vs Reference Values')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        ax1.set_yscale('log')
+
+        # Plot force errors
+        for i, (model_name, model_data) in enumerate(results.items()):
+            struct_indices = model_data['structure_indices']
+            force_errors = model_data['force_errors_eV_per_A']
+
+            ax2.plot(
+                struct_indices,
+                force_errors,
+                label=model_name,
+                color=colors[i],
+                marker='o',
+                markersize=3,
+                linewidth=1,
+            )
+
+        ax2.set_xlabel('Structure Index')
+        ax2.set_ylabel('Force Error (eV/Å)')
+        ax2.set_title('Force Prediction Errors vs Reference Values')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        ax2.set_yscale('log')
+
+        plt.tight_layout()
+        plot_path = benchmark_dir / 'database_evaluation_errors.png'
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        mdb_b_ut.custom_print(f'Plot saved to {plot_path}', 'done')
+        plt.close()
+
+        # Store plot data for final multi-panel figure
+        model_names = list(results.keys())
+        mean_energy_errors = [
+            results[name]['mean_energy_error_meV_per_atom'] for name in model_names
+        ]
+        mean_force_errors = [
+            results[name]['mean_force_error_eV_per_A'] for name in model_names
+        ]
+
+        mdb_b_ut.set_plot_data(
+            'database_evaluation',
+            {
+                'type': 'database_evaluation',
+                'model_names': model_names,
+                'mean_energy_errors': mean_energy_errors,
+                'mean_force_errors': mean_force_errors,
+                'results': results,
+                'title': 'Database Evaluation Results',
+            },
+        )
+
+        # Store detailed structure-by-structure plot data
+        mdb_b_ut.set_plot_data(
+            'database_evaluation_detailed',
+            {
+                'type': 'database_evaluation_detailed',
+                'model_names': model_names,
+                'results': results,
+                'title': 'Structure-by-Structure Errors',
+            },
+        )
+
+        # Print summary
+        mdb_b_ut.custom_print('Database Evaluation Summary:', 'info')
+        for name in model_names:
+            data = results[name]
+            mdb_b_ut.custom_print(
+                f'  {name}: {data["n_structures_evaluated"]} structures, '
+                f'Energy RMSE: {data["mean_energy_error_meV_per_atom"]:.2f} meV/atom, '
+                f'Force RMSE: {data["mean_force_error_eV_per_A"]:.3f} eV/Å',
+                'empty',
+            )
+
+        mdb_b_ut.custom_print(f'Results saved to {all_results_file}', 'info')
+    else:
+        mdb_b_ut.custom_print('No database evaluation results to save.', 'warn')

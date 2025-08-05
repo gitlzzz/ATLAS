@@ -108,6 +108,12 @@ def main():
             lambda: mdb_benchmarks.run_final_db_size_benchmark(args, model_paths)
         )
 
+    if args.run_evaluate_database:
+        benchmarks_to_run.append('Evaluate Database')
+        benchmark_functions['Evaluate Database'] = (
+            lambda: mdb_benchmarks.run_evaluate_database(args, model_paths)
+        )
+
     if not benchmarks_to_run:
         print('No benchmarks selected. Use --help to see available options.')
         return
