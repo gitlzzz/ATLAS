@@ -31,7 +31,7 @@ warnings.filterwarnings('ignore')
 def main():
     """Main function to run the evaluation."""
     args = mdb_b_ut.parse_arguments()
-    init_logger(source='mdb_mlip_eval')
+    init_logger(source='mdb_benchmark_mlip')
 
     # Create output directory
     args.output_dir.mkdir(exist_ok=True)
