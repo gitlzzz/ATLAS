@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.32.0 (2025-08-05)
+
+### Docs
+
+- **core**: Update docs for new `mdb_benchmark_mlip` tool ([#cea28d6](https://github.com/pol-sb/MatDBForge/commit/cea28d684d22982aff9cd24407b8368284e8cf11))
+
+### Feature
+
+- **al_loop**: Added new benchmark `run_evaluate_database` ([#e74a334](https://github.com/pol-sb/MatDBForge/commit/e74a334ec47f5eb434d948f125982ff11b1d24df))
+- **al_loop**: added first iteration of benchmark suite for AL-trained MLIP models ([#d99224b](https://github.com/pol-sb/MatDBForge/commit/d99224bab8fcd92fe566b991478185fc0aa6ed65))
+
+### Fix
+
+- **core**: Misc fixes and improvements. Added mermaid diagram. ([#25908c3](https://github.com/pol-sb/MatDBForge/commit/25908c3de2c0dfd14fcb74bd9b58e151cb204725))
+- **report**: display data in dashboard for resumed workchains ([#2cf38d5](https://github.com/pol-sb/MatDBForge/commit/2cf38d53d05f8e07a064539b14ca8aeddd79bdcb))
+- **dft**: add `ignore_container` option in dft_settings dict ([#db3235a](https://github.com/pol-sb/MatDBForge/commit/db3235a7922354b10a4d2b04fa95f6ba6b58f2e2))
+
+### Misc
+
+- **core**: Add entry to `pyproject.toml` for mlip benchmarks ([#0725efc](https://github.com/pol-sb/MatDBForge/commit/0725efc6ff8ec776c4e1d53e5b1bcf8d189d26cb))
+
 ## 0.31.3 (2025-07-15)
 
 ### Fix
