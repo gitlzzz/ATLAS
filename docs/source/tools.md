@@ -339,3 +339,99 @@ The model is trained on descriptors (either `SOAP` or `MACE`) which are provided
 - `--wandb_project`
   - **Description**: Name of the Weights & Biases project.
   - **Type**: `str`
+
+## MLIP Benchmark - `mdb_benchmark_mlip`
+
+Evaluates and compares the performance of Machine Learning Interatomic Potentials (MLIPs) using a suite of benchmarks. This tool can load models from `.model` files or from MatDBForge workchains using the AiiDA pk/uuid and run various evaluations, such as molecular dynamics simulations, defect calculations, and surface energy analysis, returning figures and output with results.
+
+**Usage:** `mdb_benchmark_mlip [OPTIONS]`
+
+### Main Arguments
+
+- `--model_files <PATH>...`
+  - **Description**: Paths to one or more `.model` files to be evaluated.
+  - **Type**: `List[Path]`
+- `--aiida_pks <PK>...`
+  - **Description**: AiiDA workchain PKs/UUIDs to load models from.
+  - **Type**: `List[int]`
+- `--output_dir <PATH>`
+  - **Description**: Directory to save all benchmark results and plots.
+  - **Default**: `./mlip_evaluation`
+
+### Slab Generation Arguments
+
+These arguments configure the atomic structure (slab) used in many benchmarks.
+
+- `--metal <SYMBOL>`
+  - **Description**: Metal symbol for the benchmark systems (e.g., 'Cu', 'Al').
+  - **Default**: `Cu`
+- `--surface_indices <INT INT INT>`
+  - **Description**: Miller indices for the surface of the slab.
+  - **Default**: `1 1 1`
+- `--supercell_size <INT INT INT>`
+  - **Description**: Size of the supercell for the slab.
+  - **Default**: `3 3 4`
+- `--vacuum <FLOAT>`
+  - **Description**: Vacuum layer thickness in Angstrom.
+  - **Default**: `10.0`
+
+### MD Parameters
+
+These arguments control the molecular dynamics simulations.
+
+- `--temp <FLOAT>`
+  - **Description**: MD temperature in Kelvin.
+  - **Default**: `300.0`
+- `--n_steps <INT>`
+  - **Description**: Number of MD steps to run.
+  - **Default**: `10000`
+- `--timestep <FLOAT>`
+  - **Description**: MD timestep in femtoseconds.
+  - **Default**: `2.0`
+- `--friction <FLOAT>`
+  - **Description**: Friction coefficient for the Langevin thermostat.
+  - **Default**: `5e-3`
+- `--device {cuda,cpu}`
+  - **Description**: Device to run the calculations on.
+  - **Default**: `cuda`
+- `--dtype {float32,float64}`
+  - **Description**: Data type for the calculations.
+  - **Default**: `float64`
+
+### Benchmark Selection
+
+Use these flags to select which benchmarks to run. Multiple benchmarks can be run in a single command.
+
+- `--run_energy_md`
+  - **Description**: Run the energy MD benchmark.
+- `--run_accuracy_test_set`
+  - **Description**: Run energy and force error benchmark on a test set. Requires `--test_set_path`.
+- `--test_set_path <PATH>`
+  - **Description**: Path to the held-out test set for accuracy benchmarks.
+- `--run_elastic_properties`
+  - **Description**: Run elastic properties benchmark.
+- `--run_defect_formation_energy`
+  - **Description**: Run defect formation energy benchmark.
+- `--run_surface_energies`
+  - **Description**: Run surface energies benchmark.
+- `--run_phonon_dispersion`
+  - **Description**: Run phonon dispersion benchmark.
+- `--run_high_temp_md`
+  - **Description**: Run high-temperature MD benchmark.
+- `--run_melting_point`
+  - **Description**: Run melting point calculation benchmark.
+- `--run_gsfe`
+  - **Description**: Run Generalized Stacking Fault Energy (GSFE) benchmark.
+- `--run_learning_curves`
+  - **Description**: Plot learning curves from AL runs (requires `--aiida_pks`).
+- `--run_final_db_size`
+  - **Description**: Compare final database sizes from AL runs (requires `--aiida_pks`).
+- `--run_evaluate_database`
+  - **Description**: Evaluate models against a user-provided structure database. Requires `--database_path`.
+- `--database_path <PATH>`
+  - **Description**: Path to the structure database file for evaluation.
+
+### UI Options
+
+- `--no_rich_ui`
+  - **Description**: Disable the Rich UI and use plain text output.

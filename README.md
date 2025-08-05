@@ -143,6 +143,8 @@ During the library installation, several entry points will be added so that the 
 - `mdb_gen_init_db`: Generate a database containing structures for MLIP training.
 - `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
 - `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
+- `mdb_benchmark_mlip`: Evaluate and compare the performance of MLIPs using a suite of benchmarks.
+
 
 All of the entry points provide usage documentation when launched with the `-h`/`--help` argument, e.g.:
 
@@ -245,9 +247,7 @@ The following examples demonstrate the usage of MatDBForge:
 
 Please refer to the examples in the examples directory for more details on how to utilize the library for your specific needs.
 
-
-
-## Details
+## Implementation Details
 
 ### Active Learning
 
