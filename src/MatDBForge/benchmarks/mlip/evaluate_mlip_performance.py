@@ -108,6 +108,12 @@ def main():
             lambda: mdb_benchmarks.run_final_db_size_benchmark(args, model_paths)
         )
 
+    if args.run_md_count:
+        benchmarks_to_run.append('MD Count')
+        benchmark_functions['MD Count'] = (
+            lambda: mdb_benchmarks.run_md_count_benchmark(args, model_paths)
+        )
+
     if args.run_evaluate_database:
         benchmarks_to_run.append('Evaluate Database')
         benchmark_functions['Evaluate Database'] = (
@@ -118,12 +124,35 @@ def main():
         print('No benchmarks selected. Use --help to see available options.')
         return
 
+    # Check if any models are specified
+    if not args.model_files and not args.aiida_pks and not args.foundation_models:
+        print('No models specified. Please provide --model_files, --aiida_pks, '
+              'or --foundation_models. Use --help for more information.')
+        return
+
     # Load models
     model_paths = [pl.Path(p) for p in args.model_files]
 
+    # Add foundation models
+    if args.foundation_models:
+        mdb_b_ut.custom_print(
+            f'Loading {len(args.foundation_models)} foundation model(s)...', 'info'
+        )
+        foundation_model_paths = mdb_b_ut.create_foundation_model_paths(
+            args.foundation_models
+        )
+        for foundation_path in foundation_model_paths:
+            mdb_b_ut.custom_print(f'  - {foundation_path.name}', 'info')
+        model_paths.extend(foundation_model_paths)
+
     # For models loaded from files, use the filename stem as display name
     for model_path in model_paths:
-        mdb_b_ut.set_model_display_name(str(model_path), model_path.stem)
+        if hasattr(model_path, 'foundation_model_spec'):
+            # Foundation model
+            mdb_b_ut.set_model_display_name(str(model_path), model_path.name)
+        else:
+            # File-based model
+            mdb_b_ut.set_model_display_name(str(model_path), model_path.stem)
 
     if not args.no_rich_ui:
         # Use Rich UI
