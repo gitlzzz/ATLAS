@@ -50,6 +50,42 @@ COLORS = [
 ]
 
 
+def adjust_color_brightness(hex_color, brightness_factor):
+    """
+    Adjust the brightness of a hex color.
+
+    Parameters
+    ----------
+    hex_color : str
+        Hex color string (e.g., '#fe8019')
+    brightness_factor : float
+        Factor to adjust brightness
+        > 1.0 = brighter
+        < 1.0 = darker
+        1.0 = no change
+
+    Returns
+    -------
+    str
+        Adjusted hex color string
+    """
+    # Remove the '#' if present
+    hex_color = hex_color.lstrip('#')
+
+    # Convert hex to RGB
+    rgb = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+    # Adjust brightness
+    adjusted_rgb = []
+    for component in rgb:
+        # Scale the component and clamp to 0-255
+        adjusted = int(component * brightness_factor)
+        adjusted_rgb.append(min(255, max(0, adjusted)))
+
+    # Convert back to hex
+    return f'#{adjusted_rgb[0]:02x}{adjusted_rgb[1]:02x}{adjusted_rgb[2]:02x}'
+
+
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -66,6 +102,14 @@ def parse_arguments():
         nargs='+',
         type=int,
         help='AiiDA workchain PKs/UUIDs to load models from.',
+        default=[],
+    )
+    parser.add_argument(
+        '--foundation_models',
+        nargs='+',
+        help='Foundation model specifications. Format: "library:model_name". '
+        'Examples: "mace:small", "mace:medium", "mace:large", "mace:medium-mpa-0". '
+        'Supported libraries: mace.',
         default=[],
     )
     parser.add_argument(
@@ -193,6 +237,11 @@ def parse_arguments():
         help='Compare final database sizes from AL runs.',
     )
     benchmark_group.add_argument(
+        '--run_md_count',
+        action='store_true',
+        help='Count total MD calculations performed during AL loops.',
+    )
+    benchmark_group.add_argument(
         '--run_evaluate_database',
         action='store_true',
         help='Evaluate models against a user-provided structure database.',
@@ -202,6 +251,31 @@ def parse_arguments():
         type=pl.Path,
         help='Path to the structure database file for evaluation '
         '(required for --run_evaluate_database).',
+    )
+
+    # Surface Energy Benchmark Options
+    surf_group = parser.add_argument_group('Surface Energy Benchmark Options')
+    surf_group.add_argument(
+        '--surf_ene_benchmark-dft_refs',
+        type=pl.Path,
+        help='Path to JSON file with DFT reference energies. '
+        'Format: {"100": -1231.25, "110": -1432.35, "111": -1441.15, '
+        '"bulk": {"energy": -89.1, "num_atoms": 4}}',
+    )
+    surf_group.add_argument(
+        '--surf_ene_benchmark-bulk_structure',
+        type=pl.Path,
+        help='Path to DFT-optimized bulk structure file (e.g., .xyz, .cif). '
+        'This structure will be used as the reference for surface energy calculations '
+        'instead of generating a new bulk structure.',
+    )
+    surf_group.add_argument(
+        '--surf_ene_benchmark-slab_structures',
+        nargs='+',
+        help='Paths to DFT-optimized slab structure files with their corresponding '
+        'surface indices. Format: "surface_indices:path_to_structure". '
+        'Example: "100:/path/to/slab_100.xyz 110:/path/to/slab_110.xyz". '
+        'These structures will be used instead of generating new slabs.',
     )
 
     # UI options
@@ -287,6 +361,193 @@ def get_model_display_name(model_path: pl.Path) -> str:
         return model_path.stem
 
 
+def create_foundation_model_calculator(
+    foundation_model_spec, device='cuda', dtype='float64', **kwargs
+):
+    """
+    Create a calculator for a foundation model.
+
+    Parameters
+    ----------
+    foundation_model_spec : str
+        Foundation model specification (e.g., "mace:small")
+    device : str, optional
+        Device to run calculations on (default: 'cuda')
+    dtype : str, optional
+        Data type for calculations (default: 'float64')
+
+    Returns
+    -------
+    calculator
+        Calculator instance for the foundation model
+
+    Raises
+    ------
+    ValueError
+        If foundation model specification is invalid
+    NotImplementedError
+        If the specified MLIP library is not supported
+    """
+    if ':' not in foundation_model_spec:
+        raise ValueError(
+            f"Invalid foundation model specification: '{foundation_model_spec}'. "
+            "Expected format: 'library:model_name'"
+        )
+
+    library, model_name = foundation_model_spec.split(':', 1)
+
+    if library.lower() == 'mace':
+        try:
+            from mace.calculators import mace_mp
+
+            custom_print(f'Loading MACE foundation model: {model_name}', 'info')
+            calculator = mace_mp(
+                model=model_name, device=device, default_dtype=dtype, **kwargs
+            )
+            custom_print(f'Successfully loaded MACE model: {model_name}', 'done')
+            return calculator
+        except ImportError as e:
+            raise ImportError(
+                f'Failed to import mace_mp: {e}. '
+                'Make sure MACE is properly installed with foundation model support.'
+            ) from e
+        except Exception as e:
+            raise ValueError(
+                f"Failed to create MACE calculator with model '{model_name}': {e}. "
+                'This could be due to network issues or an invalid model name.'
+            ) from e
+    else:
+        raise NotImplementedError(
+            f"Foundation models for '{library}' are not yet supported. "
+            'Currently supported libraries: mace'
+        )
+
+
+class FoundationModelPath:
+    """
+    A class to represent foundation models in a way compatible with file-based models.
+
+    This allows foundation models to be used alongside file-based models
+    in the benchmark system.
+    """
+
+    def __init__(self, foundation_model_spec):
+        self.foundation_model_spec = foundation_model_spec
+        library, model_name = foundation_model_spec.split(':', 1)
+        self.stem = f'{library}_{model_name}'
+        self.name = f'{library}:{model_name}'
+
+    def __str__(self):
+        return self.foundation_model_spec
+
+    def __repr__(self):
+        return f"FoundationModelPath('{self.foundation_model_spec}')"
+
+
+def create_foundation_model_paths(foundation_model_specs):
+    """
+    Create FoundationModelPath objects from foundation model specifications.
+
+    Parameters
+    ----------
+    foundation_model_specs : list of str
+        List of foundation model specifications
+
+    Returns
+    -------
+    list of FoundationModelPath
+        Foundation model path objects
+
+    Raises
+    ------
+    ValueError
+        If any foundation model specification is invalid
+    """
+    paths = []
+    for spec in foundation_model_specs:
+        # Validate the specification format
+        if ':' not in spec:
+            raise ValueError(
+                f"Invalid foundation model specification: '{spec}'. "
+                "Expected format: 'library:model_name'"
+            )
+
+        library, model_name = spec.split(':', 1)
+
+        # Validate supported libraries
+        if library.lower() not in ['mace']:
+            raise ValueError(
+                f"Unsupported foundation model library: '{library}'. "
+                'Supported libraries: mace'
+            )
+
+        # For MACE, validate common model names
+        if library.lower() == 'mace':
+            valid_mace_models = [
+                'small',
+                'medium',
+                'large',
+                'medium-mpa-0',
+                'large-mpa-0',
+                'off23-small',
+                'off23-medium',
+                'off23-large',
+            ]
+            if model_name not in valid_mace_models:
+                custom_print(
+                    f"Warning: '{model_name}' is not a recognized MACE model. "
+                    f'Known models: {", ".join(valid_mace_models)}. '
+                    'Proceeding anyway - the model might still work.',
+                    'warn',
+                )
+
+        paths.append(FoundationModelPath(spec))
+
+    return paths
+
+
+def create_calculator_for_model(model_path, device='cuda', dtype='float64', **kwargs):
+    """
+    Create a calculator for either a file-based model or foundation model.
+
+    Parameters
+    ----------
+    model_path : Path or FoundationModelPath
+        Path to model file or foundation model specification
+    device : str, optional
+        Device to run calculations on (default: 'cuda')
+    dtype : str, optional
+        Data type for calculations (default: 'float64')
+    **kwargs
+        Additional arguments to pass to the calculator
+
+    Returns
+    -------
+    calculator
+        Calculator instance for the model
+    """
+    if hasattr(model_path, 'foundation_model_spec'):
+        # Foundation model - ignore kwargs that don't apply to foundation models
+        foundation_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k not in ['enable_cueq']  # Foundation models don't support enable_cueq
+        }
+        return create_foundation_model_calculator(
+            model_path.foundation_model_spec,
+            device=device,
+            dtype=dtype,
+            **foundation_kwargs,
+        )
+    else:
+        # File-based model - assuming MACE for now
+        from mace.calculators import MACECalculator
+
+        return MACECalculator(
+            model_paths=str(model_path), device=device, default_dtype=dtype, **kwargs
+        )
+
+
 def get_model_display_names():
     """Get the global model display names dictionary."""
     global _model_display_names
@@ -297,6 +558,34 @@ def set_model_display_name(path, name):
     """Set a model display name."""
     global _model_display_names
     _model_display_names[path] = name
+
+
+def save_plot_dual_format(base_path, dpi=300, bbox_inches='tight'):
+    """
+    Save a matplotlib plot in both PNG and SVG formats.
+
+    Parameters
+    ----------
+    base_path : str or Path
+        Path without extension (e.g., 'plot')
+    dpi : int, optional
+        DPI for PNG output (default: 300)
+    bbox_inches : str, optional
+        Bounding box setting for tight layout (default: 'tight')
+
+    Returns
+    -------
+    tuple
+        (png_path, svg_path) - Paths to the saved files
+    """
+    base_path = pl.Path(base_path)
+    png_path = base_path.with_suffix('.png')
+    svg_path = base_path.with_suffix('.svg')
+
+    plt.savefig(png_path, dpi=dpi, bbox_inches=bbox_inches)
+    plt.savefig(svg_path, format='svg', bbox_inches=bbox_inches)
+
+    return png_path, svg_path
 
 
 def get_plot_data():
@@ -392,12 +681,23 @@ def create_final_multi_panel_plot(args):
 
             # Create bar plot
             colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
-            bars = ax.bar(model_names, formation_energies, color=colors)
+            bars = ax.bar(
+                model_names,
+                formation_energies,
+                color=colors,
+                edgecolor='#282828',
+                linewidth=1,
+            )
 
             ax.set_xlabel('Model')
             ax.set_ylabel(plot_info['ylabel'])
             ax.set_title(plot_info['title'])
             ax.grid(True, linestyle='--', alpha=0.6)
+
+            # Rotate x-axis labels if more than 4 bars for better visibility
+            if len(model_names) > 4:
+                ax.tick_params(axis='x', labelrotation=45)
+                plt.setp(ax.get_xticklabels(), ha='right')
 
             # Add value labels
             for bar, energy in zip(bars, formation_energies, strict=True):
@@ -416,27 +716,68 @@ def create_final_multi_panel_plot(args):
             model_names = plot_info['model_names']
             surface_names = plot_info['surface_names']
             results = plot_info['results']
+            dft_surface_energies = plot_info.get('dft_surface_energies', {})
+
+            # Add DFT as an additional "model" if DFT data is available
+            all_model_names = model_names.copy()
+            if dft_surface_energies:
+                all_model_names.append('DFT')
+
+            if (zoom_info := plot_info.get('zoom_info')) is not None:
+                global_zoom = zoom_info.get('global_zoom', {})
+                should_zoom_globally = global_zoom.get('enabled', False)
+
+            if should_zoom_globally:
+                # Apply global zoom settings
+                y_min = global_zoom.get('y_min', None)
+                y_max = global_zoom.get('y_max', None)
+                if y_min is not None and y_max is not None:
+                    ax.set_ylim(y_min, y_max)
 
             # If multiple surfaces, create mini-subplots within this panel
             n_surfaces = len(surface_names)
             if n_surfaces == 1:
-                # Single surface - bar chart
+                # Single surface - bar chart with model-based colors
                 surface_name = ''.join(map(str, surface_names[0]))
                 energies = []
-                for model_name in model_names:
-                    if surface_name in results[model_name]['surfaces']:
-                        energies.append(
-                            results[model_name]['surfaces'][surface_name][
-                                'surface_energy_J_per_m2'
-                            ]
-                        )
+                colors = []
+                for model_name in all_model_names:
+                    if model_name == 'DFT':
+                        # Get DFT energy for this surface
+                        if surface_name in dft_surface_energies:
+                            energies.append(dft_surface_energies[surface_name])
+                        else:
+                            energies.append(0)
+                        # Use distinct color for DFT (black)
+                        colors.append('#282828')
                     else:
-                        energies.append(0)
+                        # Regular MLIP model
+                        mlip_idx = model_names.index(model_name)
+                        if surface_name in results[model_name]['surfaces']:
+                            energies.append(
+                                results[model_name]['surfaces'][surface_name][
+                                    'surface_energy_J_per_m2'
+                                ]
+                            )
+                        else:
+                            energies.append(0)
+                        # Use model-specific color
+                        colors.append(COLORS[mlip_idx % len(COLORS)])
 
-                colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
-                bars = ax.bar(model_names, energies, color=colors)
+                bars = ax.bar(
+                    all_model_names,
+                    energies,
+                    color=colors,
+                    edgecolor='#282828',
+                    linewidth=1,
+                )
                 ax.set_title(f'{plot_info["metal"]}({surface_name}) Surface Energy')
                 ax.set_ylabel('Surface Energy (J/m²)')
+
+                # Rotate x-axis labels if more than 4 bars for better visibility
+                if len(all_model_names) > 4:
+                    ax.tick_params(axis='x', labelrotation=45)
+                    plt.setp(ax.get_xticklabels(), ha='right')
 
                 # Add value labels
                 for bar, energy in zip(bars, energies, strict=True):
@@ -452,29 +793,109 @@ def create_final_multi_panel_plot(args):
             else:
                 # Multiple surfaces - grouped bar chart
                 bar_width = 0.8 / len(surface_names)
-                x_pos = range(len(model_names))
+                x_pos = range(len(all_model_names))
+
+                # Define brightness factors for each surface (centered around 1.0)
+                # For 3 surfaces: [0.7, 1.0, 1.3] gives darker, normal, brighter
+                n_surfaces = len(surface_names)
+                if n_surfaces == 1:
+                    brightness_factors = [1.0]
+                elif n_surfaces == 2:
+                    brightness_factors = [0.8, 1.2]
+                elif n_surfaces == 3:
+                    brightness_factors = [0.7, 1.0, 1.3]
+                else:
+                    # For more surfaces, distribute brightness factors evenly
+                    brightness_factors = [
+                        0.5 + (1.0 * i / (n_surfaces - 1)) for i in range(n_surfaces)
+                    ]
 
                 for i, surface_indices in enumerate(surface_names):
                     surface_name = ''.join(map(str, surface_indices))
-                    energies = []
-                    for model_name in model_names:
-                        if surface_name in results[model_name]['surfaces']:
-                            energies.append(
-                                results[model_name]['surfaces'][surface_name][
-                                    'surface_energy_J_per_m2'
-                                ]
+
+                    # Collect energies for each model for this surface
+                    surface_data = []
+                    for j, model_name in enumerate(all_model_names):
+                        if model_name == 'DFT':
+                            # Get DFT energy for this surface
+                            if surface_name in dft_surface_energies:
+                                energy = dft_surface_energies[surface_name]
+                            else:
+                                energy = 0
+                            # Use dark color for DFT, adjusted for brightness
+                            adjusted_color = adjust_color_brightness(
+                                '#282828', brightness_factors[i]
                             )
                         else:
-                            energies.append(0)
+                            # Regular MLIP model
+                            if surface_name in results[model_name]['surfaces']:
+                                energy = results[model_name]['surfaces'][surface_name][
+                                    'surface_energy_J_per_m2'
+                                ]
+                            else:
+                                energy = 0
+                            # Get base color for this model and adjust brightness
+                            mlip_idx = model_names.index(model_name)
+                            base_color = COLORS[mlip_idx % len(COLORS)]
+                            adjusted_color = adjust_color_brightness(
+                                base_color, brightness_factors[i]
+                            )
 
-                    x_offset = [x + i * bar_width for x in x_pos]
-                    ax.bar(
-                        x_offset,
+                        surface_data.append(
+                            {
+                                'energy': energy,
+                                'color': adjusted_color,
+                                'x_pos': j + i * bar_width,
+                                'brightness_factor': brightness_factors[i],
+                            }
+                        )
+
+                    # Plot bars for this surface
+                    x_positions = [data['x_pos'] for data in surface_data]
+                    energies = [data['energy'] for data in surface_data]
+                    colors = [data['color'] for data in surface_data]
+
+                    bars = ax.bar(
+                        x_positions,
                         energies,
                         bar_width,
-                        label=f'({surface_name})',
-                        color=COLORS[i % len(COLORS)],
+                        color=colors,
+                        edgecolor='#282828',
+                        linewidth=1,
                     )
+
+                    # Add surface name labels on bars
+                    for bar, data in zip(bars, surface_data, strict=True):
+                        bar_height = bar.get_height()
+
+                        # Add label even if bar height is very small
+                        # Choose text color based on brightness factor
+                        # Use white for darker bars, black for rest
+                        if abs(bar_height) > 1e-10:  # Much smaller threshold
+                            text_color = (
+                                'white' if data['brightness_factor'] < 0.9 else 'black'
+                            )
+
+                            # Calculate label position based on current y-axis range
+                            y_min, y_max = ax.get_ylim()
+                            y_range = y_max - y_min
+                            # Position label at 10% from bottom of visible range
+                            label_y = y_min + (y_range * 0.1)
+
+                            # Add surface name rotated 90 degrees
+                            ax.text(
+                                x=bar.get_x() + bar.get_width() / 2.0,
+                                y=label_y,
+                                s=f'({surface_name})',
+                                ha='center',
+                                va='center',
+                                rotation=90,
+                                fontweight='bold',
+                                color=text_color,
+                                fontsize=10,  # Increased font size
+                                zorder=100,  # Much higher z-order
+                                transform=ax.transData,
+                            )
 
                 ax.set_xlabel('Model')
                 ax.set_ylabel('Surface Energy (J/m²)')
@@ -483,8 +904,12 @@ def create_final_multi_panel_plot(args):
                     x + bar_width * (len(surface_names) - 1) / 2 for x in x_pos
                 ]
                 ax.set_xticks(tick_positions)
-                ax.set_xticklabels(model_names)
-                ax.legend()
+                ax.set_xticklabels(all_model_names)
+
+                # Rotate x-axis labels if more than 4 bars for better visibility
+                if len(all_model_names) > 4:
+                    ax.tick_params(axis='x', labelrotation=45)
+                    plt.setp(ax.get_xticklabels(), ha='right')
 
             ax.grid(True, linestyle='--', alpha=0.6)
 
@@ -553,7 +978,14 @@ def create_final_multi_panel_plot(args):
 
             # Create simple bar chart for final database sizes
             colors = [COLORS[i % len(COLORS)] for i in range(len(run_names))]
-            bars = ax.bar(run_names, final_sizes, color=colors, alpha=0.8)
+            bars = ax.bar(
+                run_names,
+                final_sizes,
+                color=colors,
+                alpha=0.8,
+                edgecolor='#282828',
+                linewidth=1,
+            )
 
             # Add value labels on bars
             for bar in bars:
@@ -658,7 +1090,13 @@ def create_final_multi_panel_plot(args):
 
             # Create bar plot
             colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
-            bars = ax.bar(model_names, melting_points, color=colors)
+            bars = ax.bar(
+                model_names,
+                melting_points,
+                color=colors,
+                edgecolor='#282828',
+                linewidth=1,
+            )
 
             ax.set_xlabel('Model')
             ax.set_ylabel(plot_info['ylabel'])
@@ -677,6 +1115,38 @@ def create_final_multi_panel_plot(args):
                         va='bottom',
                         fontsize=9,
                     )
+
+        elif plot_type == 'md_count':
+            # Bar chart for MD calculation counts
+            model_names = plot_info['model_names']
+            md_counts = plot_info['values']
+
+            # Create bar plot
+            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+            bars = ax.bar(
+                model_names,
+                md_counts,
+                color=colors,
+                edgecolor='#282828',
+                linewidth=1,
+            )
+
+            ax.set_xlabel('Model')
+            ax.set_ylabel(plot_info['ylabel'])
+            ax.set_title(plot_info['title'])
+            ax.grid(True, linestyle='--', alpha=0.6)
+
+            # Add value labels
+            for bar, count in zip(bars, md_counts, strict=True):
+                height = bar.get_height()
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height + max(md_counts) * 0.01 if max(md_counts) > 0 else 0.1,
+                    plot_info['value_format'].format(count),
+                    ha='center',
+                    va='bottom',
+                    fontsize=9,
+                )
 
         elif plot_type == 'database_evaluation':
             # Database evaluation with energy and force error comparison
@@ -708,9 +1178,15 @@ def create_final_multi_panel_plot(args):
             colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
 
             # Energy errors subplot
-            bars_energy = ax_energy.bar(model_names, mean_energy_errors, color=colors)
+            bars_energy = ax_energy.bar(
+                model_names,
+                mean_energy_errors,
+                color=colors,
+                edgecolor='#282828',
+                linewidth=1,
+            )
             ax_energy.set_ylabel('Energy Error\n(meV/atom)', fontsize=9)
-            ax_energy.set_title('Database Evaluation Results', fontsize=11, pad=10)
+            ax_energy.set_title(plot_info['title'], fontsize=11, pad=10)
             ax_energy.grid(True, linestyle='--', alpha=0.6)
             ax_energy.tick_params(axis='both', which='major', labelsize=8)
             ax_energy.set_xticklabels([])  # Remove x-labels from top plot
@@ -728,7 +1204,13 @@ def create_final_multi_panel_plot(args):
                 )
 
             # Force errors subplot
-            bars_force = ax_force.bar(model_names, mean_force_errors, color=colors)
+            bars_force = ax_force.bar(
+                model_names,
+                mean_force_errors,
+                color=colors,
+                edgecolor='#282828',
+                linewidth=1,
+            )
             ax_force.set_xlabel('Model', fontsize=10)
             ax_force.set_ylabel('Force Error\n(eV/Å)', fontsize=9)
             ax_force.grid(True, linestyle='--', alpha=0.6)
@@ -796,7 +1278,7 @@ def create_final_multi_panel_plot(args):
                 )
 
             ax_energy.set_ylabel('Energy Error\n(meV/atom)', fontsize=9)
-            ax_energy.set_title('Structure-by-Structure Errors', fontsize=11, pad=10)
+            ax_energy.set_title(plot_info['title'], fontsize=11, pad=10)
             ax_energy.legend(fontsize=8)
             ax_energy.grid(True, alpha=0.3)
             ax_energy.set_yscale('log')
@@ -835,9 +1317,13 @@ def create_final_multi_panel_plot(args):
 
     # Adjust layout and save
     plt.tight_layout()
-    plot_path = args.output_dir / 'all_benchmarks_summary.png'
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-    custom_print(f'Multi-panel summary plot saved to {plot_path}', 'success')
+
+    # Save in both PNG and SVG formats
+    base_path = args.output_dir / 'all_benchmarks_summary'
+    png_path, svg_path = save_plot_dual_format(base_path, dpi=300)
+
+    custom_print(f'Multi-panel summary plot saved to {png_path}', 'success')
+    custom_print(f'Multi-panel summary plot saved to {svg_path}', 'success')
 
     # Clear the plot to free memory
     plt.close(fig)

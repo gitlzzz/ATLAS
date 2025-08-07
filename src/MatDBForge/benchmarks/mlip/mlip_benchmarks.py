@@ -16,7 +16,6 @@ from ase.md.npt import NPT
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.md.verlet import VelocityVerlet
 from ase.optimize import LBFGS
-from mace.calculators import MACECalculator
 
 import MatDBForge.benchmarks.mlip.mlip_benchmark_utils as mdb_b_ut
 from MatDBForge.active_learning.report_utils import (
@@ -165,6 +164,147 @@ def run_final_db_size_benchmark(args, model_paths: list[pl.Path]):
         mdb_b_ut.custom_print('No database size results to save.', 'warn')
 
 
+def run_md_count_benchmark(args, model_paths: list[pl.Path]):
+    """Count total MD calculations performed during Active Learning loops."""
+    mdb_b_ut.custom_print('Running MD Count Benchmark', 'info')
+    benchmark_dir = args.output_dir / 'md_count'
+    benchmark_dir.mkdir(exist_ok=True)
+
+    results = {}
+
+    # Process AiiDA workchains if provided
+    if args.aiida_pks:
+        for pk in args.aiida_pks:
+            try:
+                from aiida import load_profile
+                from aiida.orm import load_node
+
+                load_profile()
+
+                # Load the base workchain
+                base_workchain = load_node(pk)
+
+                # Get run name for display
+                run_name = None
+                try:
+                    run_name = base_workchain.inputs.active_learning.run_name.value
+                except (AttributeError, KeyError):
+                    run_name = f'workchain_{pk}'
+
+                mdb_b_ut.custom_print(
+                    f'Processing workchain {pk} ({run_name})...', 'info'
+                )
+
+                # Check cache file first
+                cache_file = benchmark_dir / f'{run_name}_md_count.json'
+                if cache_file.exists():
+                    mdb_b_ut.custom_print(
+                        f"Loading cached results for '{run_name}'", 'info'
+                    )
+                    with open(cache_file) as f:
+                        results[run_name] = json.load(f)
+                    continue
+
+                # Count ProcessMDSeedStructCalculation children
+                mdb_b_ut.custom_print(
+                    f'Counting MD calculations for {run_name}...', 'info'
+                )
+
+                md_count = 0
+                total_children = 0
+
+                # Get all descendant nodes
+                all_descendants = base_workchain.called_descendants
+                total_children = len(all_descendants)
+
+                # Count ProcessMDSeedStructCalculation nodes
+                for node in all_descendants:
+                    if hasattr(node, 'process_class'):
+                        process_class_name = node.process_class.__name__
+                        if process_class_name == 'ProcessMDSeedStructCalculation':
+                            md_count += 1
+
+                # Store results
+                results[run_name] = {
+                    'pk': pk,
+                    'md_calculations': md_count,
+                    'total_children': total_children,
+                }
+
+                # Cache results
+                with open(cache_file, 'w') as f:
+                    json.dump(results[run_name], f, indent=2)
+
+                mdb_b_ut.custom_print(
+                    f'{run_name}: {md_count} MD calculations '
+                    f'(out of {total_children} total children)',
+                    'info',
+                )
+
+            except Exception as e:
+                mdb_b_ut.custom_print(f'Failed to process workchain {pk}: {e}', 'error')
+                continue
+
+    # Process model files (show 0 MD calculations for each)
+    # Exclude foundation models since they don't have MD calculation history
+    for model_path in model_paths:
+        # Skip foundation models - they don't have AL runs with MD calculations
+        if hasattr(model_path, 'foundation_model_spec'):
+            continue
+
+        model_name = mdb_b_ut.get_model_display_name(model_path)
+        if model_name not in results:  # Only add if not already processed from AiiDA
+            results[model_name] = {
+                'pk': None,
+                'md_calculations': 0,
+                'total_children': 0,
+            }
+            mdb_b_ut.custom_print(
+                f'{model_name}: 0 MD calculations (loaded from file)', 'info'
+            )
+
+    # Save combined results and store plot data
+    if results:
+        # Save all results
+        all_results_file = benchmark_dir / 'all_md_counts.json'
+        with open(all_results_file, 'w') as f:
+            json.dump(results, f, indent=2)
+
+        # Store plot data for final multi-panel figure
+        run_names = list(results.keys())
+        md_counts = [results[name]['md_calculations'] for name in run_names]
+
+        mdb_b_ut.set_plot_data(
+            'md_count',
+            {
+                'type': 'bar',
+                'model_names': run_names,
+                'values': md_counts,
+                'title': 'Total MD Calculations per AL Run',
+                'ylabel': 'Number of MD Calculations',
+                'value_format': '{:.0f}',
+            },
+        )
+
+        # Print summary
+        mdb_b_ut.custom_print('MD Count Summary:', 'info')
+        for name in run_names:
+            data = results[name]
+            if data['pk']:
+                mdb_b_ut.custom_print(
+                    f'  {name}: {data["md_calculations"]} MD calculations', 'empty'
+                )
+            else:
+                mdb_b_ut.custom_print(
+                    f'  {name}: {data["md_calculations"]} MD calculations (from file)',
+                    'empty',
+                )
+
+        mdb_b_ut.custom_print(f'Results saved to {all_results_file}', 'info')
+    else:
+        mdb_b_ut.custom_print('No MD count results to save.', 'warn')
+
+
 def run_melting_point_benchmark(args, model_paths: list[pl.Path]):
     """
     Calculates the melting point using the Two-Phase Coexistence Method.
@@ -223,11 +363,8 @@ def run_melting_point_benchmark(args, model_paths: list[pl.Path]):
 
         try:
             # Set up calculator for this model
-            calculator = MACECalculator(
-                model_paths=str(model_path),
-                device=args.device,
-                default_dtype=args.dtype,
-                enable_cueq=True,
+            calculator = mdb_b_ut.create_calculator_for_model(
+                model_path, device=args.device, dtype=args.dtype, enable_cueq=True
             )
 
             # Create model-specific directory for structures and trajectories
@@ -534,10 +671,8 @@ def run_energy_md_benchmark(args, model_paths: list[pl.Path]):
 
         # Load structure and set calculator
         atoms = ase_read(structure_path, format='extxyz')
-        calculator = MACECalculator(
-            model_paths=str(model_path),
-            device=args.device,
-            default_dtype=args.dtype,
+        calculator = mdb_b_ut.create_calculator_for_model(
+            model_path, device=args.device, dtype=args.dtype
         )
         atoms.set_calculator(calculator)
 
@@ -677,10 +812,8 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
 
         try:
             # Set up calculator
-            calculator = MACECalculator(
-                model_paths=str(model_path),
-                device=args.device,
-                default_dtype=args.dtype,
+            calculator = mdb_b_ut.create_calculator_for_model(
+                model_path, device=args.device, dtype=args.dtype
             )
 
             # Load and relax perfect supercell
@@ -801,6 +934,24 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
     benchmark_dir = args.output_dir / 'surface_energies'
     benchmark_dir.mkdir(exist_ok=True)
 
+    # Print information about user-provided DFT structures if any
+    bulk_structure_arg = getattr(args, 'surf_ene_benchmark_bulk_structure', None)
+    slab_structures_arg = getattr(args, 'surf_ene_benchmark_slab_structures', None)
+    dft_refs_arg = getattr(args, 'surf_ene_benchmark_dft_refs', None)
+
+    if bulk_structure_arg or slab_structures_arg or dft_refs_arg:
+        mdb_b_ut.custom_print(
+            'Surface Energy Benchmark - DFT Structure Options:', 'info'
+        )
+        if bulk_structure_arg:
+            mdb_b_ut.custom_print(f'  DFT bulk structure: {bulk_structure_arg}', 'info')
+        if slab_structures_arg:
+            mdb_b_ut.custom_print(
+                f'  DFT slab structures: {len(slab_structures_arg)} provided', 'info'
+            )
+        if dft_refs_arg:
+            mdb_b_ut.custom_print(f'  DFT reference energies: {dft_refs_arg}', 'info')
+
     # Define surfaces to test (Miller indices)
     surfaces_to_test = [(1, 0, 0), (1, 1, 0), (1, 1, 1)]
 
@@ -816,39 +967,210 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
     # Results storage
     results = {}
 
-    # Create bulk reference structure
-    bulk_atoms = bulk(args.metal, cubic=True)
+    # Generate bulk primitive cell
+    bulk_structure_arg = getattr(args, 'surf_ene_benchmark_bulk_structure', None)
+    if hasattr(args, 'surf_ene_benchmark_bulk_structure') and bulk_structure_arg:
+        # Use user-provided DFT-optimized bulk structure
+        bulk_structure_path = args.surf_ene_benchmark_bulk_structure
+        if not bulk_structure_path.exists():
+            mdb_b_ut.custom_print(
+                f'DFT bulk structure file not found: {bulk_structure_path}', 'error'
+            )
+            return
 
-    # Create a small supercell for bulk calculations
-    bulk_supercell = bulk_atoms.repeat([2, 2, 2])
-    bulk_structure_path = benchmark_dir / 'bulk_reference.xyz'
-    bulk_supercell.write(bulk_structure_path, format='extxyz')
-
-    # Create slab structures for each surface
-    slab_structures = {}
-    for surface_indices in surfaces_to_test:
-        surface_name = ''.join(map(str, surface_indices))
-
-        # Create slab
-        slab = surface(
-            args.metal,
-            surface_indices,
-            slab_layers,
-            vacuum=vacuum_thickness,
+        # Load the bulk structure
+        bulk_primitive = ase_read(bulk_structure_path, format='extxyz')
+        mdb_b_ut.custom_print(
+            f'Using user-provided DFT-optimized bulk structure: {bulk_structure_path}',
+            'info',
         )
-        slab = slab.repeat(slab_size + [1])
-        slab.center(vacuum=vacuum_thickness, axis=2)
-        slab.pbc = True
 
-        # Save slab structure
-        slab_path = benchmark_dir / f'slab_{surface_name}.xyz'
-        slab.write(slab_path, format='extxyz')
-        slab_structures[surface_name] = {
-            'path': slab_path,
-            # Surface area
-            'area': slab.get_cell()[0, 0] * slab.get_cell()[1, 1],
-            'n_atoms': len(slab),
-        }
+        # Save the bulk structure to benchmark directory
+        bulk_primitive_path = benchmark_dir / 'bulk_primitive.xyz'
+        bulk_primitive.write(bulk_primitive_path, format='extxyz')
+        print('#@# bulk_atoms (from DFT): ', len(bulk_primitive))
+    else:
+        # Create bulk primitive cell (no supercell)
+        bulk_primitive = bulk(args.metal, cubic=True)
+
+        # Save the bulk primitive structure
+        bulk_primitive_path = benchmark_dir / 'bulk_primitive.xyz'
+        print('#@# benchmark_dir: ', benchmark_dir)
+        bulk_primitive.write(bulk_primitive_path, format='extxyz')
+
+    # Handle slab structures (if user-provided DFT slabs are available)
+    user_provided_slabs = {}
+
+    # Parse user-provided slab structures if available
+    slab_structures_arg = getattr(args, 'surf_ene_benchmark_slab_structures', None)
+    if hasattr(args, 'surf_ene_benchmark_slab_structures') and slab_structures_arg:
+        for slab_spec in args.surf_ene_benchmark_slab_structures:
+            if ':' not in slab_spec:
+                mdb_b_ut.custom_print(
+                    f'Invalid slab specification format: {slab_spec}. '
+                    'Expected format: "surface_indices:path_to_structure"',
+                    'error',
+                )
+                continue
+
+            surface_indices_str, slab_path_str = slab_spec.split(':', 1)
+            slab_path = pl.Path(slab_path_str)
+
+            if not slab_path.exists():
+                mdb_b_ut.custom_print(
+                    f'DFT slab structure file not found: {slab_path}', 'error'
+                )
+                continue
+
+            # Convert surface indices string to tuple (e.g., "100" -> (1, 0, 0))
+            try:
+                surface_indices = tuple(int(x) for x in surface_indices_str)
+                surface_name = ''.join(map(str, surface_indices))
+                user_provided_slabs[surface_name] = slab_path
+                mdb_b_ut.custom_print(
+                    f'Using user-provided DFT-optimized slab for '
+                    f'{args.metal}({surface_name}): {slab_path}',
+                    'info',
+                )
+            except ValueError:
+                mdb_b_ut.custom_print(
+                    f'Invalid surface indices format: {surface_indices_str}. '
+                    'Expected numeric indices like "100", "110", "111"',
+                    'error',
+                )
+                continue
+
+    # Load DFT reference data if provided
+    dft_references = {}
+    dft_surface_energies = {}
+    dft_refs_arg = getattr(args, 'surf_ene_benchmark_dft_refs', None)
+    if hasattr(args, 'surf_ene_benchmark_dft_refs') and dft_refs_arg:
+        if args.surf_ene_benchmark_dft_refs.exists():
+            try:
+                with open(args.surf_ene_benchmark_dft_refs) as f:
+                    dft_references = json.load(f)
+
+                mdb_b_ut.custom_print(
+                    f'Loaded DFT reference data from '
+                    f'{args.surf_ene_benchmark_dft_refs}',
+                    'info',
+                )
+
+                # Calculate DFT surface energies if bulk energy is provided
+                if 'bulk' in dft_references:
+                    # Use num_atoms from JSON if provided, otherwise use ASE bulk atoms
+                    if isinstance(dft_references['bulk'], dict):
+                        # Bulk entry is a dictionary with energy and num_atoms
+                        bulk_total_energy = dft_references['bulk']['energy']
+                        bulk_num_atoms = dft_references['bulk']['num_atoms']
+                        bulk_energy_per_atom = bulk_total_energy / bulk_num_atoms
+                    else:
+                        # Bulk entry is just a number (backwards compatible)
+                        bulk_total_energy = dft_references['bulk']
+                        bulk_num_atoms = len(bulk_primitive)
+                        bulk_energy_per_atom = bulk_total_energy / bulk_num_atoms
+                        mdb_b_ut.custom_print(
+                            f'Using ASE bulk primitive cell with {bulk_num_atoms} '
+                            'atoms. Consider specifying num_atoms in JSON.',
+                            'warn',
+                        )
+
+                    mdb_b_ut.custom_print(
+                        f'DFT bulk energy per atom: {bulk_energy_per_atom:.6f} eV '
+                        f'(total: {bulk_total_energy:.6f} eV, {bulk_num_atoms} atoms)',
+                        'info',
+                    )
+
+                    for surface_indices in surfaces_to_test:
+                        surface_name = ''.join(map(str, surface_indices))
+
+                        if surface_name in dft_references:
+                            print('#@# surface_name: ', surface_name)
+
+                            # Handle surface entry - can be number or dict
+                            if isinstance(dft_references[surface_name], dict):
+                                # Surface entry has energy and optional num_atoms
+                                surface_data = dft_references[surface_name]
+                                slab_total_energy = surface_data['energy']
+                                n_atoms = surface_data.get('num_atoms')
+                                if n_atoms is None:
+                                    mdb_b_ut.custom_print(
+                                        f'Surface {surface_name}: num_atoms not '
+                                        'specified in DFT reference. Will use actual '
+                                        'slab atom count.',
+                                        'warn',
+                                    )
+                                    continue
+                            else:
+                                # Surface entry is just a number (backward compatible)
+                                slab_total_energy = dft_references[surface_name]
+                                mdb_b_ut.custom_print(
+                                    f'Surface {surface_name}: using number format. '
+                                    'Consider using dict format with num_atoms.',
+                                    'warn',
+                                )
+                                continue
+
+                            print('#@# slab_total_energy: ', slab_total_energy)
+                            print('#@# n_atoms (DFT): ', n_atoms)
+
+                            # Calculate approximate area for DFT reference
+                            # (will be updated with actual area when slabs are created)
+                            temp_slab = surface(
+                                args.metal,
+                                surface_indices,
+                                slab_layers,
+                                vacuum=vacuum_thickness,
+                            )
+                            temp_slab = temp_slab.repeat(slab_size + [1])
+                            cell = temp_slab.get_cell()
+                            area = cell[0, 0] * cell[1, 1]
+
+                            # Surface energy: γ = (E_slab - N * E_bulk) / (2 * A)
+                            # Factor of 2 because slab has two surfaces
+                            surface_energy_eV_per_A2 = (
+                                slab_total_energy - n_atoms * bulk_energy_per_atom
+                            ) / (2 * area)
+                            print(
+                                '#@# surface_energy_eV_per_A2: ',
+                                surface_energy_eV_per_A2,
+                            )
+
+                            # Convert eV/Å² to J/m²
+                            surface_energy_J_per_m2 = surface_energy_eV_per_A2 * 16.0218
+                            print(
+                                '#@# surface_energy_J_per_m2: ', surface_energy_J_per_m2
+                            )
+
+                            dft_surface_energies[surface_name] = surface_energy_J_per_m2
+
+                            mdb_b_ut.custom_print(
+                                f'DFT {args.metal}({surface_name}) surface energy: '
+                                f'{surface_energy_J_per_m2:.3f} J/m² '
+                                f'(slab: {slab_total_energy:.3f} eV, {n_atoms} atoms)',
+                                'info',
+                            )
+                else:
+                    mdb_b_ut.custom_print(
+                        'No bulk energy found in DFT references. '
+                        'Cannot calculate surface energies.',
+                        'warn',
+                    )
+                    mdb_b_ut.custom_print(
+                        'Expected JSON format: '
+                        '{"100": {"energy": -1231.2, "num_atoms": 63}, '
+                        '"110": -1432.3, "111": -1441.1, '
+                        '"bulk": {"energy": -89.1, "num_atoms": 4}}',
+                        'info',
+                    )
+
+            except Exception as e:
+                mdb_b_ut.custom_print(f'Error loading DFT reference file: {e}', 'error')
+        else:
+            mdb_b_ut.custom_print(
+                f'DFT reference file not found: {args.surf_ene_benchmark_dft_refs}',
+                'warn',
+            )
 
     # For each model, calculate surface energies
     for _, model_path in enumerate(model_paths):
@@ -866,68 +1188,155 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
 
         try:
             # Set up calculator
-            calculator = MACECalculator(
-                model_paths=str(model_path),
-                device=args.device,
-                default_dtype=args.dtype,
+            calculator = mdb_b_ut.create_calculator_for_model(
+                model_path, device=args.device, dtype=args.dtype
             )
 
-            # Calculate bulk energy per atom
-            bulk_atoms = ase_read(bulk_structure_path, format='extxyz')
+            # Step 1: Relax the bulk structure with this model
+            bulk_atoms = ase_read(bulk_primitive_path, format='extxyz')
             bulk_atoms.set_calculator(calculator)
 
-            # Relax bulk structure
-            bulk_optimizer = LBFGS(
-                bulk_atoms, logfile=benchmark_dir / f'{model_name}_bulk_relax.log'
+            # Check if bulk structure is DFT-provided (skip relaxation) or ASE-generated
+            bulk_structure_arg = getattr(
+                args, 'surf_ene_benchmark_bulk_structure', None
             )
-            bulk_optimizer.run(fmax=0.01, steps=500)
-            e_bulk_total = bulk_atoms.get_potential_energy()
-            e_bulk_per_atom = e_bulk_total / len(bulk_atoms)
+            if bulk_structure_arg and bulk_structure_arg.exists():
+                # DFT-provided bulk structure - evaluate energy without relaxation
+                mdb_b_ut.custom_print(
+                    f'Using DFT-optimized bulk structure for {model_name} '
+                    '(skipping relaxation)',
+                    'info',
+                )
+                e_bulk_total = bulk_atoms.get_potential_energy()
+                e_bulk_per_atom = e_bulk_total / len(bulk_atoms)
 
-            # Save relaxed bulk structure
-            bulk_relaxed_path = benchmark_dir / f'{model_name}_bulk_relaxed.xyz'
-            bulk_atoms.write(bulk_relaxed_path, format='extxyz')
+                # Save structure with model name for consistency
+                bulk_relaxed_path = benchmark_dir / f'{model_name}_bulk_dft.xyz'
+                bulk_atoms.write(bulk_relaxed_path, format='extxyz')
+            else:
+                # ASE-generated bulk structure - relax with MLIP
+                mdb_b_ut.custom_print(
+                    f'Relaxing bulk structure with {model_name}', 'info'
+                )
+                bulk_optimizer = LBFGS(
+                    bulk_atoms, logfile=benchmark_dir / f'{model_name}_bulk_relax.log'
+                )
+                bulk_optimizer.run(fmax=0.01, steps=500)
+                e_bulk_total = bulk_atoms.get_potential_energy()
+                e_bulk_per_atom = e_bulk_total / len(bulk_atoms)
 
-            # Calculate surface energies for each surface
+                # Save relaxed bulk structure
+                bulk_relaxed_path = benchmark_dir / f'{model_name}_bulk_relaxed.xyz'
+                bulk_atoms.write(bulk_relaxed_path, format='extxyz')
+
+            # Step 2: Create supercell from relaxed bulk for surface creation
+            bulk_supercell = bulk_atoms.copy()
+            # Create a moderate supercell for surface cutting
+            supercell_for_surface = [2, 2, 2]
+            bulk_supercell = bulk_supercell.repeat(supercell_for_surface)
+
+            # Save the supercell
+            bulk_supercell_path = benchmark_dir / f'{model_name}_bulk_supercell.xyz'
+            bulk_supercell.write(bulk_supercell_path, format='extxyz')
+
+            # Initialize model results
             model_results = {
                 'bulk_energy_per_atom_eV': e_bulk_per_atom,
                 'bulk_total_energy_eV': e_bulk_total,
                 'surfaces': {},
             }
 
-            for surface_name, slab_info in slab_structures.items():
-                # Load and relax slab
-                slab_atoms = ase_read(slab_info['path'], format='extxyz')
-                slab_atoms.set_calculator(calculator)
+            # Step 3: For each surface, create slab from the relaxed bulk supercell
+            # and relax it
+            for surface_indices in surfaces_to_test:
+                surface_name = ''.join(map(str, surface_indices))
 
-                # Relax slab structure
-                slab_optimizer = LBFGS(
-                    slab_atoms,
-                    logfile=benchmark_dir
-                    / f'{model_name}_slab_{surface_name}_relax.log',
-                )
-                slab_optimizer.run(fmax=0.01, steps=500)
-                e_slab = slab_atoms.get_potential_energy()
+                # Check if user provided DFT slab for this surface
+                if surface_name in user_provided_slabs:
+                    # Use user-provided DFT-optimized slab
+                    slab_path = user_provided_slabs[surface_name]
+                    slab_atoms = ase_read(slab_path, format='extxyz')
 
-                # Save relaxed slab structure
-                slab_relaxed_path = (
-                    benchmark_dir / f'{model_name}_slab_{surface_name}_relaxed.xyz'
-                )
-                slab_atoms.write(slab_relaxed_path, format='extxyz')
+                    # Copy to benchmark directory for consistency
+                    benchmark_slab_path = (
+                        benchmark_dir / f'{model_name}_slab_{surface_name}_dft.xyz'
+                    )
+                    slab_atoms.write(benchmark_slab_path, format='extxyz')
+
+                    # Evaluate energy without relaxation (DFT structure)
+                    slab_atoms.set_calculator(calculator)
+                    e_slab = slab_atoms.get_potential_energy()
+
+                    mdb_b_ut.custom_print(
+                        f'Using DFT-optimized slab {surface_name} for {model_name} '
+                        '(skipping relaxation)',
+                        'info',
+                    )
+
+                    slab_source = 'dft_provided'
+                else:
+                    # Create slab from the model's relaxed bulk structure
+                    # Use the original metal name to create surface, but with
+                    # lattice parameter from relaxed bulk
+                    bulk_for_surface = ase_read(bulk_relaxed_path, format='extxyz')
+
+                    # Create surface using the metal name but with relaxed lattice
+                    # parameters
+                    slab_atoms = surface(
+                        # args.metal,
+                        lattice=bulk_for_surface,
+                        indices=surface_indices,
+                        layers=slab_layers,
+                        vacuum=vacuum_thickness,
+                        # lattice=bulk_for_surface.get_cell(),
+                    )
+                    slab_atoms = slab_atoms.repeat(slab_size + [1])
+                    slab_atoms.center(vacuum=vacuum_thickness, axis=2)
+                    slab_atoms.pbc = True
+
+                    # Save initial slab structure
+                    initial_slab_path = (
+                        benchmark_dir / f'{model_name}_slab_{surface_name}_initial.xyz'
+                    )
+                    slab_atoms.write(initial_slab_path, format='extxyz')
+
+                    # Relax the slab
+                    slab_atoms.set_calculator(calculator)
+                    mdb_b_ut.custom_print(
+                        f'Relaxing slab {surface_name} with {model_name}', 'info'
+                    )
+                    slab_optimizer = LBFGS(
+                        slab_atoms,
+                        logfile=benchmark_dir
+                        / f'{model_name}_slab_{surface_name}_relax.log',
+                    )
+                    slab_optimizer.run(fmax=0.01, steps=500)
+                    e_slab = slab_atoms.get_potential_energy()
+
+                    # Save relaxed slab structure
+                    benchmark_slab_path = (
+                        benchmark_dir / f'{model_name}_slab_{surface_name}_relaxed.xyz'
+                    )
+                    slab_atoms.write(benchmark_slab_path, format='extxyz')
+
+                    slab_source = 'created_from_relaxed_bulk'
 
                 # Calculate surface energy
                 # Surface Energy = (E_slab - N_slab * E_bulk_per_atom) / (2 * Area)
                 # Factor of 2 because there are two surfaces in a slab
-                n_atoms_slab = slab_info['n_atoms']
-                area = slab_info['area']
+                n_atoms_slab = len(slab_atoms)
+                cell = slab_atoms.get_cell()
+                area = cell[0, 0] * cell[1, 1]
 
                 surface_energy_total = e_slab - n_atoms_slab * e_bulk_per_atom
+
                 # eV/Å² units
                 surface_energy_per_area = surface_energy_total / (2 * area)
 
                 # Convert to more common units (J/m²)
                 # 1 eV/Å² = 16.02176 J/m²
                 surface_energy_j_m2 = surface_energy_per_area * 16.02176
+                print('#@# mlip surface_energy_j_m2: ', surface_energy_j_m2)
 
                 model_results['surfaces'][surface_name] = {
                     'surface_energy_eV_per_A2': surface_energy_per_area,
@@ -935,7 +1344,16 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                     'slab_energy_eV': e_slab,
                     'slab_n_atoms': n_atoms_slab,
                     'surface_area_A2': area,
+                    'slab_source': slab_source,
                 }
+
+                mdb_b_ut.custom_print(
+                    f'{model_name} - {args.metal}({surface_name}): '
+                    f'{surface_energy_j_m2:.3f} J/m² '
+                    f'(slab: {e_slab:.3f} eV, {n_atoms_slab} atoms, '
+                    f'source: {slab_source})',
+                    'info',
+                )
 
             results[model_name] = model_results
 
@@ -965,6 +1383,105 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
         model_names = list(results.keys())
         surface_names = list(surfaces_to_test)
 
+        # Calculate statistics for each surface to determine if zooming is needed
+        zoom_info = {}
+        all_energies = []  # Collect all surface energies across all surfaces
+        surface_stats = {}
+
+        # First pass: collect statistics for each surface
+        for surface_indices in surfaces_to_test:
+            surface_name = ''.join(map(str, surface_indices))
+
+            # Collect energies for this surface across all models
+            surface_energies = []
+            for model_name in model_names:
+                if surface_name in results[model_name]['surfaces']:
+                    energy = results[model_name]['surfaces'][surface_name][
+                        'surface_energy_J_per_m2'
+                    ]
+                    surface_energies.append(energy)
+                    all_energies.append(energy)  # Add to global collection
+
+            # Also include DFT energy for this surface if available
+            if surface_name in dft_surface_energies:
+                dft_energy = dft_surface_energies[surface_name]
+                surface_energies.append(dft_energy)
+                all_energies.append(dft_energy)  # Add DFT to global collection
+
+            if len(surface_energies) >= 2:  # Need at least 2 models for statistics
+                energy_array = np.array(surface_energies)
+                std_dev = np.std(energy_array)
+                max_energy = np.max(energy_array)
+                min_energy = np.min(energy_array)
+                mean_energy = np.mean(energy_array)
+
+                # Check if standard deviation is less than 10% of the highest value
+                should_zoom = std_dev < (0.1 * max_energy) if max_energy > 0 else False
+
+                surface_stats[surface_name] = {
+                    'should_zoom': should_zoom,
+                    'std_dev': std_dev,
+                    'max_energy': max_energy,
+                    'min_energy': min_energy,
+                    'mean_energy': mean_energy,
+                    'std_dev_percent': (std_dev / max_energy * 100)
+                    if max_energy > 0
+                    else 0,
+                    'energies': surface_energies,
+                }
+
+                mdb_b_ut.custom_print(
+                    f'Surface {args.metal}({surface_name}): '
+                    f'std_dev = {std_dev:.3f} J/m² '
+                    f'({std_dev / max_energy * 100:.1f}% of max), zoom = {should_zoom}',
+                    'info',
+                )
+
+        # Second pass: determine global zoom settings
+        should_zoom_globally = False
+        global_y_min = None
+        global_y_max = None
+
+        if all_energies and len(surface_stats) > 0:
+            # Check if ALL surfaces should zoom (conservative approach)
+            all_surfaces_should_zoom = all(
+                stats['should_zoom'] for stats in surface_stats.values()
+            )
+
+            if all_surfaces_should_zoom:
+                should_zoom_globally = True
+
+                # Calculate tight y-axis limits based on all energies
+                all_energies_array = np.array(all_energies)
+                global_min = np.min(all_energies_array)
+                global_max = np.max(all_energies_array)
+                global_range = global_max - global_min
+
+                # Add 10% margin on both sides for better visualization
+                margin = global_range * 0.1 if global_range > 0 else global_max * 0.01
+                global_y_min = global_min - margin
+                global_y_max = global_max + margin
+
+                mdb_b_ut.custom_print(
+                    f'Global zoom enabled: y-axis range [{global_y_min:.3f}, '
+                    f'{global_y_max:.3f}] J/m²',
+                    'info',
+                )
+            else:
+                mdb_b_ut.custom_print(
+                    'Global zoom disabled: not all surfaces meet zoom criteria', 'info'
+                )
+
+        # Prepare zoom_info with global settings
+        zoom_info = {
+            'global_zoom': {
+                'enabled': should_zoom_globally,
+                'y_min': global_y_min,
+                'y_max': global_y_max,
+            },
+            'surface_stats': surface_stats,
+        }
+
         mdb_b_ut.set_plot_data(
             'surface_energies',
             {
@@ -974,6 +1491,8 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                 'results': results,
                 'metal': args.metal,
                 'title': 'Surface Energies',
+                'zoom_info': zoom_info,
+                'dft_surface_energies': dft_surface_energies,
             },
         )
 
@@ -1514,10 +2033,8 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
 
         try:
             # Set up calculator
-            calculator = MACECalculator(
-                model_paths=str(model_path),
-                device=args.device,
-                default_dtype=args.dtype,
+            calculator = mdb_b_ut.create_calculator_for_model(
+                model_path, device=args.device, dtype=args.dtype
             )
 
             # Storage for this model's results
@@ -1669,9 +2186,13 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
         ax2.set_yscale('log')
 
         plt.tight_layout()
-        plot_path = benchmark_dir / 'database_evaluation_errors.png'
-        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-        mdb_b_ut.custom_print(f'Plot saved to {plot_path}', 'done')
+
+        # Save in both PNG and SVG formats
+        base_path = benchmark_dir / 'database_evaluation_errors'
+        png_path, svg_path = mdb_b_ut.save_plot_dual_format(base_path, dpi=300)
+
+        mdb_b_ut.custom_print(f'Plot saved to {png_path}', 'done')
+        mdb_b_ut.custom_print(f'Plot saved to {svg_path}', 'done')
         plt.close()
 
         # Store plot data for final multi-panel figure
@@ -1683,6 +2204,8 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
             results[name]['mean_force_error_eV_per_A'] for name in model_names
         ]
 
+        title_general = 'Database Evaluation Results'
+
         mdb_b_ut.set_plot_data(
             'database_evaluation',
             {
@@ -1691,7 +2214,7 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
                 'mean_energy_errors': mean_energy_errors,
                 'mean_force_errors': mean_force_errors,
                 'results': results,
-                'title': 'Database Evaluation Results',
+                'title': title_general + ' - RMSE',
             },
         )
 
@@ -1702,7 +2225,7 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
                 'type': 'database_evaluation_detailed',
                 'model_names': model_names,
                 'results': results,
-                'title': 'Structure-by-Structure Errors',
+                'title': title_general + ' - Structure-by-Structure Errors',
             },
         )
 
