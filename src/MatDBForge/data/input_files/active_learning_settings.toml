@@ -36,6 +36,30 @@ check_extrapolation = true
 # (optional, list[int]) Load initial models from several aiida uuids/pk.
 load_init_models = []
 
+# (str) Active learning mode: "md" for molecular dynamics based or "data_reduction" for data reduction approach
+# Default: "md"
+al_mode = "data_reduction"
+
+
+###############################################
+
+# Data reduction settings
+# Only used when al_mode = "data_reduction"
+[data_reduction]
+# (str) Path to the large database file from which to select structures
+large_database_path = ""
+
+# (int) Number of structures to select from the large database for initial training
+initial_selection_size = 100
+
+# (str) Selection method for initial structures: 'random', 'lowest_energy', 'fps'
+initial_selection_method = "lowest_energy"
+
+# (int) Number of structures to select per iteration from the large database
+structures_per_iteration = 50
+
+# (str) Selection method for iterative structures: 'random', 'fps', 'uncertainty', 'lowest_energy'
+iterative_selection_method = "uncertainty"
 
 ###############################################
 

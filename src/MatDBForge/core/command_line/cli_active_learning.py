@@ -82,7 +82,7 @@ def create_active_learning_builder(
 
     builder.active_learning.final_db_name = al_conf['final_db_name']
     builder.active_learning.max_iterations = Int(int(al_conf['max_iterations']))
-    builder.active_learning.al_mode = al_conf.get('al_mode')
+    builder.active_learning.al_mode = al_conf.get('al_mode', 'md')
 
     # Code settings
     code_settings = toml_dict.get('code', {})

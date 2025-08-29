@@ -28,7 +28,6 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-import MatDBForge.core.exceptions as mdb_excp
 from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
@@ -153,12 +152,32 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
         spec.input('use_kokkos', valid_type=orm.Bool, serializer=orm.to_aiida_type)
 
+        # Data reduction specific inputs
+        spec.input(
+            'al_mode',
+            valid_type=orm.Str,
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=lambda: orm.Str('md'),
+        )
+        spec.input(
+            'data_reduction_settings',
+            valid_type=orm.Dict,
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=None,
+        )
+
         spec.outline(
             # Training the main mace model (M0) and the committee models
             # using the training database (Dt).
             cls.train_mace_model,
             # Gathering results from mace training.
             cls.get_mace_train_output,
+            # For data reduction mode: select additional structures for training
+            if_(cls.should_select_data_reduction_structures)(
+                cls.select_data_reduction_structures,
+            ),
             # This part of the workflow is only executed if the extrapolation
             # check is enabled.
             # It will get the descriptors for the entire database and use
@@ -195,6 +214,116 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.exit_code(
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
+
+    def should_select_data_reduction_structures(self):
+        """Check if we should select additional structures for data reduction mode."""
+        return self.inputs.al_mode.value == 'data_reduction'
+
+    def select_data_reduction_structures(self):
+        """
+        Select additional structures from the large database for training.
+
+        This method is only called in data reduction mode and after the first iteration.
+        It selects structures based on the iterative_selection_method and adds them
+        to the training database while removing them from the seed database.
+        """
+        self.report('Selecting additional structures for data reduction...')
+
+        # Get settings
+        data_reduction_settings = self.inputs.data_reduction_settings.get_dict()
+        structures_per_iteration = data_reduction_settings.get(
+            'structures_per_iteration', 50
+        )
+        iterative_selection_method = data_reduction_settings.get(
+            'iterative_selection_method', 'uncertainty'
+        )
+
+        # Load current databases
+        seed_database = mdb_al_ut.load_database(self.ctx.seed_db_path)
+        training_database = mdb_al_ut.load_database(self.ctx.training_db_path)
+
+        if len(seed_database) == 0:
+            msg = (
+                'No more structures available in the large database. '
+                'Stopping structure selection.'
+            )
+            self.report(msg)
+            return
+
+        # Prepare for structure selection
+        descriptor_settings = None
+        model_files = None
+
+        if iterative_selection_method in ['fps', 'uncertainty']:
+            descriptor_settings = self.inputs.descriptor_settings.get_dict()
+
+        if iterative_selection_method == 'uncertainty':
+            # Get committee model files from context
+            if hasattr(self.ctx, 'commitee_models_tupl_name_uuid'):
+                model_files = []
+                for _, uuid_str in self.ctx.commitee_models_tupl_name_uuid:
+                    # Load the model file from the calculation node
+                    calc_node = orm.load_node(uuid_str)
+                    if hasattr(calc_node.outputs, 'model_file'):
+                        model_files.append(calc_node.outputs.model_file.filepath)
+
+                if not model_files:
+                    msg = (
+                        'Warning: No model files found for uncertainty calculation. '
+                        'Falling back to random selection.'
+                    )
+                    self.report(msg)
+                    iterative_selection_method = 'random'
+            else:
+                msg = (
+                    'Warning: No committee models found. '
+                    'Falling back to random selection.'
+                )
+                self.report(msg)
+                iterative_selection_method = 'random'
+
+        # Limit selection to available structures
+        n_to_select = min(structures_per_iteration, len(seed_database))
+
+        # Select structures
+        selected_structures = mdb_al_ut.select_structures_data_reduction(
+            database=seed_database,
+            n_structures=n_to_select,
+            selection_method=iterative_selection_method,
+            descriptor_settings=descriptor_settings,
+            model_files=model_files,
+        )
+
+        breakpoint()
+
+        # Remove selected structures from seed database
+        selected_ids = {s.info['mdb_id'] for s in selected_structures}
+        remaining_seed_database = [
+            s for s in seed_database if s.info['mdb_id'] not in selected_ids
+        ]
+
+        # Add selected structures to training database
+        training_database.extend(selected_structures)
+
+        # Update databases on disk
+        ase_write(
+            filename=self.ctx.seed_db_path,
+            format='extxyz',
+            images=remaining_seed_database,
+        )
+        ase_write(
+            filename=self.ctx.training_db_path,
+            format='extxyz',
+            images=training_database,
+        )
+
+        msg = (
+            f'Selected {len(selected_structures)} additional structures using '
+            f'{iterative_selection_method} method. Remaining in large database: '
+            f'{len(remaining_seed_database)}, Total in training database: '
+            f'{len(training_database)}'
+        )
+        self.report(msg)
 
     def train_mace_model(self):
         """
@@ -1545,7 +1674,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 # Check status of resume mode.
                 cls.check_resume_mode,
                 # Get random structures from Ds to generate the MD seed.
-                cls.get_md_seed,
+                # For data reduction mode, filter out structures already in training DB.
+                cls.get_seed_structures,
                 # Run training seed
                 cls.run_process,
                 # Check for correct results
@@ -1626,6 +1756,184 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """Loading initial database."""
         self.report('Reading database file...')
 
+        # Check the AL mode. If no mode is specified, the default mode
+        # is 'data_acquisition', where data is generated using a simulation
+        # technique.
+        if (
+            hasattr(self.inputs.active_learning, 'al_mode')
+            and self.inputs.active_learning.al_mode is not None
+        ):
+            self.ctx.al_mode = self.inputs.active_learning.al_mode.value
+        else:
+            self.ctx.al_mode = 'data_acquisition'
+
+        self.report(
+            f"Loading databases for active learning mode: '{self.ctx.al_mode}'."
+        )
+
+        if self.ctx.al_mode == 'data_reduction':
+            self._setup_data_reduction_databases()
+        else:
+            self._setup_data_acquisition_databases()
+
+    def _setup_data_reduction_databases(self):
+        """Setup databases for data reduction mode."""
+        self.report('Setting up databases for data reduction mode...')
+
+        # Get data reduction settings
+        if not self.inputs.active_learning.data_reduction_settings:
+            raise ValueError(
+                "data_reduction_settings must be provided when al_mode='data_reduction'"
+            )
+
+        data_reduction_settings = (
+            self.inputs.active_learning.data_reduction_settings.get_dict()
+        )
+        large_db_path = data_reduction_settings['large_database_path']
+        initial_selection_size = data_reduction_settings['initial_selection_size']
+        initial_selection_method = data_reduction_settings['initial_selection_method']
+
+        # Validate large database path
+        if not Path(large_db_path).exists():
+            raise FileNotFoundError(f'Large database file not found: {large_db_path}')
+
+        # Load the large database that will serve as the seed database
+        if self.inputs.resume_dict:
+            # If resuming, load the seed database from the previous run
+            large_database = ase_read(
+                filename=self.inputs.resume_dict['seed_db_path'],
+                format='extxyz',
+                index=':',
+            )
+            # Load training database from previous run
+            database_training = ase_read(
+                filename=self.inputs.resume_dict['train_db_path'],
+                format='extxyz',
+                index=':',
+            )
+        else:
+            # Load the large database
+            large_database = ase_read(
+                filename=large_db_path,
+                format='extxyz',
+                index=':',
+            )
+            # Start with empty training database
+            database_training = []
+
+        # Process database structures and add metadata
+        for idx, struct in enumerate(large_database):
+            if not struct.info.get('mdb_db_index'):
+                struct.info['mdb_db_index'] = idx
+            if not struct.info.get('mdb_al_step'):
+                struct.info['mdb_al_step'] = 0
+            if not struct.info.get('mdb_id'):
+                struct.info['mdb_id'] = str(uuid.uuid4())
+            large_database[idx] = struct
+
+        # Process training database structures
+        for idx, struct in enumerate(database_training):
+            if not struct.info.get('mdb_db_index'):
+                struct.info['mdb_db_index'] = idx
+            if not struct.info.get('mdb_al_step'):
+                struct.info['mdb_al_step'] = 0
+            if not struct.info.get('mdb_id'):
+                struct.info['mdb_id'] = str(uuid.uuid4())
+            database_training[idx] = struct
+
+        # Create result directories
+        results_dir_path = Path(self.inputs.active_learning.results_dir.value)
+        if not results_dir_path.exists():
+            results_dir_path.mkdir()
+
+        final_db_path, curr_run_results_dir = mdb_al_ut.get_final_db_path(
+            result_dir_path=results_dir_path,
+            final_db_name=self.inputs.active_learning.final_db_name.value,
+            node=self.node,
+        )
+        self.ctx.curr_run_results_dir = curr_run_results_dir
+
+        # Set up seed database (the large database)
+        self.ctx.seed_db_path = curr_run_results_dir / 'mdb_seed_db.xyz'
+
+        # Set up training database path
+        self.ctx.training_db_path = final_db_path
+
+        # If this is a new run and we have an empty training database,
+        # perform initial selection
+        if not self.inputs.resume_dict and len(database_training) == 0:
+            msg = (
+                f'Performing initial selection of {initial_selection_size} '
+                f'structures using {initial_selection_method} method...'
+            )
+            self.report(msg)
+
+            # Get descriptor settings for FPS if needed
+            descriptor_settings = None
+            if initial_selection_method == 'fps':
+                descriptor_settings = (
+                    self.inputs.active_learning.descriptor_settings.get_dict()
+                )
+
+            # Select initial structures
+            selected_structures = mdb_al_ut.select_structures_data_reduction(
+                database=large_database,
+                n_structures=initial_selection_size,
+                selection_method=initial_selection_method,
+                descriptor_settings=descriptor_settings,
+            )
+
+            # Remove selected structures from large database
+            selected_ids = {s.info['mdb_id'] for s in selected_structures}
+            large_database = [
+                s for s in large_database if s.info['mdb_id'] not in selected_ids
+            ]
+
+            # Add to training database
+            database_training.extend(selected_structures)
+
+            msg = (
+                f'Selected {len(selected_structures)} structures '
+                'for initial training database.'
+            )
+            self.report(msg)
+
+        # Save databases
+        ase_write(
+            filename=self.ctx.seed_db_path, format='extxyz', images=large_database
+        )
+        ase_write(
+            filename=self.ctx.training_db_path,
+            format='extxyz',
+            images=database_training,
+        )
+
+        # Set minimum seed size (for MD seed selection, not the large database)
+        seed_inputs = self.inputs.active_learning
+        if (
+            hasattr(seed_inputs, 'seed_min_num_structs')
+            and seed_inputs.seed_min_num_structs.value
+        ):
+            self.ctx.min_seed_size = int(seed_inputs.seed_min_num_structs.value)
+        else:
+            # For data reduction, we set a reasonable default
+            self.ctx.min_seed_size = min(25, len(large_database))
+
+        # For data reduction mode, seed size is the number of structures per iteration
+        structures_per_iteration = data_reduction_settings.get(
+            'structures_per_iteration', 50
+        )
+        self.ctx.seed_size = structures_per_iteration
+
+        msg = (
+            f'Data reduction setup complete. Initial seed database: '
+            f'{len(large_database)} structures, '
+            f'Training database: {len(database_training)} structures.'
+        )
+        self.report(msg)
+
+    def _setup_data_acquisition_databases(self):
+        """Setup databases for traditional MD-based active learning mode."""
         # The training database (Dt) from which copies are made
         # for further processing. New structures will be added here.
         if self.inputs.resume_dict:
@@ -1700,7 +2008,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Setting the minimum seed size for the md seed. Min size defaults to the
         # seed size fraction if not set.
-        if self.inputs.active_learning.seed_size_frac.value:
+        al_inputs = self.inputs.active_learning
+        if hasattr(al_inputs, 'seed_size_frac') and al_inputs.seed_size_frac.value:
             self.ctx.min_seed_size = int(
                 self.inputs.active_learning.seed_min_num_structs.value
             )
@@ -2081,6 +2390,84 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         return continue_cond
 
+    def get_seed_structures(self):
+        """
+        Dispatcher method to get seed structures based on the active learning mode.
+
+        For MD mode: calls get_md_seed()
+        For data_reduction mode: calls get_data_reduction_seed()
+        """
+        if self.ctx.al_mode == 'data_reduction':
+            self.get_data_reduction_seed()
+        else:
+            self.get_md_seed()
+
+    def get_data_reduction_seed(self):
+        """
+        Filter structures for data reduction mode.
+
+        In data reduction mode, we need to filter out any structures that are
+        already in the training database from the seed database. This ensures
+        we don't re-select structures that have already been chosen.
+
+        The actual structure selection for training will happen in the
+        SimpleActiveLearningWorkChain.
+        """
+        self.report(
+            f'Starting AL Loop iteration {self.ctx.iteration + 1}/'
+            f'{self.inputs.active_learning.max_iterations.value}...'
+        )
+        self.report('Filtering seed database for data reduction mode...')
+
+        # Load current seed database (large database)
+        seed_gen_db: list = mdb_al_ut.load_database(self.ctx.seed_db_path)
+
+        # Load current training database
+        training_db: list = mdb_al_ut.load_database(self.ctx.training_db_path)
+
+        # Get IDs of structures already in training database
+        training_ids = {struct.info['mdb_id'] for struct in training_db}
+
+        # Filter out structures that are already in training database
+        filtered_seed_db = [
+            struct
+            for struct in seed_gen_db
+            if struct.info['mdb_id'] not in training_ids
+        ]
+
+        # Remove structures with config_type == 'IsolatedAtom' if any
+        filtered_seed_db = [
+            struct
+            for struct in filtered_seed_db
+            if struct.info.get('config_type') != 'IsolatedAtom'
+        ]
+
+        # Update the seed database file with filtered structures
+        ase_write(
+            filename=self.ctx.seed_db_path,
+            format='extxyz',
+            images=filtered_seed_db,
+        )
+
+        # Update context metadata for the child workchain
+        self.ctx.inputs.metadata.description = (
+            'Data reduction: Select and train with most informative structures. '
+            f'Step: {self.ctx.iteration + 1}'
+        )
+        self.ctx.inputs.metadata.label = f'DataReduction_Step_{self.ctx.iteration + 1}'
+
+        self.report(
+            f'Filtered seed database: {len(seed_gen_db)} -> {len(filtered_seed_db)} '
+            f'structures (removed {len(seed_gen_db) - len(filtered_seed_db)} '
+            'already in training database)'
+        )
+
+        # For data reduction mode, we don't set up MD seed structures here
+        # The structure selection for training will happen in the
+        # SimpleActiveLearningWorkChain based on the iterative_selection_method
+        self.ctx.inputs.current_md_seed_structs_path = ''
+        self.ctx.inputs.current_md_seed_structs_idx = []
+
     def get_md_seed(self):
         """
         Selects a random subset of structures from the seed generation database to
@@ -2170,9 +2557,11 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Filter the structure database and only use the small structures.
         if seed_select_type == 'small_first':
             max_size = seed_select_settings['small_first_max_size']
-            seed_gen_db = [s for s in seed_gen_db if len(s) <= max_size]
-            if len(seed_gen_db) == 0:
-                raise mdb_excp.FilterError(
+            seed_gen_db_small = [s for s in seed_gen_db if len(s) <= max_size]
+            if len(seed_gen_db_small) != 0:
+                seed_gen_db = seed_gen_db_small
+            else:
+                self.logger.warn(
                     f'There are no structures with less than '
                     f'{max_size} atoms in the given database. '
                     "Please, remove the 'small_first' seed selection mode. "
@@ -2195,9 +2584,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             descriptor_fps_settings = seed_ranking_algo_settings.get(
                 'descriptor_fps', {}
             )
-            self.report(
-                'Initializing farthest point sampling ranking...'
-            )
+            self.report('Initializing farthest point sampling ranking...')
             # Select an initial structure depending on the seed ranking algorithm
             # `initial_structure` parameter.
             init_struct_type = descriptor_fps_settings.get(
