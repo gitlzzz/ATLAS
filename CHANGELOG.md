@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.34.0 (2025-08-29)
+
+### Feature
+
+- **al_loop**: first implementation of the data reduction protocol ([#e7f7da6](https://github.com/pol-sb/MatDBForge/commit/e7f7da6a91b15790ca848f9f9ce5abd487d453f0))
+
 ## 0.33.0 (2025-08-29)
 
 ### Feature
