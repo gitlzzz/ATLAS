@@ -146,7 +146,7 @@ def md_write_frame_traj(dyn, traj):
     ----------
     dyn : ASE MD object
         ASE MD object used to run the MD simulation.
-    traj : ASE trajectory object
+    traj : TrajectoryWriter
         ASE trajectory object to store the MD simulation.
 
     """
@@ -284,6 +284,243 @@ def calculate_fps_scores_descriptor(
         candidate_pool.pop(farthest_uuid)
 
     return scores
+
+
+def select_structures_random(database: list[Atoms], n_structures: int) -> list[Atoms]:
+    """
+    Randomly select n structures from the database.
+
+    Parameters
+    ----------
+    database : list[Atoms]
+        List of ASE Atoms objects to select from.
+    n_structures : int
+        Number of structures to select.
+
+    Returns
+    -------
+    list[Atoms]
+        List of selected structures.
+    """
+    if n_structures >= len(database):
+        return database.copy()
+
+    indices = np.random.choice(len(database), size=n_structures, replace=False)
+    return [database[i] for i in indices]
+
+
+def select_structures_lowest_energy(
+    database: list[Atoms], n_structures: int
+) -> list[Atoms]:
+    """
+    Select the n structures with lowest energy from the database.
+
+    Parameters
+    ----------
+    database : list[Atoms]
+        List of ASE Atoms objects to select from.
+    n_structures : int
+        Number of structures to select.
+
+    Returns
+    -------
+    list[Atoms]
+        List of selected structures sorted by energy.
+    """
+    if n_structures >= len(database):
+        return database.copy()
+
+    # Sort by REF_energy and select the lowest n
+    sorted_db = sorted(
+        database, key=lambda x: float(x.info.get('REF_energy', float('inf')))
+    )
+    return sorted_db[:n_structures]
+
+
+def select_structures_fps(
+    database: list[Atoms],
+    n_structures: int,
+    descriptor_settings: dict,
+    initial_structure_method: str = 'lowest_energy',
+) -> list[Atoms]:
+    """
+    Select n structures using Farthest Point Sampling on descriptors.
+
+    Parameters
+    ----------
+    database : list[Atoms]
+        List of ASE Atoms objects to select from.
+    n_structures : int
+        Number of structures to select.
+    descriptor_settings : dict
+        Settings for descriptor calculation.
+    initial_structure_method : str
+        Method to select initial structure: 'lowest_energy' or 'random'.
+
+    Returns
+    -------
+    list[Atoms]
+        List of selected structures using FPS.
+    """
+    if n_structures >= len(database):
+        return database.copy()
+
+    # Select initial structure
+    if initial_structure_method == 'lowest_energy':
+        sorted_db = sorted(
+            database, key=lambda x: float(x.info.get('REF_energy', float('inf')))
+        )
+        init_structure_uuid = sorted_db[0].info['mdb_id']
+    else:  # random
+        init_structure_uuid = np.random.choice([s.info['mdb_id'] for s in database])
+
+    # Generate descriptors
+    descriptor_type = descriptor_settings.get('descriptor_type', 'soap')
+    descr_dict, _ = generate_descriptors(
+        database=database,
+        descriptor_type=descriptor_type,
+        descriptor_settings=descriptor_settings.get('descriptor', {}),
+    )
+
+    # Calculate FPS scores
+    scores = calculate_fps_scores_descriptor(
+        init_structure_uuid=init_structure_uuid,
+        descriptor_dict=descr_dict,
+    )
+
+    # Sort by score and select top n
+    sorted_db = sorted(
+        database, key=lambda x: scores.get(x.info['mdb_id'], 0.0), reverse=True
+    )
+    return sorted_db[:n_structures]
+
+
+def select_structures_uncertainty(
+    database: list[Atoms],
+    n_structures: int,
+    model_files: list,
+    descriptor_settings: dict,
+) -> list[Atoms]:
+    """
+    Select n structures with highest uncertainty based on model committee disagreement.
+
+    Parameters
+    ----------
+    database : list[Atoms]
+        List of ASE Atoms objects to select from.
+    n_structures : int
+        Number of structures to select.
+    model_files : list
+        List of model file paths for the committee.
+    descriptor_settings : dict
+        Settings for model evaluation.
+
+    Returns
+    -------
+    list[Atoms]
+        List of selected structures with highest uncertainty.
+    """
+    if n_structures >= len(database):
+        return database.copy()
+
+    from mace.calculators import MACECalculator
+
+    device = descriptor_settings.get('device', 'cpu')
+    dtype = descriptor_settings.get('dtype', 'float32')
+
+    # Calculate energies and forces for each structure using all models
+    uncertainties = []
+
+    for struct in database:
+        energies = []
+        forces_norms = []
+
+        for model_file in model_files:
+            try:
+                calculator = MACECalculator(
+                    models=[model_file], device=device, default_dtype=dtype
+                )
+                struct.calc = calculator
+
+                energy = struct.get_potential_energy()
+                forces = struct.get_forces()
+
+                energies.append(energy / len(struct))  # energy per atom
+                forces_norms.append(np.mean(np.linalg.norm(forces, axis=1)))
+
+            except Exception as e:
+                # If model evaluation fails, assign low uncertainty
+                struct_id = struct.info.get('mdb_id', 'unknown')
+                msg = f'Warning: Model evaluation failed for structure {struct_id}: {e}'
+                print(msg)
+                energies.append(0.0)
+                forces_norms.append(0.0)
+
+        # Calculate uncertainty as standard deviation of energies and forces
+        energy_std = np.std(energies) if len(energies) > 1 else 0.0
+        forces_std = np.std(forces_norms) if len(forces_norms) > 1 else 0.0
+
+        # Combined uncertainty (weighted sum)
+        uncertainty = energy_std + 0.1 * forces_std  # Weight can be adjusted
+        uncertainties.append((uncertainty, struct))
+
+    # Sort by uncertainty (descending) and select top n
+    uncertainties.sort(key=lambda x: x[0], reverse=True)
+    return [struct for _, struct in uncertainties[:n_structures]]
+
+
+def select_structures_data_reduction(
+    database: list[Atoms],
+    n_structures: int,
+    selection_method: str,
+    descriptor_settings: dict = None,
+    model_files: list = None,
+    **kwargs,
+) -> list[Atoms]:
+    """
+    Select structures from database using the specified method for data reduction.
+
+    Parameters
+    ----------
+    database : list[Atoms]
+        List of ASE Atoms objects to select from.
+    n_structures : int
+        Number of structures to select.
+    selection_method : str
+        Selection method: 'random', 'lowest_energy', 'fps', 'uncertainty'.
+    descriptor_settings : dict, optional
+        Settings for descriptor calculation (needed for fps and uncertainty).
+    model_files : list, optional
+        List of model files for uncertainty calculation.
+    **kwargs
+        Additional arguments for specific selection methods.
+
+    Returns
+    -------
+    list[Atoms]
+        List of selected structures.
+    """
+    if selection_method == 'random':
+        return select_structures_random(database, n_structures)
+    elif selection_method == 'lowest_energy':
+        return select_structures_lowest_energy(database, n_structures)
+    elif selection_method == 'fps':
+        if descriptor_settings is None:
+            raise ValueError('descriptor_settings required for fps selection method')
+        initial_structure_method = kwargs.get(
+            'initial_structure_method', 'lowest_energy'
+        )
+        return select_structures_fps(
+            database, n_structures, descriptor_settings, initial_structure_method
+        )
+    elif selection_method == 'uncertainty':
+        if model_files is None:
+            raise ValueError('model_files required for uncertainty selection method')
+        return select_structures_uncertainty(
+            database, n_structures, model_files, descriptor_settings
+        )
+    else:
+        raise ValueError(f'Unknown selection method: {selection_method}')
 
 
 def generate_descriptors_mace(
