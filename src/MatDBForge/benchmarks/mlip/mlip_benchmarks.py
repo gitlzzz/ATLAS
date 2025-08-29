@@ -6,7 +6,7 @@ import pathlib as pl
 
 import matplotlib.pyplot as plt
 import numpy as np
-from ase import units
+from ase import Atoms, units
 from ase.build import bulk, surface
 from ase.io import read as ase_read
 from ase.io.trajectory import TrajectoryWriter
@@ -978,8 +978,10 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             )
             return
 
-        # Load the bulk structure
-        bulk_primitive = ase_read(bulk_structure_path, format='extxyz')
+        # Handle common formats
+        struct_format = mdb_b_ut._get_structure_format(bulk_structure_path)
+
+        bulk_primitive = ase_read(bulk_structure_path, format=struct_format)
         mdb_b_ut.custom_print(
             f'Using user-provided DFT-optimized bulk structure: {bulk_structure_path}',
             'info',
@@ -1005,6 +1007,7 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
     slab_structures_arg = getattr(args, 'surf_ene_benchmark_slab_structures', None)
     if hasattr(args, 'surf_ene_benchmark_slab_structures') and slab_structures_arg:
         for slab_spec in args.surf_ene_benchmark_slab_structures:
+            print('#@# slab_spec: ', slab_spec)
             if ':' not in slab_spec:
                 mdb_b_ut.custom_print(
                     f'Invalid slab specification format: {slab_spec}. '
@@ -1193,7 +1196,8 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             )
 
             # Step 1: Relax the bulk structure with this model
-            bulk_atoms = ase_read(bulk_primitive_path, format='extxyz')
+            struct_format = mdb_b_ut._get_structure_format(bulk_primitive_path)
+            bulk_atoms = ase_read(bulk_primitive_path, format=struct_format)
             bulk_atoms.set_calculator(calculator)
 
             # Check if bulk structure is DFT-provided (skip relaxation) or ASE-generated
@@ -1255,7 +1259,8 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                 if surface_name in user_provided_slabs:
                     # Use user-provided DFT-optimized slab
                     slab_path = user_provided_slabs[surface_name]
-                    slab_atoms = ase_read(slab_path, format='extxyz')
+                    struct_format = mdb_b_ut._get_structure_format(slab_path)
+                    slab_atoms = ase_read(slab_path, format=struct_format)
 
                     # Copy to benchmark directory for consistency
                     benchmark_slab_path = (
@@ -1278,7 +1283,8 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                     # Create slab from the model's relaxed bulk structure
                     # Use the original metal name to create surface, but with
                     # lattice parameter from relaxed bulk
-                    bulk_for_surface = ase_read(bulk_relaxed_path, format='extxyz')
+                    struct_format = mdb_b_ut._get_structure_format(bulk_relaxed_path)
+                    bulk_for_surface = ase_read(bulk_relaxed_path, format=struct_format)
 
                     # Create surface using the metal name but with relaxed lattice
                     # parameters
@@ -1770,8 +1776,6 @@ def prepare_coexistence_structure(
         combined_symbols.append(liquid_supercell[idx].symbol)
 
     # Create coexistence structure
-    from ase import Atoms
-
     coexistence_atoms = Atoms(
         symbols=combined_symbols,
         positions=combined_positions,
@@ -2243,3 +2247,411 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
         mdb_b_ut.custom_print(f'Results saved to {all_results_file}', 'info')
     else:
         mdb_b_ut.custom_print('No database evaluation results to save.', 'warn')
+
+
+def run_magic_cluster_benchmark(args, model_paths: list[pl.Path]):
+    """
+    Calculates and plots energies for magic number cluster structures.
+
+    Magic number clusters are particularly stable cluster sizes that often
+    correspond to closed-shell electronic configurations or geometric
+    completeness (e.g., icosahedral or cuboctahedral structures).
+
+    This benchmark validates whether MLIPs can reproduce the correct
+    energetic ordering and stability of these special cluster sizes.
+    """
+    mdb_b_ut.custom_print('Running Magic Cluster Benchmark', 'info')
+    benchmark_dir = args.output_dir / 'magic_cluster'
+    benchmark_dir.mkdir(exist_ok=True)
+
+    # Define common magic numbers for different cluster types
+    # These are well-known magic numbers for various Ih cluster geometries
+    default_magic_numbers = [13, 19, 55, 147, 309, 561]
+
+    # User can override with custom magic numbers or provide structures
+    magic_numbers = getattr(args, 'magic_cluster_sizes', default_magic_numbers)
+
+    # Load DFT reference energies if provided
+    dft_references = {}
+    dft_refs_arg = getattr(args, 'magic_cluster_dft_refs', None)
+    if hasattr(args, 'magic_cluster_dft_refs') and dft_refs_arg:
+        try:
+            with open(dft_refs_arg) as f:
+                dft_references = json.load(f)
+                mdb_b_ut.custom_print(
+                    f'Loaded DFT reference energies for '
+                    f'{len(dft_references)} cluster sizes',
+                    'info',
+                )
+                # Convert string keys to integers for consistency
+                dft_references = {int(k): v for k, v in dft_references.items()}
+        except Exception as e:
+            mdb_b_ut.custom_print(
+                f'Failed to load DFT reference energies: {e}', 'error'
+            )
+            dft_references = {}
+
+    # Results storage
+    results = {}
+
+    # For each model, calculate cluster energies
+    for _, model_path in enumerate(model_paths):
+        model_name = mdb_b_ut.get_model_display_name(model_path)
+
+        # Skip if already calculated
+        results_file = benchmark_dir / f'{model_name}_magic_cluster_energies.json'
+        if results_file.exists():
+            mdb_b_ut.custom_print(
+                f"Results for '{model_name}' already exist. Loading from file.", 'warn'
+            )
+            with open(results_file) as f:
+                loaded_results = json.load(f)
+                # Convert string keys back to integers for consistency
+                if 'cluster_energies' in loaded_results:
+                    loaded_results['cluster_energies'] = {
+                        int(k): v for k, v in loaded_results['cluster_energies'].items()
+                    }
+                if 'cluster_energies_per_atom' in loaded_results:
+                    loaded_results['cluster_energies_per_atom'] = {
+                        int(k): v
+                        for k, v in loaded_results['cluster_energies_per_atom'].items()
+                    }
+                results[model_name] = loaded_results
+
+                # Debug: Print loaded cluster sizes for verification
+                if 'cluster_energies' in loaded_results:
+                    cluster_sizes = list(loaded_results['cluster_energies'].keys())
+                    mdb_b_ut.custom_print(
+                        f'Loaded cluster energies for sizes: {cluster_sizes}', 'debug'
+                    )
+            continue
+
+        try:
+            # Set up calculator
+            calculator = mdb_b_ut.create_calculator_for_model(
+                model_path, device=args.device, dtype=args.dtype
+            )
+
+            model_results = {
+                'cluster_energies': {},
+                'cluster_energies_per_atom': {},
+                'magic_numbers': magic_numbers,
+            }
+
+            # Calculate energies for each magic number cluster
+            for n_atoms in magic_numbers:
+                mdb_b_ut.custom_print(
+                    f'Calculating energy for {model_name} - {n_atoms} atom cluster...',
+                    'debug',
+                )
+
+                # Create cluster structure
+                cluster_structure_path = benchmark_dir / f'cluster_{n_atoms}_atoms.xyz'
+
+                if cluster_structure_path.exists():
+                    # Load existing structure
+                    cluster = ase_read(cluster_structure_path, format='extxyz')
+                    mdb_b_ut.custom_print(
+                        f'Loaded existing cluster structure with {n_atoms} atoms',
+                        'debug',
+                    )
+                else:
+                    # Generate cluster structure using ASE
+                    cluster = _generate_magic_cluster(
+                        args.metal, n_atoms, benchmark_dir
+                    )
+
+                    # Verify we got the correct number of atoms
+                    actual_atoms = len(cluster)
+                    if actual_atoms != n_atoms:
+                        mdb_b_ut.custom_print(
+                            f'Error: Generated cluster has {actual_atoms} atoms, '
+                            f'expected {n_atoms}. Skipping this cluster size.',
+                            'error',
+                        )
+                        continue
+
+                    cluster.write(cluster_structure_path, format='extxyz')
+                    mdb_b_ut.custom_print(
+                        f'Successfully generated cluster structure with '
+                        f'{n_atoms} atoms',
+                        'debug',
+                    )
+
+                # Set calculator and optimize structure
+                cluster.set_calculator(calculator)
+
+                # Relax the cluster structure
+                optimizer = LBFGS(
+                    cluster,
+                    logfile=benchmark_dir / f'{model_name}_cluster_{n_atoms}_relax.log',
+                )
+                optimizer.run(fmax=0.01, steps=500)
+
+                # Get final energy
+                energy = cluster.get_potential_energy()
+                energy_per_atom = energy / n_atoms
+
+                # Save relaxed structure
+                relaxed_path = (
+                    benchmark_dir / f'{model_name}_cluster_{n_atoms}_relaxed.xyz'
+                )
+                cluster.write(relaxed_path, format='extxyz')
+
+                # Store results
+                model_results['cluster_energies'][n_atoms] = energy
+                model_results['cluster_energies_per_atom'][n_atoms] = energy_per_atom
+
+                mdb_b_ut.custom_print(
+                    f'Cluster {n_atoms} atoms - {model_name}: {energy:.3f} eV '
+                    f'({energy_per_atom:.3f} eV/atom)',
+                    'debug',
+                )
+
+            results[model_name] = model_results
+
+            # Save individual results
+            with open(results_file, 'w') as f:
+                json.dump(model_results, f, indent=2)
+
+            mdb_b_ut.custom_print(
+                f"Magic cluster energies calculated for '{model_name}'", 'done'
+            )
+
+        except Exception as e:
+            mdb_b_ut.custom_print(
+                f"Failed to calculate magic cluster energies for '{model_name}': {e}",
+                'error',
+            )
+            continue
+
+    # Save combined results and store plot data
+    if results:
+        # Debug: Print overall results structure
+        mdb_b_ut.custom_print(f'Results loaded for {len(results)} models:', 'debug')
+        for model_name, model_data in results.items():
+            cluster_count = len(model_data.get('cluster_energies', {}))
+            mdb_b_ut.custom_print(
+                f'  {model_name}: {cluster_count} cluster sizes', 'debug'
+            )
+
+        # Save all results
+        all_results_file = benchmark_dir / 'all_magic_cluster_energies.json'
+        with open(all_results_file, 'w') as f:
+            json.dump(results, f, indent=2)
+
+        # Prepare data for plotting
+        model_names = list(results.keys())
+
+        # Add DFT reference if available
+        all_model_names = model_names.copy()
+        if dft_references:
+            all_model_names.append('DFT')
+
+        # Prepare energy data for each cluster size
+        cluster_energies_data = {}
+        for n_atoms in magic_numbers:
+            cluster_energies_data[n_atoms] = []
+
+            # Add MLIP model energies
+            for model_name in model_names:
+                if n_atoms in results[model_name]['cluster_energies']:
+                    cluster_data = results[model_name]['cluster_energies_per_atom']
+                    energy_per_atom = cluster_data[n_atoms]
+                    cluster_energies_data[n_atoms].append(energy_per_atom)
+                else:
+                    cluster_energies_data[n_atoms].append(None)  # Missing data
+
+            # Add DFT reference if available
+            if dft_references and n_atoms in dft_references:
+                dft_energy_per_atom = dft_references[n_atoms] / n_atoms
+                cluster_energies_data[n_atoms].append(dft_energy_per_atom)
+            elif dft_references:
+                # DFT data not available for this size
+                cluster_energies_data[n_atoms].append(None)
+
+        # Debug: Print cluster energies data for verification
+        mdb_b_ut.custom_print('Cluster energies data for plotting:', 'debug')
+        for n_atoms, energies in cluster_energies_data.items():
+            non_none_count = sum(1 for e in energies if e is not None)
+            mdb_b_ut.custom_print(
+                f'  {n_atoms} atoms: {non_none_count}/{len(energies)} non-None values',
+                'debug',
+            )
+
+        # Store plot data for final multi-panel figure
+        mdb_b_ut.set_plot_data(
+            'magic_cluster',
+            {
+                'type': 'magic_cluster',
+                'model_names': all_model_names,
+                'magic_numbers': magic_numbers,
+                'cluster_energies_data': cluster_energies_data,
+                'title': f'Magic Number Cluster Energies - {args.metal}',
+                'ylabel': 'Energy per Atom (eV/atom)',
+                'has_dft_reference': bool(dft_references),
+            },
+        )
+
+        # Print summary
+        mdb_b_ut.custom_print('Magic Cluster Energy Summary:', 'info')
+        for n_atoms in magic_numbers:
+            mdb_b_ut.custom_print(f'  Cluster size {n_atoms} atoms:', 'empty')
+            for model_name in model_names:
+                if n_atoms in results[model_name]['cluster_energies_per_atom']:
+                    cluster_data = results[model_name]['cluster_energies_per_atom']
+                    energy_per_atom = cluster_data[n_atoms]
+                    mdb_b_ut.custom_print(
+                        f'    {model_name}: {energy_per_atom:.3f} eV/atom', 'empty'
+                    )
+            if dft_references and n_atoms in dft_references:
+                dft_energy_per_atom = dft_references[n_atoms] / n_atoms
+                mdb_b_ut.custom_print(
+                    f'    DFT: {dft_energy_per_atom:.3f} eV/atom', 'empty'
+                )
+
+        mdb_b_ut.custom_print(f'Results saved to {all_results_file}', 'info')
+    else:
+        mdb_b_ut.custom_print('No magic cluster results to save.', 'warn')
+
+
+def gen_magic_number_list_chini(n_max: int = 25) -> list[float]:
+    """Return a list of magic numbers using the Chini series.
+
+    Ref: 10.1134/S0022476617070149
+    """
+    magic_numbers = []
+
+    for n in range(1, n_max + 1):
+        magic_number = ((10 * n**3 + 15 * n**2 + 11 * n) // 3) + 1
+        magic_numbers.append(magic_number)
+
+    return magic_numbers
+
+
+def _generate_magic_cluster(metal: str, n_atoms: int, benchmark_dir: pl.Path):
+    """
+    Generate a cluster structure with the specified number of atoms.
+
+    This function creates cluster structures using geometric algorithms
+    suitable for magic number clusters, ensuring exact atom count.
+    """
+    import numpy as np
+    from ase.build import bulk
+    from ase.cluster import Icosahedron
+
+    magic_numbers = gen_magic_number_list_chini()
+
+    # Try different approaches to get exactly n_atoms
+    cluster = None
+
+    # For magic numbers, use the Icosahedron class
+    cluster = Icosahedron(metal, noshells=magic_numbers.index(n_atoms) + 1)
+
+    # Check if we got the right number of atoms from icosahedral generation
+    if cluster is not None and len(cluster) != n_atoms:
+        mdb_b_ut.custom_print(
+            f'Icosahedral generation gave {len(cluster)} atoms, expected {n_atoms}. '
+            f'Falling back to spherical construction.',
+            'debug',
+        )
+        cluster = None
+
+    # If icosahedral approach didn't work or isn't applicable, use spherical
+    # construction
+    if cluster is None:
+        # Create a roughly spherical cluster by carving from bulk
+        bulk_structure = bulk(metal, cubic=True)
+
+        # Estimate required supercell size
+        vol_per_atom = bulk_structure.get_volume() / len(bulk_structure)
+        target_volume = n_atoms * vol_per_atom
+        radius = (3 * target_volume / (4 * np.pi)) ** (1 / 3)
+
+        # Create a large enough supercell (make it generous)
+        cell_min = min(bulk_structure.get_cell().diagonal())
+        # Ensure large enough supercell
+        repeat = max(5, int(np.ceil(3 * radius / cell_min)))
+        supercell = bulk_structure.repeat([repeat, repeat, repeat])
+
+        # Center the supercell
+        positions = supercell.get_positions()
+        center = positions.mean(axis=0)
+        positions -= center
+        supercell.set_positions(positions)
+
+        # Select atoms by distance to get exactly n_atoms
+        distances = np.linalg.norm(positions, axis=1)
+        sorted_indices = np.argsort(distances)
+
+        # Take exactly n_atoms closest to center
+        selected_indices = sorted_indices[:n_atoms]
+        cluster = supercell[selected_indices]
+
+        # Center the cluster
+        cluster.center()
+
+    # Final verification and correction
+    current_natoms = len(cluster)
+    if current_natoms != n_atoms:
+        if current_natoms > n_atoms:
+            # Trim excess atoms (keep those closest to center)
+            positions = cluster.get_positions()
+            distances = np.linalg.norm(positions, axis=1)
+            sorted_indices = np.argsort(distances)
+            cluster = cluster[sorted_indices[:n_atoms]]
+            mdb_b_ut.custom_print(
+                f'Trimmed cluster from {current_natoms} to {n_atoms} atoms',
+                'debug',
+            )
+        else:
+            # Need more atoms - add them at reasonable positions
+            mdb_b_ut.custom_print(
+                f'Need to add {n_atoms - current_natoms} atoms to reach target size',
+                'debug',
+            )
+
+            # Get existing positions and find good spots for new atoms
+            existing_positions = cluster.get_positions()
+
+            # Create additional atoms at positions that maintain roughly spherical shape
+            from ase import Atoms
+
+            atoms_needed = n_atoms - current_natoms
+
+            # Find the maximum distance from center to guide placement
+            max_dist = np.max(np.linalg.norm(existing_positions, axis=1))
+
+            # Add atoms in shells around the existing cluster
+            additional_positions = []
+            for i in range(atoms_needed):
+                # Use spherical coordinates to place atoms
+                phi = np.random.uniform(0, 2 * np.pi)
+                costheta = np.random.uniform(-1, 1)
+                theta = np.arccos(costheta)
+
+                # Place at distance slightly larger than existing atoms
+                r = max_dist + 1.0 + 0.5 * i
+
+                x = r * np.sin(theta) * np.cos(phi)
+                y = r * np.sin(theta) * np.sin(phi)
+                z = r * np.cos(theta)
+
+                additional_positions.append([x, y, z])
+
+            additional_atoms = Atoms(
+                metal * atoms_needed, positions=additional_positions
+            )
+            cluster += additional_atoms
+
+    # Final verification
+    if len(cluster) != n_atoms:
+        mdb_b_ut.custom_print(
+            f'Warning: Final cluster has {len(cluster)} atoms, expected {n_atoms}',
+            'warn',
+        )
+
+    # Remove any periodic boundary conditions
+    cluster.set_pbc(False)
+
+    return cluster

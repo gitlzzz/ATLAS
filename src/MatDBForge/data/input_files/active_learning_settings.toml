@@ -408,6 +408,14 @@ restart_latest = true
 device = "cuda"
 default_dtype = "float32"
 wandb = false
+enable_cueq = true
+use_reduced_cg = true
+use_agnostic_product = true
+pt_train_file = 'mp'
+atomic_numbers = "[29]"
+
+# Use any of the mace foundation models or a path to a local one.
+foundation_model = "./mace-mpa-0-medium.model"
 
 ###############################################
 

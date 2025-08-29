@@ -82,6 +82,7 @@ def create_active_learning_builder(
 
     builder.active_learning.final_db_name = al_conf['final_db_name']
     builder.active_learning.max_iterations = Int(int(al_conf['max_iterations']))
+    builder.active_learning.al_mode = al_conf.get('al_mode')
 
     # Code settings
     code_settings = toml_dict.get('code', {})
@@ -118,6 +119,12 @@ def create_active_learning_builder(
     )
     builder.active_learning.model_acc_multiplier = float(
         al_conf['model_acc_multiplier']
+    )
+
+    ## Data reduction settings
+    data_reduction_settings: dict = toml_dict.get('data_reduction', {})
+    builder.active_learning.data_reduction_settings = Dict(
+        value=data_reduction_settings
     )
 
     ## MD settings
@@ -300,6 +307,7 @@ def run_active_learning():
         width=88,
     )
 
+    # Create the top-level parser
     parser = argparse.ArgumentParser(
         prog='run_active_learning',
         description=(
@@ -309,7 +317,23 @@ def run_active_learning():
         ),
         formatter_class=RawTextHelpFormatter,
     )
-    parser.add_argument(
+
+    # Create a subparsers object
+    subparsers = parser.add_subparsers(
+        dest='command', help='List of available commands'
+    )
+
+    # Create the subparser for the 'run' command
+    al_loop_parser = subparsers.add_parser(
+        'run',
+        help='Run the active learning loop.',
+        usage=(
+            'run_active_learning run [-h]\n'
+            'Run the active learning loop with the specified settings.'
+        ),
+    )
+
+    al_loop_parser.add_argument(
         '-c',
         '--config_file',
         help=(
@@ -322,23 +346,48 @@ def run_active_learning():
         metavar='PATH',
     )
 
-    parser.add_argument(
+    al_loop_parser.add_argument(
         '--complete',
         help='Use the old version of the active learning workchain.',
         action='store_const',
         const=True,
     )
 
-    parser.add_argument(
-        '--gui',
+    al_loop_parser.add_argument(
+        '--dashboard',
         help='Launch a dashboard to keep track of the active learning loop.',
         action='store_const',
         const=True,
     )
 
-    # Create a subparsers object
-    subparsers = parser.add_subparsers(
-        dest='command', help='List of available commands'
+    # Add arguments specific to the 'dashboard' subcommand
+    al_loop_parser.add_argument(
+        '--update_interval',
+        help=('Dashboard refresh time interval in seconds.'),
+        type=int,
+        default=60,
+        metavar='n_sec',
+    )
+    al_loop_parser.add_argument(
+        '--port',
+        help=('Dashboard port to use for the webapp.'),
+        type=int,
+        default=8000,
+        metavar='port',
+    )
+    al_loop_parser.add_argument(
+        '--debug',
+        help=('Enable Flask debug for the dashboard.'),
+        action='store_const',
+        const=True,
+        default=False,
+    )
+    al_loop_parser.add_argument(
+        '--online',
+        help=('Enable online dashboard.'),
+        action='store_const',
+        const=True,
+        default=False,
     )
 
     # Create the subparser for the 'report' command
@@ -658,20 +707,20 @@ def run_active_learning():
         default=None,
     )
 
-    # Create the subparser for the 'gui' command
-    gui_parser = subparsers.add_parser(
-        'gui', help='Launch a dashboard to keep track of the active learning loop'
+    # Create the subparser for the 'dashboard' command
+    dashboard_parser = subparsers.add_parser(
+        'dashboard', help='Launch a dashboard to keep track of the active learning loop'
     )
 
-    # Add arguments specific to the 'gui' subcommand
-    gui_parser.add_argument(
+    # Add arguments specific to the 'dashboard' subcommand
+    dashboard_parser.add_argument(
         '--update_interval',
         help=('Refresh time interval in seconds'),
         type=int,
         default=60,
         metavar='n_sec',
     )
-    gui_parser.add_argument(
+    dashboard_parser.add_argument(
         '--port',
         help=('Port to use for the webapp'),
         type=int,
@@ -679,21 +728,21 @@ def run_active_learning():
         metavar='port',
     )
 
-    gui_parser.add_argument(
+    dashboard_parser.add_argument(
         '--debug',
         help=('Enable Flask debug'),
         action='store_const',
         const=True,
         default=False,
     )
-    gui_parser.add_argument(
+    dashboard_parser.add_argument(
         '--online',
         help=('Enable online'),
         action='store_const',
         const=True,
         default=False,
     )
-    gui_parser.add_argument(
+    dashboard_parser.add_argument(
         '-i',
         '--pk',
         '--loop_id',
@@ -764,7 +813,7 @@ def run_active_learning():
 
         # Running the workchain
         node = run(builder)
-    elif args.command == 'gui':
+    elif args.command == 'dashboard':
         from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
         run_dashboard_app(
@@ -799,7 +848,7 @@ def run_active_learning():
             complete=args.complete,
         )
 
-        if not args.gui:
+        if not args.dashboard:
             node = run(builder)
         else:
             from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
