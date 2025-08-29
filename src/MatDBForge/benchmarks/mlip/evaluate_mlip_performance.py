@@ -110,8 +110,8 @@ def main():
 
     if args.run_md_count:
         benchmarks_to_run.append('MD Count')
-        benchmark_functions['MD Count'] = (
-            lambda: mdb_benchmarks.run_md_count_benchmark(args, model_paths)
+        benchmark_functions['MD Count'] = lambda: mdb_benchmarks.run_md_count_benchmark(
+            args, model_paths
         )
 
     if args.run_evaluate_database:
@@ -120,14 +120,22 @@ def main():
             lambda: mdb_benchmarks.run_evaluate_database(args, model_paths)
         )
 
+    if args.run_magic_cluster:
+        benchmarks_to_run.append('Magic Cluster')
+        benchmark_functions['Magic Cluster'] = (
+            lambda: mdb_benchmarks.run_magic_cluster_benchmark(args, model_paths)
+        )
+
     if not benchmarks_to_run:
         print('No benchmarks selected. Use --help to see available options.')
         return
 
     # Check if any models are specified
     if not args.model_files and not args.aiida_pks and not args.foundation_models:
-        print('No models specified. Please provide --model_files, --aiida_pks, '
-              'or --foundation_models. Use --help for more information.')
+        print(
+            'No models specified. Please provide --model_files, --aiida_pks, '
+            'or --foundation_models. Use --help for more information.'
+        )
         return
 
     # Load models

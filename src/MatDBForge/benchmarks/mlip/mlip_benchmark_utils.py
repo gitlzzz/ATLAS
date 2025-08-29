@@ -252,6 +252,26 @@ def parse_arguments():
         help='Path to the structure database file for evaluation '
         '(required for --run_evaluate_database).',
     )
+    benchmark_group.add_argument(
+        '--run_magic_cluster',
+        action='store_true',
+        help='Run magic number cluster benchmark.',
+    )
+    benchmark_group.add_argument(
+        '--magic_cluster_dft_refs',
+        type=pl.Path,
+        help='Path to JSON file with DFT reference energies for magic clusters. '
+        'Format: {64: -1231.25, 110: -1432.35, 421: -1441.15}. '
+        'Keys are number of atoms, values are DFT energies.',
+    )
+    benchmark_group.add_argument(
+        '--magic_cluster_sizes',
+        nargs='+',
+        type=int,
+        help='Magic number cluster sizes to test '
+        '(default: 13, 19, 55, 147, 309, 561).',
+        default=[13, 19, 55, 147, 309, 561],
+    )
 
     # Surface Energy Benchmark Options
     surf_group = parser.add_argument_group('Surface Energy Benchmark Options')
@@ -1309,6 +1329,186 @@ def create_final_multi_panel_plot(args):
             ax_force.set_yscale('log')
             ax_force.tick_params(axis='both', which='major', labelsize=8)
 
+        elif plot_type == 'magic_cluster':
+            # Magic number cluster energies bar chart
+            model_names = plot_info['model_names']
+            magic_numbers = plot_info['magic_numbers']
+            cluster_energies_data = plot_info['cluster_energies_data']
+
+            # Create grouped bar chart for different cluster sizes
+            n_clusters = len(magic_numbers)
+            n_models = len(model_names)
+
+            if n_clusters == 1:
+                # Single cluster size - simple bar chart
+                cluster_size = magic_numbers[0]
+                energies = cluster_energies_data[cluster_size]
+
+                # Filter out None values and corresponding model names
+                valid_data = [
+                    (name, energy) for name, energy in
+                    zip(model_names, energies, strict=True) if energy is not None
+                ]
+                if valid_data:
+                    valid_names, valid_energies = zip(*valid_data, strict=True)
+                else:
+                    valid_names, valid_energies = [], []
+
+                # Create colors - DFT gets black/dark color
+                colors = []
+                for name in valid_names:
+                    if name == 'DFT':
+                        colors.append('#282828')
+                    else:
+                        # Find original model index for consistent coloring
+                        mlip_models = [n for n in model_names if n != 'DFT']
+                        if name in mlip_models:
+                            orig_idx = mlip_models.index(name)
+                            colors.append(COLORS[orig_idx % len(COLORS)])
+                        else:
+                            colors.append('#888888')  # Fallback color
+
+                bars = ax.bar(
+                    valid_names,
+                    valid_energies,
+                    color=colors,
+                    edgecolor='#282828',
+                    linewidth=1,
+                )
+
+                ax.set_title(f'{cluster_size}-Atom {plot_info["title"]}')
+                ax.set_xlabel('Model')
+                ax.set_ylabel(plot_info['ylabel'])
+
+                # Add value labels with appropriate text color
+                for bar, energy, name in zip(
+                    bars, valid_energies, valid_names, strict=True
+                ):
+                    height = bar.get_height()
+                    text_color = 'white' if name == 'DFT' else 'black'
+                    ax.text(
+                        bar.get_x() + bar.get_width() / 2.0,
+                        height / 2.0,  # Center vertically in the middle of the bar
+                        f'{energy:.4f}',  # 4 decimal places
+                        ha='center',
+                        va='center',  # Center vertically
+                        fontsize=9,
+                        color=text_color,
+                    )
+
+                # Rotate x-axis labels if needed
+                if len(valid_names) > 4:
+                    ax.tick_params(axis='x', labelrotation=45)
+                    plt.setp(ax.get_xticklabels(), ha='right')
+
+            else:
+                # Multiple cluster sizes - grouped bar chart
+                bar_width = 0.8 / n_clusters
+                x_positions = np.arange(n_models)
+
+                # Define brightness factors for each cluster size
+                # Distribute brightness factors evenly across cluster sizes
+                # Smaller cluster sizes get lighter colors, larger ones get darker
+                if n_clusters == 1:
+                    brightness_factors = [1.0]
+                elif n_clusters == 2:
+                    brightness_factors = [1.3, 0.7]
+                elif n_clusters == 3:
+                    brightness_factors = [1.4, 1.0, 0.6]
+                else:
+                    # For more cluster sizes, distribute brightness factors evenly
+                    # Start bright for small clusters, end dark for large clusters
+                    brightness_factors = [
+                        1.5 - (1.0 * k / (n_clusters - 1)) for k in range(n_clusters)
+                    ]
+
+                for i, cluster_size in enumerate(magic_numbers):
+                    energies = cluster_energies_data[cluster_size]
+
+                    # Filter out None values but keep position consistency
+                    plot_energies = []
+                    plot_colors = []
+                    plot_positions = []
+
+                    for j, (name, energy) in enumerate(
+                        zip(model_names, energies, strict=True)
+                    ):
+                        if energy is not None:
+                            plot_energies.append(energy)
+                            plot_positions.append(x_positions[j] + i * bar_width)
+
+                            if name == 'DFT':
+                                # Use brightness-adjusted dark color for DFT
+                                adjusted_color = adjust_color_brightness(
+                                    '#282828', brightness_factors[i]
+                                )
+                                plot_colors.append(adjusted_color)
+                            else:
+                                # Find original model index for consistent base coloring
+                                mlip_models = [n for n in model_names if n != 'DFT']
+                                if name in mlip_models:
+                                    orig_idx = mlip_models.index(name)
+                                    base_color = COLORS[orig_idx % len(COLORS)]
+                                    # Apply brightness factor to create shades
+                                    adjusted_color = adjust_color_brightness(
+                                        base_color, brightness_factors[i]
+                                    )
+                                    plot_colors.append(adjusted_color)
+                                else:
+                                    plot_colors.append('#888888')  # Fallback
+
+                    if plot_energies:  # Only plot if we have data
+                        bars = ax.bar(
+                            plot_positions,
+                            plot_energies,
+                            bar_width,
+                            label=f'{cluster_size} atoms',
+                            color=plot_colors,
+                            edgecolor='#282828',
+                            linewidth=1,
+                        )
+
+                        # Add value labels with appropriate text color
+                        for bar, energy in zip(bars, plot_energies, strict=True):
+                            height = bar.get_height()
+
+                            # Determine text color based on brightness factor
+                            # Use white text for darker bars (brightness < 0.8)
+                            # Use black text for lighter bars (brightness >= 0.8)
+                            brightness = brightness_factors[i]
+                            text_color = 'white' if brightness < 0.8 else 'black'
+
+                            ax.text(
+                                bar.get_x() + bar.get_width() / 2.0,
+                                height / 2.0,  # Center vertically in middle of bar
+                                f'{energy:.4f}',  # 4 decimal places
+                                ha='center',
+                                va='center',  # Center vertically
+                                fontsize=7,
+                                rotation=90,
+                                color=text_color,
+                            )
+
+                # Set labels and ticks
+                ax.set_xlabel('Model')
+                ax.set_ylabel(plot_info['ylabel'])
+                ax.set_title(plot_info['title'])
+
+                # Center the x-tick labels
+                tick_positions = x_positions + bar_width * (n_clusters - 1) / 2
+                ax.set_xticks(tick_positions)
+                ax.set_xticklabels(model_names)
+
+                # Rotate x-axis labels if needed
+                if len(model_names) > 4:
+                    ax.tick_params(axis='x', labelrotation=45)
+                    plt.setp(ax.get_xticklabels(), ha='right')
+
+                # Add legend
+                ax.legend(fontsize=8, loc='best')
+
+            ax.grid(True, linestyle='--', alpha=0.6)
+
         plot_idx += 1
 
     # Hide unused axes
@@ -1458,6 +1658,7 @@ class RichUIManager:
 
         return Panel(table, title='[bold]Benchmarks', border_style='green')
 
+
     def create_log_panel(self):
         """Create the log display panel."""
         # Calculate available height for logs based on terminal size
@@ -1538,3 +1739,13 @@ class RichUIManager:
         """Exit context manager."""
         if self.live:
             self.live.stop()
+
+def _get_structure_format(structure_path: pl.Path) -> str:
+    """Determines the ASE file format from a path."""
+    # Handle common formats
+    if '.xyz' in structure_path.suffix:
+        return 'extxyz'
+    if 'CONTCAR' in structure_path.name or 'POSCAR' in structure_path.name:
+        return 'vasp'
+    # Default format
+    return 'extxyz'
