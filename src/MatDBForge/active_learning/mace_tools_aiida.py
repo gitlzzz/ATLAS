@@ -544,10 +544,6 @@ class TrainMACEModelCalculation(CalcJob):
 
         # (for mace-torch == v0.3.7) Enabling multiheads finetuning for 'mp'
         foundation_model = self.inputs.mace_settings_dict.get('foundation_model')
-        multihead: bool = self.inputs.multihead_finetuning
-        if foundation_model and multihead:
-            params_dict['multiheads_finetuning'] = True
-            params_dict['pt_train_file'] = 'mp'
 
         # Copying database to temporary folder
         final_db_path = self.inputs.mace_train_file_path.value
@@ -555,6 +551,15 @@ class TrainMACEModelCalculation(CalcJob):
             src=final_db_path,
             dest_name=self.inputs.mace_settings_dict['train_file'],
         )
+
+        # Copying foundation model to temporary folder
+        ft_path = Path(foundation_model).resolve()
+
+        if ft_path.exists():
+            folder.insert_path(
+                src=ft_path.resolve(),
+                dest_name=self.inputs.mace_settings_dict['foundation_model'],
+            )
 
         # Create a yaml file using the settings dict and pyyaml
         with tempfile.NamedTemporaryFile(

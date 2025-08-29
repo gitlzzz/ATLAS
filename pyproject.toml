@@ -42,7 +42,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==4.1.1", "ipdb"]
 mace = [
-    "mace-torch==0.3.12",
+    "mace-torch==0.3.14",
     "torch==2.5.0",
     "cuequivariance",
     "cuequivariance-torch",
