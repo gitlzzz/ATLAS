@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.33.0 (2025-08-29)
+
+### Feature
+
+- **core**: Add magic cluster benchmark function ([#7ee7fbb](https://github.com/pol-sb/MatDBForge/commit/7ee7fbbe19377ffda77965572f98e03364869f6f))
+
+### Fix
+
+- **core**: enable compatibility with new mace finetuning and bump to `mace-torch==0.3.14` ([#5440402](https://github.com/pol-sb/MatDBForge/commit/5440402fa2c153d9420b823af15be5091f0df95b))
+- **report**: improve chart visualization for mlip benchmark ([#02567f3](https://github.com/pol-sb/MatDBForge/commit/02567f35f16773a45a85d56b32c63edb8817d9f1))
+
 ## 0.32.0 (2025-08-05)
 
 ### Docs
