@@ -511,6 +511,14 @@ def run_active_learning():
         const=True,
     )
     al_loop_report_parser.add_argument(
+        '--mace_enable_cueq',
+        help=('Enable CUEQ for MACE'),
+        action='store_const',
+        const=True,
+        default=False,
+    )
+
+    al_loop_report_parser.add_argument(
         '--remove_outliers',
         help=('Remove outliers from the error plot'),
         action='store_const',
@@ -776,6 +784,7 @@ def run_active_learning():
                 get_latent_space=args.db_latent_space_evolution,
                 autoencoder_path=args.autoencoder_path,
                 limit_num_steps=args.limit_num_steps,
+                enable_cueq=args.mace_enable_cueq,
             )
         elif args.subcommand == 'init_db':
             # Generating a report for an initial database

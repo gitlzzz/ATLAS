@@ -156,6 +156,7 @@ def gen_al_loop_report(
     get_latent_space: bool = False,
     autoencoder_path: str = None,
     limit_num_steps: int = None,
+    enable_cueq: bool = False,
 ):
     # Init logger
     init_logger(source='al_loop_report_gen')
@@ -168,6 +169,7 @@ def gen_al_loop_report(
         model_acc_multiplier,
         stats_dict,
     ) = get_loop_report(loop_id, log_path, title)
+
     # Printing the stats_dict
     output_al_stats_dict(stats_dict=stats_dict, title=title)
 
@@ -248,6 +250,7 @@ def gen_al_loop_report(
                 threshold_E_meV=threshold_E_meV,
                 threshold_F_meV=threshold_F_meV,
                 remove_outliers=remove_outliers,
+                enable_cueq=enable_cueq,
                 # train_db=ase_read(database_path, format='extxyz', index=':'),
             )
 
@@ -630,6 +633,7 @@ def get_mace_eval_results(
     device_str: str = 'cpu',
     model_path: str | Path = None,
     folder_path: str | Path = None,
+    enable_cueq: bool = False,
 ):
     from mace.calculators import MACECalculator
     from mace.tools import torch_tools
@@ -687,6 +691,7 @@ def get_mace_eval_results(
             model_paths=model_path,
             device=device_str,
             default_dtype='float32',
+            enable_cueq=enable_cueq,
         )
 
         if not folder_path:
@@ -812,6 +817,7 @@ def generate_error_plot(
     threshold_E_meV: float = None,
     threshold_F_meV: float = None,
     remove_outliers: bool = False,
+    enable_cueq: bool = False,
     # train_db:list=None,
 ):
     E_nn_list, F_nn_list = get_mace_eval_results(
@@ -819,6 +825,7 @@ def generate_error_plot(
         device_str=device_str,
         database_path=database_path,
         model_path=model_path,
+        enable_cueq=enable_cueq,
     )
 
     train_db = ase_read(database_path, format='extxyz', index=':')
