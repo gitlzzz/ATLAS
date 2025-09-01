@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.34.1 (2025-09-01)
+
+### Fix
+
+- **report**: update log parsing and node gathering during al_loop report generation ([#02d2416](https://github.com/pol-sb/MatDBForge/commit/02d2416a4f802ff3c5cd5f23a751922ff7a14b48))
+- **report**: readd cueq compatibility for mace ([#ced344d](https://github.com/pol-sb/MatDBForge/commit/ced344df2bf055cf1d134e2d5bb9b01e227c1443))
+- **report**: improve chart visualization for mlip benchmark ([#23b114a](https://github.com/pol-sb/MatDBForge/commit/23b114a53bf4c08b2deee08b747e4e2fc85437a1))
+
+### Misc
+
+- **core**: add new benchmark option for commit s ([#d53e027](https://github.com/pol-sb/MatDBForge/commit/d53e027bcb9deb2f70cd3545b5842b79fa18adbd))
+
 ## 0.34.0 (2025-08-29)
 
 ### Feature
