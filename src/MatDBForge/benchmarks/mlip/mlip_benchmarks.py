@@ -2258,7 +2258,7 @@ def run_magic_cluster_benchmark(args, model_paths: list[pl.Path]):
     completeness (e.g., icosahedral or cuboctahedral structures).
 
     This benchmark validates whether MLIPs can reproduce the correct
-    energetic ordering and stability of these special cluster sizes.
+    ordering and stability of these special cluster sizes.
     """
     mdb_b_ut.custom_print('Running Magic Cluster Benchmark', 'info')
     benchmark_dir = args.output_dir / 'magic_cluster'
@@ -2470,7 +2470,7 @@ def run_magic_cluster_benchmark(args, model_paths: list[pl.Path]):
                 # DFT data not available for this size
                 cluster_energies_data[n_atoms].append(None)
 
-        # Debug: Print cluster energies data for verification
+        # Print cluster energies data for verification
         mdb_b_ut.custom_print('Cluster energies data for plotting:', 'debug')
         for n_atoms, energies in cluster_energies_data.items():
             non_none_count = sum(1 for e in energies if e is not None)
