@@ -492,10 +492,23 @@ def get_loop_report(
             report = f.read()
         loop_id = re.compile(r'.*ActiveLearningBaseWorkChain\|setup].*').findall(report)
 
-        loop_id: list[int] = np.unique(
-            np.array([int(i.replace('[', '').split('|')[0].strip()) for i in loop_id])
-        )
-        # loop_id = int(loop_id[0].split('|')[0].replace('[', '').strip())
+        try:
+            # compatible with old logs
+            loop_id: list[int] = np.unique(
+                np.array(
+                    [int(i.replace('[', '').split('|')[0].strip()) for i in loop_id]
+                )
+            )
+        except ValueError:
+            # compatible with new log format
+            loop_id: list[int] = np.unique(
+                np.array(
+                    [
+                        int(i.split('|')[0].split('-')[1].strip().replace('[', ''))
+                        for i in loop_id
+                    ]
+                )
+            )
         try:
             al_loop_node = [orm.load_node(loop_id) for loop_id in loop_id]
         except Exception:
@@ -641,22 +654,30 @@ def get_mace_eval_results(
 
     torch_tools.set_default_dtype('float32')
 
-    # Create tmp folder in the current directory
+    # Getting children if not done yet
+    if isinstance(al_loop_node, orm.Node):
+        al_loop_node = al_loop_node.called
 
+    # Workaround for single node case when loading from log
+    if (
+        len(al_loop_node) == 1
+        and al_loop_node[0].process_type
+        == 'aiida.workflows:mdb-simple-active-learning-base'
+    ):
+        al_loop_node = al_loop_node[0].called
+
+    # Create tmp folder in the current directory
     with tempfile.TemporaryDirectory(dir=folder_path) as tmp_dir:
+
         # Get last iteration from aiida
         try:
-            all_iters = []
-            for node in al_loop_node:
-                all_iters.extend(
-                    [
-                        stp
-                        for stp in node.called
-                        if stp.process_type == 'aiida.workflows:mdb-active-learning'
-                        or stp.process_type
-                        == 'aiida.workflows:mdb-simple-active-learning'
-                    ]
-                )
+            all_iters = [
+                stp
+                for stp in al_loop_node
+                if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
+            ]
+
             last_iter = all_iters[-1]
         except AttributeError:
             last_iter = al_loop_node
