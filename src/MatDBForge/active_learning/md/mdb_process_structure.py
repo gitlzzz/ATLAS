@@ -75,8 +75,6 @@ def check_traj_in_domain(
         descriptors = descriptor_dict[c_uuid]['latent_space']
 
         for _, frame_desc in enumerate(descriptors):
-            # c_p_in = []
-            # c_p_out = []
             c_all_p = []
             for point in frame_desc:
                 p = Point(point)
