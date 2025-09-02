@@ -22,10 +22,12 @@ dependencies = [
     "mp_api>=0.45.3",
     "pandas",
     "plotly==5.18.0",
+    "pymatgen==2024.10.3",
+    "python-slugify[unidecode]",
+    "PyYAML",
     "rich==13.7.0",
     "scipy==1.14.1",
     "seaborn==0.13.2",
-    "pymatgen==2024.10.3",
     "e3nn==0.4.4",
     "aiida-core==2.6.2",
     "aiida-lammps==1.0.1",
@@ -33,7 +35,6 @@ dependencies = [
     "wonderwords==2.2.0",
     "shapely",
     "pymatgen",
-    "python-slugify[unidecode]",
     "flask",
     "wandb",
     "tomli >= 1.1.0 ; python_version < '3.11'",
@@ -90,6 +91,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 [project.scripts]
 "mdb_active_learning" = "MatDBForge.core.command_line.cli_active_learning:run_active_learning"
 "mdb_gen_configuration_file" = "MatDBForge.core.command_line.cli_generate_configuration_file:gen_default_config"
+"mdb_gen_docs" = "MatDBForge.core.command_line.cli_generate_docs:generate_docs"
 "mdb_monitor_al_loop" = "MatDBForge.core.command_line.cli_dashboard:monitor_al_loop"
 "mdb_gen_init_db" = "MatDBForge.core.command_line.cli_generate_init_db:run_gen_initial_database"
 "mdb_init_setup" = "MatDBForge.core.command_line.cli_run_initial_config:run_initial_config"

@@ -24,887 +24,682 @@ Please, check the tool's corresponding section to learn more about all the avail
 
 ## Database Generation
 
-Generate a database generation template file using `mdb_gen_configuration_file -t initial_db`.
+Generate a database generation template file using `mdb_gen_configuration_file -t database_generation`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.
 :::
 
-### General Database Description - `[database]`
 
-This section defines the general settings and file paths for the database.
+### General settings and file paths for the database. - `[database]`
 
-- `database_name:` (str) Name of the database to be used for internal reference and as the filename.
-- `min_num_atoms`: (int) Minimum number of atoms allowed in the generated structures.
-- `max_num_atoms`: (int) Maximum number of atoms allowed in the generated structures.
-- `min_cell_size`: (float) Minimum cell size in Angstrom.
-- `relax_struct_path`: (str) Path to a folder containing DFT optimized structures (optional).
-- `database_path`: (str) Path where the final database will be saved.
-- `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run.
-- `overwrite_db`:  (optional, bool) Allow database overwrite. Default is false. If false, and the database exists, the new database name will include a timestamp.
 
-#### Display and Export Options - `[database.plot_db]`
+- `database_name`: (str) Name of the database to be used for internal reference and as the filename. Example: 'my_material_db'.
 
-- `show`: (bool) Whether to display the database with a phase diagram after creation.
-- `format`: (str, optional) Format for the figure, such as 'png' or 'svg'. Default is 'png'.
-- `rc_params."font.family"`: (str) Font family for the phase diagram plot.
-- `rc_params."font.size"`: (int) Font size for the phase diagram plot.
+- `min_num_atoms`: (int) Minimum number of atoms allowed in the generated structures. Default is 64.
 
-#### ASE Display Options - `[database.show_db_ase]`
+- `max_num_atoms`: (int) Maximum number of atoms allowed in the generated structures. Default is 128.
 
-- `show`: (bool) Whether to display the database using ASE GUI after creation.
+- `min_cell_size`: (float) Minimum cell size in Angstrom. Default is 5.0.
 
-#### Export Options - `[database.export]`
+- `relax_struct_path`: (optional, str) Path to a folder containing DFT optimized structures. Default is ''.
 
-- `export`: (bool) Whether to export the database.
-- `format`: (str) Export format supported by ASE (e.g., 'extxyz').
-- `file_path`: (str) Path where the exported file will be saved.
-- `file_name`: (str) Name of the exported file.
+- `database_path`: (str) Path where the final database will be saved. Default is ''.
 
-### Phase Diagram Description - `[phase_diagram]`
+- `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run. Example: 42.
 
-This section defines the settings related to the phase diagram of the material.
+- `overwrite_db`: (optional, bool) Allow database overwrite. If false, and the database exists, the new database name will include a timestamp. Default is False.
 
-- `material_name`: (str) Internal name for the material in the phase diagram.
-- `element_list`: (list[str]) List of elements to include in the phase diagram.
-- `base_element`: (str) Symbol of the most abundant element in the phase.
+#### Settings for the composition of the database. - `[database.composition]`
 
-### Specific Phase Settings - `[phase_diagram.phase.XXXXX]`
 
-This key describes the settings for a specific phase within the phase diagram. Several phases can be added to describe the entire phase diagram by adding new keys with different phase names.
+- `size`: (int) Maximum number of structures to generate for the database. Default is 7500.
 
-The key name (`XXXXX`) is used as the reference name for the phase (e.g., `alpha`, `beta`, `gamma`, `liquid`, `amorphous`, ...). **Replace XXXXX with a phase name.**.
+##### Fraction of different structure types. The sum of the fractions must be equal to 1.0. - `[database.composition.ratios]`
 
-An example for a phase:
 
-```toml
-[phase_diagram.phase.alpha]
-cluster_element = "Cu"
-prototype = "mp-30"
-composition.Cu.min = 0.627
-composition.Zn.max = 0.373
-composition.Zn.min = 0.0
-composition.Cu.max = 1.0
-offset = 0.1
-limit_max_num_structures = 500
-allow_modifications = true
-replacements.replace = true
-replacements.element_list = ["Cu"]
-replacements.replace_with = ["Fe"]
-use_cache = true
-```
+- `bulk`: (float) Fraction of structures that will be bulk. Default is 0.4.
 
-Every phase can be provided with options to customize it:
+- `surface`: (float) Fraction of structures that will be surfaces. Default is 0.6.
 
-- `cluster_element:` (str) Symbol of the element defining the cluster.
-- `prototype`: (str) Materials Project ID of the prototypical structure (e.g., `mp-30` for Cu alpha).
-- `composition.X.min`: (float) Minimum composition of element X.
-- `composition.X.max`: (float) Maximum composition of element X.
-- `composition.Y.min`: (float) Minimum composition of element Y.
-- `composition.Y.max`: (float) Maximum composition of element Y.
-- `offset`: (float) Fraction of composition allowed over and under the phase limits.
-- `replacements.replace`: (bool) Whether to replace specific elements.
-- `replacements.element_list`: (list[str]) List of elements to be replaced.
-- `replacements.replace_with`: (str) Element to replace with.
-- `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for the current phase. This limit is enforced after the initial phase generation, but subsequent operations (e.g., perturbations, vacancy generation) may add new structures, potentially exceeding the specified limit.
-- `allow_modifications`: (optional, bool) Whether to allow applying modifications (supercells, replacements, perturbations, modifications...) to the base structure, or keep the base structure as the only structure for the phase. Default is true, allowing modifications to the base structure to be applied.
-- `use_cache` (optional, bool) Whether to store structures in the `$XDG_CACHE_HOME` directory. Will speed up some parts of the initial database generation, such as the surface creation. Can consume a lot of disk space.
+- `cluster`: (optional, float) Fraction of structures that will be clusters. Default is 0.0.
 
-### Structure Generation Settings - `[generation]`
+#### Display and Export Options for the phase diagram plot. - `[database.plot_db]`
 
-This key describes the settings related to the generation of structures.
 
-- `generate_type`: (list[str]) Types of structures to generate. Options: `'bulk'`, `'surface'`, `'cluster'`.
+- `show`: (optional, bool) Whether to display the database with a phase diagram after creation. Default is True.
 
-### Bulk Structure Generation - `[generation.bulk]`
+- `format`: (optional, str) Format for the figure. Default is 'png'.
 
-This key describes the settings for the generation of bulk structures.
+##### Matplotlib rcParams for the plot. - `[database.plot_db.rc_params]`
 
-- `num_struct`: (int) Number of structures to generate.
-- `num_repeat`: (int) Number of repeats for each structure.
-- `supercell_max_idx`: (int) Maximum Miller index for the bulk supercells.
 
-### Surface Structure Generation - `[generation.surface]`
+- `font.family`: (str) Font family for the phase diagram plot. Default is 'monospace'.
 
-This key describes the settings related to the generation of surface structures.
+- `font.size`: (int) Font size for the phase diagram plot. Default is 14.
 
-- `min_miller_index`: (int)  Minimum Miller index used to generate surface structures.
-- `max_miller_index`: (int)  Maximum Miller index used to generate surface structures.
-- `min_vacuum_size_ang`: (float) Minimum size of the vacuum layer in Angstroms.
-- `get_supercells`: (bool) Whether to generate supercells for surface structures.
-- `fixed_layers`: (int) Number of fixed layers in the surface slab.
-- `max_number_supercells`: (int) Maximum number of surface supercells to generate.
-- `save_in_db`: (bool) Whether to save generated surfaces in the database.
-- `num_replacements`: (int) Number of replacement percentages to generate for each structure.
-- `num_repeat_replace`: (int) Number of repeats for each replacement.
-- `frac_slabs_save`: (float) Fraction of slabs to save after generation. This avoids having too many slab structures with the same composition.
-- `frac_supercells_save`: (float) Fraction of unreplaced supercells to save after generation. This avoids having too many slab structures with the same composition.
-- `max_slab_num`: (int) Maximum number of slabs to gather from the slab generation. If a larger number of slabs is generated, a random subset of `max_slab_num` slabs will be selected.
-- `n_workers`: (int) Maximum number of workers to use for the ThreadPoolExecutor. Will be set to the total number of CPUs-1 if not specified. If the number of jobs to run is lower than the given value, `n_workers` will be decreased to match the total number of jobs.
+#### ASE GUI display options. - `[database.show_db_ase]`
 
-### Lattice Deformation Settings - `[deformation]`
 
-This key describes the settings related to the lattice deformation of structures.
+- `show`: (bool) Whether to display the database using ASE GUI after creation. Default is True.
 
-- `lattice_frac_deform_max`: (float) Maximum deformation value as a percentage of the lattice side length.
-- `lattice_frac_deform_min`: (float) Minimum deformation value as a percentage of the lattice side length.
-- `num_repeats`: (int) Number of repeats for each structure with random deformations.
+#### Export options for the database. - `[database.export]`
 
-- `limit_max_num_deformations` : (int) Maximum number of lattice deformations to generate.
 
-### Perturbation Settings - `[perturbation]`
+- `export`: (bool) Whether to export the database. Default is True.
 
-This key describes the settings related to the perturbation of structures.
+- `format`: (str) Export format supported by ASE (e.g., 'extxyz'). Default is 'extxyz'.
 
-- `filter_struct_types`: (list) Types of structures to which the perturbation will be applied. Valid types: `'bulk'`, `'surface'`, `'cluster'`.
-- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
-- `num_repeats`: (int) Number of repeats for each structure, with each repeat getting different random perturbations.
+- `file_path`: (str) Path where the exported file will be saved. Default is ''.
 
-### Adsorbate Placement Settings - `[adsorbates]`
+- `file_name`: (str) Name of the exported file. Default is 'export_db_filename'.
 
-This key contains settings related to adsorbate addition
+### Description of the phase diagram. - `[phase_diagram]`
 
-- `perturbation_ang`: (float) Perturbation magnitude in Angstrom. By default 0.04 A.
 
-- `filter_struct_types`: (list[str]) Only apply the perturbation to the following types of structures. Valid types: `'bulk'`, `'surface'`, `'cluster'`
+- `material_name`: (str) Internal name for the material in the phase diagram. Default is 'default_material_name'.
 
-- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate. By default, 100.
+- `element_list`: (list[str]) List of elements to include in the phase diagram. Example: ['Cu', 'O'].
 
-- `num_repeats`: (int) Number of repeats for each structure. Each repeat will get different random perturbations. By default, 1.
+- `base_element`: (str) Symbol of the most abundant element in the phase. Example: 'Cu'.
 
-- `adsorbate_species`: (list[str]) List of adsorbate species to consider. Example: ["H", "H2O"]
+#### Defines a specific phase within the phase diagram. Multiple phases can be added. - `[phase_diagram.phase.XXXXX]`
 
-### Incorrect Structure Removal - `[struct_filters]`
+This key describes settings for dynamic entries. Several entries can be added by using different key names.
 
-Settings related to incorrect structure cleanup.
+The key name (`XXXXX`) is used as the reference name. **Replace XXXXX with a name of your choice.**
 
-#### No neighbor filtering - `[struct_filters.no_neighbors]`
+Example parameters for each entry:
 
-Specific settings for the no neighbor check filter. This will remove structures that have atoms with no neighbors. This sometimes helps with bulks, slabs and clusters with no separated atoms, created by large perturbations.
+
+- `name`: (str) Name to be used as reference for the phase. Example: 'alpha'.
+
+- `cluster_element`: (optional, str) Symbol of the element defining the cluster.
+
+- `prototype`: (str) Materials Project ID of the prototypical structure. Example: 'mp-30'.
+
+- `offset`: (float) Fraction of composition allowed over and under the phase limits. Default is 0.1.
+
+- `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for this phase. Default is 100.
+
+- `allow_modifications`: (optional, bool) Allow modifications (supercells, replacements, etc.) to the base structure. Default is True.
+
+- `use_cache`: (optional, bool) Store structures in cache to speed up generation. Can consume a lot of disk space. Default is False.
+
+Parameters using `composition.` prefix:
+
+- `composition.min`: (float) Minimum composition as a fraction of the current phase element. Example: 0.1.
+- `composition.max`: (float) Maximum composition as a fraction of the current phase element. Example: 0.25.
+
+Parameters using `replacements.` prefix:
+
+- `replacements.replace`: (optional, bool) Whether to replace specific elements. Elements in element_list will be considered for replacement and replaced by a single element species. Default is False.
+- `replacements.element_list`: (optional, list[str]) List of elements to be replaced. Example: ['Ti'].
+- `replacements.replace_with`: (optional, str) Element to replace with. Example: 'Ir'.
+
+### Structure generation settings. - `[generation]`
+
+
+- `generate_type`: (list[str]) Types of structures to generate. Default is ['bulk', 'surface', 'cluster'].
+
+#### Bulk structure generation settings. - `[generation.bulk]`
+
+
+- `num_struct`: (int) Number of structures to generate. Default is 25.
+
+- `num_repeat`: (int) Number of repeats for each structure. Default is 5.
+
+- `supercell_max_idx`: (int) Maximum Miller index for the bulk supercells. Default is 2.
+
+#### Surface structure generation settings. - `[generation.surface]`
+
+
+- `min_miller_index`: (int) Minimum Miller index used to generate surface structures. Default is 1.
+
+- `max_miller_index`: (int) Maximum Miller index used to generate surface structures. Default is 3.
+
+- `min_slab_size_ang`: (optional, float) Minimum slab thickness in Angstrom. Default is 7.0.
+
+- `min_vacuum_size_ang`: (float) Minimum size of the vacuum layer in Angstroms. Default is 12.0.
+
+- `get_supercells`: (bool) Whether to generate supercells for surface structures. Default is True.
+
+- `fixed_layers`: (int) Number of fixed layers in the surface slab. Default is 3.
+
+- `max_number_supercells`: (int) Maximum number of surface supercells to generate. Default is 200.
+
+- `save_in_db`: (bool) Whether to save generated surfaces in the database. Default is True.
+
+- `num_replacements`: (int) Number of replacement percentages to generate for each structure. Default is 20.
+
+- `num_repeat_replace`: (int) Number of repeats for each replacement. Default is 2.
+
+- `frac_slabs_save`: (optional, float) Fraction of slabs to save after generation. Default is 0.1.
+
+- `frac_supercells_save`: (optional, float) Fraction of unreplaced supercells to save after generation. Default is 0.1.
+
+- `max_slab_num`: (int) Maximum number of slabs to gather from the slab generation. Default is 15.
+
+- `n_workers`: (optional, int) Maximum number of workers for parallel processing.
+
+### Lattice deformation settings. - `[deformation]`
+
+
+- `lattice_frac_deform_max`: (float) Maximum deformation value as a percentage of the lattice side length. Default is 0.05.
+
+- `lattice_frac_deform_min`: (float) Minimum deformation value as a percentage of the lattice side length. Default is 0.01.
+
+- `num_repeats`: (int) Number of repeats for each structure with random deformations. Default is 5.
+
+- `limit_max_num_deformations`: (int) Maximum number of lattice deformations to generate. Default is 100.
+
+### Perturbation settings. - `[perturbation]`
+
+
+- `filter_struct_types`: (list[str]) Types of structures to which the perturbation will be applied. Default is ['bulk', 'surface'].
+
+- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate. Default is 100.
+
+- `num_repeats`: (int) Number of repeats for each structure with random perturbations. Default is 1.
+
+- `perturbation_ang`: (optional, float) Perturbation magnitude in Angstrom. Default is 0.04.
+
+### Adsorbate placement settings. - `[adsorbates]`
+
+
+- `filter_struct_types`: (list[str]) Types of structures to which adsorbates will be added. Default is ['surface'].
+
+- `limit_max_num_perturbs`: (optional, int) Maximum number of structures with adsorbates to generate. Default is 100.
+
+- `num_repeats`: (int) Number of repeats for each structure. Default is 1.
+
+- `adsorbate_species`: (list[str]) List of adsorbate species to consider. Example: ['H', 'H2O'].
+
+### Settings for filtering out incorrect structures. - `[struct_filters]`
+
+
+#### Filter for structures with atoms that have no neighbors. - `[struct_filters.no_neighbors]`
+
+
+- `cov_rad_multiplier`: (optional, float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is 1.2.
+
+#### Filter for layer distances in surface slabs. - `[struct_filters.layer_distance]`
 
 :::{attention}
-WARNING: only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules. Disable this filter if not needed.
+This section is optional.
 :::
 
-- `cov_rad_multiplier`: (float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is 1.0.
 
-#### Layer distance fitltering - `[struct_filters.layer_distance]`
+- `max_layer_distance_ang`: (optional, float) Maximum accepted distance between layers in Angstrom. Default is 4.0.
 
-Specific settings for the layer distance filter. This sometimes helps with bulks, slabs and clusters that have large separation between layers, created by wrong supercells.
+#### Filter for duplicate slabs. - `[struct_filters.duplicate_slabs]`
 
-- `max_layer_distance_ang`: (float) Maximum accepted distance between layers (in Angstrom).
 
-#### Exploding structures fitltering - `[struct_filters.exploding_structures]`
+- `tolerance`: (optional, float) Tolerance for the duplicate slabs filter. Default is 0.2.
 
-Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
+### Settings for vacancy generation. - `[vacancies]`
 
-- `enable`: (bool) Whether to enable or disable this filter. By default True.
-- `cov_rad_multiplier_max`: (float) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `15.0`.
-- `cov_rad_multiplier_min`: (float) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.8`.
 
-### Vacancy Generation Settings - `[vacancies]`
+- `filter_struct_types`: (list[str]) Types of structures to which vacancies will be applied. Default is ['bulk', 'surface'].
 
-This section describes the settings for generating vacancies in structures.
+- `limit_max_num_vacancies`: (optional, int) Maximum number of structures with vacancies to generate. Default is 400.
 
-- `filter_struct_types`: (list[str]) Structure types to apply vacancies. Valid types: `'bulk'`, `'surface'`, `'cluster'`.
-- `limit_max_num_vacancies`: (int) Maximum number of structures with vacancies.
-- `num_repeats`: (int) Number of repeats for each structure with random vacancies.
-- `max_vacancy_percentage`: (float) Maximum vacancy percentage of total atoms.
-- `min_vacancy_percentage`: (float) Minimum vacancy percentage of total atoms.
-- `element_list`: (list[str]) List of elements to consider for the vacancies
+- `num_repeats`: (int) Number of repeats for each structure with different random vacancies. Default is 3.
 
-## Input Example: Database Generation
+- `max_vacancy_percentage`: (float) Maximum vacancies to generate as a percentage of the total number of atoms. Default is 0.75.
 
-```{literalinclude} ../../src/MatDBForge/data/input_files/database_generation_settings.toml
-```
+- `min_vacancy_percentage`: (float) Minimum vacancies to generate as a percentage of the total number of atoms. Default is 0.025.
+
+- `element_list`: (list[str]) List of elements to consider for the vacancies. Example: ['O'].
+
+### Settings for targeted structural modifications. - `[targeted_modification]`
+
+
+#### Apply perturbations to the central atom in octahedral sites. - `[targeted_modification.central_atom_octahedral]`
+
+:::{attention}
+This section is optional.
+:::
+
+
+- `filter_phases`: (optional, list[str]) Only apply the modification to the following phases. Example: ['rutile', 'original_IrO2'].
+
+- `filter_struct_types`: (optional, list[str]) Types of structures to which the modification will be applied. Default is ['bulk', 'surface'].
+
+- `central_element`: (optional, str) Symbol of the central element of the octahedral site. Example: 'Ir'.
+
+- `num_repeats`: (optional, int) Number of repeats for each structure with different perturbations. Default is 3.
+
+- `limit_max_num_modifications`: (optional, int) Maximum number of modified structures to generate. Default is 200.
+
+- `max_perturbation_ang`: (optional, float) Maximum perturbation movement of the central atom in Angstrom. Default is 0.2.
+
+### Settings for descriptors and concave hull generation. - `[concave_hull]`
+
+:::{attention}
+This section is optional.
+:::
+
+
+- `gen_concave_hull`: (optional, bool) Whether to generate the concave hull of the descriptors for all structures in the database. Default is False.
+
+- `descriptor`: (optional, str) Descriptor to use for the concave hull generation. Default is 'SOAP'.
+
+- `dim_reduction`: (optional, str) Dimensionality reduction method for the concave hull generation. Default is 'autoencoder'.
+
+- `plot_filename`: (optional, str) Filename for the figure displaying the concave hull. Default is 'descriptors_concave_hull.png'.
+
+## DFT Calculations
+
+Generate a dft template file using `mdb_gen_configuration_file -t dft`.
+
+:::{attention}
+All keys are mandatory unless stated otherwise.
+:::
+
+
+### General settings for the DFT script. - `[general]`
+
+
+- `log_path`: (str) Path where the logs will be stored. Default is '/tmp/'.
+
+- `result_file_path`: (str) Path for the results file (extxyz format). Default is 'dft_calculation_results'.
+
+- `source_db`: (optional, str) Path to the source database file (.extxyz or mdb .xz format).
+
+- `aiida_group_name`: (str) Name of the AiiDA group for the calculations. Example: 'my_dft_run'.
+
+- `max_batch`: (int) Maximum number of structures to process in one batch. Default is 100.
+
+- `queue_check_interval_seconds`: (int) Interval in seconds to check the queue for submitting new calculations. Default is 240.
+
+- `start_on_struct_idx`: (int) Number of structures to skip before starting the calculations. Default is 0.
+
+- `dry_run`: (optional, bool) If True, a dry-run is performed and no calculations are submitted. Default is False.
+
+- `selected_structure_type`: (optional, str) If specified, only structures of this type will be processed.
+
+### DFT calculation settings. - `[calculation]`
+
+
+- `calc_type`: (str) Type of calculation. Default is 'static'.
+
+- `aiida_potential_family`: (str) AiiDA potential family name. Example: 'vasp-5.4-PBE-2023'.
+
+- `potential_mapping`: (optional, dict) Mapping of elements to specific potential labels. Example: {'Si': 'Si_GW'}.
+
+### K-point settings. - `[kpoints]`
+
+
+- `kspacing`: (dict) K-spacing in Å⁻¹ for different phases or a single value for all structures. Example: {'alpha': 0.125, 'default': 0.15}.
+
+### Queue settings for HPC schedulers (e.g., SLURM). - `[queue]`
+
+
+- `code_string`: (str) Name of the code as defined in AiiDA. Example: 'vasp@my_cluster'.
+
+- `account`: (optional, str) Account to be used for the calculations.
+
+- `qos`: (optional, str) Quality of service parameter.
+
+- `node_cpus`: (optional, int) Number of CPUs per node.
+
+- `max_wallclock_seconds`: (int) Maximum wallclock time in seconds. Default is 16200.
+
+- `max_memory_kb`: (optional, int) Maximum memory per node in KB.
+
+- `multiple`: (optional, int) Whether to use multiple nodes.
+
+- `custom_scheduler_commands`: (optional, str) Custom scheduler commands.
+
+#### Scheduler resource options. - `[queue.options_resources]`
+
+
+- `tot_num_mpiprocs`: (int) Total number of MPI processes. Default is 24.
+
+### Settings for the AiiDA-VASP plugin. - `[aiida_vasp]`
+
+
+- `critical_notifications`: (optional, dict) Errors and warnings to be treated as critical (general).
+
+#### Parser settings for aiida-vasp. - `[aiida_vasp.parser_settings]`
+
+
+- `add_kpoints`: (optional, bool) Whether to add k-points information to the parsed results. Default is True.
+
+##### Critical error and warning notifications to be treated as important. - `[aiida_vasp.parser_settings.critical_notifications]`
+
+
+- `add_edddav_zhegv`: (optional, bool) Add EDDDAV ZHEGV error notification. Default is True.
+
+- `add_eddrmm_zhegv`: (optional, bool) Add EDDRMM ZHEGV error notification. Default is True.
+
+- `add_not_hermitian`: (optional, bool) Add not hermitian error notification. Default is True.
+
+- `add_brmix`: (optional, bool) Add BRMIX error notification. Default is True.
+
+- `add_bandocc`: (optional, bool) Add band occupation error notification. Default is False.
+
+### INCAR settings for different structure types. - `[incar]`
+
+
+- `bulk`: (optional, dict) INCAR settings for bulk structures.
+
+- `surface`: (optional, dict) INCAR settings for surface structures.
+
+- `cluster`: (optional, dict) INCAR settings for cluster structures.
 
 ## Active Learning Loop
 
-Generate a database generation template file using `mdb_gen_configuration_file -t active_learning`.
+Generate a active learning template file using `mdb_gen_configuration_file -t active_learning`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.
 :::
 
-### Active learning - `[al_learning]`
 
-This key describes the main active learning settings:
+### General active learning settings. - `[active_learning]`
 
-- `aiida_profile`: (str) Name of the aiida profile to be used.
-- `run_name`: (str) Internal name for the run
-- `init_db_path`: (str) Path to the folder where the initial database is contained.
-- `results_dir`: (str) Path for final results. Will be created if not existent. It will contain a folder named `run_{uuid}`.
-- `log_path`: (str, optional) Path for the log file containing reports from the active learning loop.  Defaults to `mdb_<PK>_<DATETIME>.log` in the result dir if not specified.
-- `final_db_name`: (str) Name for the final database. The database will be stored in the extxyz format
-- `max_iterations`: (int) Maximum number of AL loop iterations.
-- `model_acc_multiplier`: (float)
-Multiplier for model accuracy. Loosens model accuracy threshold. Tighter thresholds (lower values) will result in more DFT calculations. Any values that meet: $\mathrm{RMSE}_E\ or\ \mathrm{RMSE}_F > \mathrm{chem\_acc} \cdot \mathrm{chem\_acc\_multiplier}$ will be considered wrong.
 
-<!-- - `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. -->
-<!-- Influences the total number of energy evaluations and possibly DFT calculations. -->
-<!-- - `check_extrapolation`: (bool) Whether to check for extrapolation using the MACE descriptors -->
-<!-- - `dft_method`: (str) Selection of energy/force calculator. Options: "vasp", "mace" -->
-- `load_init_models`: (list[int], optional) Load initial models from several aiida uuids/pk for the first step of the active learning loop.
+- `aiida_profile`: (str) Name of the AiiDA profile to be used.
 
-### General code settings - `[code]`
+- `run_name`: (str) Internal name for the run.
 
-#### Container usage - `[code.container]`
+- `init_db_path`: (str) Path to the folder containing the initial database.
 
-This key contains settings to the configuration and usage of the container image of MatDBForge for all the instances where a remote code must be run. This is disabled by default,
-instead using a `PortableCode` instance in that case.
+- `results_dir`: (str) Path for final results. A folder named run_{uuid} will be created inside.
 
-- `use_container`: (bool, optional) Whether to use a containerized version of the code. By default false
-- `image_name`: (str, optional) Path in the path specified by image_name on the calculation nodes.
-- `engine_command`: (str, optional) Command to run the container image. Docker and Singularity are supported. An option to bind the current directory as `/mdb_data` must be provided in order for the MDB codes in the container to work. \
-For example: `singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}` for Singularity containers.
+- `log_path`: (optional, str) Path for the log file. Defaults to results_dir if not specified.
 
-- `prepend_text`: (str, optional) Text to prepend to the calculation script before the actual code execution. Allows loading the required modules for container use, setting the environment, etc... Check your HPC system documentation for the commands required for container usage.
+- `final_db_name`: (str) Name for the final database (extxyz format). Default is 'final_data_test'.
 
-An example of a container section for Singularity:
+- `max_iterations`: (int) Maximum number of AL loop iterations. Default is 3.
 
-```toml
-use_container = true
-image_name = '/projects/.../containers/mdb.sif'
-engine_command = 'singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}'
-prepend_text = """
-module load singularity
-export PATH=$PATH:.
-"""
-```
+- `model_acc_multiplier`: (float) Multiplier for model accuracy threshold. Higher values mean more DFT calculations. Default is 10.0.
 
-### Active Learning Seed Generation - `[al_seed]`
+- `check_extrapolation`: (bool) Whether to check for extrapolation using MACE descriptors. Default is True.
 
-Parameters to configure the MD seed generation. The MD seed is used to generate structures for MD simulations. The MD seed is updated at every iteration, choosing randomly from the seed database until the database is emptied.
-Seed size can be limited, and it will never be smaller than 1 or larger than the total number of structures in the database.
+- `load_init_models`: (optional, list[int]) Load initial models from a list of AiiDA UUIDs/PKs. Default is [].
 
-The size of the MD seed influences the amount of MD calculations to be performed, and therefore the number of and E F evaluations.
+- `al_mode`: (optional, str) Active learning mode. Default is 'data_acquisition'.
 
-Use the parameters below to customize the seed size:
+- `dft_method`: (optional, str) Selection of DFT calculator method. Default is 'vasp'.
 
-- `seed_size_frac`: (float) Percentage that sets the total structures in an MD seed as a function of the training db size. This percentage is applied at every iteration, thus, the seed size will change according to the seed database size.
-- `seed_min_num_structs`: (int, optional) Value used to set the minimum number of structures in all MD seeds. If not specified, it will be set to take `seed_size_frac` percent of the initial seed db size. This percentage will be applied at the start of the active learning loop and will remain unchanged for all iterations.
-- `seed_max_num_structs`: (int) Maximum number of structures in the MD seed. This number will be limited to the the total number of structures in the database.
-- `delete_seed_structs`: (optional, bool) Whether to delete structures from the seed database even if they are in domain. Default: `true`
+### Settings for the data reduction AL mode. - `[data_reduction]`
 
-#### Seed selection settings - `[al_seed.seed_select_settings]`
 
-Parameters to tune the structure selection while creating the AL seeds.
+- `large_database_path`: (str) Path to the large database file from which to select structures.
 
-- `seed_select_type`: (str, optional) MD seed selection mode. `random` selects random structures from the seed pool `small_first` selects random structures smaller than small_first_max_size for the first small_first_max_iter iters. Default is `random`.
-- `small_first_max_size`: (int) Maximum size in number of atoms for the structures selected with small_first mode
-- `small_first_max_iter`: (int) Apply small_first mode for the first n iterations
+- `initial_selection_size`: (int) Number of structures to select from the large database for initial training. Default is 100.
 
-#### Seed ranking settings -  `[al_seed.seed_ranking_settings]`
+- `initial_selection_method`: (str) Selection method for initial structures. Default is 'lowest_energy'.
 
-Settings for the seed ranking methods.
+- `structures_per_iteration`: (int) Number of structures to select per iteration from the large database. Default is 50.
 
-- `seed_ranking_algorithm`: (str, optional) Algorithm used for seed selection. Default is `random` Either one of:
-  - `random`: (default) No structure ranking is performed and a score of 1 is assigned to all structures.
-  - `descriptor_fps`: Uses Farthest Point Sampling (FPS) from the descriptors of an initially selected structure.
+- `iterative_selection_method`: (str) Selection method for iterative structures. Default is 'uncertainty'.
 
-#### Seed ranking descriptor FPS settings -  `[al_seed.seed_ranking_settings.descriptor_fps]`
+### Settings for the AL seed generation for MD. - `[al_seed]`
 
-- `descriptor_type`: (str, optional) What descriptors to use. Must be one of:
-  - `soap` (default)
-  - `mace`
 
-- `initial_structure`: (str, optional) Whether to gather a structure at random or select the one with the lowest energy available. Must be one of:
-  - `random` (default)
-  - `lowest_energy`
+- `seed_size_frac`: (float) Sets total structures in an MD seed as a fraction of the training db size. Default is 0.01.
 
-##### Seed ranking descriptor FPS descriptor settings  -  `[al_seed.seed_ranking_settings.descriptor_fps.descriptor]`
+- `seed_min_num_structs`: (optional, int) Minimum number of structures in an MD seed. Default is 25.
 
-Entry containing settings that depend on the descriptor type selected. For `soap`:
+- `seed_max_num_structs`: (int) Maximum number of structures in the MD seed. Default is 500.
 
-- `r_cut`: (float, optional) = Default 6.0
-- `n_max`: (int, optional) = Default 8
-- `l_max`: (float, optional) Default 6.0
-- `periodic`: (bool, optional) Whether to consider the system as periodic. By default `True`.
-- `average`: (str, optional) One of `inner`, `outer`, `off`. 'Default `off`.
+- `delete_seed_structs`: (optional, bool) Whether to delete structures from the seed database even if they are in domain. Default is True.
 
-For `mace`:
+#### MD seed selection mode settings. - `[al_seed.seed_select_settings]`
 
-- `model_path` (str): Path to the trained MACE model.
-- `device` (str, optional): What device to use, by default `cpu`.
-- `dtype` (str, optional) = Floating point number precision, by default `float32`
 
-The default values here do not reflect the default values for their respective codes, just the ones selected for this stage of the active learning by MatDBForge.
+- `seed_select_type`: (str) MD seed selection mode. Default is 'random'.
 
-### Extrapolation Settings - `[extrapolation]`
+- `small_first_max_size`: (int) Maximum size in number of atoms for structures selected with small_first mode. Default is 50.
 
-This section contains keys which adjust the extrapolation and disagreement check settings.
+- `small_first_max_iter`: (int) Apply small_first mode for the first n iterations. Default is 5.
 
-- `disagreement_check_type`: (str, optional) Select the approach to perform the energy and force (E&F) committee disagreement check on new frames obtained via MD. Default is `training`. Currently the following options are allowed:
-  - `training`: Compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold.
-  - `md_threshold`: Compare E&F with a unique threshold for every MD, defined as $committee\_mean + 3 * committee\_std\_dev$.
-- `check_extrapolation_type`: (str, optional) Whether to check for extrapolation. Default is `advanced`. Currently the following options are allowed:
-  - `none`: Disable extrapolation check, only leaving committee disagreement on EF for the domain validity check.
-  - `basic`: Check for extrapolation using the ranges of the MACE descriptors + EF disagreement.
-  - `advanced`: Check for extrapolation using the concave hull of the MACE descriptors + EF disagreement. Dimensionality is reduced with an autoencoder trained on the current iteration data descriptors.
+#### Algorithm for ranking structures in the seed generation database. - `[al_seed.seed_ranking_algorithm]`
 
-#### Concave Hull Settings - `[extrapolation.concave_hull]`
 
-Parameters related to the concave hull, calculated by the alpha-shape algorithm.
+- `seed_ranking_algorithm`: (str) Algorithm to be used. Default is 'random'.
 
-:::{attention}
-Some of the next options are related to the alpha value in the alpha-shape algorithm the for concave hull. A triangle from the Delaunay triangulation is considered part of the alpha-complex (and thus contributes to the alpha-shape) if its circum-radius $R$ is less than $1 / \alpha$. Thus, with large $\alpha$, only triangles with very small circum-radii are kept. This leads to a "tighter", more concave shape that might exclude some points or form holes. A smaller alpha allows to keep more triangles so the resulting shape will be closer to the convex hull. If alpha is small enough (approaching 0), all Delaunay triangles are kept, and the boundary of the alpha-shape becomes the convex hull.
-:::
+##### Settings for the descriptor_fps ranking algorithm. - `[al_seed.seed_ranking_algorithm.descriptor_fps]`
 
-- `target_alpha_range_min`: (float, optional) Minimum alpha value allowed for the concave hull. Default `3.0`.
-- `target_alpha_range_max`: (float, optional) Maximum alpha value allowed for the concave hull. Default `8.0`.
-- `default_alpha_if_issues`: (float, optional) Default alpha value to use if nearest neighbor distance calculation is not possible (e.g., too few points) or other issues arise. Defaults to `5.0` (midpoint of default 3-8 range).
-- `nn_dist_scale_factor`: Scaling factor for the alpha candidate calculation: `alpha_candidate = nn_dist_scale_factor / mean_nn_dist`. Defaults to `1.5`.
 
-### MD Settings - `[md]`
+- `descriptor_type`: (str) What descriptors to use. Default is 'soap'.
 
-Settings for MD simulations using an ASE calculator or LAMMPS.
+- `initial_structure`: (str) How to select the initial structure for FPS. Default is 'lowest_energy'.
 
-- `ignore_container`: (bool, optional) Whether to ignore the container specified in the container settings for the MD calculations.
+###### Descriptor settings. - `[al_seed.seed_ranking_algorithm.descriptor_fps.descriptor]`
 
-#### MD Parameters - `[md.parameters]`
 
-- `temperature_list_K`: (list[float]) List of different temperatures (in K) to be used for the MD simulations. Example: `[300, 350, 400]`
-- `max_temp_multiplier`: (int) Multiplier for the user-specified MD temperature used to determine the upper bound of the temperature at the end of the simulation run. Set to 1 to disable the multiplier.
-- `num_steps` (int) Total number of MD steps to be run in each MD simulation
-- `timestep_duration_ps`: (float) Duration of each timestep. The units are picoseconds. Note that in LAMMPS, [timestep size depends on the choice of units](https://docs.lammps.org/timestep.html). If metal (default) units are set, the timestep is in ps.
-- `thermostat`: (optional, str) Choice of thermostat for the ASE MD. It can be either `langevin` (NVT) or `nose-hoover` (NPT). Default is `langevin`.
-- `langevin_friction_ps-1`: (float) friction coefficient for the Langevin thermostat in $ps^{-1}$
-- `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories
-- `use_kokkos`: (optional, bool) Whether to use kokkos to run the LAMMPS MD on gpu. Has no effect when using the ASE calculator.
-- `enable_cueq`: (optional, bool) Whether to use the cuEquivariance library for acceleration when using MACE. By default, `false`.
-- `al_keep_struct_every_n_ps`: (float) Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and therefore DFT calculations.
-- `log_save_interval`: (optional, int) Every how many MD steps log energy and force information. By default `1`.
-- `max_energy_threshold_per_atom`: (optional, float) Maximum energy threshold per atom in eV. For instance, if a system has 8 atoms, the max total energy threshold will be defined as 8000 eV if this variable is set to 1000 eV. Default is `1000.0` eV.
-- `device`: (str) Device for the MACE model to be used in the MD simulations. One of `cpu`, `cuda`. Has no effect when using LAMMPS.
-- `default_dtype`: (str) Default data type for the MACE model to be used in the MD simulations. One of `float32`, `float64`. Only has an effect when using MACE, and has no effect when using LAMMPS.
+- `r_cut`: (float) No description available. Default is 6.0.
 
-#### MD Filters - `[md.filters]`
+- `n_max`: (float) No description available. Default is 8.0.
 
-Contains settings related to the filtering of structures obtained from MD calculations. Filtering allows the removal of some types of incorrect structures that might pollute the training database.
+- `l_max`: (float) No description available. Default is 6.0.
 
-- `save_filtered_structures`: (bool) Whether to save the filtered structures.
+- `periodic`: (bool) No description available. Default is True.
 
-##### No neighbor filter - `[md.filters.check_atoms_no_neighbor]`
+- `average`: (str) No description available. Default is 'inner'.
 
-Specific settings for the no neighbor check filter. This will remove structures that have atoms with no neighbors. This sometimes helps with bulks, slabs and clusters with no separated atoms, created by large perturbations during MD.
+### Settings for extrapolation checks. - `[extrapolation]`
 
-:::{attention}
-Only use when dealing with bulks, surfaces or clusters that have no adsorbed molecules. Disable this filter if not needed.
-:::
 
-- `enable`: (bool) Enable the filter. Check for structures that have atoms with no neighbors.
+- `disagreement_check_type`: (optional, str) Approach for energy and force (E&F) committee disagreement check. Default is 'training'.
 
-- `covalent_radius_multiplier` = (float, optional) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is `1.0`.
+- `check_extrapolation_type`: (optional, str) Method for extrapolation check. Default is 'none'.
 
-##### Layer distance fitltering - `[md.filters.layer_distance]`
+#### Settings for the concave hull extrapolation check. - `[extrapolation.concave_hull]`
 
-Specific settings for the layer distance MD filter. This sometimes helps with bulks, slabs and clusters that have large separation between layers, created by wrong supercells.
 
-- `enable`: (bool) Enable the filter. Check for structures with large separation between layers.
+- `target_alpha_range_min`: (float) No description available. Default is 3.0.
 
-- `max_layer_distance_ang`: (float) Maximum accepted distance between layers (in Angstrom).
+- `target_alpha_range_max`: (float) No description available. Default is 8.0.
 
-##### Exploding structures fitltering - `[md.filters.exploding_structures]`
+### Settings for MD simulations. - `[md]`
 
-Specific settings for the exploding structures filter. MD with overlapping atoms will have enourmous energies and will pollute the training data. This filter will attempt to remove them by checking all atomic distances, and checking if they are above or below thresholds based on the covalent radii (for overlapping atoms) and the cell size (for structures that have 'exploded').
 
-- `enable`: (bool, optional) Whether to enable or disable this filter. By default `true`.
-- `cov_rad_multiplier_max`: (float, optional) Multiplier to the covalent radii to decide the threshold for structures above the maximum distance. By default `10.0`.
-- `cov_rad_multiplier_min`: (float, optional) Multiplier to the covalent radii to decide the threshold for structures below minimum distance. By default `0.8`.
-- `max_T_multiplier`: (float, optional) Multiplier to apply to the maximum MD temperature threshold in order to decide if the structure has high kinetic energy. By default `10`.
-- `remove_positive_E`: (bool, optional) Whether to consider positive potential energy as incorrect. By default `false`.
-- `explode_check_interval_perc`: (float, optional) Every how many steps, as a percentage of the total MD steps, check if the current frame is incorrect by using the exploding structures filter. By default it is set to `0.1` (10%). In some cases it is desireable to decrease this parameter to to `0.05` (5%) or even `0.01` (1%), as it seems that MD simulations that break slow down a lot and it might take a while for the simulation to reach the next interval where the check will activate again.
+- `ignore_container`: (optional, bool) Whether to ignore the container specified in the container settings for the MD calculations. Default is False.
 
-#### MD Queue - `[md.queue]`
+#### MD simulation parameters. - `[md.parameters]`
 
-Contains settings related to the MD calculation setup and usage of AiiDA. As of now, the only MD code available is LAMMPS-MACE.
-The queue key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options).
 
-- `code` (str): AiiDA code name for MD software to be used
- AiiDA scheduler options for MD
-- `num_at_large_struct`: (int) Number of atoms in a structure for it to be considered 'large'.
-- `num_cpus_large_struct`: (int) Number of CPUs to be used for large structures. This will override the number of CPUs set in the scheduler options.
+- `temperature_list_K`: (list[float]) List of different temperatures (in K) for MD simulations. Default is [300.0, 500.0, 900.0].
 
-The following are the bare minimum options for running calculations using an SGE scheduler. These can be changed for use with SLURM or other queue managers.
+- `max_temp_multiplier`: (float) Multiplier for MD temperature to determine the upper bound of the temperature. Default is 1.3.
 
-- `metadata.options.resources.parallel_env`: (str)  name for the parallel environment
-- `metadata.options.resources.tot_num_mpiprocs`: (int) Total number of mpi processors
-- `metadata.options.queue_name`: (str)  Name of the SGE queue
-- `metadata.options.max_memory_kb`: (int)  Max memory allowed in kB.
-- `metadata.options.max_wallclock_seconds`: (int)  Maximum requested wall time.
-- `metadata.options.withmpi`: (bool) Use MPI.
-- `metadata.options.custom_scheduler_commands`: (str) Use this to include extra options, such as GPU allocation on SGE or extra commands. Use triple quoted strings to allow for several options. E.g.:
+- `num_steps`: (int) Total number of timesteps for each MD simulation. Default is 1000.
 
-```python
-'''
-#$ -l gpu=1
-#$ -l hostname="tekla2189"
-'''
-```
+- `timestep_duration_ps`: (float) Duration of each timestep in picoseconds. Default is 0.003.
 
-### Committee Evaluation Settings - `[committee_eval]`
+- `langevin_friction_ps-1`: (float) Friction coefficient for the Langevin thermostat in ps⁻¹. Default is 10.0.
 
-Contains settings related to the NNP model evaluation (MACE as of now).
+- `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories. Default is True.
 
-- `committee_num_models`: (int) Total number of MACE models.  Increases resources necessary for training.
-- `openmp_threads` (int): Number of OpenMP threads to be used for MACE CPU evaluation.
-- `prepend_text`: prepend text for the aiida [PortableCode](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/data_types.html#portablecode). Use triple quoted strings to allow for several options.
+- `use_kokkos`: (bool) Whether to use Kokkos to run the MD. Default is True.
 
-#### MACE Evaluation Settings - `[committee_eval.mace]`
+- `device`: (str) Device for the MACE model in MD simulations. Default is 'cuda'.
 
-Contains settings for the MACE evaluator.
+- `default_dtype`: (str) Default data type for the MACE model in MD simulations. Default is 'float32'.
 
-- `device`: (str) Device to use for the training, either `cpu` or `cuda`
-- `default_dtype`: (str) Whether to use single precision or double precision floating point numbers. Either `float32` or  `float64`
-- `batch_size`: (int) Size of the training batch
-- `compute_stress`: (bool) Whether or not to compute stress (true/false)
+- `al_keep_struct_every_n_ps`: (float) Keep a structure every N picoseconds of MD simulation. Default is 0.5.
 
-#### MACE Evaluation Scheduler - `[committee_eval.metadata.options]`
+- `log_save_interval`: (optional, int) Log energy and force information every N MD steps. Default is 1.
 
-Contains settings related to the scheduler and AiiDA for the MACE Evaluations. This key can take any option from its [matching AiiDA input](https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/calculations/usage.html#options). Below are listed the bare minimum options for running calculations using an SGE scheduler:
+- `max_energy_threshold_per_atom`: (optional, float) Maximum energy threshold per atom in eV. Default is 1000.0.
 
-- `parser_name` (str):  "mace-committee-eval-parser"
-- `resources.parallel_env` (str):  "c128m1024ib_mpi_32slots"
-- `resources.tot_num_mpiprocs`: 32
-- `queue_name`(str) :  "c128m1024ibgpu4.q"
-- `max_wallclock_seconds`: 117280000
-- `max_memory_kb`: 102400000
-- `withmpi`: false
-- `computer` = "tekla2-new-test"
-- `custom_scheduler_commands`:
-
-```bash
-'''#$ -l gpu=1
-$ -l hostname="tekla2189"
-'''
-```
-
-### Descriptor Settings - `[descriptors]`
-
-- `descriptor_type`: (str) Which descriptor type to use. Options: `mace`, `soap`. Default: `mace`
-- `dimensionality_reduction_method`: (str, optional) Dimensionality reduction method for MACE descriptors. Options: `autoencoder`, `pca`, `none`. If not set, the default is none, which means no dimensionality reduction.
-- `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the descriptors calculation.
-
-#### Descriptor Scheduler Options - `[descriptors.metadata]`
-
-AiiDA metadata settings for MACE descriptor calculation
-
-- `computer` = ''
-- `account` = ''
-- `qos` = ''
-- `parser_name` = ''
-- `prepend_text` = ''
-- `options.max_wallclock_seconds` = ''
-- `options.resources.num_cores_per_mpiproc` = ''
-- `options.resources.tot_num_mpiprocs` = ''
-- `options.resources.num_machines` = ''
-- `options.withmpi` = ''
-
-#### Autoencoder settings - `[descriptors.autoencoder.train_settings]`
-
-This section contains keys related to the Autoencoder training
-
-- `device`: (str) Device to train the model. Either `cpu` or `cuda`.
-- `model_path`: (str): Filename or path to save the model.
-- `load_model`: (bool) Load the model from the model path
-- `dataset`: (str) Path to the training dataset
-- `l1_hidden_dim`: (int) Number of units in the first hidden layer, default `256`.
-- `l2_hidden_dim`: (int) Number of units in the second hidden layer, default `32`.
-- `bottleneck_dim`: (int) Dimensionality of the bottleneck (latent space), default `2`.
-- `bias_flag`: (bool) Flag to include bias terms in the layers
-- `num_epochs`: (int) Number of epochs to train the model
-- `batch_size`: (int) Batch size for training
-- `patience`: (int) Patience for early stopping
-- `lr`: (float) Learning rate for the optimizer
-- `weight_decay`: (float) L2 regularization
-- `loss`: (str) Loss function type (one of: "mse", "mae", "weighted_mse")
-- `train_frac`: (float) Fraction of the data to use for training
-- `valid_frac`: (float) Fraction of the data to use for validation
-- `test_frac`: (float) Fraction of the data to use for testing
-- `wandb`: (bool) Whether to log metrics to wandb
-- `wandb_name`: (str) Name of the wandb run
-- `wandb_project`: (str)  Name of the wandb project
-
-### MACE Train - `[mace_train]`
-
-MACE training code and scheduler settings (aiida)
-
-- `result_force_weight` (float): Weight of the force when considering model performance used in:  $$Weighted\ sum = RMSE_E + (F_{weight} * RMSE_F)$$
-The lowest weighted_sum will be considered as the most performant model.
-- `code`: (str) AiiDA code name
-- `ignore_container`: (bool) Whether to ignore the container specified in the container settings for the training calculation.
-- `multihead_finetuning`: (bool):  Whether to use multihead finetuning for MACE.
-- `metadata.options.resources.parallel_env`: (str)
-- `metadata.options.resources.tot_num_mpiprocs` = 32
-- `metadata.options.parser_name` = "mace-training-parser"
-- `metadata.options.queue_name` = "c128m1024ibgpu4.q"
-- `metadata.options.max_wallclock_seconds` = 117280000
-- `metadata.options.max_memory_kb` = 102400000
-- `metadata.options.withmpi` = true
-- `metadata.options.custom_scheduler_commands`: (str) Multiline string containing commands for the scheduler not included in the other options above, such as the number of gpus to use, or to reserve a specific computer. Refer to your scheduler manual to see available options.
-
-```python
-'''
-#$ -l gpu=2
-$ -l hostname="node1234"
-'''
-```
-
-#### MACE Train Settings - `[mace_train.train_settings]`
-
-MACE Training Settings. Check the [MACE documentation on training](https://mace-docs.readthedocs.io/en/latest/guide/training.html) for more information. Here are some sample values used for training in one of our case studies:
-
-- `name`(str)
-- `energy_key` (str):  "energy"
-- `valid_fraction` (float):  0.1
-- `foundation_model` (str):  Either `small`/`medium`/`large` or a path pointing to a MACE-MP-0 foundation model in the machine where the training will be running.
-- `config_type_weights`: { Default = 1.0 }
-- `weight_decay`: 9.34e-07
-- `E0s`: "average"
-- `num_interactions`: 2
-- `model`: "MACE"
-- `correlation`: 3
-- `hidden_irreps` (str): "16x0e + 16x1o"
-- `lr` (float): 0.0056
-- `r_max`: 6.0
-- `max_ell`: 3
-- `max_L`: 2
-- `batch_size`: 64
-- `max_num_epochs`: 35
-- `swa`: true
-- `ema`: true
-- `ema_decay`: 0.99
-- `amsgrad`: true
-- `restart_latest`: true
-- `device` (str): Either `cuda`/`cpu`
-- `default_dtype` (str): Either `float32`/`float64`
-- `wandb`(bool): false
-- `enable_cueq`: false
-
-### DFT Settings - `[dft]`
-
-- `dft_method`: (str, optional) What energy and force calculation method to use, either DFT with VASP or MACE using a pre-trained MACE model.  Specified as either `vasp` or `mace`, the default being `mace`.
-- `dft_calc_limit`: (int, optional) Maximum number of DFT calculations to perform per AL step. Default is None, so no limit will be in place.
-
-#### MACE as DFT calculator - `[dft.mace]`
-
-MACE Settings as DFT calculator. Ignored if dft_method = "vasp"
-Options intended for MACE will be passed as arguments during MACE execution. The scheduler options will be used in the builder.metadata.options from AiiDA.
-
-- `mace_potential_path`: (str) Path to MACE potential file
-- `device`: (str) "cuda"           # Options: "cpu", "cuda"
-- `default_dtype`: (str) "float32" # Options: "float32", "float64"
-- `batch_size`: (int) 64
-- `compute_stress`(bool): true     # Options: true, false
-- `options.parser_name`: "mace-eval-parser"
-- `options.code_string`: "mace_run_eval_gpu@tekla2-new-test"
-- `options.resources`: { parallel_env = "c128m1024ib_mpi_32slots", tot_num_mpiprocs = 32 }
-- `options.max_wallclock_seconds`: 117280000
-- `options.withmpi`: false
-- `options.max_memory_kb`: 102400000
-- `options.custom_scheduler_commands`: (str) Additional options for the scheduler, such as setting the hostname:
-
-```bash
-'''
-#$ -l gpu=1
-#$ -l hostname="tekla2189"
-'''
-```
-
-- `filter.filter_dft_calcs`: (bool) Whether to enable a threshold-based filtering. The filter will check the energy and forces of the MACE calculation against the NN-DFT calculation. If the difference is larger than the threshold, the structure will be filtered out. It will be applied to all NN DFT calcs just before adding them to the training database. Default is `false`.
-- `filter.threshold_E_meV`: (float) Threshold in meV for the energy difference between the MACE and DFT energies. If the difference is larger than this value, the structure will be filtered out.
-- `filter.threshold_F_meV`: (float) Threshold in meV for the force difference between the MACE and DFT forces. If the difference is larger than this value, the structure will be filtered out.
-
-#### VASP as DFT calculator - `[dft.vasp]`
-
-Settings for VASP as DFT calculator using the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin. Ignored if `dft_method = "mace"`.
-
-- `potential_family`: (str) String name of the aiida-vasp potential family, e.g.: `"vasp-5.4-PBE-2023"`
-- `structure_types`: (list[str]) List of structure types to choose from, e.g.: `['bulk', 'surface', 'cluster']`
-
-See [the potentials section in the aiida-vasp documentation](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html) to setup the potentials for VASP.
-
-- `calc_type`: (str) Type of calculation. Different INCAR settings can be defined for the different structure types (bulk, surface, cluster) in the incar section. Compatible settings should be set in the incar section. Default is `static`. Available options:
-
-  - `static`: Single point calculation.
-  - `relaxation`: Geometry optimization.
-
-##### Scheduler settings for aiida-vasp - `[dft.vasp.queue]`
-
-- `queue.type` = "sge"
-- `queue.node_cpus` = 12
-- `queue.code_string` = "vasp-std-5.4.4-new@tekla2"
-- `queue.options_resources` = { parallel_env = "c12m48ib_mpi", tot_num_mpiprocs = 12 }
-- `queue.multiple` = 1
-- `queue.custom_scheduler_commands` = '#$ -l hostname="tekla2044"'
-
-##### VASP k-spacing - `[dft.vasp.kspacing]`
-
-Description of the phase diagram. The phase name along their k-spacing must be used like in the following example:
-
-```toml
-alpha = 0.135088484104361
-m1 = 0.100530964914873
-beta-prime = 0.102415920507027
-```
-
-The `MDB_DEFAULT` phase can be added to this dictionary among all the other phases, so all structures that don't have a phase included will use this one as the default:
-
-```toml
-alpha = 0.135088484104361
-m1 = 0.100530964914873
-beta-prime = 0.102415920507027
-MDB_DEFAULT = 0.125
-```
-
-##### VASP INCAR - `[dft.vasp.incar]`
-
-General incar settings to be used as a template for all calculations. Different types of calculations, i.e., relaxations, bulks, clusters and surfaces, can have different options. Type-specific options must be specified in the corresponding key for each type (see below) and will overwrite the keys on the general incar in this section.
-
-- `istart`: 0
-- `icharg`: 2
-- `gga`: "Pe"
-- `ispin`: 1
-- `encut`: 450    # electronic steps
-- `ediff`: 1e-6
-- `ismear`: 0
-- `sigma`: 0.03
-- `algo`: "Fast"
-- `lreal`: "Auto"
-- `nelm`: 60      # ionic steps
-- `ibrion`: -1
-- `nsw`: 1
-- `ediffg`: -0.03
-- `isif`: 2
-- `potim`: 0.3
-- `lwave`: false
-- `lcharg`: false
-- `ncore`: 4
-- `lelf`: false
-- `ivdw`: 11      # van der Waals
-
-##### VASP INCAR for relaxations - `[dft.vasp.relax.incar]`
-
-- `ibrion` = 2
-- `nsw` = 350
-- `isif` = 3
-
-##### VASP INCAR for surfaces - `[dft.vasp.surface.incar]`
-
-- `ldipol` = true
-- `idipol` = 3
-
-##### VASP INCAR for clusters - `[dft.vasp.cluster.incar]`
-
-- `ldipol` = true
-- `dipol` = [0.5, 0.5, 0.5]
-- `idipol` = 4
-
-##### AiiDA-VASP parser settings - `[dft.vasp.aiida_vasp.parser_settings]`
-
-Contains entries to include in the results gathered using the aiida-vasp parser settings. The defaults are as follows:
-
-- `add_trajectory` = false
-- `add_bands` = false
-- `add_charge_density` = false
-- `add_dos` = false
-- `add_kpoints` = false
-- `add_energies` = true
-- `add_misc` = true
-- `add_structure` = false
-- `add_projectors` = false
-- `add_born_charges` = false
-- `add_dielectrics` = false
-- `add_hessian` = false
-- `add_dynmat` = false
-- `add_wavecar` = false
-- `add_forces` = false
-- `add_stress` = false
-
-##### AiiDA-VASP critical notifications - `[dft.vasp.aiida_vasp.parser_settings.critical_notifications]`
-
-VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The defaults are as follows:
-
-- `add_brmix` = true
-- `add_cnormn` = true
-- `add_denmp` = true
-- `add_dentet` = true
-- `add_edddav_zhegv` = true
-- `add_eddrmm_zhegv` = true
-- `add_edwav` = true
-- `add_fexcp` = true
-- `add_fock_acc` = true
-- `add_non_collinear` = true
-- `add_not_hermitian` = true
-- `add_psmaxn` = true
-- `add_pzstein` = true
-- `add_real_optlay` = true
-- `add_rhosyg` = true
-- `add_rspher` = true
-- `add_set_indpw_full` = true
-- `add_sgrcon` = true
-- `add_no_potimm` = true
-- `add_magmom` = true
-- `add_bandocc` = true
-
-## Input Example: Active Learning
-
-```{literalinclude} ../../src/MatDBForge/data/input_files/active_learning_settings.toml
-```
-
-## Database Batch DFT Execution
-
-Run DFT calculations for batches of structures in MatDBForge databases using `mdb_run_dft_database`.
-
-### General Settings - [general]
-
-This section contains the general settings for the database batch DFT execution utility.
-
-- `log_path`: (str) Path where the logs will be stored. Default is `tmp/`.
-- `result_file_path`: (str, optional) Path for the results file. The file will be saved in the extxyz format. Default is `./dft_calculation_results`.
-- `aiida_group_name`: (str) Name of the AiiDA group for the calculations. Example: example_group.
-- `max_batch`: (int) Maximum number of structures to process in one batch. It will be capped to the number of structures in the source database. Example: 100.
-- `queue_check_interval_seconds` (int) Every how many seconds to check the queue to submit new calculations. Default is 240 seconds.
-- `start_on_struct_idx`: (int) Number of structures to skip before starting the calculations. Default is 0.
-- `dry_run`: (bool, optional) If true, a dry-run is performed, i.e., no calculations are submitted. Default is false.
-- `selected_structure_type`: (str, optional) String representing a type of structure to process out of: bulk, surface, or cluster. Only the structures of the selected type will be processed.
-
-### Calculation Settings - [calculation]
-
-This section defines the settings for the calculations.
-
-- `calc_type`: (str) Type of calculation. Different INCAR settings can be defined for the different structure types (bulk, surface, cluster) in the incar section. Default is `static`. Options:
-  - `static`: Single point calculation.
-  - `relaxation`: Geometry optimization.
-- `aiida_potential_family`: (str) AiiDA potential family name. Example: vasp-5.4-PBE-2023.
-- `potential_mapping`: (dict, optional) Mapping of elements to potential label. Example:`potential_mapping.Si = 'Si_GW'`.
-
-### K-point Settings - [kpoints]
-
-This section contains information related to the k-spacing for the calculations.
-
-- `kspacing`: (int | dict) K-spacing in $Å^{-1}$ for different phases or a single value for all structures. Example:
-
-```toml
-a-ir = 0.001
-ir6o = 0.005
-ir3o = 0.100
-ir2o = 0.001
-iro = 0.002
-```
-
-The `MDB_DEFAULT` phase can be added to this dictionary among all the other phases, so all structures that don't have a phase included will use this one as the default:
-
-```toml
-alpha = 0.135088484104361
-m1 = 0.100530964914873
-beta-prime = 0.102415920507027
-MDB_DEFAULT = 0.125
-```
-
-### Queue Settings - [queue]
-
-This section defines the settings for the queue and HPC resource allocation. Example options for SLURM:
-
-- `code_string`: (str) Name of the code as defined in AiiDA. Example: aiida-code-name.
-- `account`: (str) Account to be used for the calculations. Example: example_user.
-- `qos`: (str) Quality of service parameter. Example: example_qos.
-- `node_cpus`: (int) Number of CPUs per node. Example: 24.
-- `max_wallclock_seconds`: (int) Maximum wallclock time in seconds. Example: 16200 seconds.
-- `max_memory_kb`: (int) Maximum memory per node in KB. Example: 96000000.
-- `multiple`: (int) Whether to use multiple nodes. Example: 1.
-- `custom_scheduler_commands`: (str) Custom scheduler commands. Example: "" (empty string).
-
-#### Resources - [queue.options_resources]
-
-tot_num_mpiprocs (int): Total number of MPI processes. Example: 24.
-
-### AiiDA-VASP Settings - [aiida_vasp]
-
-This section defines settings for the AiiDA-VASP plugin. Contains subsections that act as dicts that get passed to the `builder['settings']` object.
-The keys from these dictionaries must be as defined in the AiiDA-VASP documentation: <https://aiida-vasp.readthedocs.io/en/latest/concepts/parsing.html>
-
-#### AiiDA-VASP Parser Settings - [aiida_vasp.parser_settings]
-
-Contains settings for the calculation parser. At the time of writing defaults are:
-
-```toml
-add_trajectory = False
-add_bands = False
-add_charge_density = False
-add_dos = False
-add_kpoints = False
-add_energies = False
-add_misc = True
-add_structure = False
-add_projectors = False
-add_born_charges = False
-add_dielectrics = False
-add_hessian = False
-add_dynmat = False
-add_wavecar = False
-add_forces = False
-add_stress = False
-```
-
-##### AiiDA-VASP Critical Notifications - [aiida_vasp.parser_settings.critical_notifications]
-
-Some warnings/error messages that are not fatal and can be used to stop VASP calculations. **By default, everything is disabled**. At the time of writing, available options are:
-
-```toml
-add_brmix = True
-add_cnormn = True
-add_denmp = True
-add_dentet = True
-add_edddav_zhegv = True
-add_eddrmm_zhegv = True
-add_edwav = True
-add_fexcp = True
-add_fock_acc = True
-add_non_collinear = True
-add_not_hermitian = True
-add_psmaxn = True
-add_pzstein = True
-add_real_optlay = True
-add_rhosyg = True
-add_rspher = True
-add_set_indpw_full = True
-add_sgrcon = True
-add_no_potimm = True
-add_magmom = True
-add_bandocc = True
-```
-
-### INCAR Settings - [incar]
-
-This section provides INCAR settings for different structure types. Check the VASP manual for the meaning of the different tags.
-
-#### Bulk Structures - [incar.bulk]
-
-Contents of the INCAR file for bulk structures, specified as follows:
-
-```ini
-...
-SYSTEM = "Bulk structure"
-istart = 0
-icharg = 2
-gga = "Pe"
-ispin = 1
-encut = 450  # Electronic steps
-ediff = 1e-6
-ismear = 0
-...
-```
-
-#### Surface Structures - [incar.surface]
-
-Contents of the INCAR file for slab structures.
-
-#### Cluster Structures - [incar.cluster]
-
-Contents of the INCAR file for cluster structures.
-
-## Input Example: Database Batch DFT Execution
-
-```{literalinclude} ../../src/MatDBForge/data/input_files/dft_settings.toml
-```
+#### Settings for MD trajectory filters. - `[md.filters]`
+
+
+- `save_filtered_structures`: (optional, bool) Whether to save filtered structures. Default is False.
+
+##### Filter for structures with atoms that have no neighbors. - `[md.filters.check_atoms_no_neighbor]`
+
+
+- `enable`: (bool) No description available. Default is True.
+
+- `covalent_radius_multiplier`: (float) Multiplier for covalent radii to define cutoff for neighbor check. Default is 1.05.
+
+##### Filter for layer distances in surface slabs. - `[md.filters.layer_distance]`
+
+
+- `enable`: (bool) No description available. Default is True.
+
+- `max_layer_distance_ang`: (float) Maximum accepted distance between layers in Angstrom. Default is 3.5.
+
+##### Filter for exploding structures based on covalent radius limits. - `[md.filters.exploding_structures]`
+
+
+- `enable`: (optional, bool) Whether to enable the exploding structures filter. Default is True.
+
+- `cov_rad_multiplier_max`: (optional, float) Maximum multiplier for covalent radius threshold. Default is 10.0.
+
+- `cov_rad_multiplier_min`: (optional, float) Minimum multiplier for covalent radius threshold. Default is 1.5.
+
+#### AiiDA metadata and scheduler options for MD simulations. - `[md.metadata]`
+
+
+- `code`: (str) AiiDA code name for MD software. Example: 'mace_lammps@cluster'.
+
+- `computer`: (str) AiiDA computer name for MD calculations. Example: 'my_cluster'.
+
+- `options`: (optional, dict) AiiDA scheduler options for MD calculations.
+
+### Settings for containerized code execution. - `[code]`
+
+
+#### Container settings for code execution. - `[code.container]`
+
+
+- `use_container`: (optional, bool) Whether to use a containerized version of the code. Default is False.
+
+- `image_name`: (optional, str) Path to the container image on calculation nodes. Example: '/path/to/container.sif'.
+
+- `engine_command`: (optional, str) Command template for the container engine. Example: 'singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}'.
+
+- `prepend_text`: (optional, str) Text to prepend to job scripts for container setup. Example: 'module load singularity
+export PATH=$PATH:.'.
+
+### Settings for MACE model training. - `[mace_train]`
+
+
+- `result_force_weight`: (optional, float) Weight of the force when considering model performance in weighted sum calculation. Default is 0.1.
+
+- `test_fraction`: (optional, float) Fraction of the training data to be used for testing. Default is 0.1.
+
+- `code`: (str) AiiDA code name for MACE training. Example: 'mace_train@cluster'.
+
+- `computer`: (str) AiiDA computer name for MACE training. Example: 'my_cluster'.
+
+- `ignore_container`: (optional, bool) Whether to ignore container settings for MACE training. Default is False.
+
+- `multihead_finetuning`: (optional, bool) Whether to use multihead finetuning. Default is False.
+
+- `metadata`: (optional, dict) AiiDA metadata and scheduler options for MACE training.
+
+- `train_settings`: (optional, dict) MACE training parameters and hyperparameters.
+
+### Settings for committee evaluation using multiple MACE models. - `[committee_eval]`
+
+
+- `committee_num_models`: (optional, int) Total number of MACE models in the committee. Default is 4.
+
+- `openmp_threads`: (optional, int) Number of OpenMP threads for MACE CPU evaluation. Default is 24.
+
+- `ignore_container`: (optional, bool) Whether to ignore container settings for committee evaluation. Default is False.
+
+- `prepend_text`: (optional, str) Text to prepend to job scripts for committee evaluation.
+
+- `metadata`: (optional, dict) AiiDA metadata and scheduler options for committee evaluation.
+
+#### Settings for MACE evaluator. - `[committee_eval.mace]`
+
+
+- `device`: (optional, str) Device for MACE evaluation. Default is 'cpu'.
+
+- `default_dtype`: (optional, str) Default data type for MACE evaluation. Default is 'float32'.
+
+- `batch_size`: (optional, int) Batch size for MACE evaluation. Default is 32.
+
+- `compute_stress`: (optional, bool) Whether to compute stress during evaluation. Default is False.
+
+### Settings for descriptor computation and dimensionality reduction. - `[descriptors]`
+
+
+- `dimensionality_reduction_method`: (optional, str) Dimensionality reduction method for MACE descriptors. Default is 'none'.
+
+- `ignore_container`: (optional, bool) Whether to ignore container settings for descriptor computation. Default is False.
+
+- `metadata`: (optional, dict) AiiDA metadata and scheduler options for descriptor computation.
+
+#### Settings for autoencoder-based dimensionality reduction. - `[descriptors.autoencoder]`
+
+
+##### Training settings for the autoencoder. - `[descriptors.autoencoder.train_settings]`
+
+
+- `device`: (optional, str) Device for autoencoder training. Default is 'cuda'.
+
+- `model_path`: (optional, str) Path to save the autoencoder model. Default is 'autoencoder_model.pth'.
+
+- `load_model`: (optional, bool) Whether to load the model from the model path. Default is False.
+
+- `dataset`: (optional, str) Path to the training dataset. Default is 'all_descriptors.npz'.
+
+- `l1_hidden_dim`: (optional, int) Number of units in the first hidden layer. Default is 256.
+
+- `l2_hidden_dim`: (optional, int) Number of units in the second hidden layer. Default is 32.
+
+- `bottleneck_dim`: (optional, int) Dimensionality of the bottleneck (latent space). Default is 2.
+
+- `bias_flag`: (optional, bool) Flag to include bias terms in the layers. Default is True.
+
+- `num_epochs`: (optional, int) Number of epochs to train the model. Default is 50.
+
+- `batch_size`: (optional, int) Batch size for training. Default is 2048.
+
+- `patience`: (optional, int) Patience for early stopping. Default is 5.
+
+- `lr`: (optional, float) Learning rate for the optimizer. Default is 0.001.
+
+- `weight_decay`: (optional, float) L2 regularization parameter. Default is '1e-5'.
+
+- `loss`: (optional, str) Loss function type. Default is 'mse'.
+
+- `train_frac`: (optional, float) Fraction of the data to use for training. Default is 0.8.
+
+- `valid_frac`: (optional, float) Fraction of the data to use for validation. Default is 0.1.
+
+- `test_frac`: (optional, float) Fraction of the data to use for testing. Default is 0.1.
+
+- `wandb`: (optional, bool) Whether to log metrics to wandb. Default is False.
+
+- `wandb_name`: (optional, str) Name of the wandb run. Default is ''.
+
+- `wandb_project`: (optional, str) Name of the wandb project. Default is ''.
+
+### DFT settings specific to active learning (different from top-level dft section). - `[dft]`
+
+
+- `ignore_container`: (optional, bool) Whether to ignore container settings for DFT calculations. Default is False.
+
+#### MACE settings as DFT calculator. - `[dft.mace]`
+
+
+- `mace_potential_path`: (str) Path to MACE potential file. Example: 'model.model'.
+
+- `metadata`: (optional, dict) AiiDA metadata for MACE calculations.
+
+- `options`: (optional, dict) AiiDA scheduler options for MACE calculations.
+
+##### Options for MACE that will be passed as arguments during execution. - `[dft.mace.settings]`
+
+
+- `device`: (optional, str) Device for MACE calculations. Default is 'cuda'.
+
+- `default_dtype`: (optional, str) Default data type for MACE calculations. Default is 'float64'.
+
+- `batch_size`: (optional, int) Batch size for MACE calculations. Default is 11.
+
+- `compute_stress`: (optional, bool) Whether to compute stress. Default is False.
