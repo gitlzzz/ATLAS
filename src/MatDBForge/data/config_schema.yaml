@@ -1,0 +1,1279 @@
+# This file is the single source of truth for all input configurations.
+# It is used to programmatically generate template files, documentation,
+# and to validate user-provided configuration files.
+
+database_generation:
+  description: "Settings for the MatDBForge initial database generation (mdb_gen_init_db)."
+  database:
+    description: "General settings and file paths for the database."
+    database_name:
+      description: "Name of the database to be used for internal reference and as the filename."
+      type: str
+      mandatory: true
+      example: "my_material_db"
+    min_num_atoms:
+      description: "Minimum number of atoms allowed in the generated structures."
+      type: int
+      mandatory: true
+      default: 64
+    max_num_atoms:
+      description: "Maximum number of atoms allowed in the generated structures."
+      type: int
+      mandatory: true
+      default: 128
+    min_cell_size:
+      description: "Minimum cell size in Angstrom."
+      type: float
+      mandatory: true
+      default: 5.0
+    relax_struct_path:
+      description: "Path to a folder containing DFT optimized structures."
+      type: str
+      mandatory: false
+      default: ""
+    database_path:
+      description: "Path where the final database will be saved."
+      type: str
+      mandatory: true
+      default: ""
+    rng_seed:
+      description: "Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run."
+      type: int
+      mandatory: false
+      example: 42
+    overwrite_db:
+      description: "Allow database overwrite. If false, and the database exists, the new database name will include a timestamp."
+      type: bool
+      mandatory: false
+      default: false
+    composition:
+      description: "Settings for the composition of the database."
+      mandatory: true
+      size:
+        description: "Maximum number of structures to generate for the database."
+        type: int
+        mandatory: true
+        default: 7500
+      ratios:
+        description: "Fraction of different structure types. The sum of the fractions must be equal to 1.0."
+        bulk:
+          description: "Fraction of structures that will be bulk."
+          type: float
+          mandatory: true
+          default: 0.4
+        surface:
+          description: "Fraction of structures that will be surfaces."
+          type: float
+          mandatory: true
+          default: 0.6
+        cluster:
+          description: "Fraction of structures that will be clusters."
+          type: float
+          mandatory: false
+          default: 0.0
+    plot_db:
+      description: "Display and Export Options for the phase diagram plot."
+      show:
+        description: "Whether to display the database with a phase diagram after creation."
+        type: bool
+        mandatory: false
+        default: true
+      format:
+        description: "Format for the figure."
+        type: str
+        mandatory: false
+        default: 'png'
+        choices: ['png', 'svg']
+      rc_params:
+        description: "Matplotlib rcParams for the plot."
+        "font.family":
+          description: "Font family for the phase diagram plot."
+          type: str
+          mandatory: true
+          default: "monospace"
+        "font.size":
+          description: "Font size for the phase diagram plot."
+          type: int
+          mandatory: true
+          default: 14
+    show_db_ase:
+      description: "ASE GUI display options."
+      show:
+        description: "Whether to display the database using ASE GUI after creation."
+        type: bool
+        mandatory: true
+        default: true
+    export:
+      description: "Export options for the database."
+      export:
+        description: "Whether to export the database."
+        type: bool
+        mandatory: true
+        default: true
+      format:
+        description: "Export format supported by ASE (e.g., 'extxyz')."
+        type: str
+        mandatory: true
+        default: 'extxyz'
+      file_path:
+        description: "Path where the exported file will be saved."
+        type: str
+        mandatory: true
+        default: ""
+      file_name:
+        description: "Name of the exported file."
+        type: str
+        mandatory: true
+        default: "export_db_filename"
+  phase_diagram:
+    description: "Description of the phase diagram."
+    material_name:
+      description: "Internal name for the material in the phase diagram."
+      type: str
+      mandatory: true
+      default: "default_material_name"
+    element_list:
+      description: "List of elements to include in the phase diagram."
+      type: list[str]
+      mandatory: true
+      example: ["Cu", "O"]
+    base_element:
+      description: "Symbol of the most abundant element in the phase."
+      type: str
+      mandatory: true
+      example: "Cu"
+    phase:
+      description: "Defines a specific phase within the phase diagram. Multiple phases can be added."
+      dynamic_keys: true
+      schema:
+        name:
+          description: "Name to be used as reference for the phase."
+          type: str
+          mandatory: true
+          example: "alpha"
+        cluster_element:
+          description: "Symbol of the element defining the cluster."
+          type: str
+          mandatory: false
+        # base_element:
+        #   description: "Symbol of the most abundant element in this specific phase (overrides global base_element)."
+        #   type: str
+        #   mandatory: false
+        prototype:
+          description: "Materials Project ID of the prototypical structure."
+          type: str
+          mandatory: true
+          example: "mp-30"
+        composition:
+          description: "Composition range for each element in the current phase of the phase diagram."
+          dynamic_keys: true
+          flatten: true
+          schema:
+            min:
+              description: "Minimum composition as a fraction of the current phase element."
+              type: float
+              mandatory: true
+              example: 0.1
+            max:
+              description: "Maximum composition as a fraction of the current phase element."
+              type: float
+              mandatory: true
+              example: 0.25
+        offset:
+          description: "Fraction of composition allowed over and under the phase limits."
+          type: float
+          mandatory: true
+          default: 0.1
+        replacements:
+          description: "Element replacement settings."
+          flatten: true
+          schema:
+            replace:
+              description: "Whether to replace specific elements. Elements in element_list will be considered for replacement and replaced by a single element species."
+              type: bool
+              mandatory: false
+              default: false
+            element_list:
+              description: "List of elements to be replaced."
+              type: list[str]
+              mandatory: false
+              example: ["Ti"]
+            replace_with:
+              description: "Element to replace with."
+              type: str
+              mandatory: false
+              example: "Ir"
+        limit_max_num_structures:
+          description: "Maximum number of structures to generate for this phase."
+          type: int
+          mandatory: false
+          default: 100
+        allow_modifications:
+          description: "Allow modifications (supercells, replacements, etc.) to the base structure."
+          type: bool
+          mandatory: false
+          default: true
+        use_cache:
+          description: "Store structures in cache to speed up generation. Can consume a lot of disk space."
+          type: bool
+          mandatory: false
+          default: false
+  generation:
+    description: "Structure generation settings."
+    generate_type:
+      description: "Types of structures to generate."
+      type: list[str]
+      mandatory: true
+      default: ['bulk', 'surface', 'cluster']
+      choices: ['bulk', 'surface', 'cluster']
+    bulk:
+      description: "Bulk structure generation settings."
+      num_struct:
+        description: "Number of structures to generate."
+        type: int
+        mandatory: true
+        default: 25
+      num_repeat:
+        description: "Number of repeats for each structure."
+        type: int
+        mandatory: true
+        default: 5
+      supercell_max_idx:
+        description: "Maximum Miller index for the bulk supercells."
+        type: int
+        mandatory: true
+        default: 2
+    surface:
+      description: "Surface structure generation settings."
+      min_miller_index:
+        description: "Minimum Miller index used to generate surface structures."
+        type: int
+        mandatory: true
+        default: 1
+      max_miller_index:
+        description: "Maximum Miller index used to generate surface structures."
+        type: int
+        mandatory: true
+        default: 3
+      min_slab_size_ang:
+        description: "Minimum slab thickness in Angstrom."
+        type: float
+        mandatory: false
+        default: 7.0
+      min_vacuum_size_ang:
+        description: "Minimum size of the vacuum layer in Angstroms."
+        type: float
+        mandatory: true
+        default: 12.0
+      get_supercells:
+        description: "Whether to generate supercells for surface structures."
+        type: bool
+        mandatory: true
+        default: true
+      fixed_layers:
+        description: "Number of fixed layers in the surface slab."
+        type: int
+        mandatory: true
+        default: 3
+      max_number_supercells:
+        description: "Maximum number of surface supercells to generate."
+        type: int
+        mandatory: true
+        default: 200
+      save_in_db:
+        description: "Whether to save generated surfaces in the database."
+        type: bool
+        mandatory: true
+        default: true
+      num_replacements:
+        description: "Number of replacement percentages to generate for each structure."
+        type: int
+        mandatory: true
+        default: 20
+      num_repeat_replace:
+        description: "Number of repeats for each replacement."
+        type: int
+        mandatory: true
+        default: 2
+      frac_slabs_save:
+        description: "Fraction of slabs to save after generation."
+        type: float
+        mandatory: false
+        default: 0.1
+      frac_supercells_save:
+        description: "Fraction of unreplaced supercells to save after generation."
+        type: float
+        mandatory: false
+        default: 0.1
+      max_slab_num:
+        description: "Maximum number of slabs to gather from the slab generation."
+        type: int
+        mandatory: true
+        default: 15
+      n_workers:
+        description: "Maximum number of workers for parallel processing."
+        type: int
+        mandatory: false
+  deformation:
+    description: "Lattice deformation settings."
+    lattice_frac_deform_max:
+      description: "Maximum deformation value as a percentage of the lattice side length."
+      type: float
+      mandatory: true
+      default: 0.05
+    lattice_frac_deform_min:
+      description: "Minimum deformation value as a percentage of the lattice side length."
+      type: float
+      mandatory: true
+      default: 0.01
+    num_repeats:
+      description: "Number of repeats for each structure with random deformations."
+      type: int
+      mandatory: true
+      default: 5
+    limit_max_num_deformations:
+      description: "Maximum number of lattice deformations to generate."
+      type: int
+      mandatory: true
+      default: 100
+  perturbation:
+    description: "Perturbation settings."
+    filter_struct_types:
+      description: "Types of structures to which the perturbation will be applied."
+      type: list[str]
+      mandatory: true
+      default: ['bulk', 'surface']
+      choices: ['bulk', 'surface', 'cluster']
+    limit_max_num_perturbs:
+      description: "Maximum number of perturbations to generate."
+      type: int
+      mandatory: true
+      default: 100
+    num_repeats:
+      description: "Number of repeats for each structure with random perturbations."
+      type: int
+      mandatory: true
+      default: 1
+    perturbation_ang:
+      description: "Perturbation magnitude in Angstrom."
+      type: float
+      mandatory: false
+      default: 0.04
+  adsorbates:
+    description: "Adsorbate placement settings."
+    filter_struct_types:
+      description: "Types of structures to which adsorbates will be added."
+      type: list[str]
+      mandatory: true
+      default: ['surface']
+      choices: ['bulk', 'surface', 'cluster']
+    limit_max_num_perturbs:
+      description: "Maximum number of structures with adsorbates to generate."
+      type: int
+      mandatory: false
+      default: 100
+    num_repeats:
+      description: "Number of repeats for each structure."
+      type: int
+      mandatory: true
+      default: 1
+    adsorbate_species:
+      description: "List of adsorbate species to consider."
+      type: list[str]
+      mandatory: true
+      example: ["H", "H2O"]
+  struct_filters:
+    description: "Settings for filtering out incorrect structures."
+    no_neighbors:
+      description: "Filter for structures with atoms that have no neighbors."
+      cov_rad_multiplier:
+        description: "Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check."
+        type: float
+        mandatory: false
+        default: 1.2
+    layer_distance:
+      description: "Filter for layer distances in surface slabs."
+      mandatory: false
+      max_layer_distance_ang:
+        description: "Maximum accepted distance between layers in Angstrom."
+        type: float
+        mandatory: false
+        default: 4.0
+    duplicate_slabs:
+      description: "Filter for duplicate slabs."
+      tolerance:
+        description: "Tolerance for the duplicate slabs filter."
+        type: float
+        mandatory: false
+        default: 0.2
+  vacancies:
+    description: "Settings for vacancy generation."
+    filter_struct_types:
+      description: "Types of structures to which vacancies will be applied."
+      type: list[str]
+      mandatory: true
+      default: ['bulk', 'surface']
+      choices: ['bulk', 'surface', 'cluster']
+    limit_max_num_vacancies:
+      description: "Maximum number of structures with vacancies to generate."
+      type: int
+      mandatory: false
+      default: 400
+    num_repeats:
+      description: "Number of repeats for each structure with different random vacancies."
+      type: int
+      mandatory: true
+      default: 3
+    max_vacancy_percentage:
+      description: "Maximum vacancies to generate as a percentage of the total number of atoms."
+      type: float
+      mandatory: true
+      default: 0.75
+    min_vacancy_percentage:
+      description: "Minimum vacancies to generate as a percentage of the total number of atoms."
+      type: float
+      mandatory: true
+      default: 0.025
+    element_list:
+      description: "List of elements to consider for the vacancies."
+      type: list[str]
+      mandatory: true
+      example: ["O"]
+  targeted_modification:
+    description: "Settings for targeted structural modifications."
+    central_atom_octahedral:
+      mandatory: false
+      description: "Apply perturbations to the central atom in octahedral sites."
+      filter_phases:
+        description: "Only apply the modification to the following phases."
+        type: list[str]
+        mandatory: false
+        example: ['rutile', 'original_IrO2']
+      filter_struct_types:
+        description: "Types of structures to which the modification will be applied."
+        type: list[str]
+        mandatory: false
+        default: ['bulk', 'surface']
+        choices: ['bulk', 'surface', 'cluster']
+      central_element:
+        description: "Symbol of the central element of the octahedral site."
+        type: str
+        mandatory: false
+        example: "Ir"
+      num_repeats:
+        description: "Number of repeats for each structure with different perturbations."
+        type: int
+        mandatory: false
+        default: 3
+      limit_max_num_modifications:
+        description: "Maximum number of modified structures to generate."
+        type: int
+        mandatory: false
+        default: 200
+      max_perturbation_ang:
+        description: "Maximum perturbation movement of the central atom in Angstrom."
+        type: float
+        mandatory: false
+        default: 0.2
+  concave_hull:
+    mandatory: false
+    description: "Settings for descriptors and concave hull generation."
+    gen_concave_hull:
+      description: "Whether to generate the concave hull of the descriptors for all structures in the database."
+      type: bool
+      mandatory: false
+      default: false
+    descriptor:
+      description: "Descriptor to use for the concave hull generation."
+      type: str
+      mandatory: false
+      default: "SOAP"
+      choices: ["SOAP", "MACE"]
+    dim_reduction:
+      description: "Dimensionality reduction method for the concave hull generation."
+      type: str
+      mandatory: false
+      default: "autoencoder"
+      choices: ["PCA", "autoencoder"]
+    plot_filename:
+      description: "Filename for the figure displaying the concave hull."
+      type: str
+      mandatory: false
+      default: "descriptors_concave_hull.png"
+
+dft:
+  description: "Settings for DFT calculations (e.g., via AiiDA)."
+  general:
+    description: "General settings for the DFT script."
+    log_path:
+      description: "Path where the logs will be stored."
+      type: str
+      mandatory: true
+      default: "/tmp/"
+    result_file_path:
+      description: "Path for the results file (extxyz format)."
+      type: str
+      mandatory: true
+      default: "dft_calculation_results"
+    source_db:
+      description: "Path to the source database file (.extxyz or mdb .xz format)."
+      type: str
+      mandatory: false
+    aiida_group_name:
+      description: "Name of the AiiDA group for the calculations."
+      type: str
+      mandatory: true
+      example: "my_dft_run"
+    max_batch:
+      description: "Maximum number of structures to process in one batch."
+      type: int
+      mandatory: true
+      default: 100
+    queue_check_interval_seconds:
+      description: "Interval in seconds to check the queue for submitting new calculations."
+      type: int
+      mandatory: true
+      default: 240
+    start_on_struct_idx:
+      description: "Number of structures to skip before starting the calculations."
+      type: int
+      mandatory: true
+      default: 0
+    dry_run:
+      description: "If True, a dry-run is performed and no calculations are submitted."
+      type: bool
+      mandatory: false
+      default: false
+    selected_structure_type:
+      description: "If specified, only structures of this type will be processed."
+      type: str
+      mandatory: false
+      choices: ['bulk', 'surface', 'cluster']
+  calculation:
+    description: "DFT calculation settings."
+    calc_type:
+      description: "Type of calculation."
+      type: str
+      mandatory: true
+      default: "static"
+      choices: ["static", "relaxation"]
+    aiida_potential_family:
+      description: "AiiDA potential family name."
+      type: str
+      mandatory: true
+      example: "vasp-5.4-PBE-2023"
+    potential_mapping:
+      description: "Mapping of elements to specific potential labels."
+      type: dict
+      mandatory: false
+      example: {"Si": "Si_GW"}
+  kpoints:
+    description: "K-point settings."
+    kspacing:
+      description: "K-spacing in Å⁻¹ for different phases or a single value for all structures."
+      type: dict
+      mandatory: true
+      example: {"alpha": 0.125, "default": 0.15}
+  queue:
+    description: "Queue settings for HPC schedulers (e.g., SLURM)."
+    code_string:
+      description: "Name of the code as defined in AiiDA."
+      type: str
+      mandatory: true
+      example: "vasp@my_cluster"
+    account:
+      description: "Account to be used for the calculations."
+      type: str
+      mandatory: false
+    qos:
+      description: "Quality of service parameter."
+      type: str
+      mandatory: false
+    node_cpus:
+      description: "Number of CPUs per node."
+      type: int
+      mandatory: false
+    max_wallclock_seconds:
+      description: "Maximum wallclock time in seconds."
+      type: int
+      mandatory: true
+      default: 16200
+    max_memory_kb:
+      description: "Maximum memory per node in KB."
+      type: int
+      mandatory: false
+    multiple:
+      description: "Whether to use multiple nodes."
+      type: int
+      mandatory: false
+    custom_scheduler_commands:
+      description: "Custom scheduler commands."
+      type: str
+      mandatory: false
+    options_resources:
+      description: "Scheduler resource options."
+      tot_num_mpiprocs:
+        description: "Total number of MPI processes."
+        type: int
+        mandatory: true
+        default: 24
+  aiida_vasp:
+    description: "Settings for the AiiDA-VASP plugin."
+    parser_settings:
+      description: "Parser settings for aiida-vasp."
+      add_kpoints:
+        description: "Whether to add k-points information to the parsed results."
+        type: bool
+        mandatory: false
+        default: true
+      critical_notifications:
+        description: "Critical error and warning notifications to be treated as important."
+        add_edddav_zhegv:
+          description: "Add EDDDAV ZHEGV error notification."
+          type: bool
+          mandatory: false
+          default: true
+        add_eddrmm_zhegv:
+          description: "Add EDDRMM ZHEGV error notification."
+          type: bool
+          mandatory: false
+          default: true
+        add_not_hermitian:
+          description: "Add not hermitian error notification."
+          type: bool
+          mandatory: false
+          default: true
+        add_brmix:
+          description: "Add BRMIX error notification."
+          type: bool
+          mandatory: false
+          default: true
+        add_bandocc:
+          description: "Add band occupation error notification."
+          type: bool
+          mandatory: false
+          default: false
+    critical_notifications:
+      description: "Errors and warnings to be treated as critical (general)."
+      type: dict
+      mandatory: false
+  incar:
+    description: "INCAR settings for different structure types."
+    bulk:
+      description: "INCAR settings for bulk structures."
+      type: dict
+      mandatory: false
+    surface:
+      description: "INCAR settings for surface structures."
+      type: dict
+      mandatory: false
+    cluster:
+      description: "INCAR settings for cluster structures."
+      type: dict
+      mandatory: false
+
+active_learning:
+  description: "Settings for the active learning loop."
+  active_learning:
+    description: "General active learning settings."
+    aiida_profile:
+      description: "Name of the AiiDA profile to be used."
+      type: str
+      mandatory: true
+    run_name:
+      description: "Internal name for the run."
+      type: str
+      mandatory: true
+    init_db_path:
+      description: "Path to the folder containing the initial database."
+      type: str
+      mandatory: true
+    results_dir:
+      description: "Path for final results. A folder named run_{uuid} will be created inside."
+      type: str
+      mandatory: true
+    log_path:
+      description: "Path for the log file. Defaults to results_dir if not specified."
+      type: str
+      mandatory: false
+    final_db_name:
+      description: "Name for the final database (extxyz format)."
+      type: str
+      mandatory: true
+      default: "final_data_test"
+    max_iterations:
+      description: "Maximum number of AL loop iterations."
+      type: int
+      mandatory: true
+      default: 3
+    model_acc_multiplier:
+      description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
+      type: float
+      mandatory: true
+      default: 10.0
+    check_extrapolation:
+      description: "Whether to check for extrapolation using MACE descriptors."
+      type: bool
+      mandatory: true
+      default: true
+    load_init_models:
+      description: "Load initial models from a list of AiiDA UUIDs/PKs."
+      type: list[int]
+      mandatory: false
+      default: []
+    al_mode:
+      description: "Active learning mode."
+      type: str
+      mandatory: false
+      default: "data_acquisition"
+      choices: ["md", "data_reduction", "data_acquisition"]
+    dft_method:
+      description: "Selection of DFT calculator method."
+      type: str
+      mandatory: false
+      default: "vasp"
+      choices: ["vasp", "mace"]
+  data_reduction:
+    description: "Settings for the data reduction AL mode."
+    large_database_path:
+      description: "Path to the large database file from which to select structures."
+      type: str
+      mandatory: true # Only if al_mode is data_reduction
+      depends_on:
+        key: active_learning.al_mode
+        value: "data_reduction"
+    initial_selection_size:
+      description: "Number of structures to select from the large database for initial training."
+      type: int
+      mandatory: true
+      default: 100
+    initial_selection_method:
+      description: "Selection method for initial structures."
+      type: str
+      mandatory: true
+      default: "lowest_energy"
+      choices: ['random', 'lowest_energy', 'fps']
+    structures_per_iteration:
+      description: "Number of structures to select per iteration from the large database."
+      type: int
+      mandatory: true
+      default: 50
+    iterative_selection_method:
+      description: "Selection method for iterative structures."
+      type: str
+      mandatory: true
+      default: "uncertainty"
+      choices: ['random', 'fps', 'uncertainty', 'lowest_energy']
+  al_seed:
+    description: "Settings for the AL seed generation for MD."
+    seed_size_frac:
+      description: "Sets total structures in an MD seed as a fraction of the training db size."
+      type: float
+      mandatory: true
+      default: 0.01
+    seed_min_num_structs:
+      description: "Minimum number of structures in an MD seed."
+      type: int
+      mandatory: false
+      default: 25
+    seed_max_num_structs:
+      description: "Maximum number of structures in the MD seed."
+      type: int
+      mandatory: true
+      default: 500
+    delete_seed_structs:
+      description: "Whether to delete structures from the seed database even if they are in domain."
+      type: bool
+      mandatory: false
+      default: true
+    seed_select_settings:
+      description: "MD seed selection mode settings."
+      seed_select_type:
+        description: "MD seed selection mode."
+        type: str
+        mandatory: true
+        default: "random"
+        choices: ["random", "small_first"]
+      small_first_max_size:
+        description: "Maximum size in number of atoms for structures selected with small_first mode."
+        type: int
+        mandatory: true
+        default: 50
+      small_first_max_iter:
+        description: "Apply small_first mode for the first n iterations."
+        type: int
+        mandatory: true
+        default: 5
+    seed_ranking_algorithm:
+      description: "Algorithm for ranking structures in the seed generation database."
+      seed_ranking_algorithm:
+        description: "Algorithm to be used."
+        type: str
+        mandatory: true
+        default: "random"
+        choices: ["random", "descriptor_fps"]
+      descriptor_fps:
+        description: "Settings for the descriptor_fps ranking algorithm."
+        descriptor_type:
+          description: "What descriptors to use."
+          type: str
+          default: "soap"
+        initial_structure:
+          description: "How to select the initial structure for FPS."
+          type: str
+          default: "lowest_energy"
+          choices: ["random", "lowest_energy"]
+        descriptor:
+          description: "Descriptor settings."
+          r_cut:
+            type: float
+            default: 6.0
+          n_max:
+            type: float
+            default: 8.0
+          l_max:
+            type: float
+            default: 6.0
+          periodic:
+            type: bool
+            default: true
+          average:
+            type: str
+            default: "inner"
+  extrapolation:
+    description: "Settings for extrapolation checks."
+    disagreement_check_type:
+      description: "Approach for energy and force (E&F) committee disagreement check."
+      type: str
+      mandatory: false
+      default: "training"
+      choices: ["training", "md_threshold"]
+    check_extrapolation_type:
+      description: "Method for extrapolation check."
+      type: str
+      mandatory: false
+      default: "none"
+      choices: ["none", "basic", "advanced"]
+    concave_hull:
+      description: "Settings for the concave hull extrapolation check."
+      target_alpha_range_min:
+        type: float
+        default: 3.0
+      target_alpha_range_max:
+        type: float
+        default: 8.0
+  md:
+    description: "Settings for MD simulations."
+    ignore_container:
+      description: "Whether to ignore the container specified in the container settings for the MD calculations."
+      type: bool
+      mandatory: false
+      default: false
+    parameters:
+      description: "MD simulation parameters."
+      temperature_list_K:
+        description: "List of different temperatures (in K) for MD simulations."
+        type: list[float]
+        mandatory: true
+        default: [300.0, 500.0, 900.0]
+      max_temp_multiplier:
+        description: "Multiplier for MD temperature to determine the upper bound of the temperature."
+        type: float
+        mandatory: true
+        default: 1.3
+      num_steps:
+        description: "Total number of timesteps for each MD simulation."
+        type: int
+        mandatory: true
+        default: 1000
+      timestep_duration_ps:
+        description: "Duration of each timestep in picoseconds."
+        type: float
+        mandatory: true
+        default: 0.003
+      "langevin_friction_ps-1":
+        description: "Friction coefficient for the Langevin thermostat in ps⁻¹."
+        type: float
+        mandatory: true
+        default: 10.0
+      gather_traj_cnt_lattice:
+        description: "Consider constant lattice when gathering trajectories."
+        type: bool
+        mandatory: true
+        default: true
+      use_kokkos:
+        description: "Whether to use Kokkos to run the MD."
+        type: bool
+        mandatory: true
+        default: true
+      device:
+        description: "Device for the MACE model in MD simulations."
+        type: str
+        mandatory: true
+        default: "cuda"
+        choices: ["cpu", "cuda"]
+      default_dtype:
+        description: "Default data type for the MACE model in MD simulations."
+        type: str
+        mandatory: true
+        default: "float32"
+        choices: ["float32", "float64"]
+      al_keep_struct_every_n_ps:
+        description: "Keep a structure every N picoseconds of MD simulation."
+        type: float
+        mandatory: true
+        default: 0.5
+      log_save_interval:
+        description: "Log energy and force information every N MD steps."
+        type: int
+        mandatory: false
+        default: 1
+      max_energy_threshold_per_atom:
+        description: "Maximum energy threshold per atom in eV."
+        type: float
+        mandatory: false
+        default: 1000.0
+    filters:
+      description: "Settings for MD trajectory filters."
+      save_filtered_structures:
+        description: "Whether to save filtered structures."
+        type: bool
+        mandatory: false
+        default: false
+      check_atoms_no_neighbor:
+        description: "Filter for structures with atoms that have no neighbors."
+        enable:
+          type: bool
+          default: true
+        covalent_radius_multiplier:
+          description: "Multiplier for covalent radii to define cutoff for neighbor check."
+          type: float
+          default: 1.05
+      layer_distance:
+        description: "Filter for layer distances in surface slabs."
+        enable:
+          type: bool
+          default: true
+        max_layer_distance_ang:
+          description: "Maximum accepted distance between layers in Angstrom."
+          type: float
+          default: 3.5
+      exploding_structures:
+        description: "Filter for exploding structures based on covalent radius limits."
+        enable:
+          description: "Whether to enable the exploding structures filter."
+          type: bool
+          mandatory: false
+          default: true
+        cov_rad_multiplier_max:
+          description: "Maximum multiplier for covalent radius threshold."
+          type: float
+          mandatory: false
+          default: 10.0
+        cov_rad_multiplier_min:
+          description: "Minimum multiplier for covalent radius threshold."
+          type: float
+          mandatory: false
+          default: 1.5
+    metadata:
+      description: "AiiDA metadata and scheduler options for MD simulations."
+      code:
+        description: "AiiDA code name for MD software."
+        type: str
+        mandatory: true
+        example: "mace_lammps@cluster"
+      computer:
+        description: "AiiDA computer name for MD calculations."
+        type: str
+        mandatory: true
+        example: "my_cluster"
+      options:
+        description: "AiiDA scheduler options for MD calculations."
+        type: dict
+        mandatory: false
+        max_layer_distance_ang:
+          description: "Maximum accepted distance between layers in Angstrom."
+          type: float
+          default: 3.5
+  code:
+    description: "Settings for containerized code execution."
+    container:
+      description: "Container settings for code execution."
+      use_container:
+        description: "Whether to use a containerized version of the code."
+        type: bool
+        mandatory: false
+        default: false
+      image_name:
+        description: "Path to the container image on calculation nodes."
+        type: str
+        mandatory: false
+        example: "/path/to/container.sif"
+      engine_command:
+        description: "Command template for the container engine."
+        type: str
+        mandatory: false
+        example: "singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}"
+      prepend_text:
+        description: "Text to prepend to job scripts for container setup."
+        type: str
+        mandatory: false
+        example: "module load singularity\nexport PATH=$PATH:."
+  mace_train:
+    description: "Settings for MACE model training."
+    result_force_weight:
+      description: "Weight of the force when considering model performance in weighted sum calculation."
+      type: float
+      mandatory: false
+      default: 0.1
+    test_fraction:
+      description: "Fraction of the training data to be used for testing."
+      type: float
+      mandatory: false
+      default: 0.1
+    code:
+      description: "AiiDA code name for MACE training."
+      type: str
+      mandatory: true
+      example: "mace_train@cluster"
+    computer:
+      description: "AiiDA computer name for MACE training."
+      type: str
+      mandatory: true
+      example: "my_cluster"
+    ignore_container:
+      description: "Whether to ignore container settings for MACE training."
+      type: bool
+      mandatory: false
+      default: false
+    multihead_finetuning:
+      description: "Whether to use multihead finetuning."
+      type: bool
+      mandatory: false
+      default: false
+    metadata:
+      description: "AiiDA metadata and scheduler options for MACE training."
+      type: dict
+      mandatory: false
+    train_settings:
+      description: "MACE training parameters and hyperparameters."
+      type: dict
+      mandatory: false
+  committee_eval:
+    description: "Settings for committee evaluation using multiple MACE models."
+    committee_num_models:
+      description: "Total number of MACE models in the committee."
+      type: int
+      mandatory: false
+      default: 4
+    openmp_threads:
+      description: "Number of OpenMP threads for MACE CPU evaluation."
+      type: int
+      mandatory: false
+      default: 24
+    ignore_container:
+      description: "Whether to ignore container settings for committee evaluation."
+      type: bool
+      mandatory: false
+      default: false
+    prepend_text:
+      description: "Text to prepend to job scripts for committee evaluation."
+      type: str
+      mandatory: false
+    mace:
+      description: "Settings for MACE evaluator."
+      device:
+        description: "Device for MACE evaluation."
+        type: str
+        mandatory: false
+        default: "cpu"
+        choices: ["cpu", "cuda"]
+      default_dtype:
+        description: "Default data type for MACE evaluation."
+        type: str
+        mandatory: false
+        default: "float32"
+        choices: ["float32", "float64"]
+      batch_size:
+        description: "Batch size for MACE evaluation."
+        type: int
+        mandatory: false
+        default: 32
+      compute_stress:
+        description: "Whether to compute stress during evaluation."
+        type: bool
+        mandatory: false
+        default: false
+    metadata:
+      description: "AiiDA metadata and scheduler options for committee evaluation."
+      type: dict
+      mandatory: false
+  descriptors:
+    description: "Settings for descriptor computation and dimensionality reduction."
+    dimensionality_reduction_method:
+      description: "Dimensionality reduction method for MACE descriptors."
+      type: str
+      mandatory: false
+      default: "none"
+      choices: ["autoencoder", "pca", "none"]
+    ignore_container:
+      description: "Whether to ignore container settings for descriptor computation."
+      type: bool
+      mandatory: false
+      default: false
+    metadata:
+      description: "AiiDA metadata and scheduler options for descriptor computation."
+      type: dict
+      mandatory: false
+    autoencoder:
+      description: "Settings for autoencoder-based dimensionality reduction."
+      train_settings:
+        description: "Training settings for the autoencoder."
+        device:
+          description: "Device for autoencoder training."
+          type: str
+          mandatory: false
+          default: "cuda"
+          choices: ["cpu", "cuda"]
+        model_path:
+          description: "Path to save the autoencoder model."
+          type: str
+          mandatory: false
+          default: "autoencoder_model.pth"
+        load_model:
+          description: "Whether to load the model from the model path."
+          type: bool
+          mandatory: false
+          default: false
+        dataset:
+          description: "Path to the training dataset."
+          type: str
+          mandatory: false
+          default: "all_descriptors.npz"
+        l1_hidden_dim:
+          description: "Number of units in the first hidden layer."
+          type: int
+          mandatory: false
+          default: 256
+        l2_hidden_dim:
+          description: "Number of units in the second hidden layer."
+          type: int
+          mandatory: false
+          default: 32
+        bottleneck_dim:
+          description: "Dimensionality of the bottleneck (latent space)."
+          type: int
+          mandatory: false
+          default: 2
+        bias_flag:
+          description: "Flag to include bias terms in the layers."
+          type: bool
+          mandatory: false
+          default: true
+        num_epochs:
+          description: "Number of epochs to train the model."
+          type: int
+          mandatory: false
+          default: 50
+        batch_size:
+          description: "Batch size for training."
+          type: int
+          mandatory: false
+          default: 2048
+        patience:
+          description: "Patience for early stopping."
+          type: int
+          mandatory: false
+          default: 5
+        lr:
+          description: "Learning rate for the optimizer."
+          type: float
+          mandatory: false
+          default: 0.001
+        weight_decay:
+          description: "L2 regularization parameter."
+          type: float
+          mandatory: false
+          default: 1e-5
+        loss:
+          description: "Loss function type."
+          type: str
+          mandatory: false
+          default: "mse"
+          choices: ["mse", "mae"]
+        train_frac:
+          description: "Fraction of the data to use for training."
+          type: float
+          mandatory: false
+          default: 0.8
+        valid_frac:
+          description: "Fraction of the data to use for validation."
+          type: float
+          mandatory: false
+          default: 0.1
+        test_frac:
+          description: "Fraction of the data to use for testing."
+          type: float
+          mandatory: false
+          default: 0.1
+        wandb:
+          description: "Whether to log metrics to wandb."
+          type: bool
+          mandatory: false
+          default: false
+        wandb_name:
+          description: "Name of the wandb run."
+          type: str
+          mandatory: false
+          default: ""
+        wandb_project:
+          description: "Name of the wandb project."
+          type: str
+          mandatory: false
+          default: ""
+  dft:
+    description: "DFT settings specific to active learning (different from top-level dft section)."
+    ignore_container:
+      description: "Whether to ignore container settings for DFT calculations."
+      type: bool
+      mandatory: false
+      default: false
+    mace:
+      description: "MACE settings as DFT calculator."
+      mace_potential_path:
+        description: "Path to MACE potential file."
+        type: str
+        mandatory: true
+        example: "model.model"
+      settings:
+        description: "Options for MACE that will be passed as arguments during execution."
+        device:
+          description: "Device for MACE calculations."
+          type: str
+          mandatory: false
+          default: "cuda"
+          choices: ["cpu", "cuda"]
+        default_dtype:
+          description: "Default data type for MACE calculations."
+          type: str
+          mandatory: false
+          default: "float64"
+          choices: ["float32", "float64"]
+        batch_size:
+          description: "Batch size for MACE calculations."
+          type: int
+          mandatory: false
+          default: 11
+        compute_stress:
+          description: "Whether to compute stress."
+          type: bool
+          mandatory: false
+          default: false
+      metadata:
+        description: "AiiDA metadata for MACE calculations."
+        type: dict
+        mandatory: false
+      options:
+        description: "AiiDA scheduler options for MACE calculations."
+        type: dict
+        mandatory: false

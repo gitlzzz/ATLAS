@@ -9,6 +9,15 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-toml
+  - repo: local
+    hooks:
+      - id: update-docs-from-schema
+        name: Update documentation from config schema
+        entry: python -m MatDBForge.core.command_line.cli_generate_docs --output docs/source/input.md --overwrite
+        language: system
+        files: ^src/MatDBForge/data/config_schema\.yaml$
+        pass_filenames: false
+        description: "Regenerate docs/source/input.md when config_schema.yaml changes"
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
     rev: v0.11.9
