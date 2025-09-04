@@ -113,11 +113,6 @@ def run_gen_initial_database():
             )
             raise FileNotFoundError(error_message) from e
 
-        # Check if all required sections are present
-        from MatDBForge.core.command_line.command_line_utils import validate_config_file
-
-        validate_config_file(config_dict=toml_dict, config_type='database_generation')
-
         # Calling the function to generate the initial database
         gen_initial_database(config_dict=toml_dict)
 
