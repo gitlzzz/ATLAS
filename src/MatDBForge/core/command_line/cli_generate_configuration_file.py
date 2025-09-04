@@ -5,11 +5,12 @@ import pathlib as pl
 import sys
 from argparse import RawTextHelpFormatter
 
-import yaml
-
-from MatDBForge.core import MDB_DATA_DIR
 from MatDBForge.core.code_utils import custom_print, init_logger
-from MatDBForge.core.command_line.command_line_utils import MDB_LOGO
+from MatDBForge.core.command_line.command_line_utils import (
+    MDB_LOGO,
+    get_schema,
+    validate_config_file,
+)
 
 
 def format_value(value):
@@ -160,69 +161,12 @@ def generate_template(schema, config_type):
     return '\n'.join(lines)
 
 
-def gen_default_config():
-    init_logger(source='gen_configuration_file')
-    parser = argparse.ArgumentParser(
-        prog='mdb_gen_configuration_file',
-        description=(
-            'Generate MDB default configuration files in the TOML format '
-            'from a YAML schema.'
-        ),
-        formatter_class=RawTextHelpFormatter,
-    )
-    parser.add_argument(
-        '-t',
-        '--config_type',
-        help=(
-            'Type of the configuration file to be generated. Available types are:\n'
-            '\t- database_generation: For initial database generation.\n'
-            '\t- dft: For DFT calculations.\n'
-            '\t- active_learning: For the active learning loop.\n'
-        ),
-        type=str,
-        required=True,
-        choices=['database_generation', 'dft', 'active_learning'],
-        metavar='TYPE',
-    )
+class ValidationError(Exception):
+    """Custom exception for configuration validation errors."""
 
-    parser.add_argument(
-        '-p',
-        '--path',
-        help=(
-            'Path in which to store the file.\n'
-            'Will use the CWD by default. Folders will be created if necessary.'
-        ),
-        type=pl.Path,
-        default='.',
-        metavar='PATH',
-    )
-    parser.add_argument(
-        '-o',
-        '--overwrite',
-        help=('Whether to overwrite the destination file, if existent.'),
-        action='store_const',
-        const=True,
-        default=False,
-    )
 
-    args = parser.parse_args()
-
-    # Load the master schema file
-    schema_path = pl.Path(MDB_DATA_DIR) / 'config_schema.yaml'
-    try:
-        with open(schema_path) as f:
-            schema = yaml.safe_load(f)
-    except FileNotFoundError:
-        custom_print(
-            f'ERROR: Schema file not found at {schema_path}', print_type='error'
-        )
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        custom_print(
-            f'ERROR: Failed to parse schema file {schema_path}: {e}', print_type='error'
-        )
-        sys.exit(1)
-
+def generate_command(args, schema):
+    """Handle the generate subcommand."""
     # Map config type to output filename
     filename_map = {
         'database_generation': 'database_generation_settings.toml',
@@ -244,10 +188,180 @@ def gen_default_config():
         custom_print(
             f"Saved file '{output_filename}' in path '{final_path}'", print_type='done'
         )
+        return True
     else:
         custom_print(
             f"File '{final_path}' already exists. Not overwriting as flag "
             '-o / --overwrite was not set.',
             print_type='error',
         )
+        return False
+
+
+def gen_default_config():
+    init_logger(source='gen_configuration_file')
+
+    # Main parser
+    parser = argparse.ArgumentParser(
+        prog='mdb_gen_configuration_file',
+        description=(
+            'Generate MDB default configuration files in the TOML format '
+            'from a YAML schema, or validate existing configuration files.'
+        ),
+        formatter_class=RawTextHelpFormatter,
+    )
+
+    # Subcommands
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+    # Generate subcommand (default behavior)
+    generate_parser = subparsers.add_parser(
+        'generate',
+        help='Generate template configuration files',
+        formatter_class=RawTextHelpFormatter,
+    )
+    generate_parser.add_argument(
+        '-t',
+        '--config_type',
+        help=(
+            'Type of the configuration file to be generated. Available types are:\n'
+            '\t- database_generation: For initial database generation.\n'
+            '\t- dft: For DFT calculations.\n'
+            '\t- active_learning: For the active learning loop.\n'
+        ),
+        type=str,
+        required=True,
+        choices=['database_generation', 'dft', 'active_learning'],
+        metavar='TYPE',
+    )
+    generate_parser.add_argument(
+        '-p',
+        '--path',
+        help=(
+            'Path in which to store the file.\n'
+            'Will use the CWD by default. Folders will be created if necessary.'
+        ),
+        type=pl.Path,
+        default='.',
+        metavar='PATH',
+    )
+    generate_parser.add_argument(
+        '-o',
+        '--overwrite',
+        help='Whether to overwrite the destination file, if existent.',
+        action='store_true',
+        default=False,
+    )
+
+    # Validate subcommand
+    validate_parser = subparsers.add_parser(
+        'validate',
+        help='Validate an existing configuration file against the schema',
+        formatter_class=RawTextHelpFormatter,
+    )
+    validate_parser.add_argument(
+        '-i',
+        '--input',
+        help='Path to the TOML configuration file to validate',
+        type=pl.Path,
+        required=True,
+        metavar='FILE',
+    )
+    validate_parser.add_argument(
+        '-t',
+        '--config_type',
+        help=(
+            'Type of the configuration file to validate:\n'
+            '\t- database_generation: For initial database generation.\n'
+            '\t- dft: For DFT calculations.\n'
+            '\t- active_learning: For the active learning loop.\n'
+        ),
+        type=str,
+        required=True,
+        choices=['database_generation', 'dft', 'active_learning'],
+        metavar='TYPE',
+    )
+    validate_parser.add_argument(
+        '--allow-deprecated',
+        help='Allow deprecated keys without failing validation (show warnings only)',
+        action='store_true',
+        default=False,
+    )
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    # Handle backward compatibility (no subcommand = generate)
+    if args.command is None:
+        # If no subcommand is provided, parse as generate command
+        # This maintains backward compatibility
+        old_parser = argparse.ArgumentParser(
+            prog='mdb_gen_configuration_file',
+            description=(
+                'Generate MDB default configuration files in the TOML format '
+                'from a YAML schema.'
+            ),
+            formatter_class=RawTextHelpFormatter,
+        )
+        old_parser.add_argument(
+            '-t',
+            '--config_type',
+            help=(
+                'Type of the configuration file to be generated. Available types are:\n'
+                '\t- database_generation: For initial database generation.\n'
+                '\t- dft: For DFT calculations.\n'
+                '\t- active_learning: For the active learning loop.\n'
+            ),
+            type=str,
+            required=True,
+            choices=['database_generation', 'dft', 'active_learning'],
+            metavar='TYPE',
+        )
+        old_parser.add_argument(
+            '-p',
+            '--path',
+            help=(
+                'Path in which to store the file.\n'
+                'Will use the CWD by default. Folders will be created if necessary.'
+            ),
+            type=pl.Path,
+            default='.',
+            metavar='PATH',
+        )
+        old_parser.add_argument(
+            '-o',
+            '--overwrite',
+            help='Whether to overwrite the destination file, if existent.',
+            action='store_true',
+            default=False,
+        )
+        args = old_parser.parse_args()
+        args.command = 'generate'
+
+    schema = get_schema()
+
+    # Execute the appropriate command
+    success = False
+    if args.command == 'generate':
+        success = generate_command(args, schema)
+    elif args.command == 'validate':
+        success = validate_command(args, schema)
+    else:
+        parser.print_help()
         sys.exit(1)
+
+    sys.exit(0 if success else 1)
+
+
+def validate_command(args, schema):
+    """Handle the validate subcommand."""
+    config_path = args.input
+    config_type = args.config_type
+
+    allow_deprecated = getattr(args, 'allow_deprecated', False)
+    validate_config_file(
+        config_path=config_path,
+        config_type=config_type,
+        allow_deprecated=allow_deprecated,
+        run_mode='script',
+    )
