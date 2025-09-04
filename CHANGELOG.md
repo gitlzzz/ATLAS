@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.35.1 (2025-09-04)
+
+### Fix
+
+- **init_db**: enable logger and custom prints for toml checking ([#bb64945](https://github.com/pol-sb/MatDBForge/commit/bb6494563726f3eb3d88956c5d73449affeaec0d))
+
 ## 0.35.0 (2025-09-04)
 
 ### Feature
