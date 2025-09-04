@@ -3241,7 +3241,7 @@ def cli_run_gen_initial_database(
     # Get timestamp for the entire run
     timestamp = int(time.time())
 
-    # If db_path is not given, the current directory is used.
+    # If database_path is not given, the current directory is used.
     if not db_path:
         db_dict['database_path'] = pl.Path.cwd()
 

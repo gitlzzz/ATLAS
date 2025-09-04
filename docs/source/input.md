@@ -44,7 +44,7 @@ All keys are mandatory unless stated otherwise.
 
 - `relax_struct_path`: (optional, str) Path to a folder containing DFT optimized structures. Default is ''.
 
-- `database_path`: (str) Path where the final database will be saved. Default is ''.
+- `database_path`: (str, PosixPath) Path where the final database will be saved. Default is ''.
 
 - `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run. Example: 42.
 
@@ -80,8 +80,12 @@ All keys are mandatory unless stated otherwise.
 
 #### ASE GUI display options. - `[database.show_db_ase]`
 
+:::{attention}
+This section is optional.
+:::
 
-- `show`: (bool) Whether to display the database using ASE GUI after creation. Default is True.
+
+- `show`: (optional, bool) Whether to display the database using ASE GUI after creation. Default is False.
 
 #### Export options for the database. - `[database.export]`
 
@@ -90,7 +94,7 @@ All keys are mandatory unless stated otherwise.
 
 - `format`: (str) Export format supported by ASE (e.g., 'extxyz'). Default is 'extxyz'.
 
-- `file_path`: (str) Path where the exported file will be saved. Default is ''.
+- `file_path`: (str, PosixPath) Path where the exported file will be saved. Default is ''.
 
 - `file_name`: (str) Name of the exported file. Default is 'export_db_filename'.
 
@@ -184,6 +188,10 @@ Parameters using `replacements.` prefix:
 
 ### Lattice deformation settings. - `[deformation]`
 
+:::{attention}
+This section is optional.
+:::
+
 
 - `lattice_frac_deform_max`: (float) Maximum deformation value as a percentage of the lattice side length. Default is 0.05.
 
@@ -194,6 +202,10 @@ Parameters using `replacements.` prefix:
 - `limit_max_num_deformations`: (int) Maximum number of lattice deformations to generate. Default is 100.
 
 ### Perturbation settings. - `[perturbation]`
+
+:::{attention}
+This section is optional.
+:::
 
 
 - `filter_struct_types`: (list[str]) Types of structures to which the perturbation will be applied. Default is ['bulk', 'surface'].
@@ -206,8 +218,12 @@ Parameters using `replacements.` prefix:
 
 ### Adsorbate placement settings. - `[adsorbates]`
 
+:::{attention}
+This section is optional.
+:::
 
-- `filter_struct_types`: (list[str]) Types of structures to which adsorbates will be added. Default is ['surface'].
+
+- `filter_struct_types`: (optional, list[str]) Types of structures to which adsorbates will be added. Default is ['surface'].
 
 - `limit_max_num_perturbs`: (optional, int) Maximum number of structures with adsorbates to generate. Default is 100.
 
@@ -234,6 +250,10 @@ This section is optional.
 
 #### Filter for duplicate slabs. - `[struct_filters.duplicate_slabs]`
 
+:::{attention}
+This section is optional.
+:::
+
 
 - `tolerance`: (optional, float) Tolerance for the duplicate slabs filter. Default is 0.2.
 
@@ -253,6 +273,10 @@ This section is optional.
 - `element_list`: (list[str]) List of elements to consider for the vacancies. Example: ['O'].
 
 ### Settings for targeted structural modifications. - `[targeted_modification]`
+
+:::{attention}
+This section is optional.
+:::
 
 
 #### Apply perturbations to the central atom in octahedral sites. - `[targeted_modification.central_atom_octahedral]`
@@ -301,11 +325,11 @@ All keys are mandatory unless stated otherwise.
 ### General settings for the DFT script. - `[general]`
 
 
-- `log_path`: (str) Path where the logs will be stored. Default is '/tmp/'.
+- `log_path`: (str, PosixPath) Path where the logs will be stored. Default is '/tmp/'.
 
-- `result_file_path`: (str) Path for the results file (extxyz format). Default is 'dft_calculation_results'.
+- `result_file_path`: (str, PosixPath) Path for the results file (extxyz format). Default is 'dft_calculation_results'.
 
-- `source_db`: (optional, str) Path to the source database file (.extxyz or mdb .xz format).
+- `source_db`: (optional, str, PosixPath) Path to the source database file (.extxyz or mdb .xz format).
 
 - `aiida_group_name`: (str) Name of the AiiDA group for the calculations. Example: 'my_dft_run'.
 
@@ -359,6 +383,10 @@ All keys are mandatory unless stated otherwise.
 
 ### Settings for the AiiDA-VASP plugin. - `[aiida_vasp]`
 
+:::{attention}
+This section is optional.
+:::
+
 
 - `critical_notifications`: (optional, dict) Errors and warnings to be treated as critical (general).
 
@@ -405,19 +433,17 @@ All keys are mandatory unless stated otherwise.
 
 - `run_name`: (str) Internal name for the run.
 
-- `init_db_path`: (str) Path to the folder containing the initial database.
+- `init_db_path`: (str, PosixPath) Path to the folder containing the initial database.
 
-- `results_dir`: (str) Path for final results. A folder named run_{uuid} will be created inside.
+- `results_dir`: (str, PosixPath) Path for final results. A folder named run_{uuid} will be created inside.
 
-- `log_path`: (optional, str) Path for the log file. Defaults to results_dir if not specified.
+- `log_path`: (optional, str, PosixPath) Path for the log file. Defaults to results_dir if not specified.
 
 - `final_db_name`: (str) Name for the final database (extxyz format). Default is 'final_data_test'.
 
 - `max_iterations`: (int) Maximum number of AL loop iterations. Default is 3.
 
 - `model_acc_multiplier`: (float) Multiplier for model accuracy threshold. Higher values mean more DFT calculations. Default is 10.0.
-
-- `check_extrapolation`: (bool) Whether to check for extrapolation using MACE descriptors. Default is True.
 
 - `load_init_models`: (optional, list[int]) Load initial models from a list of AiiDA UUIDs/PKs. Default is [].
 
@@ -428,7 +454,7 @@ All keys are mandatory unless stated otherwise.
 ### Settings for the data reduction AL mode. - `[data_reduction]`
 
 
-- `large_database_path`: (str) Path to the large database file from which to select structures.
+- `large_database_path`: (str, PosixPath) Path to the large database file from which to select structures.
 
 - `initial_selection_size`: (int) Number of structures to select from the large database for initial training. Default is 100.
 
@@ -458,30 +484,44 @@ All keys are mandatory unless stated otherwise.
 
 - `small_first_max_iter`: (int) Apply small_first mode for the first n iterations. Default is 5.
 
-#### Algorithm for ranking structures in the seed generation database. - `[al_seed.seed_ranking_algorithm]`
+#### Settings for the seed ranking methods. - `[al_seed.seed_ranking_settings]`
+
+:::{attention}
+This section is optional.
+:::
 
 
-- `seed_ranking_algorithm`: (str) Algorithm to be used. Default is 'random'.
+- `seed_ranking_algorithm`: (optional, str) Algorithm used for seed selection. Default is 'random'.
 
-##### Settings for the descriptor_fps ranking algorithm. - `[al_seed.seed_ranking_algorithm.descriptor_fps]`
-
-
-- `descriptor_type`: (str) What descriptors to use. Default is 'soap'.
-
-- `initial_structure`: (str) How to select the initial structure for FPS. Default is 'lowest_energy'.
-
-###### Descriptor settings. - `[al_seed.seed_ranking_algorithm.descriptor_fps.descriptor]`
+##### Uses Farthest Point Sampling (FPS) from the descriptors of an initially selected structure. - `[al_seed.seed_ranking_settings.descriptor_fps]`
 
 
-- `r_cut`: (float) No description available. Default is 6.0.
+- `descriptor_type`: (optional, str) What descriptors to use. Default is 'soap'.
 
-- `n_max`: (float) No description available. Default is 8.0.
+- `initial_structure`: (optional, str) Whether to gather a structure at random or select the one with the lowest energy available. Default is 'random'.
 
-- `l_max`: (float) No description available. Default is 6.0.
+###### Entry containing settings that depend on the descriptor type selected. - `[al_seed.seed_ranking_settings.descriptor_fps.descriptor]`
 
-- `periodic`: (bool) No description available. Default is True.
+:::{attention}
+This section is optional.
+:::
 
-- `average`: (str) No description available. Default is 'inner'.
+
+- `r_cut`: (optional, float) Cutoff radius for SOAP descriptor. Default is 6.0.
+
+- `n_max`: (optional, int) Maximum number of radial basis functions for SOAP. Default is 8.
+
+- `l_max`: (optional, int) Maximum degree of spherical harmonics for SOAP. Default is 6.
+
+- `periodic`: (optional, bool) Whether to consider the system as periodic. Default is True.
+
+- `average`: (optional, str) Averaging mode for SOAP descriptor. Default is 'off'.
+
+- `model_path`: (optional, str) Path to the trained MACE model.
+
+- `device`: (optional, str) What device to use for MACE. Default is 'cpu'.
+
+- `dtype`: (optional, str) Floating point number precision for MACE. Default is 'float32'.
 
 ### Settings for extrapolation checks. - `[extrapolation]`
 
@@ -492,10 +532,14 @@ All keys are mandatory unless stated otherwise.
 
 #### Settings for the concave hull extrapolation check. - `[extrapolation.concave_hull]`
 
+:::{attention}
+This section is optional.
+:::
 
-- `target_alpha_range_min`: (float) No description available. Default is 3.0.
 
-- `target_alpha_range_max`: (float) No description available. Default is 8.0.
+- `target_alpha_range_min`: (optional, float) No description available. Default is 3.0.
+
+- `target_alpha_range_max`: (optional, float) No description available. Default is 8.0.
 
 ### Settings for MD simulations. - `[md]`
 
@@ -684,6 +728,8 @@ export PATH=$PATH:.'.
 
 - `ignore_container`: (optional, bool) Whether to ignore container settings for DFT calculations. Default is False.
 
+- `dft_method`: (optional, str) Selection of DFT calculator. Default is 'mace'.
+
 #### MACE settings as DFT calculator. - `[dft.mace]`
 
 
@@ -703,3 +749,62 @@ export PATH=$PATH:.'.
 - `batch_size`: (optional, int) Batch size for MACE calculations. Default is 11.
 
 - `compute_stress`: (optional, bool) Whether to compute stress. Default is False.
+
+#### VASP settings as DFT calculator. - `[dft.vasp]`
+
+:::{attention}
+This section is optional.
+:::
+
+
+- `calc_type`: (optional, str) Type of calculation. Default is 'static'.
+
+- `dft_calc_limit`: (optional, int) Maximum number of DFT calculations to perform per AL step. Default is 200.
+
+- `potential_family`: (str) VASP potential family name. Example: 'vasp-5.4-PBE-2024'.
+
+- `structure_types`: (optional, list[str]) List of structure types to process. Default is ['bulk', 'surface', 'cluster'].
+
+- `kspacing`: (optional, dict) K-spacing settings for different phases or default value. Example: {'MDB_DEFAULT': 0.15, 'alpha': 0.135}.
+
+- `incar`: (optional, dict) INCAR settings for VASP calculations. Example: {'istart': 0, 'icharg': 2, 'gga': 'Pe', 'encut': 450}.
+
+##### Queue settings for VASP calculations. - `[dft.vasp.queue]`
+
+
+- `queue_type`: (str) Scheduler type. Default is 'slurm'.
+
+- `computer`: (str) AiiDA computer name for VASP calculations. Example: 'aiida-computer-name'.
+
+- `code_string`: (str) Name of the VASP code as defined in AiiDA. Example: 'vasp@computer'.
+
+- `withmpi`: (optional, bool) Whether to run with MPI. Default is False.
+
+- `qos`: (optional, str) Quality of service parameter. Example: 'gp_partition'.
+
+- `account`: (optional, str) Account to be used for calculations. Example: 'account_name'.
+
+- `node_cpus`: (optional, int) Number of CPUs per node. Default is 48.
+
+- `max_wallclock_seconds`: (optional, int) Maximum wallclock time in seconds. Default is 28800.
+
+- `options_resources`: (optional, dict) Resource options for the scheduler. Example: {'tot_num_mpiprocs': 112, 'num_machines': 1}.
+
+- `multiple`: (optional, int) Multiple factor for resources. Default is 1.
+
+- `custom_scheduler_commands`: (optional, str) Custom scheduler commands.
+
+##### Surface-specific INCAR settings. - `[dft.vasp.surface]`
+
+
+- `incar`: (optional, dict) INCAR settings specific to surface calculations. Example: {'ldipol': True, 'idipol': 3, 'ispin': 2}.
+
+##### Cluster-specific INCAR settings. - `[dft.vasp.cluster]`
+
+
+- `incar`: (optional, dict) INCAR settings specific to cluster calculations. Example: {'ldipol': True, 'dipol': [0.5, 0.5, 0.5], 'idipol': 4}.
+
+##### AiiDA-VASP specific settings. - `[dft.vasp.aiida_vasp]`
+
+
+- `parser_settings`: (optional, dict) Contains entries to include in the results gathered using the aiida-vasp parser settings Example: {'add_trajectory': False, 'add_bands': False, 'add_charge_density': False, 'add_dos': False, 'add_kpoints': False, 'add_energies': True, 'add_misc': True, 'add_structure': False, 'add_projectors': False, 'add_born_charges': False, 'add_dielectrics': False, 'add_hessian': False, 'add_dynmat': False, 'add_wavecar': False, 'add_forces': False, 'add_stress': False}.

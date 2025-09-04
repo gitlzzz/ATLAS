@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.35.0 (2025-09-04)
+
+### Feature
+
+- **core**: Add comprehensive TOML configuration validation system ([#97103bf](https://github.com/pol-sb/MatDBForge/commit/97103bf0b6c85d50513f6e909d36e0abcedfd076))
+- **core**: implement automated documentation generation from schema ([#e5a4a67](https://github.com/pol-sb/MatDBForge/commit/e5a4a67720ca384f26f0dd4d51e8113ab615b5e2))
+
 ## 0.34.1 (2025-09-01)
 
 ### Fix

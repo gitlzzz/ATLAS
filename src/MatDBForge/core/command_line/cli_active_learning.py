@@ -761,10 +761,17 @@ def run_active_learning():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    # Checking version
-    from MatDBForge.core.code_utils import check_mdb_version
+    from MatDBForge.core.code_utils import check_mdb_version, custom_print
+    from MatDBForge.core.command_line.command_line_utils import validate_config_file
 
+    # Checking version
     check_mdb_version()
+
+    # Check if all required sections are present
+    if args.command == 'run' or args.command == 'resume':
+        validate_config_file(
+            config_path=args.config_file, config_type='active_learning'
+        )
 
     if args.command == 'report':
         from MatDBForge.active_learning import report_utils as mdb_report
@@ -834,7 +841,7 @@ def run_active_learning():
         )
 
     # Start a new al loop
-    else:
+    elif args.command == 'run':
         from aiida.engine import run, submit
 
         # Loading TOML config file
@@ -846,8 +853,6 @@ def run_active_learning():
             # Loading default aiida profile
             load_profile(profile=toml_dict['active_learning']['aiida_profile'])
         except Exception as e:
-            from MatDBForge.core.code_utils import custom_print
-
             custom_print(f"Error loading aiida profile: '{e}'", 'error')
 
         # Parsing settings from TOML and creating builder for aiida
