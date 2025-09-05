@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.35.2 (2025-09-05)
+
+### Fix
+
+- **md**: update schema ([#ab590f6](https://github.com/pol-sb/MatDBForge/commit/ab590f67918a38d7fd89be854d82ed2117bac2b4))
+
 ## 0.35.1 (2025-09-04)
 
 ### Fix
