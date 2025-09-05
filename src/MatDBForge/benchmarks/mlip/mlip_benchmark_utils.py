@@ -33,6 +33,7 @@ _ui_manager = None
 _log_file = None
 _plot_data = {}  # Store data for final multi-panel plot
 _model_display_names = {}  # Maps model path to display name
+_model_data = {}  # Global model data dictionary with path, name, and color
 
 # Ignore all warnings
 warnings.filterwarnings('ignore')
@@ -48,6 +49,9 @@ COLORS = [
     '#cc241d',
     '#98971a',
 ]
+
+# Extend COLORS with tab20 colors to support more models
+COLORS.extend(plt.cm.tab20.colors)
 
 
 def adjust_color_brightness(hex_color, brightness_factor):
@@ -268,8 +272,7 @@ def parse_arguments():
         '--magic_cluster_sizes',
         nargs='+',
         type=int,
-        help='Magic number cluster sizes to test '
-        '(default: 13, 19, 55, 147, 309, 561).',
+        help='Magic number cluster sizes to test (default: 13, 19, 55, 147, 309, 561).',
         default=[13, 19, 55, 147, 309, 561],
     )
 
@@ -580,6 +583,96 @@ def set_model_display_name(path, name):
     _model_display_names[path] = name
 
 
+def initialize_model_data(model_paths):
+    """
+    Initialize the global model data dictionary with consistent color assignments.
+
+    Parameters
+    ----------
+    model_paths : list
+        List of model paths (can include FoundationModelPath objects)
+    """
+    global _model_data
+    _model_data = {}
+
+    for i, model_path in enumerate(model_paths):
+        path_str = str(model_path)
+        model_name = get_model_display_name(model_path)
+        model_color = COLORS[i % len(COLORS)]
+
+        _model_data[path_str] = {
+            'model_path': model_path,
+            'model_name': model_name,
+            'model_color': model_color,
+            'index': i,
+        }
+
+
+def get_model_data():
+    """Get the global model data dictionary."""
+    global _model_data
+    return _model_data
+
+
+def get_model_color(model_path):
+    """
+    Get the assigned color for a model.
+
+    Parameters
+    ----------
+    model_path : Path or FoundationModelPath
+        Model path or model object
+
+    Returns
+    -------
+    str
+        Hex color string assigned to this model
+    """
+    global _model_data
+    path_str = str(model_path)
+    if path_str in _model_data:
+        return _model_data[path_str]['model_color']
+    else:
+        # Fallback to first color if model not found
+        return COLORS[0]
+
+
+def get_model_colors_by_names(model_names):
+    """
+    Get colors for a list of model names in the order they appear.
+
+    Parameters
+    ----------
+    model_names : list
+        List of model display names
+
+    Returns
+    -------
+    list
+        List of hex color strings corresponding to the model names
+    """
+    global _model_data
+    colors = []
+
+    # Create a mapping from names to data
+    name_to_data = {data['model_name']: data for data in _model_data.values()}
+
+    for name in model_names:
+        if name in name_to_data:
+            colors.append(name_to_data[name]['model_color'])
+        else:
+            # Fallback color if name not found
+            colors.append(COLORS[len(colors) % len(COLORS)])
+
+    return colors
+
+
+def clear_model_data():
+    """Clear the global model data dictionary."""
+    global _model_data
+    _model_data = {}
+
+
 def save_plot_dual_format(base_path, dpi=300, bbox_inches='tight'):
     """
     Save a matplotlib plot in both PNG and SVG formats.
@@ -652,9 +745,22 @@ def create_final_multi_panel_plot(args):
         custom_print('No plots to display.', 'warn')
         return
 
-    # Calculate grid layout (try to make it roughly square)
-    cols = math.ceil(math.sqrt(n_plots))
-    rows = math.ceil(n_plots / cols)
+    # Calculate grid layout (prefer taller layouts for document inclusion)
+    # Instead of making it square, prioritize vertical orientation
+    sqrt_n = math.sqrt(n_plots)
+
+    if sqrt_n == int(sqrt_n):
+        # Perfect square case
+        cols = rows = int(sqrt_n)
+    else:
+        # Non-square case: prefer fewer columns (more rows)
+        cols = math.floor(sqrt_n)
+        rows = math.ceil(n_plots / cols)
+
+        # If this creates too many empty spaces, try one more column
+        if (rows * cols - n_plots) > cols:
+            cols += 1
+            rows = math.ceil(n_plots / cols)
 
     # Create figure
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
@@ -681,11 +787,14 @@ def create_final_multi_panel_plot(args):
             timestep = plot_info['timestep']
             model_names = list(energy_data.keys())
 
+            # Get consistent colors for models
+            colors = get_model_colors_by_names(model_names)
+
             for i, model_name in enumerate(model_names):
                 energies = energy_data[model_name]
                 # Generate time data from timestep and number of points
                 time_data = np.arange(len(energies)) * timestep
-                color = COLORS[i % len(COLORS)]
+                color = colors[i]
                 ax.plot(time_data, energies, label=model_name, color=color, linewidth=2)
 
             ax.set_xlabel('Time (fs)')
@@ -699,8 +808,8 @@ def create_final_multi_panel_plot(args):
             model_names = plot_info['model_names']
             formation_energies = plot_info['values']
 
-            # Create bar plot
-            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+            # Get consistent colors for models
+            colors = get_model_colors_by_names(model_names)
             bars = ax.bar(
                 model_names,
                 formation_energies,
@@ -761,6 +870,10 @@ def create_final_multi_panel_plot(args):
                 surface_name = ''.join(map(str, surface_names[0]))
                 energies = []
                 colors = []
+
+                # Get consistent colors for MLIP models
+                mlip_colors = get_model_colors_by_names(model_names)
+
                 for model_name in all_model_names:
                     if model_name == 'DFT':
                         # Get DFT energy for this surface
@@ -781,8 +894,8 @@ def create_final_multi_panel_plot(args):
                             )
                         else:
                             energies.append(0)
-                        # Use model-specific color
-                        colors.append(COLORS[mlip_idx % len(COLORS)])
+                        # Use model-specific consistent color
+                        colors.append(mlip_colors[mlip_idx])
 
                 bars = ax.bar(
                     all_model_names,
@@ -856,7 +969,8 @@ def create_final_multi_panel_plot(args):
                                 energy = 0
                             # Get base color for this model and adjust brightness
                             mlip_idx = model_names.index(model_name)
-                            base_color = COLORS[mlip_idx % len(COLORS)]
+                            mlip_colors = get_model_colors_by_names(model_names)
+                            base_color = mlip_colors[mlip_idx]
                             adjusted_color = adjust_color_brightness(
                                 base_color, brightness_factors[i]
                             )
@@ -996,13 +1110,13 @@ def create_final_multi_panel_plot(args):
             run_names = plot_info['run_names']
             final_sizes = plot_info['final_sizes']
 
-            # Create simple bar chart for final database sizes
-            colors = [COLORS[i % len(COLORS)] for i in range(len(run_names))]
+            # Get consistent colors for models
+            colors = get_model_colors_by_names(run_names)
             bars = ax.bar(
                 run_names,
                 final_sizes,
                 color=colors,
-                alpha=0.8,
+                alpha=1.0,
                 edgecolor='#282828',
                 linewidth=1,
             )
@@ -1051,8 +1165,11 @@ def create_final_multi_panel_plot(args):
             ax_force = ax.figure.add_subplot(gs[1])
 
             # Plot each AL run
+            run_names = list(learning_data.keys())
+            run_colors = get_model_colors_by_names(run_names)
+
             for i, (run_name, data) in enumerate(learning_data.items()):
-                color = COLORS[i % len(COLORS)]
+                color = run_colors[i]
                 iterations = data['iterations']
                 energy_rmse = data['energy_rmse']
                 force_rmse = data['force_rmse']
@@ -1108,8 +1225,8 @@ def create_final_multi_panel_plot(args):
             model_names = plot_info['model_names']
             melting_points = plot_info['values']
 
-            # Create bar plot
-            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+            # Get consistent colors for models
+            colors = get_model_colors_by_names(model_names)
             bars = ax.bar(
                 model_names,
                 melting_points,
@@ -1141,8 +1258,8 @@ def create_final_multi_panel_plot(args):
             model_names = plot_info['model_names']
             md_counts = plot_info['values']
 
-            # Create bar plot
-            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+            # Get consistent colors for models
+            colors = get_model_colors_by_names(model_names)
             bars = ax.bar(
                 model_names,
                 md_counts,
@@ -1150,6 +1267,10 @@ def create_final_multi_panel_plot(args):
                 edgecolor='#282828',
                 linewidth=1,
             )
+
+            # Rotate x-axis labels if needed
+            if len(model_names) > 3:
+                ax.tick_params(axis='x', rotation=45)
 
             ax.set_xlabel('Model')
             ax.set_ylabel(plot_info['ylabel'])
@@ -1195,7 +1316,7 @@ def create_final_multi_panel_plot(args):
             ax_force = ax.figure.add_subplot(gs[1])
 
             # Colors for bars
-            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+            colors = get_model_colors_by_names(model_names)
 
             # Energy errors subplot
             bars_energy = ax_energy.bar(
@@ -1278,7 +1399,7 @@ def create_final_multi_panel_plot(args):
             ax_force = ax.figure.add_subplot(gs[1])
 
             # Use consistent color scheme
-            colors = [COLORS[i % len(COLORS)] for i in range(len(model_names))]
+            colors = get_model_colors_by_names(model_names)
 
             # Plot energy errors for each model
             for i, model_name in enumerate(model_names):
@@ -1346,8 +1467,9 @@ def create_final_multi_panel_plot(args):
 
                 # Filter out None values and corresponding model names
                 valid_data = [
-                    (name, energy) for name, energy in
-                    zip(model_names, energies, strict=True) if energy is not None
+                    (name, energy)
+                    for name, energy in zip(model_names, energies, strict=True)
+                    if energy is not None
                 ]
                 if valid_data:
                     valid_names, valid_energies = zip(*valid_data, strict=True)
@@ -1356,15 +1478,17 @@ def create_final_multi_panel_plot(args):
 
                 # Create colors - DFT gets black/dark color
                 colors = []
+                mlip_models = [n for n in model_names if n != 'DFT']
+                mlip_colors = get_model_colors_by_names(mlip_models)
+
                 for name in valid_names:
                     if name == 'DFT':
                         colors.append('#282828')
                     else:
                         # Find original model index for consistent coloring
-                        mlip_models = [n for n in model_names if n != 'DFT']
                         if name in mlip_models:
                             orig_idx = mlip_models.index(name)
-                            colors.append(COLORS[orig_idx % len(COLORS)])
+                            colors.append(mlip_colors[orig_idx])
                         else:
                             colors.append('#888888')  # Fallback color
 
@@ -1658,7 +1782,6 @@ class RichUIManager:
 
         return Panel(table, title='[bold]Benchmarks', border_style='green')
 
-
     def create_log_panel(self):
         """Create the log display panel."""
         # Calculate available height for logs based on terminal size
@@ -1739,6 +1862,7 @@ class RichUIManager:
         """Exit context manager."""
         if self.live:
             self.live.stop()
+
 
 def _get_structure_format(structure_path: pl.Path) -> str:
     """Determines the ASE file format from a path."""

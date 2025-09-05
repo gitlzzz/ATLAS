@@ -2143,7 +2143,8 @@ def run_evaluate_database(args, model_paths: list[pl.Path]):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
 
         # Color map for different models
-        colors = plt.cm.tab10(np.linspace(0, 1, len(results)))
+        model_names = list(results.keys())
+        colors = mdb_b_ut.get_model_colors_by_names(model_names)
 
         # Plot energy errors
         for i, (model_name, model_data) in enumerate(results.items()):
