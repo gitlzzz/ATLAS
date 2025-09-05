@@ -186,6 +186,13 @@ def main():
                 ui_manager.log('No models specified. Exiting.')
                 return
 
+            # Initialize model data with consistent colors
+            mdb_b_ut.initialize_model_data(model_paths)
+            mdb_b_ut.custom_print(
+                f'Initialized {len(model_paths)} model(s).',
+                'info'
+            )
+
             # Run selected benchmarks
             for benchmark_name in benchmarks_to_run:
                 try:
@@ -229,6 +236,9 @@ def main():
         for path in model_paths:
             display_name = mdb_b_ut.get_model_display_name(path)
             mdb_b_ut.custom_print(f'  - {display_name}', 'info')
+
+        # Initialize model data with consistent colors
+        mdb_b_ut.initialize_model_data(model_paths)
 
         # Run selected benchmarks
         for benchmark_name in benchmarks_to_run:
