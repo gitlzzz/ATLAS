@@ -393,6 +393,7 @@ database_generation:
       mandatory: true
       example: ["H", "H2O"]
   struct_filters:
+    mandatory: false
     description: "Settings for filtering out incorrect structures."
     no_neighbors:
       description: "Filter for structures with atoms that have no neighbors."

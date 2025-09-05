@@ -233,6 +233,10 @@ This section is optional.
 
 ### Settings for filtering out incorrect structures. - `[struct_filters]`
 
+:::{attention}
+This section is optional.
+:::
+
 
 #### Filter for structures with atoms that have no neighbors. - `[struct_filters.no_neighbors]`
 

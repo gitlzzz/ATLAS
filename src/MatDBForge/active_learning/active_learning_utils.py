@@ -162,7 +162,6 @@ def md_write_frame_traj(dyn, traj):
     traj.write(dyn.atoms, energy=REF_energy, forces=REF_forces)
 
 
-# TODO: Merge with `generate_descriptor_mace` and `generate_descriptor_soap`
 def generate_descriptors(
     database: list[Atoms] | np.ndarray,
     descriptor_type: str,
