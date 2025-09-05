@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.36.0 (2025-09-05)
+
+### Feature
+
+- **core**: implement automated documentation generation from schema ([#71f523c](https://github.com/pol-sb/MatDBForge/commit/71f523c8a3057e89ec9bb0bd155ef9b4ac0c831c))
+
+### Fix
+
+- **benchmarks**: use global dict to store model data ([#94af2b3](https://github.com/pol-sb/MatDBForge/commit/94af2b3936780dbf0d956ce87b22844328fbf1a4))
+- **benchmarks**: use global dict to store model name, path, and color to standardize data between plots ([#1efb8ac](https://github.com/pol-sb/MatDBForge/commit/1efb8ac6f73d1f0744e14ba08cebdcd2dfe04382))
+
 ## 0.35.2 (2025-09-05)
 
 ### Fix
