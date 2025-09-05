@@ -3273,6 +3273,11 @@ def cli_run_gen_initial_database(
     # Checking last version of the library
     mdb_cut.check_mdb_version(logger=logger)
 
+    # Check if all required sections are present
+    from MatDBForge.core.command_line.command_line_utils import validate_config_file
+
+    validate_config_file(config_dict=config_dict, config_type='database_generation')
+
     # Get timestamp for the entire run
     timestamp = int(time.time())
 

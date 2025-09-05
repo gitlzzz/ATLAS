@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.35.2 (2025-09-05)
+
+### Fix
+
+- **md**: update schema ([#ab590f6](https://github.com/pol-sb/MatDBForge/commit/ab590f67918a38d7fd89be854d82ed2117bac2b4))
+
+## 0.35.1 (2025-09-04)
+
+### Fix
+
+- **init_db**: enable logger and custom prints for toml checking ([#bb64945](https://github.com/pol-sb/MatDBForge/commit/bb6494563726f3eb3d88956c5d73449affeaec0d))
+
 ## 0.35.0 (2025-09-04)
 
 ### Feature
