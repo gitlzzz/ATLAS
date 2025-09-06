@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.36.2 (2025-09-06)
+
+### Misc
+
+- **core**: update contact info ([#0e977fc](https://github.com/pol-sb/MatDBForge/commit/0e977fcb64a498cccc3263b439c537c9b6cb4f17))
+
 ## 0.36.1 (2025-09-06)
 
 ### Docs
