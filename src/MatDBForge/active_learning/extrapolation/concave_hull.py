@@ -177,7 +177,7 @@ def get_concave_hull_python(
                 alpha_candidate, target_alpha_range[0], target_alpha_range[1]
             )
             mdb_cut.custom_print(
-                f'Calculated alpha: {alpha:.2f}'
+                f'Calculated alpha: {alpha:.4f}'
                 f' (clipped to range {target_alpha_range})',
                 'info',
             )
