@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.36.3 (2025-09-06)
+
+### Fix
+
+- **core**: test release script 2 ([#0c1c2b6](https://github.com/pol-sb/MatDBForge/commit/0c1c2b633a1e3c78b2669a256134861622c2f6f6))
+
+### Style
+
+- testing new release script ([#755669e](https://github.com/pol-sb/MatDBForge/commit/755669ede0ca436c5dc38f87f5a197a0ad0c3881))
+
 ## 0.36.2 (2025-09-06)
 
 ### Misc
