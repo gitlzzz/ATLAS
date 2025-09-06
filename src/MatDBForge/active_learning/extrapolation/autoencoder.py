@@ -101,15 +101,30 @@ class Autoencoder(nn.Module):
 
 
 def load_autoencoder_model(model_path: str, data_arr: np.ndarray = None):
-    try:
-        model = torch.load(model_path)
-    except Exception as e:
-        custom_print(
-            f'Error loading model from {model_path}. '
-            f'Please check the file path and format. Error: {e}',
-            'error',
-        )
-        raise
+    from torch.serialization import safe_globals
+
+    # Only my classes and pytorch classes are allowed.
+    # Only bugs in my classes should be dangerous.
+    trusted_classes = (
+        [Autoencoder, torch.nn.modules.container.Sequential,
+         torch.nn.modules.linear.Linear,
+         torch.nn.modules.activation.ReLU]
+    )
+
+    # To allow loading of custom model classes without changing
+    # to weights_only = False
+    # Context manager is used to avoid affecting global state
+    # and preventing other security risks.
+    with safe_globals(trusted_classes):
+        try:
+            model = torch.load(model_path)
+        except Exception as e:
+            custom_print(
+                f'Error loading model from {model_path}. '
+                f'Please check the file path and format. Error: {e}',
+                'error',
+            )
+            raise
 
     state_dict = model if isinstance(model, dict) else False
 
