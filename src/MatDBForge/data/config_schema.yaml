@@ -744,7 +744,7 @@ active_learning:
     dft_method:
       description: "Selection of DFT calculator method."
       type: str
-      mandatory: false
+      mandatory: true
       default: "vasp"
       choices: ["vasp", "mace"]
   data_reduction:

@@ -453,7 +453,7 @@ All keys are mandatory unless stated otherwise.
 
 - `al_mode`: (optional, str) Active learning mode. Default is 'data_acquisition'.
 
-- `dft_method`: (optional, str) Selection of DFT calculator method. Default is 'vasp'.
+- `dft_method`: (str) Selection of DFT calculator method. Default is 'vasp'.
 
 ### Settings for the data reduction AL mode. - `[data_reduction]`
 
