@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.36.1 (2025-09-06)
+
+### Docs
+
+- **schema**: make `dft_method` in active learning mandatory ([#4a1b447](https://github.com/pol-sb/MatDBForge/commit/4a1b447045392b47713e714f669128360775522e))
+
+### Fix
+
+- **domain_validity**: pytorch load custom model classes without changing to `weights_only=False` ([#ca05052](https://github.com/pol-sb/MatDBForge/commit/ca050523aa6f7cd8e0a64ef56d23d32e86c6a5b4))
+
+### Misc
+
+- **core**: add commitizen templates and missing entries for parsing ([#981c7e2](https://github.com/pol-sb/MatDBForge/commit/981c7e2e21f9547727449374b85a20c1462b5f82))
+
+### Style
+
+- **domain_validity**: update concave hull alpha reporting precision ([#d4fa78c](https://github.com/pol-sb/MatDBForge/commit/d4fa78c6b950fa46e9462a4c221fb40bbaa32fec))
+
 ## 0.36.0 (2025-09-05)
 
 ### Feature
