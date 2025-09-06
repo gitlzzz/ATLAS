@@ -119,6 +119,7 @@ name = "cz_customize"
 version = "0.36.3"
 changelog_incremental = true
 update_changelog_on_bump = true
+annotated_tag = true
 version_files = [
     "./src/MatDBForge/__init__.py",
     "./docs/conf.py:release",
