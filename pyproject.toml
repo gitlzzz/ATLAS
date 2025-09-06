@@ -150,6 +150,7 @@ change_type_order = [
     'test',
     'chore',
 ]
+
 commit_parser = "^(?P<change_type>feat|fix|chore|docs|refactor|perf|style|test)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
 changelog_pattern = "^(feat|fix|docs|chore|refactor|perf|style|test)?(!)?"
 change_type_map = { "feat" = "Feature", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs", "refactor" = "Refactor", "perf" = "Performance", "style" = "Style", "test" = "Test" }
