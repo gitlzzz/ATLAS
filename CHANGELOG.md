@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.36.4 (2025-09-06)
+
+### Misc
+
+- **core**: update commitizen settings ([#6eec637](https://github.com/pol-sb/MatDBForge/commit/6eec6376820bd4861c853bafa7494b1b39678922))
+
 ## 0.36.3 (2025-09-06)
 
 ### Fix
