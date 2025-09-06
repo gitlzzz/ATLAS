@@ -138,7 +138,7 @@ example = "feat(al_loop): this feature enables MD simulations using ASE."
 schema = "<type>(<scope>): <body>"
 schema_pattern = "(feat|fix|chore|docs|refactor|perf|style|test)(\\([^)]+\\))?:(\\s.*)"
 bump_pattern = "^(break|new|fix|hotfix|feat|chore|docs)"
-bump_map = { "break" = "MAJOR", "new" = "MINOR", 'feat' = "MINOR", "fix" = "PATCH", "hotfix" = "PATCH", 'chore' = "PATCH", 'docs' = "PATCH" }
+bump_map = { "break" = "MAJOR", "new" = "MINOR", 'feat' = "MINOR", "fix" = "PATCH", "hotfix" = "PATCH", 'chore' = "PATCH", 'docs' = "PATCH", 'test' = "PATCH", 'refactor' = "PATCH", 'perf' = "PATCH", 'style' = "PATCH" }
 change_type_order = [
     "BREAKING CHANGE",
     "feat",
@@ -150,9 +150,9 @@ change_type_order = [
     'test',
     'chore',
 ]
-commit_parser = "^(?P<change_type>feat|fix|chore|docs)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
-changelog_pattern = "^(feat|fix|docs|chore)?(!)?"
-change_type_map = { "feat" = "Feature", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs" }
+commit_parser = "^(?P<change_type>feat|fix|chore|docs|refactor|perf|style|test)(?:\\((?P<scope>[^)]+)\\))?:\\s(?P<message>.+)$"
+changelog_pattern = "^(feat|fix|docs|chore|refactor|perf|style|test)?(!)?"
+change_type_map = { "feat" = "Feature", "fix" = "Fix", "chore" = "Misc", "docs" = "Docs", "refactor" = "Refactor", "perf" = "Performance", "style" = "Style", "test" = "Test" }
 
 [[tool.commitizen.customize.questions]]
 type = "list"
@@ -176,6 +176,7 @@ name = "scope"
 choices = [
     { value = "", name = "none: ❌ No specific scope." },
     { value = "al_loop", name = "al_loop: 🔁 Changes to the active learning loop." },
+    { value = "schema", name = "schema: ⚙️ Changes to the input/documentation schema." },
     { value = "report", name = "report: 📊 Changes to the report part." },
     { value = "core", name = "core: ⚙️ Changes to general or core functionality." },
     { value = "md", name = "md: ⚛️ Changes to MD calculators and scripts." },
