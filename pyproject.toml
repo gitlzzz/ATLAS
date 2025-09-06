@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 authors = [
     { name = "Pol Sanz", email = "psanz@iciq.es" },
     { name = "Lulu Li", email = "lli@iciq.es" },
-    { name = "Zan Lian", email = "zlian@iciq.es" },
+    { name = "Zan Lian", email = "zanlian@stanford.edu" },
 ]
 
 dependencies = [
