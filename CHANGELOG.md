@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.36.5 (2025-09-09)
+
+### Docs
+
+- **al_loop**: updated inputs ([#2af6bd6](https://github.com/pol-sb/MatDBForge/commit/2af6bd6e7106e025ca523ba9ae9bce7516dea721))
+
+### Fix
+
+- **al_loop**: use database path from toml in active learning resume ([#dbfeb49](https://github.com/pol-sb/MatDBForge/commit/dbfeb4999d75c69ab408c8f9905261843f184b4b))
+- **schema**: update mandatory keys ([#60abf3e](https://github.com/pol-sb/MatDBForge/commit/60abf3ee067759db6216312d8993b4d9e5881985))
+- **al_loop**: made foundation model optional parameter again ([#3e80ff2](https://github.com/pol-sb/MatDBForge/commit/3e80ff29a5f9a2ca8afeb0cb0eeb037def3a3682))
+
+### Misc
+
+- **core**: updated docs template ([#55eb197](https://github.com/pol-sb/MatDBForge/commit/55eb197565010bc764659de17487ef0a3257abd9))
+- **core**: restore pyproject.toml after testing ([#7d03ec9](https://github.com/pol-sb/MatDBForge/commit/7d03ec95d824ee95c6056835427c5f3041f9f763))
+
 ## 0.36.4 (2025-09-06)
 
 ### Misc

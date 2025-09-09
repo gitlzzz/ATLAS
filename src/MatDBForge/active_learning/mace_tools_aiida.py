@@ -553,13 +553,14 @@ class TrainMACEModelCalculation(CalcJob):
         )
 
         # Copying foundation model to temporary folder
-        ft_path = Path(foundation_model).resolve()
+        if foundation_model is not None:
+            ft_path = Path(foundation_model).resolve()
 
-        if ft_path.exists():
-            folder.insert_path(
-                src=ft_path.resolve(),
-                dest_name=self.inputs.mace_settings_dict['foundation_model'],
-            )
+            if ft_path.exists():
+                folder.insert_path(
+                    src=ft_path.resolve(),
+                    dest_name=self.inputs.mace_settings_dict['foundation_model'],
+                )
 
         # Create a yaml file using the settings dict and pyyaml
         with tempfile.NamedTemporaryFile(
