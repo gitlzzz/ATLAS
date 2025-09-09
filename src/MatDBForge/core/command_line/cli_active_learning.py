@@ -10,6 +10,8 @@ from argparse import RawTextHelpFormatter
 
 from rich.traceback import install as traceback_install
 
+from MatDBForge.core.code_utils import check_mdb_version, custom_print, init_logger
+
 warnings.filterwarnings('ignore')
 
 
@@ -259,11 +261,24 @@ def resume_al_loop_builder(
         resume_dict['last_iteration'] = last_iteration
 
         # Getting train_db and seed_db paths
-        for it_file in prev_run_dir.glob('*.xyz'):
-            if 'mdb_train_db' in it_file.stem:
-                resume_dict['train_db_path'] = str(it_file)
-            elif 'mdb_seed_db' in it_file.stem:
-                resume_dict['seed_db_path'] = str(it_file)
+        train_db_path = toml_dict['active_learning'].get('init_db_path')
+        seed_db_path = toml_dict['active_learning'].get('init_db_path')
+
+        custom_print(f'Reading training database from: {train_db_path}', 'warning')
+        custom_print(
+            'Please, make sure that this file corresponds with the database that you'
+            ' wish to resume from. You can do this by setting the path in the'
+            f" '{toml_dict_path}' file, in key"
+            " 'active_learning.init_db_path'.",
+            'warning',
+        )
+        custom_print(
+            'Seed database is intialized as a copy of the training database.', 'warning'
+        )
+        print()
+
+        resume_dict['train_db_path'] = str(train_db_path)
+        resume_dict['seed_db_path'] = str(seed_db_path)
 
     # Getting builder for workchain
     builder = create_active_learning_builder(
@@ -306,6 +321,11 @@ def run_active_learning():
     traceback_install(
         width=88,
     )
+
+    logger = init_logger('active_learning', show_log_path=False)
+
+    # Checking version
+    check_mdb_version(logger)
 
     # Create the top-level parser
     parser = argparse.ArgumentParser(
@@ -761,11 +781,7 @@ def run_active_learning():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    from MatDBForge.core.code_utils import check_mdb_version, custom_print
     from MatDBForge.core.command_line.command_line_utils import validate_config_file
-
-    # Checking version
-    check_mdb_version()
 
     # Check if all required sections are present
     if args.command == 'run' or args.command == 'resume':
