@@ -1339,6 +1339,24 @@ active_learning:
         description: "AiiDA scheduler options for MACE calculations."
         type: dict
         mandatory: false
+      filter:
+        description: "Settings for filtering structures after DFT calculations, based on energy and force thresholds."
+        mandatory: false
+        filter_dft_calcs:
+          description: "Whether to filter structures based on energy and force thresholds."
+          type: bool
+          mandatory: false
+          default: false
+        threshold_E_meV:
+          description: "Energy threshold in meV/atom for filtering structures."
+          type: float
+          mandatory: false
+          default: 1000.0
+        threshold_F_meV:
+          description: "Force threshold in meV/Å for filtering structures."
+          type: float
+          mandatory: false
+          default: 10000.0
     vasp:
       description: "VASP settings as DFT calculator."
       depends_on:
@@ -1367,6 +1385,24 @@ active_learning:
         mandatory: false
         default: ['bulk', 'surface', 'cluster']
         choices: ['bulk', 'surface', 'cluster']
+      filter:
+        description: "Settings for filtering structures after DFT calculations, based on energy and force thresholds."
+        mandatory: false
+        filter_dft_calcs:
+          description: "Whether to filter structures based on energy and force thresholds."
+          type: bool
+          mandatory: false
+          default: false
+        threshold_E_meV:
+          description: "Energy threshold in meV/atom for filtering structures."
+          type: float
+          mandatory: false
+          default: 1000.0
+        threshold_F_meV:
+          description: "Force threshold in meV/Å for filtering structures."
+          type: float
+          mandatory: false
+          default: 10000.0
       queue:
         description: "Queue settings for VASP calculations."
         queue_type:
