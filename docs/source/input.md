@@ -608,7 +608,7 @@ This section is optional.
 #### AiiDA metadata and scheduler options for MD simulations. - `[md.metadata]`
 
 
-- `code`: (str) AiiDA code name for MD software. Example: 'mace_lammps@cluster'.
+- `code`: (optional, str) AiiDA code name for MD software. Example: 'mace_lammps@cluster'.
 
 - `computer`: (str) AiiDA computer name for MD calculations. Example: 'my_cluster'.
 
@@ -735,6 +735,10 @@ export PATH=$PATH:.'.
 - `dft_method`: (optional, str) Selection of DFT calculator. Default is 'mace'.
 
 #### MACE settings as DFT calculator. - `[dft.mace]`
+
+:::{attention}
+This section is optional.
+:::
 
 
 - `mace_potential_path`: (str) Path to MACE potential file. Example: 'model.model'.

@@ -1032,8 +1032,8 @@ active_learning:
       code:
         description: "AiiDA code name for MD software."
         type: str
-        mandatory: true
         example: "mace_lammps@cluster"
+        mandatory: false
       computer:
         description: "AiiDA computer name for MD calculations."
         type: str
@@ -1301,6 +1301,7 @@ active_learning:
       depends_on:
         key: dft.dft_method
         value: "mace"
+      mandatory: false
       mace_potential_path:
         description: "Path to MACE potential file."
         type: str
