@@ -40,16 +40,16 @@ def format_parameter_line(key, details, level=0):
     # Add default value if present
     if default_value is not None:
         if isinstance(default_value, str):
-            line += f" Default is '{default_value}'."
+            line += f" Default is `'{default_value}'."
         else:
-            line += f' Default is {default_value}.'
+            line += f' Default is `{default_value}`.'
 
     # Add example if present and no default
     elif example_value is not None:
         if isinstance(example_value, str):
-            line += f" Example: '{example_value}'."
+            line += f" Example: `'{example_value}'`."
         else:
-            line += f' Example: {example_value}.'
+            line += f' Example: `{example_value}`.'
 
     return line
 
@@ -98,11 +98,8 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
             section_path = '.'.join(path_parts + [name])
 
             lines.append('')
-            description = content.get("description", f"{name.title()} Settings")
-            lines.append(
-                f'{header_level} {description} - '
-                f'`[{section_path}.XXXXX]`'
-            )
+            description = content.get('description', f'{name.title()} Settings')
+            lines.append(f'{header_level} {description} - `[{section_path}.XXXXX]`')
             lines.append('')
 
             lines.append(
@@ -247,7 +244,7 @@ def generate_full_documentation(schema):
             '',
             (
                 "Please, check the tool's corresponding section to learn more "
-                "about all the available options."
+                'about all the available options.'
             ),
             '',
         ]
