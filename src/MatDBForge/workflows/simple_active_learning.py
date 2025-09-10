@@ -145,7 +145,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.input('dft_settings', valid_type=orm.Dict)
         spec.input('committee_eval', valid_type=orm.Dict, serializer=orm.to_aiida_type)
         spec.input(
-            'check_extrapolation_type', valid_type=orm.Str, serializer=orm.to_aiida_type
+            'check_extrapolation_type',
+            valid_type=orm.Str,
+            serializer=orm.to_aiida_type,
+            required=False,
+            default=None,
         )
         spec.input(
             'gather_traj_cnt_lattice', valid_type=orm.Bool, serializer=orm.to_aiida_type
