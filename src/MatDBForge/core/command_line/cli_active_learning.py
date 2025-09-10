@@ -788,6 +788,7 @@ def run_active_learning():
         validate_config_file(
             config_path=args.config_file, config_type='active_learning'
         )
+        print()
 
     if args.command == 'report':
         from MatDBForge.active_learning import report_utils as mdb_report
@@ -879,7 +880,17 @@ def run_active_learning():
         )
 
         if not args.dashboard:
-            node = run(builder)
+
+            # Submit workchain to the daemon
+            node = submit(builder)
+
+            # Pretty-print details of the launched active learning loop
+            active_learning_run_print_details(
+                process_pk=str(node.pk),
+                log_path=builder.log_path.value,
+                process_uuid=str(node.uuid),
+            )
+
         else:
             from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
@@ -893,6 +904,88 @@ def run_active_learning():
                 debug=args.debug,
                 online=args.online,
             )
+
+
+def active_learning_run_print_details(
+    process_pk: str, log_path: str, process_uuid: str = None
+):
+    """Prints pretty output for active learning using the rich library."""
+    from rich.console import Console, Group
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    from MatDBForge.core.command_line.command_line_utils import MDB_LOGO
+
+    console = Console(record=True)
+
+    store_output_file = f'mdb_active_learning_run_details_{process_pk}.out'
+
+    # Creating Text containing the process information
+    process_text = Text.assemble(
+        (
+            f'{MDB_LOGO}',
+            'bold magenta',
+        ),
+        justify='full',
+    )
+    process_text.append(
+        Text.assemble(
+            '\n• The active learning loop has been launched (PK: ',
+            (f'{process_pk}', 'bold blue'),
+            ') and is now handled by the AiiDA daemon.\n\n',
+            '• You can monitor its progress with the following command: ',
+            (f'verdi process report {process_pk}', 'bold blue'),
+            '\n\n',
+            '• The output of the calculation is located in: ',
+            (f'\n{log_path}', 'bold blue'),
+            '\n\n',
+            '• You can check this information again in:',
+            (f'\n{store_output_file}', 'bold blue'),
+            '\n\n',
+            '• Use ',
+            (f'verdi process kill {process_pk}', 'bold red'),
+            ' to stop the calcualtion.\n',
+            justify='full',
+        ),
+    )
+
+    # Create a table
+    table = Table(
+        show_header=True,
+        header_style='bold magenta',
+        # highlight=True,
+        title='Summary Information',
+        expand=True,
+    )
+    table.add_column('Info Type', style='dim', width=20)
+    table.add_column('Details', style='bold')
+
+    # Add rows with the information
+    table.add_row('Status', '[green]Running :heavy_check_mark:')
+    table.add_row('Process PK', f'{process_pk}')
+    if process_uuid is not None:
+        table.add_row('Process UUID', f'{process_uuid}')
+    table.add_row(
+        'MDB Log File',
+        f'[bold]{pl.Path(log_path).name}',
+    )
+
+    # Create a group with the text and the table
+    grp = Group(process_text, table)
+
+    # Create a panel with the group inside
+    panel = Panel(
+        grp,
+        title='MatDBForge Active Learning Run Details',
+        border_style='magenta',
+        expand=False,
+        padding=(2, 2),
+    )
+
+    # Print the panel
+    console.print(panel)
+    console.save_text(store_output_file)
 
 
 def read_toml_config(config_file: pl.Path | str):
