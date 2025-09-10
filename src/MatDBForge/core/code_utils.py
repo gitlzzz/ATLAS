@@ -17,7 +17,7 @@ from rich.theme import Theme
 from MatDBForge import MDB_ROOT_DIR, __repo__, __version__
 
 
-def init_logger(source, log_path=None, show_log_path=True):
+def get_console_handler():
     # Starting console
     console = Console(
         theme=Theme(
@@ -31,12 +31,6 @@ def init_logger(source, log_path=None, show_log_path=True):
         )
     )
 
-    logger = logging.getLogger('mdb')
-    logger.setLevel(logging.DEBUG)
-
-    # TODO: Check if this is compatible with the rest of the code
-    logger.propagate = False
-
     # Console logger
     ch = RichHandler(
         markup=True,
@@ -49,6 +43,26 @@ def init_logger(source, log_path=None, show_log_path=True):
     )
     formatter_con = logging.Formatter('%(message)s')
     ch.setFormatter(formatter_con)
+    return ch, console
+
+def logging_set_levels():
+    logging.addLevelName(10, '[...]')
+    logging.addLevelName(19, '     ')
+    logging.addLevelName(15, 'MDB_DEBUG')
+    logging.addLevelName(20, '[ i ]')
+    logging.addLevelName(25, '[ ✔ ]')
+    logging.addLevelName(30, '[ ! ]')
+    logging.addLevelName(40, '[ X ]')
+
+
+def init_logger(source, log_path=None, show_log_path=True):
+    logger = logging.getLogger('mdb')
+    logger.setLevel(logging.DEBUG)
+
+    logger.propagate = False
+
+    # Console logger
+    ch, console = get_console_handler()
     logger.addHandler(ch)
 
     if not log_path:
@@ -65,13 +79,7 @@ def init_logger(source, log_path=None, show_log_path=True):
     fh.setFormatter(formatter_fil)
     logger.addHandler(fh)
 
-    logging.addLevelName(10, '[...]')
-    logging.addLevelName(19, '     ')
-    logging.addLevelName(15, "MDB_DEBUG")
-    logging.addLevelName(20, '[ i ]')
-    logging.addLevelName(25, '[ ✔ ]')
-    logging.addLevelName(30, '[ ! ]')
-    logging.addLevelName(40, '[ X ]')
+    logging_set_levels()
 
     if show_log_path:
         custom_print(f"Logging in '{filename}'", print_type='info')
@@ -113,6 +121,14 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
     extra_tab = '\t' if extra_tab else ''
 
     logger = logging.getLogger('mdb')
+
+    # Allows to use the custom print function without initializing
+    # the logger first
+    if logger.handlers == []:
+        logger.setLevel(logging.DEBUG)
+        ch, _ = get_console_handler()
+        logger.addHandler(ch)
+        logging_set_levels()
 
     if print_type in ['info', 'default']:
         # prefix = "\u001b[38;5;33m [ i ]"
