@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.37.0 (2025-09-10)
+
+### Feature
+
+- **init_db**: first iteration of the metrics library ([#21bc5df](https://github.com/pol-sb/MatDBForge/commit/21bc5df8e5c1857d195b6e56e1c3bdd163e09254))
+
+### Fix
+
+- **al_loop**: allow usage of `check_extrapolation_type=none` in active learning ([#5f38975](https://github.com/pol-sb/MatDBForge/commit/5f3897581ebebebf7fb02a422d43678aa4d0b324))
+- **core**: enable custom_print usage without previous logger enabled ([#96997bb](https://github.com/pol-sb/MatDBForge/commit/96997bb9ad38db4546b02cbf54587bcf92fabee4))
+- **al_loop**: enable container usage with mace settings.yaml ([#a9c73de](https://github.com/pol-sb/MatDBForge/commit/a9c73de2bf4acb188abc300aec0ec0a3d2ffa342))
+
+### Style
+
+- **al_loop**: change run mode to submission, add pretty print ([#51795dc](https://github.com/pol-sb/MatDBForge/commit/51795dcc04053b19ca4594b8e716150cf8169a78))
+
 ## 0.36.5 (2025-09-09)
 
 ### Docs
