@@ -579,7 +579,16 @@ class TrainMACEModelCalculation(CalcJob):
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
         codeinfo.stdout_name = self.options.output_filename
-        codeinfo.cmdline_params = ['--config=settings.yaml']
+
+        # Prepending specific paths for the MatDBForge container.
+        # This shouldn't affect non-container runs.
+        config_prepend = '.'
+        if hasattr(self.inputs.code, 'engine_command') and (
+            'mdb_data' in self.inputs.code.engine_command
+        ):
+            config_prepend = '/mdb_data'
+
+        codeinfo.cmdline_params = [f'--config={config_prepend}/settings.yaml']
 
         calcinfo = CalcInfo()
         calcinfo.codes_info = [codeinfo]
