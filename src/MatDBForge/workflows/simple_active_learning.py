@@ -1594,7 +1594,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         self.out('m0_model_file', self.ctx.best_model_file)
         self.logger.log(
             15,
-            f"Saved best model '{self.ctx.best_model_file.extras.get('model_name')}'"
+            f'Saved best model '
+            f"'{self.ctx.best_model_file.base.extras.all.get('model_name')}'"
             f' ({self.ctx.best_model_file.pk}) in workchain.',
         )
 
