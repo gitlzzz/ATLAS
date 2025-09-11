@@ -46,6 +46,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
         super().define(spec)
 
         spec.input('al_start_mode', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input(
+            'mdb_working_directory', valid_type=orm.Str, serializer=orm.to_aiida_type
+        )
         spec.input('init_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('toml_file', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -173,6 +176,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
         spec.outline(
+            cls.step_setup,
             # Training the main mace model (M0) and the committee models
             # using the training database (Dt).
             cls.train_mace_model,
@@ -218,6 +222,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.exit_code(
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
+
+    def step_setup(self):
+        self.node.base.extras.set(
+            'mdb_working_directory', self.inputs.mdb_working_directory.value
+        )
+        self.node.base.extras.set('mdb_version', str(get_mdb_version_info()[0]))
 
     def should_select_data_reduction_structures(self):
         """Check if we should select additional structures for data reduction mode."""
@@ -2270,6 +2280,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Adding database paths to inputs
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
+
+        # Set calculation job working directory as an extra to keep track of it
+        self.node.base.extras.set(
+            'mdb_working_directory', self.ctx.inputs.mdb_working_directory.value
+        )
+        self.node.base.extras.set('mdb_version', str(get_mdb_version_info()[0]))
 
         self.report('Workchain setup finished.')
 

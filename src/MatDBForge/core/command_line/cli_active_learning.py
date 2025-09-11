@@ -52,6 +52,7 @@ def create_active_learning_builder(
     if toml_dict_path:
         builder.active_learning.toml_file = str(toml_dict_path)
 
+    builder.active_learning.mdb_working_directory = Str(pl.Path.cwd().resolve())
     builder.active_learning.run_name = al_conf['run_name']
     builder.active_learning.load_init_models = al_conf.get('load_init_models')
     builder.active_learning.init_db_path = str(
@@ -880,7 +881,6 @@ def run_active_learning():
         )
 
         if not args.dashboard:
-
             # Submit workchain to the daemon
             node = submit(builder)
 
