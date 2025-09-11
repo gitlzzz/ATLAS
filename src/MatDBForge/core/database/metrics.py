@@ -6,6 +6,7 @@ from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
 
 from MatDBForge.active_learning.active_learning_utils import get_species_from_database
+from MatDBForge.core.code_utils import custom_print
 
 
 def vendi_score_bigO_n3(dataset: list[Atoms]):
@@ -63,7 +64,8 @@ def vendi_score_lower_time_complexity(dataset: list[Atoms]):
     significantly smaller than n (d << n). This is usually the case
     when using MLIPs, and for large datasets.
     """
-    # Compute similarity matrix
+    custom_print('Getting feature matrix using SOAP...')
+    # Compute similarity matrixco
     desc = SOAP(
         species=[29, 30],
         r_cut=6.0,
@@ -82,6 +84,7 @@ def vendi_score_lower_time_complexity(dataset: list[Atoms]):
     # d = dimension of each feature vector
     n, d = feature_matrix_X.shape
 
+    custom_print('Getting covariance matrix and computing eigenvalues...')
     # Compute the (d, d) covariance-like matrix C = X^T * X
     # This replaces the creation of the n x n similarity matrix
     # The complexity is then O(d^2 * n), instead of O(n^3), which comes

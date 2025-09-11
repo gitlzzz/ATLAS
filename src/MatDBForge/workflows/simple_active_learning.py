@@ -2245,7 +2245,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.
         """
-        self.report('Starting Workchain setup.')
+        self.report('Starting Workchain setup...')
         super().setup()
 
         # Update the iteration counter if resuming from a previous run
@@ -2267,7 +2267,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
-        self.report(f"Created group: '{self.ctx.inputs.train_seed_group}'.")
+        self.report(f"Created AiiDA group: '{self.ctx.inputs.train_seed_group}'.")
 
         # Providing current iteration to children workchain.
         self.ctx.inputs.al_loop_iteration = self.ctx.iteration

@@ -267,9 +267,9 @@ def resume_al_loop_builder(
 
         custom_print(f'Reading training database from: {train_db_path}', 'warning')
         custom_print(
-            'Please, make sure that this file corresponds with the database that you'
-            ' wish to resume from. You can do this by setting the path in the'
-            f" '{toml_dict_path}' file, in key"
+            'Please, make sure that this file corresponds with the complete database '
+            '(Dt) that you wish to resume from. You can do this by setting the path in '
+            f"the '{toml_dict_path}' file, in key"
             " 'active_learning.init_db_path'.",
             'warning',
         )
