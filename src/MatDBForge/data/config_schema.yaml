@@ -892,13 +892,13 @@ active_learning:
   extrapolation:
     description: "Settings for extrapolation checks."
     disagreement_check_type:
-      description: "Approach for energy and force (E&F) committee disagreement check."
+      description: "Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames."
       type: str
       mandatory: false
       default: "training"
       choices: ["training", "md_threshold"]
     check_extrapolation_type:
-      description: "Method for extrapolation check."
+      description: "Method for extrapolation check. With `basic`, check for extrapolation using the range of the MACE descriptors. With `advanced`, check for extrapolation using the concave hull of the MACE descriptors. With `none`, disable the extrapolation check, only leaving committee disagreement for EF for the domain."
       type: str
       mandatory: false
       default: "none"

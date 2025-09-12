@@ -634,7 +634,7 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
             }
 
         # Getting the descriptors for the current structure
-        curr_struct_descriptors = soap.create(struct)
+        curr_struct_descriptors = soap.create(struct, n_jobs=-1)
         descriptor_list.append(curr_struct_descriptors)
 
         # Appending the descriptors to the dictionary

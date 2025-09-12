@@ -46,6 +46,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
         super().define(spec)
 
         spec.input('al_start_mode', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input(
+            'mdb_working_directory', valid_type=orm.Str, serializer=orm.to_aiida_type
+        )
         spec.input('init_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('toml_file', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -173,6 +176,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
         spec.outline(
+            cls.step_setup,
             # Training the main mace model (M0) and the committee models
             # using the training database (Dt).
             cls.train_mace_model,
@@ -218,6 +222,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.exit_code(
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
+
+    def step_setup(self):
+        self.node.base.extras.set(
+            'mdb_working_directory', self.inputs.mdb_working_directory.value
+        )
+        self.node.base.extras.set('mdb_version', str(get_mdb_version_info()[0]))
 
     def should_select_data_reduction_structures(self):
         """Check if we should select additional structures for data reduction mode."""
@@ -1584,7 +1594,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         self.out('m0_model_file', self.ctx.best_model_file)
         self.logger.log(
             15,
-            f"Saved best model '{self.ctx.best_model_file.extras.get('model_name')}'"
+            f'Saved best model '
+            f"'{self.ctx.best_model_file.base.extras.all.get('model_name')}'"
             f' ({self.ctx.best_model_file.pk}) in workchain.',
         )
 
@@ -2235,13 +2246,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         This `self.ctx.inputs` dictionary will be used by the `BaseRestartWorkChain`
         to submit the process in the internal loop.
         """
-        self.report('Starting Workchain setup.')
+        self.report('Starting Workchain setup...')
         super().setup()
 
         # Update the iteration counter if resuming from a previous run
         if self.inputs.resume_dict:
             self.report(
-                'Resuming from previous run, stopped at iteration: '
+                'Resuming from previous run , '
+                f'({self.inputs.resume_dict.get("prev_workchain_uuid", "unknown id")}) '
+                'stopped at iteration: '
                 f"'{self.inputs.resume_dict['last_iteration']}'."
             )
             self.ctx.iteration = self.inputs.resume_dict['last_iteration']
@@ -2257,7 +2270,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
         seed_group.store()
         self.ctx.inputs.train_seed_group = seed_group.uuid
-        self.report(f"Created group: '{self.ctx.inputs.train_seed_group}'.")
+        self.report(f"Created AiiDA group: '{self.ctx.inputs.train_seed_group}'.")
 
         # Providing current iteration to children workchain.
         self.ctx.inputs.al_loop_iteration = self.ctx.iteration
@@ -2270,6 +2283,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Adding database paths to inputs
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
+
+        # Set calculation job working directory as an extra to keep track of it
+        self.node.base.extras.set(
+            'mdb_working_directory', self.ctx.inputs.mdb_working_directory.value
+        )
+        self.node.base.extras.set('mdb_version', str(get_mdb_version_info()[0]))
 
         self.report('Workchain setup finished.')
 

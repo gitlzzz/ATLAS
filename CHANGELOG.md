@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.38.0 (2025-09-12)
+
+### Feature
+
+- **domain_validity**: add circles metric and fix vendi score ([#29ee1d3](https://github.com/pol-sb/MatDBForge/commit/29ee1d3b3ecefcd0b4cea74e82c499b272f61a80))
+
+### Fix
+
+- **schema**: improve `disagreement_check_type` and `extrapolation_check_type` description ([#2a781ed](https://github.com/pol-sb/MatDBForge/commit/2a781ed67a581e16e61bf94d509e11cf7966ce8b))
+- **domain_validity**: add n_jobs=-1 to soap descriptor generation ([#bb7599c](https://github.com/pol-sb/MatDBForge/commit/bb7599c9efbda96bbd6f10407594e89215928900))
+- **al_loop**: changed deprecated usage of node.extras to node.base.extras.all ([#4d1c8d4](https://github.com/pol-sb/MatDBForge/commit/4d1c8d468e8f0d2b30f167f174e9eec34dc57542))
+- **al_loop**: store working dir in base workchain extras ([#e7be64e](https://github.com/pol-sb/MatDBForge/commit/e7be64ec9d2d3e1afd55b348da63e9df701f64cf))
+
+### Style
+
+- **al_loop**: enhance active learning loop reports ([#97755d3](https://github.com/pol-sb/MatDBForge/commit/97755d3c7f82867c7405e4245feb0a1de7959086))
+- **core**: fix output messages ([#ea761df](https://github.com/pol-sb/MatDBForge/commit/ea761df83a57c4f2776272cbfe2f1edd055907e5))
+
 ## 0.37.0 (2025-09-10)
 
 ### Feature
