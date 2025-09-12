@@ -2252,7 +2252,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Update the iteration counter if resuming from a previous run
         if self.inputs.resume_dict:
             self.report(
-                'Resuming from previous run, stopped at iteration: '
+                'Resuming from previous run , '
+                f'({self.inputs.resume_dict.get("prev_workchain_uuid", "unknown id")}) '
+                'stopped at iteration: '
                 f"'{self.inputs.resume_dict['last_iteration']}'."
             )
             self.ctx.iteration = self.inputs.resume_dict['last_iteration']
