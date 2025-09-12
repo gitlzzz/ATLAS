@@ -530,9 +530,9 @@ This section is optional.
 ### Settings for extrapolation checks. - `[extrapolation]`
 
 
-- `disagreement_check_type`: (optional, str) Approach for energy and force (E&F) committee disagreement check. Default is `'training'.
+- `disagreement_check_type`: (optional, str) Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames. Default is `'training'.
 
-- `check_extrapolation_type`: (optional, str) Method for extrapolation check. Default is `'none'.
+- `check_extrapolation_type`: (optional, str) Method for extrapolation check. With `basic`, check for extrapolation using the range of the MACE descriptors. With `advanced`, check for extrapolation using the concave hull of the MACE descriptors. With `none`, disable the extrapolation check, only leaving committee disagreement for EF for the domain. Default is `'none'.
 
 #### Settings for the concave hull extrapolation check. - `[extrapolation.concave_hull]`
 
