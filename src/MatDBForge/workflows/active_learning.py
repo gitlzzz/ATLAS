@@ -1646,7 +1646,7 @@ class ActiveLearningWorkChain(WorkChain):
         )
 
         # Gathering MD descriptor results and adding them to dataframe
-        if self.inputs.check_extrapolation_type.value:
+        if self.inputs.check_extrapolation_type.value is not None:
             for curr_calc in self.ctx.md_descriptor_results:
                 # Ignore failed calculations
                 if not curr_calc.is_finished_ok:
@@ -1696,6 +1696,11 @@ class ActiveLearningWorkChain(WorkChain):
                         [desc_f_curr_row],
                         index=md_seed_results_df.index[[row_index]],
                     )
+
+        else:
+            self.report(
+                'Skipping extrapolation since check_extrapolation_type = None.'
+            )
 
         # Updating md seed results DataFrame
         md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)
