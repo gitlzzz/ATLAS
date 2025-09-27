@@ -10,7 +10,12 @@ from argparse import RawTextHelpFormatter
 
 from rich.traceback import install as traceback_install
 
-from MatDBForge.core.code_utils import check_mdb_version, custom_print, init_logger
+from MatDBForge.core.code_utils import (
+    check_mdb_version,
+    custom_print,
+    get_mdb_version_info,
+    init_logger,
+)
 
 warnings.filterwarnings('ignore')
 
@@ -323,11 +328,6 @@ def run_active_learning():
         width=88,
     )
 
-    logger = init_logger('active_learning', show_log_path=False)
-
-    # Checking version
-    check_mdb_version(logger)
-
     # Create the top-level parser
     parser = argparse.ArgumentParser(
         prog='run_active_learning',
@@ -337,6 +337,20 @@ def run_active_learning():
             'or use any of the available commands.'
         ),
         formatter_class=RawTextHelpFormatter,
+    )
+
+    parser.add_argument(
+        '-v',
+        '--version',
+        action='version',
+        version='MatDBForge version: ' + str(get_mdb_version_info()[0]),
+    )
+
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug mode. This will run the workchain in the foreground.',
+        default=False,
     )
 
     # Create a subparsers object
@@ -758,13 +772,6 @@ def run_active_learning():
     )
 
     dashboard_parser.add_argument(
-        '--debug',
-        help=('Enable Flask debug'),
-        action='store_const',
-        const=True,
-        default=False,
-    )
-    dashboard_parser.add_argument(
         '--online',
         help=('Enable online'),
         action='store_const',
@@ -782,10 +789,17 @@ def run_active_learning():
     # Getting CLI arguments
     args = parser.parse_args()
 
+    logger = init_logger('active_learning', show_log_path=False)
+
+    # Checking version
+    check_mdb_version(logger)
+
     from MatDBForge.core.command_line.command_line_utils import validate_config_file
 
     # Check if all required sections are present
     if args.command == 'run' or args.command == 'resume':
+        from aiida.engine import run, submit
+
         validate_config_file(
             config_path=args.config_file, config_type='active_learning'
         )
@@ -834,8 +848,6 @@ def run_active_learning():
 
     # Resume a previous calculation
     elif args.command == 'resume':
-        from aiida.engine import run
-
         # Getting path for config file if provided
         config_file = pl.Path(args.config_file).resolve() if args.config_file else None
 
@@ -846,7 +858,18 @@ def run_active_learning():
         )
 
         # Running the workchain
-        node = run(builder)
+        if not args.debug:
+            # Submit workchain to the daemon
+            node = submit(builder)
+            active_learning_run_print_details(
+                process_pk=str(node.pk),
+                log_path=builder.log_path.value,
+                process_uuid=str(node.uuid),
+            )
+        else:
+            # Run workchain in the foreground
+            node = run(builder)
+
     elif args.command == 'dashboard':
         from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
@@ -860,8 +883,6 @@ def run_active_learning():
 
     # Start a new al loop
     elif args.command == 'run':
-        from aiida.engine import run, submit
-
         # Loading TOML config file
         toml_dict = read_toml_config(args.config_file)
 
@@ -880,16 +901,21 @@ def run_active_learning():
             complete=args.complete,
         )
 
+        # Normal CLI run, without dashboard.
         if not args.dashboard:
-            # Submit workchain to the daemon
-            node = submit(builder)
+            if not args.debug:
+                # Submit workchain to the daemon
+                node = submit(builder)
 
-            # Pretty-print details of the launched active learning loop
-            active_learning_run_print_details(
-                process_pk=str(node.pk),
-                log_path=builder.log_path.value,
-                process_uuid=str(node.uuid),
-            )
+                # Pretty-print details of the submitted active learning loop
+                active_learning_run_print_details(
+                    process_pk=str(node.pk),
+                    log_path=builder.log_path.value,
+                    process_uuid=str(node.uuid),
+                )
+            else:
+                # Run workchain in the foreground
+                node = run(builder)
 
         else:
             from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
