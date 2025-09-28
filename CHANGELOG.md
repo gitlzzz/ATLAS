@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.39.0 (2025-09-28)
+
+### Docs
+
+- **core**: Improve automatic docs generation and fix wrong info in schema ([#2341927](https://github.com/pol-sb/MatDBForge/commit/23419271a158f60ede89cfd128e47494e3cfd29d))
+
+### Feature
+
+- **al_loop**: Decrease scaling of FPS ranking function from O(N^3) to O(N^2) ([#9917c39](https://github.com/pol-sb/MatDBForge/commit/9917c39a9f78e23cb2812591342ca395f0b254aa))
+- **al_loop**: Add debug mode to alternate between run/submit modes ([#fd6a852](https://github.com/pol-sb/MatDBForge/commit/fd6a852f0132dbd43bf58c53f774d12d8b96fb44))
+
+### Fix
+
+- **report**: fixed AL report title ([#7006e8a](https://github.com/pol-sb/MatDBForge/commit/7006e8a049d149740c62667e69cafbeace3b70af))
+- **domain_validity**: improve performance of autoencoder function by creating tensors from arrays only ([#febe667](https://github.com/pol-sb/MatDBForge/commit/febe66774c541e68caed07f6f85a96897f3a6445))
+- **init_db**: update diversity metrics ([#b055001](https://github.com/pol-sb/MatDBForge/commit/b0550016bc620f6783a882256bebc82c7ffe2717))
+
 ## 0.38.0 (2025-09-12)
 
 ### Feature
