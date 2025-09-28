@@ -828,7 +828,7 @@ active_learning:
         default: "random"
         choices: ["random", "descriptor_fps"]
       descriptor_fps:
-        description: "Uses Farthest Point Sampling (FPS) from the descriptors of an initially selected structure."
+        description: "Farthest Point Sampling (FPS) ranking.`"
         descriptor_type:
           description: "What descriptors to use."
           type: str
