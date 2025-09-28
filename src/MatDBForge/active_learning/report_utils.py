@@ -629,7 +629,12 @@ def get_loop_report(
                 title = settings_dict.get('run_name')
 
     if not title:
-        title = f'{al_loop_node}'
+        if isinstance(al_loop_node, str):
+            title = f'AL Loop {al_loop_node}'
+        elif isinstance(al_loop_node, orm.Node):
+            title = f'AL Loop {al_loop_node.uuid}'
+        else:
+            title = f'{al_loop_node}'
 
     return (
         title,
