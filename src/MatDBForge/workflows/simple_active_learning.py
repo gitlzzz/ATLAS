@@ -2594,9 +2594,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Load algorithm for seed selection
         # Set score for structures in the seed generation database
         # and use it to select the structures for the MD seed.
-        seed_ranking_algo_settings = self.ctx.inputs.seed_select_settings.get(
-            'seed_ranking_algorithm', {}
+        seed_ranking_algo_settings = self.ctx.inputs['seed_select_settings'].get(
+            'seed_ranking_settings', {}
         )
+
         seed_ranking_algorithm = seed_ranking_algo_settings.get(
             'seed_ranking_algorithm', 'random'
         )
@@ -2663,10 +2664,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             for struct in seed_gen_db:
                 # If the structure is not in the scores, set the score to 0
                 if struct.info['mdb_id'] not in scores:
-                    scores[struct.info['mdb_id']] = 0.0
+                    scores[struct.info['mdb_id']] = {'score': 0.0, 'distance': 0.0}
 
                 # Add the score to the structure info
-                struct.info['md_seed_ranking_score'] = scores[struct.info['mdb_id']]
+                struct.info['md_seed_ranking_score'] = scores[
+                    struct.info['mdb_id']
+                ].get('score', 0.0)
 
             sorted_seed_db = sorted(
                 seed_gen_db,

@@ -30,6 +30,7 @@ def format_parameter_line(key, details, level=0):
     is_mandatory = details.get('mandatory', True)
     default_value = details.get('default')
     example_value = details.get('example')
+    choices = details.get('choices')
 
     # Format type with optional indicator
     type_str = f'(optional, {param_type})' if not is_mandatory else f'({param_type})'
@@ -40,16 +41,21 @@ def format_parameter_line(key, details, level=0):
     # Add default value if present
     if default_value is not None:
         if isinstance(default_value, str):
-            line += f" Default is `'{default_value}'."
+            line += f"\n  - Default is `'{default_value}'`."
         else:
-            line += f' Default is `{default_value}`.'
+            line += f"\n  - Default is `{default_value}`."
 
     # Add example if present and no default
     elif example_value is not None:
         if isinstance(example_value, str):
-            line += f" Example: `'{example_value}'`."
+            line += f"\n  - Example: `'{example_value}'`."
         else:
-            line += f' Example: `{example_value}`.'
+            line += f"\n  - Example: `{example_value}`."
+
+    # Add choices if present
+    if choices:
+        choices_str = ', '.join(f'`{choice}`' for choice in choices)
+        line += f'\n  - Possible values are: {choices_str}.'
 
     return line
 

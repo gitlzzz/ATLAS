@@ -178,8 +178,9 @@ def get_latent_space_autoencoder(
     with torch.no_grad():  # No need to compute gradients for inference
         for uuid, descr_dict in descriptor_dict.items():
             # Get latent space
+            descr_arr = np.array(descr_dict['descriptors'])
             latent_space = model.encoder(
-                torch.Tensor(descr_dict['descriptors']).to(device=device, dtype=dtype)
+                torch.Tensor(descr_arr).to(device=device, dtype=dtype)
             )
 
             # Save latent space

@@ -211,13 +211,14 @@ def calculate_fps_scores_descriptor(
     init_structure_uuid: str, descriptor_dict: dict
 ) -> dict[str, float]:
     """
-    Calculates a diversity score for each structure using Farthest Point Sampling.
+    Calculates a dissimilarity score for each structure using an optimized
+    Farthest Point Sampling algorithm.
 
-    The function iteratively selects the farthest point from the already selected
-    set and assigns a score based on its selection order (rank). Structures
-    selected earlier receive a higher score.
+    This implementation avoids redundant distance calculations by maintaining an
+    array of minimum distances from each candidate to the set of selected points,
+    achieving O(N^2) complexity.
 
-    The score is calculated as: Total Structures - Rank.
+    The score is calculated as: (Total Structures - Rank) / Total Structures.
 
     Parameters
     ----------
@@ -232,55 +233,55 @@ def calculate_fps_scores_descriptor(
     dict[str, float]
         A dictionary mapping each structure UUID to its calculated FPS score.
     """
-    candidate_pool = descriptor_dict.copy()
-    total_structures = len(candidate_pool)
+    # Prepare data for vectorized operations
+    uuids = list(descriptor_dict.keys())
+    descriptors = np.array([descriptor_dict[uuid]['descriptors'] for uuid in uuids])
+    descriptors = descriptors[:, 0]
+    total_structures = len(uuids)
 
+    # Create a mapping from UUID to index for quick lookups
+    uuid_to_idx = {uuid: i for i, uuid in enumerate(uuids)}
+
+    # Initialization
     scores = {}
+    selected_indices = np.zeros(total_structures, dtype=bool)
 
-    # Start at rank 1 for scoring.
-    rank = 0
+    # Initialize distances to a large value
+    min_distances = np.full(total_structures, np.inf, dtype=descriptors.dtype)
 
-    # Get the descriptor of the initial structure and remove it from the candidate pool
-    initial_descriptor = candidate_pool.pop(init_structure_uuid)['descriptors']
-    selected_descriptors = [initial_descriptor]
-    scores[init_structure_uuid] = float(total_structures - rank) / total_structures
+    # Select the first point
+    first_idx = uuid_to_idx[init_structure_uuid]
+    selected_indices[first_idx] = True
 
-    # Advance rank
-    rank += 1
+    # Rank 0 has score 1
+    scores[init_structure_uuid] = {'score': 1.0, 'distance': 0.0}
+    last_selected_idx = first_idx
 
-    # Initialize lists to hold the selected UUIDs and their descriptors
-    # selected_uuids = [init_structure_uuid]
+    # Main FPS loop
+    for rank in range(1, total_structures):
+        # Update distances based on the last selected point
+        # This is the most computationally intensive step pr iteration
+        distances_to_last = np.linalg.norm(
+            descriptors - descriptors[last_selected_idx], axis=1
+        )
 
-    # Sample all structures and assign them a score based on when were they selected
-    while candidate_pool:
-        min_distances_to_set = []
-        candidate_uuids = list(candidate_pool.keys())
+        # Update the minimum distance for each candidate
+        min_distances = np.minimum(min_distances, distances_to_last)
 
-        # For each candidate, find its minimum distance to the set of selected points
-        for uuid in candidate_uuids:
-            candidate_descriptor = candidate_pool[uuid]['descriptors']
+        # Find the unselected point that is farthest from the selected set
+        # We set selected points' distances to -1 to ensure they are not chosen
+        min_distances[selected_indices] = -1
+        farthest_idx = np.argmax(min_distances)
 
-            distances = np.linalg.norm(
-                candidate_descriptor - np.array(selected_descriptors), axis=1
-            )
+        # Record score and update state for the next iteration
+        scores[uuids[farthest_idx]] = {}
+        scores[uuids[farthest_idx]]['score'] = (
+            float(total_structures - rank) / total_structures
+        )
+        scores[uuids[farthest_idx]]['distance'] = min_distances[farthest_idx]
 
-            min_distance = np.min(distances)
-            min_distances_to_set.append(min_distance)
-
-        # Find the candidate that has the maximum among minimum distances
-        farthest_candidate_index = np.argmax(min_distances_to_set)
-        farthest_uuid = candidate_uuids[farthest_candidate_index]
-
-        # Assign score based on rank
-        scores[farthest_uuid] = float(total_structures - rank) / total_structures
-        rank += 1
-
-        # Update the state: add the selected point to our set
-        # selected_uuids.append(farthest_uuid)
-
-        # Remove the selected point from the pool of candidates
-        selected_descriptors.append(candidate_pool[farthest_uuid]['descriptors'])
-        candidate_pool.pop(farthest_uuid)
+        selected_indices[farthest_idx] = True
+        last_selected_idx = farthest_idx
 
     return scores
 
@@ -389,9 +390,22 @@ def select_structures_fps(
 
     # Sort by score and select top n
     sorted_db = sorted(
-        database, key=lambda x: scores.get(x.info['mdb_id'], 0.0), reverse=True
+        database,
+        key=lambda x: scores.get(x.info['mdb_id'], {}).get('score', 0.0),
+        reverse=True,
     )
-    return sorted_db[:n_structures]
+
+    selected_db = sorted_db[:n_structures]
+
+    for struct in selected_db:
+        struct.info['fps_score'] = scores.get(struct.info['mdb_id'], {}).get(
+            'score', 0.0
+        )
+        struct.info['fps_distance'] = scores.get(struct.info['mdb_id'], {}).get(
+            'distance', 0.0
+        )
+
+    return selected_db
 
 
 def select_structures_uncertainty(
