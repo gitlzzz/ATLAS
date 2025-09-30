@@ -158,9 +158,6 @@ def gen_al_loop_report(
     limit_num_steps: int = None,
     enable_cueq: bool = False,
 ):
-    # Init logger
-    init_logger(source='al_loop_report_gen')
-
     # Get report data and stats
     (
         title,
@@ -630,9 +627,12 @@ def get_loop_report(
 
     if not title:
         if isinstance(al_loop_node, str):
-            title = f'AL Loop {al_loop_node}'
+            title = f'AL Loop: {al_loop_node}'
         elif isinstance(al_loop_node, orm.Node):
-            title = f'AL Loop {al_loop_node.uuid}'
+            title = f'AL Loop: {al_loop_node.uuid}'
+        elif isinstance(al_loop_node, list):
+            al_loop_nodes_pk = [str(node.pk) for node in al_loop_node]
+            title = f' {al_loop_nodes_pk}'
         else:
             title = f'{al_loop_node}'
 
@@ -663,6 +663,17 @@ def get_mace_eval_results(
     if isinstance(al_loop_node, orm.Node):
         al_loop_node = al_loop_node.called
 
+    # When nodes are missing (deleted), the list might contain only PKs, so
+    # they must be loaded using aiida.
+    if len(al_loop_node) > 1 and isinstance(al_loop_node[0], (int, np.int64)):
+        al_loop_node_list = []
+        for node_pk in al_loop_node:
+            try:
+                al_loop_node_list.append(orm.load_node(int(node_pk)))
+            except Exception:
+                custom_print(f'Unable to load node: {node_pk}', 'error')
+        al_loop_node = al_loop_node_list
+
     # Workaround for single node case when loading from log
     if (
         len(al_loop_node) == 1
@@ -670,6 +681,14 @@ def get_mace_eval_results(
         == 'aiida.workflows:mdb-simple-active-learning-base'
     ):
         al_loop_node = al_loop_node[0].called
+    # Cases with multiple resumes in a single node
+    elif (
+        len(al_loop_node) > 1
+        and al_loop_node[-1].process_type
+        == 'aiida.workflows:mdb-simple-active-learning-base'
+    ):
+        al_loop_node = al_loop_node[-1].called
+
 
     # Create tmp folder in the current directory
     with tempfile.TemporaryDirectory(dir=folder_path) as tmp_dir:
@@ -682,7 +701,6 @@ def get_mace_eval_results(
                 if stp.process_type == 'aiida.workflows:mdb-active-learning'
                 or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
             ]
-
             last_iter = all_iters[-1]
         except AttributeError:
             last_iter = al_loop_node

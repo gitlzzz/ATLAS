@@ -741,12 +741,12 @@ active_learning:
       mandatory: false
       default: "data_acquisition"
       choices: ["md", "data_reduction", "data_acquisition"]
-    dft_method:
-      description: "Selection of DFT calculator method."
-      type: str
-      mandatory: true
-      default: "vasp"
-      choices: ["vasp", "mace"]
+    # dft_method:
+    #   description: "Selection of DFT calculator method."
+    #   type: str
+    #   mandatory: true
+    #   default: "vasp"
+    #   choices: ["vasp", "mace"]
   data_reduction:
     depends_on:
       key: active_learning.al_mode

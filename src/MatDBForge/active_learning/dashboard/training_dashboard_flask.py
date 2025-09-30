@@ -399,8 +399,7 @@ def gather_information(workchain_node_id, app):
                     f'(from step: {cache.iloc[i]["step"]}).'
                 )
                 break
-
-    if any([wkc.is_excepted, wkc.is_killed]):
+    if any([wkc.is_excepted, wkc.is_killed, wkc.is_failed]):
         progbar_class_name = 'workchain-progbar-error'
         iter_text = f'ERROR ({curr_iter})'
         progbar_iter = max_iters  # Fill the bar on error
