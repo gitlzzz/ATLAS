@@ -236,6 +236,7 @@ def calculate_fps_scores_descriptor(
     # Prepare data for vectorized operations
     uuids = list(descriptor_dict.keys())
     descriptors = np.array([descriptor_dict[uuid]['descriptors'] for uuid in uuids])
+
     descriptors = descriptors[:, 0]
     total_structures = len(uuids)
 
