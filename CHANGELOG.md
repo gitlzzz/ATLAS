@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.39.1 (2025-09-30)
+
+### Docs
+
+- **schema**: removed obsolete key in schema ([#7dab3cc](https://github.com/pol-sb/MatDBForge/commit/7dab3cc8dde626df33d63d017610dcce373590d8))
+
+### Fix
+
+- **report**: improve robustness of report generation when mixing deleted and resumed workchains ([#236fe38](https://github.com/pol-sb/MatDBForge/commit/236fe3842b0470f7cec45a50cbe6c64c1cb8c1d2))
+- **report**: fixed error capturing in dashboar ([#0885d6e](https://github.com/pol-sb/MatDBForge/commit/0885d6edce168f446d7eccfff113f9422bdbe21d))
+
 ## 0.39.0 (2025-09-28)
 
 ### Docs
