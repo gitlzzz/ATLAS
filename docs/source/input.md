@@ -572,10 +572,6 @@ All keys are mandatory unless stated otherwise.
   - Default is `'data_acquisition'`.
   - Possible values are: `md`, `data_reduction`, `data_acquisition`.
 
-- `dft_method`: (str) Selection of DFT calculator method.
-  - Default is `'vasp'`.
-  - Possible values are: `vasp`, `mace`.
-
 ### Settings for the data reduction AL mode. - `[data_reduction]`
 
 
