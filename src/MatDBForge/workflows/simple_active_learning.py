@@ -11,6 +11,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
+import requests
 from aiida import orm
 from aiida.engine import (
     BaseRestartWorkChain,
@@ -31,7 +32,11 @@ from rich.pretty import Pretty
 from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
-from MatDBForge.core.code_utils import LevelNameFilter, get_mdb_version_info
+from MatDBForge.core.code_utils import (
+    LevelNameFilter,
+    display_qr_in_cli,
+    get_mdb_version_info,
+)
 
 
 class SimpleActiveLearningWorkChain(WorkChain):
@@ -54,6 +59,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('debug_mode', valid_type=orm.Bool, serializer=orm.to_aiida_type)
+        spec.input('enable_ntfysh', valid_type=orm.Bool, serializer=orm.to_aiida_type)
         spec.input('run_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             'load_init_models',
@@ -289,6 +295,19 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # initialized again, or messages appear doubled.
         if not self.inputs.debug_mode:
             self.set_step_logger()
+
+        breakpoint()
+        # If notifications are enabled, send start message
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            self.ctx.ntfysh_topic = str(f'mdb_{self.node.caller.uuid}')
+            requests.post(
+                f'https://ntfy.sh/{self.ctx.ntfysh_topic}',
+                data=(
+                    f'Starting active learning iteration '
+                    f'{self.inputs.al_loop_iteration.value + 1}'
+                    f' - {self.inputs.run_name.value}'
+                ),
+            )
 
     def should_select_data_reduction_structures(self):
         """Check if we should select additional structures for data reduction mode."""
@@ -1716,6 +1735,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 'database_training',
                 'log_path',
                 'debug_mode',
+                'enable_ntfysh',
             ],
         )
         spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -2354,6 +2374,25 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             'mdb_working_directory', self.ctx.inputs.mdb_working_directory.value
         )
         self.node.base.extras.set('mdb_version', str(get_mdb_version_info()[0]))
+
+        # Show url for ntfy.sh if enabled
+        self.ctx.inputs.enable_ntfysh = self.inputs.active_learning.enable_ntfysh
+        if hasattr(self.inputs.active_learning, 'enable_ntfysh'):
+            self.ctx.ntfysh_topic = str(f'mdb_{self.node.uuid}')
+            self.report(
+                f'ntfy.sh notifications enabled. '
+                f"Subscribe to 'https://ntfy.sh/{self.ctx.ntfysh_topic}'"
+            )
+            self.report('Displaying QR code for ntfy.sh subscription:')
+            display_qr_in_cli(f'https://ntfy.sh/{self.ctx.ntfysh_topic}')
+
+            requests.post(
+                f'https://ntfy.sh/{self.ctx.ntfysh_topic}',
+                data=(
+                    f'Starting Active Learning Loop - '
+                    f'{self.inputs.active_learning.run_name.value}'
+                ),
+            )
 
         self.report('Workchain setup finished.')
 

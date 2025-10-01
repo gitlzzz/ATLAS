@@ -41,7 +41,7 @@ def create_active_learning_builder(
         A process builder that helps setting up the inputs for
         an ActiveLearningWorkChain.
     """
-    from aiida.orm import Dict, Int, Str
+    from aiida.orm import Bool, Dict, Int, Str
     from aiida.plugins import WorkflowFactory
 
     # Getting builder for workchain
@@ -56,6 +56,8 @@ def create_active_learning_builder(
 
     if toml_dict_path:
         builder.active_learning.toml_file = str(toml_dict_path)
+
+    builder.active_learning.enable_ntfysh = Bool(al_conf.get('enable_ntfysh', False))
 
     builder.active_learning.mdb_working_directory = Str(pl.Path.cwd().resolve())
     builder.active_learning.run_name = al_conf['run_name']

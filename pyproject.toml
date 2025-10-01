@@ -38,6 +38,7 @@ dependencies = [
     "flask",
     "wandb",
     "tomli >= 1.1.0 ; python_version < '3.11'",
+    'qrcode',
 ]
 
 [project.optional-dependencies]

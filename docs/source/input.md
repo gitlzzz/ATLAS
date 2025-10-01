@@ -548,6 +548,9 @@ All keys are mandatory unless stated otherwise.
 
 - `aiida_profile`: (str) Name of the AiiDA profile to be used.
 
+- `enable_ntfysh`: (optional, bool) Enable notifications using ntfy.sh for the run.
+  - Default is `False`.
+
 - `run_name`: (str) Internal name for the run.
 
 - `init_db_path`: (str, PosixPath) Path to the folder containing the initial database.

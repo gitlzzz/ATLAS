@@ -8,6 +8,7 @@ import subprocess as sb
 import tempfile
 import warnings
 
+import qrcode
 from packaging.version import Version
 from packaging.version import parse as parse_version
 from rich.console import Console
@@ -16,6 +17,19 @@ from rich.theme import Theme
 
 from MatDBForge import MDB_ROOT_DIR, __repo__, __version__
 
+
+def display_qr_in_cli(data: str):
+    """Generates and displays a QR code in the terminal.
+
+    Parameters
+    ----------
+    data : str
+        The data to encode in the QR code (e.g., a URL).
+    """
+    qr = qrcode.QRCode(version=4, border=1)
+    qr.add_data(data)
+    qr.make(fit=True)
+    qr.print_tty()
 
 def get_console_handler():
     # Starting console

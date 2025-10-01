@@ -694,6 +694,11 @@ active_learning:
       description: "Name of the AiiDA profile to be used."
       type: str
       mandatory: true
+    enable_ntfysh:
+      description: "Enable notifications using ntfy.sh for the run."
+      type: bool
+      mandatory: false
+      default: false
     run_name:
       description: "Internal name for the run."
       type: str
