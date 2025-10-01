@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.40.0 (2025-10-01)
+
+### Feature
+
+- **al_loop**: add notification via ntfy.sh to active learning loop ([#417de2e](https://github.com/pol-sb/MatDBForge/commit/417de2edef9273cef162e23afc1d7c4ff26d3849))
+
+### Fix
+
+- **al_loop**: fix logging error when submitting calculations to daemon ([#319f3f6](https://github.com/pol-sb/MatDBForge/commit/319f3f6d8c96e95b216d7240b5e939be4f0cf726))
+
 ## 0.39.1 (2025-09-30)
 
 ### Docs
