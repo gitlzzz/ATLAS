@@ -799,6 +799,7 @@ def run_active_learning():
     # Check if all required sections are present
     if args.command == 'run' or args.command == 'resume':
         from aiida.engine import run, submit
+        from aiida.orm import Bool
 
         validate_config_file(
             config_path=args.config_file, config_type='active_learning'
@@ -860,6 +861,8 @@ def run_active_learning():
         # Running the workchain
         if not args.debug:
             # Submit workchain to the daemon
+            builder.debug_mode = Bool(False)
+            builder.debug_mode.store()
             node = submit(builder)
             active_learning_run_print_details(
                 process_pk=str(node.pk),
@@ -868,6 +871,8 @@ def run_active_learning():
             )
         else:
             # Run workchain in the foreground
+            builder.debug_mode = Bool(True)
+            builder.debug_mode.store()
             node = run(builder)
 
     elif args.command == 'dashboard':
@@ -900,10 +905,11 @@ def run_active_learning():
             toml_dict_path=pl.Path(args.config_file).resolve(),
             complete=args.complete,
         )
-
         # Normal CLI run, without dashboard.
         if not args.dashboard:
             if not args.debug:
+                builder.active_learning.debug_mode = Bool(False)
+
                 # Submit workchain to the daemon
                 node = submit(builder)
 
@@ -915,6 +921,7 @@ def run_active_learning():
                 )
             else:
                 # Run workchain in the foreground
+                builder.active_learning.debug_mode = Bool(True)
                 node = run(builder)
 
         else:

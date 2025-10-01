@@ -51,7 +51,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
         spec.input('init_db_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('toml_file', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input('debug_mode', valid_type=orm.Bool, serializer=orm.to_aiida_type)
         spec.input('run_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             'load_init_models',
@@ -223,11 +225,70 @@ class SimpleActiveLearningWorkChain(WorkChain):
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
 
+    def set_step_logger(self):
+        self.report('Performing secondary logger setup...')
+
+        # Get log path
+        log_path = self.inputs.log_path.value
+
+        # Getting aiida logger
+        aiida_logger = logging.getLogger('aiida')
+        cli_handler = aiida_logger.handlers[0]
+        aiida_logger.removeHandler(cli_handler)
+
+        # Set the PARENT logger to INFO to silence framework debug messages
+        aiida_logger.setLevel(15)
+
+        # We only want to see our custom debug messages and our reports.
+        log_filter = LevelNameFilter(
+            levels_to_keep=[
+                'MDB_DEBUG',
+                'REPORT',
+                '[ ✔ ]',
+                '[ ! ]',
+                '[ X ]',
+            ]
+        )
+
+        # Create a file handle
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setLevel(1)
+        file_handler.addFilter(log_filter)
+
+        # Create a formatter and set it for the file handler
+        file_formatter = logging.Formatter(
+            '[%(asctime)s] [%(levelname)s] - %(message)s',
+            datefmt='%m/%d/%y %H:%M:%S',
+        )
+        file_handler.setFormatter(file_formatter)
+        aiida_logger.addHandler(file_handler)
+
+        # Adding console logger
+        console = Console(color_system='truecolor')
+        ch = RichHandler(
+            markup=True,
+            show_path=False,
+            log_time_format='[%d/%m/%y %H:%M:%S]',
+            omit_repeated_times=False,
+            console=console,
+        )
+        ch.setLevel(23)
+        formatter_con = logging.Formatter('%(message)s')
+        ch.setFormatter(formatter_con)
+        aiida_logger.addHandler(ch)
+
     def step_setup(self):
         self.node.base.extras.set(
             'mdb_working_directory', self.inputs.mdb_working_directory.value
         )
         self.node.base.extras.set('mdb_version', str(get_mdb_version_info()[0]))
+
+        # Setting up secondary logger for the current step.
+        # This is only necessary for when runs are submited to the daemon,
+        # instead of being run directly. In that case, the logger is not
+        # initialized again, or messages appear doubled.
+        if not self.inputs.debug_mode:
+            self.set_step_logger()
 
     def should_select_data_reduction_structures(self):
         """Check if we should select additional structures for data reduction mode."""
@@ -1653,6 +1714,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 'seed_db_path',
                 'training_db_path',
                 'database_training',
+                'log_path',
+                'debug_mode',
             ],
         )
         spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -2282,6 +2345,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Adding database paths to inputs
         self.ctx.inputs.seed_db_path = str(self.ctx.seed_db_path)
+        self.ctx.inputs.debug_mode = self.inputs.active_learning.debug_mode
+        self.ctx.inputs.log_path = str(self.inputs.log_path.value)
         self.ctx.inputs.training_db_path = str(self.ctx.training_db_path)
 
         # Set calculation job working directory as an extra to keep track of it
