@@ -82,8 +82,8 @@ database_generation:
         description: "Format for the figure."
         type: str
         mandatory: false
-        default: 'png'
-        choices: ['png', 'svg']
+        default: "png"
+        choices: ["png", "svg"]
       rc_params:
         description: "Matplotlib rcParams for the plot."
         "font.family":
@@ -115,7 +115,7 @@ database_generation:
         description: "Export format supported by ASE (e.g., 'extxyz')."
         type: str
         mandatory: true
-        default: 'extxyz'
+        default: "extxyz"
       file_path:
         description: "Path where the exported file will be saved."
         type: str, PosixPath
@@ -225,8 +225,8 @@ database_generation:
       description: "Types of structures to generate."
       type: list[str]
       mandatory: true
-      default: ['bulk', 'surface', 'cluster']
-      choices: ['bulk', 'surface', 'cluster']
+      default: ["bulk", "surface", "cluster"]
+      choices: ["bulk", "surface", "cluster"]
     bulk:
       description: "Bulk structure generation settings."
       num_struct:
@@ -351,8 +351,8 @@ database_generation:
       description: "Types of structures to which the perturbation will be applied."
       type: list[str]
       mandatory: true
-      default: ['bulk', 'surface']
-      choices: ['bulk', 'surface', 'cluster']
+      default: ["bulk", "surface"]
+      choices: ["bulk", "surface", "cluster"]
     limit_max_num_perturbs:
       description: "Maximum number of perturbations to generate."
       type: int
@@ -375,8 +375,8 @@ database_generation:
       description: "Types of structures to which adsorbates will be added."
       type: list[str]
       mandatory: false
-      default: ['surface']
-      choices: ['bulk', 'surface', 'cluster']
+      default: ["surface"]
+      choices: ["bulk", "surface", "cluster"]
     limit_max_num_perturbs:
       description: "Maximum number of structures with adsorbates to generate."
       type: int
@@ -424,8 +424,8 @@ database_generation:
       description: "Types of structures to which vacancies will be applied."
       type: list[str]
       mandatory: true
-      default: ['bulk', 'surface']
-      choices: ['bulk', 'surface', 'cluster']
+      default: ["bulk", "surface"]
+      choices: ["bulk", "surface", "cluster"]
     limit_max_num_vacancies:
       description: "Maximum number of structures with vacancies to generate."
       type: int
@@ -461,13 +461,13 @@ database_generation:
         description: "Only apply the modification to the following phases."
         type: list[str]
         mandatory: false
-        example: ['rutile', 'original_IrO2']
+        example: ["rutile", "original_IrO2"]
       filter_struct_types:
         description: "Types of structures to which the modification will be applied."
         type: list[str]
         mandatory: false
-        default: ['bulk', 'surface']
-        choices: ['bulk', 'surface', 'cluster']
+        default: ["bulk", "surface"]
+        choices: ["bulk", "surface", "cluster"]
       central_element:
         description: "Symbol of the central element of the octahedral site."
         type: str
@@ -561,7 +561,7 @@ dft:
       description: "If specified, only structures of this type will be processed."
       type: str
       mandatory: false
-      choices: ['bulk', 'surface', 'cluster']
+      choices: ["bulk", "surface", "cluster"]
   calculation:
     description: "DFT calculation settings."
     calc_type:
@@ -579,14 +579,14 @@ dft:
       description: "Mapping of elements to specific potential labels."
       type: dict
       mandatory: false
-      example: {"Si": "Si_GW"}
+      example: { "Si": "Si_GW" }
   kpoints:
     description: "K-point settings."
     kspacing:
       description: "K-spacing in Å⁻¹ for different phases or a single value for all structures."
       type: dict
       mandatory: true
-      example: {"alpha": 0.125, "default": 0.15}
+      example: { "alpha": 0.125, "default": 0.15 }
   queue:
     description: "Queue settings for HPC schedulers (e.g., SLURM)."
     code_string:
@@ -689,6 +689,8 @@ dft:
 active_learning:
   description: "Settings for the active learning loop."
   active_learning:
+    name: "active_learning"
+    name_pretty: "Active Learning"
     description: "General active learning settings."
     aiida_profile:
       description: "Name of the AiiDA profile to be used."
@@ -771,7 +773,7 @@ active_learning:
       type: str
       mandatory: true
       default: "lowest_energy"
-      choices: ['random', 'lowest_energy', 'fps']
+      choices: ["random", "lowest_energy", "fps"]
     structures_per_iteration:
       description: "Number of structures to select per iteration from the large database."
       type: int
@@ -782,8 +784,10 @@ active_learning:
       type: str
       mandatory: true
       default: "uncertainty"
-      choices: ['random', 'fps', 'uncertainty', 'lowest_energy']
+      choices: ["random", "fps", "uncertainty", "lowest_energy"]
   al_seed:
+    name: "al_seed"
+    name_pretty: "Active Learning Seed Settings"
     description: "Settings for the AL seed generation for MD."
     seed_size_frac:
       description: "Sets total structures in an MD seed as a fraction of the training db size."
@@ -894,6 +898,11 @@ active_learning:
             mandatory: false
             default: "float32"
             choices: ["float32", "float64"]
+          enable_cueq:
+            description: "Enable CUEQ for MACE."
+            type: bool
+            mandatory: false
+            default: false
   extrapolation:
     description: "Settings for extrapolation checks."
     disagreement_check_type:
@@ -948,7 +957,7 @@ active_learning:
         type: float
         mandatory: true
         default: 0.003
-      "langevin_friction_ps-1":
+      langevin_friction_ps-1:
         description: "Friction coefficient for the Langevin thermostat in ps⁻¹."
         type: float
         mandatory: true
@@ -969,6 +978,11 @@ active_learning:
         mandatory: true
         default: "cuda"
         choices: ["cpu", "cuda"]
+      enable_cueq:
+        description: "Enable CUEQ for MACE."
+        type: bool
+        mandatory: false
+        default: false
       default_dtype:
         description: "Default data type for the MACE model in MD simulations."
         type: str
@@ -1044,6 +1058,11 @@ active_learning:
         type: str
         mandatory: true
         example: "my_cluster"
+      prepend_text:
+        description: "Text to prepend to job scripts for AiiDA."
+        type: str
+        mandatory: true
+        example: "module load singularity\nexport PATH=$PATH:."
       options:
         description: "AiiDA scheduler options for MD calculations."
         type: dict
@@ -1182,6 +1201,24 @@ active_learning:
       description: "AiiDA metadata and scheduler options for descriptor computation."
       type: dict
       mandatory: false
+    descriptor_type:
+      description: "Type of descriptor to compute."
+      type: str
+      mandatory: false
+      default: "mace"
+      choices: ["mace", "soap"]
+    dtype:
+      description: "Data type of descriptor to compute."
+      type: str
+      mandatory: false
+      default: "float32"
+      choices: ["float32", "float64"]
+    device:
+      description: "Device for descriptor computation."
+      type: str
+      mandatory: false
+      default: "cpu"
+      choices: ["cpu", "cuda"]
     autoencoder:
       description: "Settings for autoencoder-based dimensionality reduction."
       train_settings:
@@ -1300,7 +1337,12 @@ active_learning:
       type: str
       mandatory: false
       default: "mace"
-      choices: ['vasp', 'mace']
+      choices: ["vasp", "mace"]
+    dft_calc_limit:
+      description: "Maximum number of DFT calculations to perform per AL step."
+      type: int
+      mandatory: false
+      default: None
     mace:
       description: "MACE settings as DFT calculator."
       depends_on:
@@ -1388,8 +1430,8 @@ active_learning:
         description: "List of structure types to process."
         type: list[str]
         mandatory: false
-        default: ['bulk', 'surface', 'cluster']
-        choices: ['bulk', 'surface', 'cluster']
+        default: ["bulk", "surface", "cluster"]
+        choices: ["bulk", "surface", "cluster"]
       filter:
         description: "Settings for filtering structures after DFT calculations, based on energy and force thresholds."
         mandatory: false
@@ -1455,7 +1497,7 @@ active_learning:
           description: "Resource options for the scheduler."
           type: dict
           mandatory: false
-          example: {"tot_num_mpiprocs": 112, "num_machines": 1}
+          example: { "tot_num_mpiprocs": 112, "num_machines": 1 }
         multiple:
           description: "Multiple factor for resources."
           type: int
@@ -1469,35 +1511,76 @@ active_learning:
         description: "K-spacing settings for different phases or default value."
         type: dict
         mandatory: false
-        example: {"MDB_DEFAULT": 0.150, "alpha": 0.135}
+        example: { "MDB_DEFAULT": 0.150, "alpha": 0.135 }
       incar:
         description: "INCAR settings for VASP calculations."
         type: dict
         mandatory: false
-        example: {"istart": 0, "icharg": 2, "gga": "Pe", "encut": 450}
+        example: { "istart": 0, "icharg": 2, "gga": "Pe", "encut": 450 }
       surface:
         description: "Surface-specific INCAR settings."
         incar:
           description: "INCAR settings specific to surface calculations."
           type: dict
           mandatory: false
-          example: {"ldipol": true, "idipol": 3, "ispin": 2}
+          example: { "ldipol": true, "idipol": 3, "ispin": 2 }
       cluster:
         description: "Cluster-specific INCAR settings."
         incar:
           description: "INCAR settings specific to cluster calculations."
           type: dict
           mandatory: false
-          example: {"ldipol": true, "dipol": [0.5, 0.5, 0.5], "idipol": 4}
+          example: { "ldipol": true, "dipol": [0.5, 0.5, 0.5], "idipol": 4 }
       aiida_vasp:
         description: "AiiDA-VASP specific settings."
         parser_settings:
           description: "Contains entries to include in the results gathered using the aiida-vasp parser settings"
           type: dict
           mandatory: false
-          example: {"add_trajectory": false, "add_bands": false, "add_charge_density": false, "add_dos": false, "add_kpoints": false, "add_energies": true, "add_misc": true, "add_structure": false, "add_projectors": false, "add_born_charges": false, "add_dielectrics": false, "add_hessian": false, "add_dynmat": false, "add_wavecar": false, "add_forces": false, "add_stress": false}
+          example:
+            {
+              "add_trajectory": false,
+              "add_bands": false,
+              "add_charge_density": false,
+              "add_dos": false,
+              "add_kpoints": false,
+              "add_energies": true,
+              "add_misc": true,
+              "add_structure": false,
+              "add_projectors": false,
+              "add_born_charges": false,
+              "add_dielectrics": false,
+              "add_hessian": false,
+              "add_dynmat": false,
+              "add_wavecar": false,
+              "add_forces": false,
+              "add_stress": false,
+            }
           critical_notifications:
             description: "Critical error and warning notifications. These represent VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The example contains all defults."
             type: dict
             mandatory: false
-            example: {"add_brmix": true, "add_cnormn" : true, "add_denmp" : true, "add_dentet" : true, "add_edddav_zhegv" : true, "add_eddrmm_zhegv" : true, "add_edwav" : true, "add_fexcp" : true, "add_fock_acc" : true, "add_non_collinear" : true, "add_not_hermitian" : true, "add_psmaxn" : true, "add_pzstein" : true, "add_real_optlay" : true, "add_rhosyg" : true, "add_rspher" : true, "add_set_indpw_full" : true, "add_sgrcon" : true, "add_no_potimm" : true, "add_magmom" : true, "add_bandocc" : true}
+            example:
+              {
+                "add_brmix": true,
+                "add_cnormn": true,
+                "add_denmp": true,
+                "add_dentet": true,
+                "add_edddav_zhegv": true,
+                "add_eddrmm_zhegv": true,
+                "add_edwav": true,
+                "add_fexcp": true,
+                "add_fock_acc": true,
+                "add_non_collinear": true,
+                "add_not_hermitian": true,
+                "add_psmaxn": true,
+                "add_pzstein": true,
+                "add_real_optlay": true,
+                "add_rhosyg": true,
+                "add_rspher": true,
+                "add_set_indpw_full": true,
+                "add_sgrcon": true,
+                "add_no_potimm": true,
+                "add_magmom": true,
+                "add_bandocc": true,
+              }

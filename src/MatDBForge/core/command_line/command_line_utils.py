@@ -122,7 +122,10 @@ def validate_config_file(
 
     # Validate the (possibly migrated) configuration
     errors = validate_section_recursive(
-        migrated_config, config_schema, root_config_data=migrated_config
+        migrated_config,
+        config_schema,
+        root_config_data=migrated_config,
+        original_schema_dict=config_schema,
     )
 
     # Add deprecation warnings as validation errors to fail validation
@@ -410,6 +413,7 @@ def validate_section_recursive(
     errors=None,
     section_mandatory=True,
     root_config_data=None,
+    original_schema_dict=None,
 ):
     """
     Recursively validate a configuration section against its schema.
@@ -428,6 +432,10 @@ def validate_section_recursive(
     """
     if errors is None:
         errors = []
+
+    # Keep a copy of config_data for removal of validated keys
+    # from where they will be popped once validated
+    config_data_removal = config_data.copy() if isinstance(config_data, dict) else {}
 
     # Set root_config_data to the current config_data if not provided
     if root_config_data is None:
@@ -459,6 +467,9 @@ def validate_section_recursive(
         )
         errors.extend(param_errors)
 
+        if len(param_errors) == 0:
+            config_data_removal.pop(param_key, None)
+
     # Handle flattened sections
     for section_name, section_schema in sections.items():
         if section_schema.get('flatten'):
@@ -472,6 +483,8 @@ def validate_section_recursive(
                         value, flattened_key, sub_schema, path, root_config_data
                     )
                     errors.extend(param_errors)
+                    if len(param_errors) == 0:
+                        config_data_removal.pop(param_key, None)
             continue
 
         # Handle dynamic key sections
@@ -488,12 +501,13 @@ def validate_section_recursive(
                         section_schema.get('mandatory', True) and section_mandatory
                     )
                     validate_section_recursive(
-                        config_value,
-                        section_schema.get('schema', {}),
-                        new_path,
-                        errors,
-                        is_section_mandatory,
-                        root_config_data,
+                        config_data=config_value,
+                        schema_dict=section_schema.get('schema', {}),
+                        path=new_path,
+                        errors=errors,
+                        section_mandatory=is_section_mandatory,
+                        root_config_data=root_config_data,
+                        original_schema_dict=original_schema_dict,
                     )
             continue
 
@@ -508,15 +522,45 @@ def validate_section_recursive(
         )
 
         validate_section_recursive(
-            section_data,
-            section_schema,
-            new_path,
-            errors,
-            is_section_mandatory,
-            root_config_data,
+            config_data=section_data,
+            schema_dict=section_schema,
+            path=new_path,
+            errors=errors,
+            section_mandatory=is_section_mandatory,
+            root_config_data=root_config_data,
+            original_schema_dict=original_schema_dict,
         )
 
+    # Check for unexpected keys in config_data_removal
+    unexpected_keys = set(config_data_removal.keys()) - set(params.keys())
+    if unexpected_keys and len(set(config_data_removal.keys())) > 0:
+        for key in unexpected_keys:
+            full_key_path = f'{path}.{key}' if path else key
+            if not key_path_in_schema(full_key_path, original_schema_dict):
+                errors.append('Unexpected key found: '
+                               f'[yellow italic]{full_key_path}')
     return errors
+
+
+def key_path_in_schema(full_path, schema_dict):
+    """
+    Ensure that a given key is not present in the schema dictionary.
+
+    Args:
+        full_path (str): The path to check for absence in the schema.
+        schema_dict (dict): The schema dictionary to check against.
+
+    Returns
+    -------
+        bool: False if the key is not present in the schema, True otherwise.
+    """
+    keys = full_path.split('.')
+    current_dict = schema_dict
+    for key in keys:
+        if key not in current_dict:
+            return False
+        current_dict = current_dict[key]
+    return True
 
 
 def get_schema():

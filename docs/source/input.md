@@ -677,6 +677,9 @@ This section is optional.
   - Default is `'float32'`.
   - Possible values are: `float32`, `float64`.
 
+- `enable_cueq`: (optional, bool) Enable CUEQ for MACE.
+  - Default is `False`.
+
 ### Settings for extrapolation checks. - `[extrapolation]`
 
 
@@ -735,6 +738,9 @@ This section is optional.
   - Default is `'cuda'`.
   - Possible values are: `cpu`, `cuda`.
 
+- `enable_cueq`: (optional, bool) Enable CUEQ for MACE.
+  - Default is `False`.
+
 - `default_dtype`: (str) Default data type for the MACE model in MD simulations.
   - Default is `'float32'`.
   - Possible values are: `float32`, `float64`.
@@ -792,6 +798,10 @@ This section is optional.
 
 - `computer`: (str) AiiDA computer name for MD calculations.
   - Example: `'my_cluster'`.
+
+- `prepend_text`: (str) Text to prepend to job scripts for AiiDA.
+  - Example: `'module load singularity
+export PATH=$PATH:.'`.
 
 - `options`: (optional, dict) AiiDA scheduler options for MD calculations.
 
@@ -884,6 +894,18 @@ export PATH=$PATH:.'`.
 
 - `metadata`: (optional, dict) AiiDA metadata and scheduler options for descriptor computation.
 
+- `descriptor_type`: (optional, str) Type of descriptor to compute.
+  - Default is `'mace'`.
+  - Possible values are: `mace`, `soap`.
+
+- `dtype`: (optional, str) Data type of descriptor to compute.
+  - Default is `'float32'`.
+  - Possible values are: `float32`, `float64`.
+
+- `device`: (optional, str) Device for descriptor computation.
+  - Default is `'cpu'`.
+  - Possible values are: `cpu`, `cuda`.
+
 #### Settings for autoencoder-based dimensionality reduction. - `[descriptors.autoencoder]`
 
 
@@ -961,6 +983,9 @@ export PATH=$PATH:.'`.
 - `dft_method`: (optional, str) Selection of DFT calculator.
   - Default is `'mace'`.
   - Possible values are: `vasp`, `mace`.
+
+- `dft_calc_limit`: (optional, int) Maximum number of DFT calculations to perform per AL step.
+  - Default is `'None'`.
 
 #### MACE settings as DFT calculator. - `[dft.mace]`
 
