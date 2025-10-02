@@ -801,8 +801,9 @@ def run_active_learning():
     # Check if all required sections are present
     if args.command == 'run' or args.command == 'resume':
         from aiida.engine import run, submit
-        from aiida.orm import Bool
+        from aiida.orm import Bool, Str
 
+        # Check if TOML file is correct
         validate_config_file(
             config_path=args.config_file, config_type='active_learning'
         )
@@ -860,21 +861,6 @@ def run_active_learning():
             log_file_path=args.old_log_path,
         )
 
-        # Running the workchain
-        if not args.debug:
-            # Submit workchain to the daemon
-            builder.active_learning.debug_mode = Bool(False)
-            node = submit(builder)
-            active_learning_run_print_details(
-                process_pk=str(node.pk),
-                log_path=builder.log_path.value,
-                process_uuid=str(node.uuid),
-            )
-        else:
-            # Run workchain in the foreground
-            builder.active_learning.debug_mode = Bool(True)
-            node = run(builder)
-
     elif args.command == 'dashboard':
         from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
@@ -905,42 +891,72 @@ def run_active_learning():
             toml_dict_path=pl.Path(args.config_file).resolve(),
             complete=args.complete,
         )
-        # Normal CLI run, without dashboard.
-        if not args.dashboard:
-            if not args.debug:
-                builder.active_learning.debug_mode = Bool(False)
 
-                # Submit workchain to the daemon
-                node = submit(builder)
+    # Enable ntfysh if specified in the config file
+    ntfysh_topic = None
+    if builder.active_learning.get('enable_ntfysh', Bool(False)).value:
+        from MatDBForge.active_learning.active_learning_utils import generate_model_name
+        from MatDBForge.core.code_utils import display_qr_in_cli, save_qr_to_file
 
-                # Pretty-print details of the submitted active learning loop
-                active_learning_run_print_details(
-                    process_pk=str(node.pk),
-                    log_path=builder.log_path.value,
-                    process_uuid=str(node.uuid),
-                )
-            else:
-                # Run workchain in the foreground
-                builder.active_learning.debug_mode = Bool(True)
-                node = run(builder)
+        ntfysh_topic = 'mdb_' + generate_model_name()
 
-        else:
-            from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+        builder.active_learning.ntfysh_topic = Str(ntfysh_topic)
+        custom_print(
+            f'ntfy.sh notifications enabled. '
+            f"Subscribe to 'https://ntfy.sh/{ntfysh_topic}'"
+        )
 
-            node = submit(builder)
-            time.sleep(1)
-
-            run_dashboard_app(
-                process_id=str(node.pk),
-                port=args.port,
-                update_interval=args.update_interval,
-                debug=args.debug,
-                online=args.online,
+        # Do not display the QR in resume mode
+        if args.command in ['run']:
+            custom_print('Displaying QR code for ntfy.sh subscription:')
+            save_qr_to_file(
+                data=f'https://ntfy.sh/{ntfysh_topic}',
+                filename=f'qr_{ntfysh_topic}.png',
             )
+            display_qr_in_cli(f'ntfy.sh/{ntfysh_topic}')
+        print()
+
+    # Launch dashboard
+    if args.dashboard:
+        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+
+        node = submit(builder)
+        time.sleep(1)
+
+        run_dashboard_app(
+            process_id=str(node.pk),
+            port=args.port,
+            update_interval=args.update_interval,
+            debug=args.debug,
+            online=args.online,
+        )
+
+    # Launch normal CLI or resume run, without dashboard
+    if not args.dashboard:
+        if not args.debug:
+            builder.active_learning.debug_mode = Bool(False)
+
+            # Submit workchain to the daemon
+            node = submit(builder)
+
+            # Pretty-print details of the submitted active learning loop
+            active_learning_run_print_details(
+                process_pk=str(node.pk),
+                log_path=builder.log_path.value,
+                process_uuid=str(node.uuid),
+                ntifysh_topic=ntfysh_topic,
+            )
+        else:
+            # Run workchain in the foreground
+            builder.active_learning.debug_mode = Bool(True)
+            node = run(builder)
 
 
 def active_learning_run_print_details(
-    process_pk: str, log_path: str, process_uuid: str = None
+    process_pk: str,
+    log_path: str,
+    process_uuid: str = None,
+    ntifysh_topic: str = None,
 ):
     """Prints pretty output for active learning using the rich library."""
     from rich.console import Console, Group
@@ -1003,6 +1019,16 @@ def active_learning_run_print_details(
         'MDB Log File',
         f'[bold]{pl.Path(log_path).name}',
     )
+
+    if ntifysh_topic is not None:
+        table.add_row(
+            'ntfy.sh topic',
+            f'[bold]{ntifysh_topic}',
+        )
+        table.add_row(
+            'ntfy.sh link',
+            f'[bold]https://ntfy.sh/{ntifysh_topic}',
+        )
 
     # Create a group with the text and the table
     grp = Group(process_text, table)

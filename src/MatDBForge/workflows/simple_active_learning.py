@@ -34,7 +34,6 @@ from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core.code_utils import (
     LevelNameFilter,
-    display_qr_in_cli,
     get_mdb_version_info,
 )
 
@@ -60,6 +59,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('debug_mode', valid_type=orm.Bool, serializer=orm.to_aiida_type)
         spec.input('enable_ntfysh', valid_type=orm.Bool, serializer=orm.to_aiida_type)
+        spec.input('ntfysh_topic', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('run_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             'load_init_models',
@@ -296,12 +296,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if not self.inputs.debug_mode:
             self.set_step_logger()
 
-        breakpoint()
         # If notifications are enabled, send start message
         if hasattr(self.inputs, 'enable_ntfysh'):
-            self.ctx.ntfysh_topic = str(f'mdb_{self.node.caller.uuid}')
             requests.post(
-                f'https://ntfy.sh/{self.ctx.ntfysh_topic}',
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
                 data=(
                     f'Starting active learning iteration '
                     f'{self.inputs.al_loop_iteration.value + 1}'
@@ -1736,6 +1734,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 'log_path',
                 'debug_mode',
                 'enable_ntfysh',
+                'ntfysh_topic',
             ],
         )
         spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -2377,17 +2376,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Show url for ntfy.sh if enabled
         self.ctx.inputs.enable_ntfysh = self.inputs.active_learning.enable_ntfysh
+        self.ctx.inputs.ntfysh_topic = self.inputs.active_learning.ntfysh_topic
         if hasattr(self.inputs.active_learning, 'enable_ntfysh'):
-            self.ctx.ntfysh_topic = str(f'mdb_{self.node.uuid}')
-            self.report(
-                f'ntfy.sh notifications enabled. '
-                f"Subscribe to 'https://ntfy.sh/{self.ctx.ntfysh_topic}'"
-            )
-            self.report('Displaying QR code for ntfy.sh subscription:')
-            display_qr_in_cli(f'https://ntfy.sh/{self.ctx.ntfysh_topic}')
-
             requests.post(
-                f'https://ntfy.sh/{self.ctx.ntfysh_topic}',
+                f'https://ntfy.sh/{self.inputs.active_learning.ntfysh_topic.value}',
                 data=(
                     f'Starting Active Learning Loop - '
                     f'{self.inputs.active_learning.run_name.value}'

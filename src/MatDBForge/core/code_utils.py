@@ -26,10 +26,20 @@ def display_qr_in_cli(data: str):
     data : str
         The data to encode in the QR code (e.g., a URL).
     """
-    qr = qrcode.QRCode(version=4, border=1)
+    qr = qrcode.QRCode(version=1, border=1)
     qr.add_data(data)
     qr.make(fit=True)
     qr.print_tty()
+
+
+def save_qr_to_file(data: str, filename: str = 'qr_code.png'):
+    """Generates a QR code and saves it as an image file."""
+    qr = qrcode.QRCode(version=4, border=1)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white')
+    img.save(filename)
+
 
 def get_console_handler():
     # Starting console
@@ -58,6 +68,7 @@ def get_console_handler():
     formatter_con = logging.Formatter('%(message)s')
     ch.setFormatter(formatter_con)
     return ch, console
+
 
 def logging_set_levels():
     logging.addLevelName(10, '[...]')
