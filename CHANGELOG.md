@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.40.3 (2025-10-02)
+
+### Fix
+
+- **al_loop**: fix crash when active learning is started in resume+submit mode ([#c69410b](https://github.com/pol-sb/MatDBForge/commit/c69410b480b5920022c5eddc6e58b15a2a71f741))
+
 ## 0.40.2 (2025-10-02)
 
 ### Fix
