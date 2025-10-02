@@ -917,7 +917,7 @@ def run_active_learning():
         print()
 
     # Launch dashboard
-    if args.dashboard:
+    if hasattr(args, 'dashboard') and args.dashboard:
         from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
         node = submit(builder)
