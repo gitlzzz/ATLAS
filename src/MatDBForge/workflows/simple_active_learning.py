@@ -301,7 +301,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             requests.post(
                 f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
                 data=(
-                    f'Starting active learning iteration '
+                    f'Starting Active Learning Iteration '
                     f'{self.inputs.al_loop_iteration.value + 1}'
                     f' - {self.inputs.run_name.value}'
                 ),

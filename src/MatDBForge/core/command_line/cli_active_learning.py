@@ -932,7 +932,7 @@ def run_active_learning():
         )
 
     # Launch normal CLI or resume run, without dashboard
-    if not hasattr(args, 'dashboard'):
+    if hasattr(args, 'dashboard') and args.dashboard is None:
         if not args.debug:
             builder.active_learning.debug_mode = Bool(False)
 
