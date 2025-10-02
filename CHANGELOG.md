@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.40.5 (2025-10-02)
+
+### Fix
+
+- **al_loop**: properly check for args.dashboard in al launch script ([#31b2c4e](https://github.com/pol-sb/MatDBForge/commit/31b2c4ed0b8d8f1cbe71efd64dc270f4d722f61a))
+
 ## 0.40.4 (2025-10-02)
 
 ### Misc
