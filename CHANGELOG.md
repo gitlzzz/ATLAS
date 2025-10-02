@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.40.4 (2025-10-02)
+
+### Misc
+
+- **core**: fix new documentations.yml github workflow ([#c281dbc](https://github.com/pol-sb/MatDBForge/commit/c281dbce7c567d50d5b8c56e913f7361433aad77))
+
 ## 0.40.3 (2025-10-02)
 
 ### Fix
