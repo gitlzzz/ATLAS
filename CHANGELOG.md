@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.40.1 (2025-10-02)
+
+### Docs
+
+- **schema**: separate input from tools ([#caec1a8](https://github.com/pol-sb/MatDBForge/commit/caec1a82ebf4970d9ff048d9e7d3fa942bd2e858))
+- **schema**: updated schema to include forgotten keys ([#d17d669](https://github.com/pol-sb/MatDBForge/commit/d17d6694a7ad064a9b325b51e83a6605eeaabe66))
+- **schema**: toml check now detects incorrect keys ([#8c0bbaa](https://github.com/pol-sb/MatDBForge/commit/8c0bbaaed6ef3d94d202519b33e8c65e8f92a8b9))
+
 ## 0.40.0 (2025-10-01)
 
 ### Feature
