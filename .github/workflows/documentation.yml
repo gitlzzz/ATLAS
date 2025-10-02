@@ -1,6 +1,14 @@
-name: documentation
+name: Build and Deploy Documentation
 
-on: [push, pull_request, workflow_dispatch]
+# Run on pushes to master, any tag starting with 'v', and on manual dispatch
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*.*.*' # Matches tags like v1.0, v2.3.4, etc.
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -9,28 +17,41 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-         fetch-depth: 0
-         fetch-tags: true
-      - uses: actions/setup-python@v5
+          fetch-depth: 0 # Fetches all history for all branches and tags
+          fetch-tags: true
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
-         python-version: '3.11'
-         cache: 'pip'
+          python-version: "3.11"
+          cache: "pip" # Caches pip dependencies
+
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          python -m pip install --upgrade setuptools
+          python -m pip install --upgrade pip setuptools
           pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
-          pip install ../MatDBForge
-          echo "## Done"
-      - name: Apidoc
+          pip install . # Assumes your package is installable from the root
+
+      - name: Cache Sphinx build files
+        uses: actions/cache@v4
+        with:
+          path: docs/_build/.doctrees
+          key: ${{ runner.os }}-sphinx-${{ hashFiles('docs/**/*', 'src/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-sphinx-
+
+      - name: Generate API documentation
         run: |
-          sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old  -f
-      - name: Sphinx build
+          sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
+
+      - name: Build documentation with Sphinx
         run: |
-          sphinx-multiversion docs _build
-      - name: Create index.html pointing to master
+          sphinx-multiversion docs/source _build/html
+
+      - name: Create index.html redirect
         run: |
           echo '<!DOCTYPE html>
           <html>
@@ -40,12 +61,14 @@ jobs:
             <meta http-equiv="refresh" content="0; url=./master/index.html">
             <link rel="canonical" href="https://pol-sb.github.io/MatDBForge/master/index.html">
           </head>
-          </html>' > _build/index.html
+          </html>' > _build/html/index.html
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        # Deploy only on a push to the master branch or a tag push
+        if: ${{ github.event_name == 'push' }}
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: _build/
-          force_orphan: true
+          publish_dir: _build/html/
+          keep_files: true # IMPORTANT: This preserves existing documentation versions
