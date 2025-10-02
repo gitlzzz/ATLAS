@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.40.2 (2025-10-02)
+
+### Fix
+
+- **al_loop**: add missing debug_mode parameter to resume builder ([#caa14ac](https://github.com/pol-sb/MatDBForge/commit/caa14ac41a6801c841d4416d2c15667563b53c86))
+
+### Misc
+
+- **core**: updated git workflow for documentation ([#c19caca](https://github.com/pol-sb/MatDBForge/commit/c19caca404715c51fcbdeec81960015b2a4c7ef9))
+
 ## 0.40.1 (2025-10-02)
 
 ### Docs
