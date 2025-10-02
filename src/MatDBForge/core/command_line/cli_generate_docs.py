@@ -43,14 +43,14 @@ def format_parameter_line(key, details, level=0):
         if isinstance(default_value, str):
             line += f"\n  - Default is `'{default_value}'`."
         else:
-            line += f"\n  - Default is `{default_value}`."
+            line += f'\n  - Default is `{default_value}`.'
 
     # Add example if present and no default
     elif example_value is not None:
         if isinstance(example_value, str):
             line += f"\n  - Example: `'{example_value}'`."
         else:
-            line += f"\n  - Example: `{example_value}`."
+            line += f'\n  - Example: `{example_value}`.'
 
     # Add choices if present
     if choices:
@@ -200,7 +200,7 @@ def generate_tool_section(schema, tool_name, tool_config):
     return lines
 
 
-def generate_full_documentation(schema):
+def generate_full_documentation(schema, args):
     """
     Generate the complete documentation file.
 
@@ -211,59 +211,30 @@ def generate_full_documentation(schema):
     -------
         str: Complete documentation as string
     """
-    lines = []
-
-    # Header and introduction
-    lines.extend(
-        [
-            '# Input specification',
-            '',
-            (
-                'The input format of MDB is [TOML](https://toml.io/en/). '
-                'The syntax from TOML is unchanged. '
-                'The available parameters are different depending on the selected tool.'
-            ),
-            '',
-            (
-                'Users are advised to use the `mdb_gen_configuration_file` utility '
-                'to generate a template file which can be customized. However, '
-                'the configuration files can be created from scratch using the '
-                'sections from below and the appropiate TOML syntax '
-                'as in the following example:'
-            ),
-            '',
-            '```toml',
-            '[database]',
-            "database_name = 'test'",
-            '...',
-            '',
-            '',
-            '[database.plot_db]',
-            'show = true',
-            '',
-            '...',
-            '',
-            '[generation]',
-            "generate_type = ['bulk', 'surface', 'cluster']",
-            '',
-            '```',
-            '',
-            (
-                "Please, check the tool's corresponding section to learn more "
-                'about all the available options.'
-            ),
-            '',
-        ]
-    )
-
     # Generate documentation for each tool
     for tool_name in ['database_generation', 'dft', 'active_learning']:
         if tool_name in schema:
             tool_lines = generate_tool_section(schema, tool_name, schema[tool_name])
-            lines.extend(tool_lines)
-            lines.append('')  # Extra space between tools
+            # lines.extend(tool_lines)
+            tool_docs = '\n'.join(tool_lines)
 
-    return '\n'.join(lines)
+            output_path = pl.Path(f'docs/source/input_{tool_name}.md')
+
+            if not output_path.exists() or args.overwrite:
+                with open(output_path, 'w') as f:
+                    f.write(tool_docs)
+                custom_print(
+                    f"Documentation saved to '{output_path}'", print_type='done'
+                )
+            else:
+                custom_print(
+                    f"File '{output_path}' already exists. "
+                    'Use --overwrite to replace it.',
+                    print_type='error',
+                )
+                sys.exit(1)
+
+    return tool_docs, output_path
 
 
 def generate_docs():
@@ -274,15 +245,6 @@ def generate_docs():
         prog='mdb_gen_docs',
         description='Generate MDB documentation from the YAML schema.',
         formatter_class=RawTextHelpFormatter,
-    )
-
-    parser.add_argument(
-        '-o',
-        '--output',
-        help='Output path for the generated documentation file.',
-        type=pl.Path,
-        default=pl.Path('docs/source/input.md'),
-        metavar='PATH',
     )
 
     parser.add_argument(
@@ -312,22 +274,7 @@ def generate_docs():
 
     # Generate documentation
     custom_print('Generating documentation from schema...', print_type='info')
-    documentation = generate_full_documentation(schema)
-
-    # Write the generated documentation
-    output_path = args.output.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if not output_path.exists() or args.overwrite:
-        with open(output_path, 'w') as f:
-            f.write(documentation)
-        custom_print(f"Documentation saved to '{output_path}'", print_type='done')
-    else:
-        custom_print(
-            f"File '{output_path}' already exists. Use --overwrite to replace it.",
-            print_type='error',
-        )
-        sys.exit(1)
+    generate_full_documentation(schema, args)
 
 
 if __name__ == '__main__':

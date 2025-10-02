@@ -13,7 +13,7 @@ repos:
     hooks:
       - id: update-docs-from-schema
         name: Update documentation from config schema
-        entry: python -m MatDBForge.core.command_line.cli_generate_docs --output docs/source/input.md --overwrite
+        entry: python -m MatDBForge.core.command_line.cli_generate_docs --overwrite
         language: system
         files: ^src/MatDBForge/data/config_schema\.yaml$
         pass_filenames: false
