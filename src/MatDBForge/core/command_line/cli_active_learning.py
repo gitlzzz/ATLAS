@@ -863,8 +863,7 @@ def run_active_learning():
         # Running the workchain
         if not args.debug:
             # Submit workchain to the daemon
-            builder.debug_mode = Bool(False)
-            builder.debug_mode.store()
+            builder.active_learning.debug_mode = Bool(False)
             node = submit(builder)
             active_learning_run_print_details(
                 process_pk=str(node.pk),
@@ -873,8 +872,7 @@ def run_active_learning():
             )
         else:
             # Run workchain in the foreground
-            builder.debug_mode = Bool(True)
-            builder.debug_mode.store()
+            builder.active_learning.debug_mode = Bool(True)
             node = run(builder)
 
     elif args.command == 'dashboard':
