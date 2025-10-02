@@ -952,9 +952,10 @@ class ActiveLearningWorkChain(WorkChain):
                         n_cpus_large = self.inputs.md_parameters.get(
                             'num_cpus_large_struct'
                         )
-                        builder.metadata.options.resources['num_cores_per_mpiproc'] = (
-                            int(n_cpus_large)
-                        )
+                        if n_cpus_large is not None:
+                            builder.metadata.options.resources[
+                                'num_cores_per_mpiproc'
+                            ] = int(n_cpus_large)
 
                     # Get the calculation limit, from the computer metadata set to 0
                     # if not present.
@@ -1698,9 +1699,7 @@ class ActiveLearningWorkChain(WorkChain):
                     )
 
         else:
-            self.report(
-                'Skipping extrapolation since check_extrapolation_type = None.'
-            )
+            self.report('Skipping extrapolation since check_extrapolation_type = None.')
 
         # Updating md seed results DataFrame
         md_seed_results_df.to_pickle(path=self.ctx.md_seed_results_df_path)

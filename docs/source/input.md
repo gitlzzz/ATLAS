@@ -716,6 +716,9 @@ This section is optional.
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) for MD simulations.
   - Default is `[300.0, 500.0, 900.0]`.
 
+- `num_at_large_struct`: (optional, int) Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
+  - Default is `'None'`.
+
 - `max_temp_multiplier`: (float) Multiplier for MD temperature to determine the upper bound of the temperature.
   - Default is `1.3`.
 
@@ -754,6 +757,13 @@ This section is optional.
 - `max_energy_threshold_per_atom`: (optional, float) Maximum energy threshold per atom in eV.
   - Default is `1000.0`.
 
+- `num_cpus_large_struct`: (optional, int) Number of CPUs to use for structures larger than `large_struct_size`.
+  - Default is `16`.
+
+- `md_thermostat`: (optional, str) Thermostat used in the MD simulation.
+  - Default is `'langevin'`.
+  - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
+
 #### Settings for MD trajectory filters. - `[md.filters]`
 
 
@@ -790,6 +800,9 @@ This section is optional.
 - `cov_rad_multiplier_min`: (optional, float) Minimum multiplier for covalent radius threshold.
   - Default is `1.5`.
 
+- `explode_check_interval_perc`: (optional, float) Interval percentage (as a fraction) of MD steps to check for exploding structures.
+  - Default is `0.1`.
+
 #### AiiDA metadata and scheduler options for MD simulations. - `[md.metadata]`
 
 
@@ -799,7 +812,7 @@ This section is optional.
 - `computer`: (str) AiiDA computer name for MD calculations.
   - Example: `'my_cluster'`.
 
-- `prepend_text`: (str) Text to prepend to job scripts for AiiDA.
+- `prepend_text`: (optional, str) Text to prepend to job scripts for AiiDA.
   - Example: `'module load singularity
 export PATH=$PATH:.'`.
 
@@ -916,6 +929,10 @@ export PATH=$PATH:.'`.
   - Default is `'cuda'`.
   - Possible values are: `cpu`, `cuda`.
 
+- `dtype`: (optional, str) Data type for autoencoder training.
+  - Default is `'float32'`.
+  - Possible values are: `float32`, `float64`.
+
 - `model_path`: (optional, str) Path to save the autoencoder model.
   - Default is `'autoencoder_model.pth'`.
 
@@ -983,6 +1000,10 @@ export PATH=$PATH:.'`.
 - `dft_method`: (optional, str) Selection of DFT calculator.
   - Default is `'mace'`.
   - Possible values are: `vasp`, `mace`.
+
+- `calc_type`: (optional, str) Type of calculation.
+  - Default is `'single_point'`.
+  - Possible values are: `single_point`, `relax`, `static`.
 
 - `dft_calc_limit`: (optional, int) Maximum number of DFT calculations to perform per AL step.
   - Default is `'None'`.

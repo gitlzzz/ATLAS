@@ -788,7 +788,7 @@ def run_mace_md_ase(
     log_folder.mkdir(exist_ok=True)
 
     match thermostat:
-        case 'langevin':
+        case 'langevin' | 'nvt':
             # Define the Langevin dynamics
             dyn = Langevin(
                 atoms=init_conf,
@@ -800,7 +800,7 @@ def run_mace_md_ase(
                 logfile=log_folder / f'md_info-{T_start}K.log',
                 loginterval=log_interval,
             )
-        case 'nose-hoover':
+        case 'nose-hoover' | 'npt':
             # Change the simulation box to remove any small numbers not in the diagonal
             # of the box matrix
             box = init_conf.get_cell()

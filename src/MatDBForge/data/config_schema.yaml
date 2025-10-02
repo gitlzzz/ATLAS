@@ -942,6 +942,11 @@ active_learning:
         type: list[float]
         mandatory: true
         default: [300.0, 500.0, 900.0]
+      num_at_large_struct:
+        description: "Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations."
+        type: int
+        mandatory: false
+        default: None
       max_temp_multiplier:
         description: "Multiplier for MD temperature to determine the upper bound of the temperature."
         type: float
@@ -1004,6 +1009,17 @@ active_learning:
         type: float
         mandatory: false
         default: 1000.0
+      num_cpus_large_struct:
+        description: "Number of CPUs to use for structures larger than `large_struct_size`."
+        type: int
+        mandatory: false
+        default: 16
+      md_thermostat:
+        description: "Thermostat used in the MD simulation."
+        type: str
+        mandatory: false
+        default: "langevin"
+        choices: ["langevin", "nvt", "npt", 'nose-hoover']
     filters:
       description: "Settings for MD trajectory filters."
       save_filtered_structures:
@@ -1046,6 +1062,11 @@ active_learning:
           type: float
           mandatory: false
           default: 1.5
+        explode_check_interval_perc:
+          description: "Interval percentage (as a fraction) of MD steps to check for exploding structures."
+          type: float
+          mandatory: false
+          default: 0.1
     metadata:
       description: "AiiDA metadata and scheduler options for MD simulations."
       code:
@@ -1061,7 +1082,7 @@ active_learning:
       prepend_text:
         description: "Text to prepend to job scripts for AiiDA."
         type: str
-        mandatory: true
+        mandatory: false
         example: "module load singularity\nexport PATH=$PATH:."
       options:
         description: "AiiDA scheduler options for MD calculations."
@@ -1229,6 +1250,12 @@ active_learning:
           mandatory: false
           default: "cuda"
           choices: ["cpu", "cuda"]
+        dtype:
+          description: "Data type for autoencoder training."
+          type: str
+          mandatory: false
+          default: "float32"
+          choices: ["float32", "float64"]
         model_path:
           description: "Path to save the autoencoder model."
           type: str
@@ -1338,6 +1365,12 @@ active_learning:
       mandatory: false
       default: "mace"
       choices: ["vasp", "mace"]
+    calc_type:
+      description: "Type of calculation."
+      type: str
+      mandatory: false
+      default: "single_point"
+      choices: ["single_point", "relax", "static"]
     dft_calc_limit:
       description: "Maximum number of DFT calculations to perform per AL step."
       type: int
