@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.40.6 (2025-10-02)
+
+### Fix
+
+- **al_loop**: handle missing dashboard arg properly ([#f97860f](https://github.com/pol-sb/MatDBForge/commit/f97860f8044deeb05c8a6583dd3ac686f08a2f77))
+
 ## 0.40.5 (2025-10-02)
 
 ### Fix
