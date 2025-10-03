@@ -909,6 +909,7 @@ def run_active_learning():
         # Do not display the QR in resume mode
         if args.command in ['run']:
             custom_print('Displaying QR code for ntfy.sh subscription:')
+            print()
             save_qr_to_file(
                 data=f'https://ntfy.sh/{ntfysh_topic}',
                 filename=f'qr_{ntfysh_topic}.png',
