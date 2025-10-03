@@ -675,12 +675,13 @@ def get_mace_eval_results(
         al_loop_node = al_loop_node_list
 
     # Workaround for single node case when loading from log
-    if (
-        len(al_loop_node) == 1
-        and al_loop_node[0].process_type
-        == 'aiida.workflows:mdb-simple-active-learning-base'
-    ):
-        al_loop_node = al_loop_node[0].called
+    if len(al_loop_node) == 1:
+        if not isinstance(al_loop_node[0], orm.Node):
+            curr_node = orm.load_node(al_loop_node[0])
+        else:
+            curr_node = al_loop_node[0]
+        if curr_node.process_type == 'aiida.workflows:mdb-simple-active-learning-base':
+            al_loop_node = al_loop_node[0].called
     # Cases with multiple resumes in a single node
     elif (
         len(al_loop_node) > 1
@@ -689,10 +690,8 @@ def get_mace_eval_results(
     ):
         al_loop_node = al_loop_node[-1].called
 
-
     # Create tmp folder in the current directory
     with tempfile.TemporaryDirectory(dir=folder_path) as tmp_dir:
-
         # Get last iteration from aiida
         try:
             all_iters = [
