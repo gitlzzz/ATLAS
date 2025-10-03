@@ -957,8 +957,18 @@ def update_db_with_dft_results(sel_struct_db, queue):
         num_correct += 1
 
     if len(running_calcs) > 0:
+        all_descendants = []
+        for node in running_calcs:
+            descendants = orm.load_node(node).called_descendants
+            all_descendants.extend(descendants)
+
+        calcjob_ids = [
+            child.pk
+            for child in all_descendants
+            if isinstance(child, orm.CalcJobNode)
+        ]
         mdb_cut.custom_print(
-            f'Currently running {len(running_calcs)} calculations: {running_calcs}...',
+            f'Currently running {len(running_calcs)} calculations: {calcjob_ids}...',
             'info',
         )
     return num_correct, num_error

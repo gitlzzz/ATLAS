@@ -43,21 +43,20 @@ def main():
     from MatDBForge.core.command_line.command_line_utils import validate_config_file
     from MatDBForge.workflows import aiida_utils as mdb_aut
 
-    # Checking version
-    check_mdb_version()
-
-
     # Load the configuration
     config = load_config(args.config)
 
-    # Check if all required sections are present
-    validate_config_file(config_dict=config, config_type='dft')
-
     # Start logger
     log_path = config.get('general', {}).get('log_path', '/tmp/')
-    _, log_file_path = mdb_cut.init_logger(
+    logger, log_file_path = mdb_cut.init_logger(
         source='run_vasp_database', log_path=log_path
     )
+
+    # Checking version
+    check_mdb_version(logger=logger)
+
+    # Check if all required sections are present
+    validate_config_file(config_dict=config, config_type='dft')
 
     source_db = pl.Path(args.db_file)
 

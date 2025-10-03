@@ -217,6 +217,7 @@ def generate_full_documentation(schema, args):
             tool_lines = generate_tool_section(schema, tool_name, schema[tool_name])
             # lines.extend(tool_lines)
             tool_docs = '\n'.join(tool_lines)
+            tool_docs += '\n'
 
             output_path = pl.Path(f'docs/source/input_{tool_name}.md')
 

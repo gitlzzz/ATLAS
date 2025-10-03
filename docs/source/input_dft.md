@@ -82,6 +82,9 @@ All keys are mandatory unless stated otherwise.
 - `tot_num_mpiprocs`: (int) Total number of MPI processes.
   - Default is `24`.
 
+- `parallel_env`: (str) Parallel environment to be used.
+  - Default is `' '`.
+
 ### Settings for the AiiDA-VASP plugin. - `[aiida_vasp]`
 
 :::{attention}

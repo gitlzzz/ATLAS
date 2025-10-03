@@ -630,6 +630,11 @@ dft:
         type: int
         mandatory: true
         default: 24
+      parallel_env:
+        description: "Parallel environment to be used."
+        type: str
+        mandatory: true
+        default: " "
   aiida_vasp:
     description: "Settings for the AiiDA-VASP plugin."
     mandatory: false
