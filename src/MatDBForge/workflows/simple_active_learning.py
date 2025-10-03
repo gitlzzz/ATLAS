@@ -303,7 +303,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 data=(
                     f'Starting Active Learning Iteration '
                     f'{self.inputs.al_loop_iteration.value + 1}'
-                    f' - {self.inputs.run_name.value}'
+                    f' - {self.node.pk}:'
+                    f' {self.inputs.run_name.value}'
                 ),
             )
 
@@ -2381,7 +2382,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             requests.post(
                 f'https://ntfy.sh/{self.inputs.active_learning.ntfysh_topic.value}',
                 data=(
-                    f'Starting Active Learning Loop - '
+                    f'Starting Active Learning Loop - {self.node.pk}: '
                     f'{self.inputs.active_learning.run_name.value}'
                 ),
             )
