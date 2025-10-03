@@ -642,6 +642,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
             if curr_calc.exit_status != 0:
                 continue
 
+            # Skipping model if RMSE values are not present
+            if not hasattr(curr_calc.outputs, 'm_rmse_e') or not hasattr(
+                curr_calc.outputs, 'm_rmse_f'
+            ):
+                continue
+
             # Getting model name
             model_name_list.append(curr_calc.inputs.model_name.value)
 
