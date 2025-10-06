@@ -267,6 +267,7 @@ if __name__ == '__main__':
                         concave_hull=concave_hull,
                         latent_space=latent_space_all,
                         filename=plot_img_path,
+                        alpha=final_alpha,
                     )
 
                     mdb_cut.custom_print(

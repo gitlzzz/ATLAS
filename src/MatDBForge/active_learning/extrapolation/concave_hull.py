@@ -346,12 +346,12 @@ def plot_concave_hull(
     point_inside: np.ndarray = None,
     point_outside: np.ndarray = None,
     filename: str = None,
+    alpha: float = None,
 ):
     if not filename:
         filename = 'concave_hull.png'
 
     # Plotting the concave hull in 2D space using lines
-    plt.plot(concave_hull[:, 0], concave_hull[:, 1], 'r-')
     if latent_space is not None and latent_space.size != 0:
         plt.plot(
             latent_space[:, 0],
@@ -371,7 +371,7 @@ def plot_concave_hull(
             's',
             label='Structure in domain',
             color='#8ec07c',
-            markersize=5,
+            markersize=3.5,
             markeredgewidth=1.5,
             markeredgecolor='#282828',
         )
@@ -382,16 +382,49 @@ def plot_concave_hull(
             's',
             label='Structure out of domain',
             color='#fb4934',
-            markersize=5,
+            markersize=3.5,
             markeredgewidth=1.5,
             markeredgecolor='#282828',
         )
+
+    plt.plot(
+        concave_hull[:, 0],
+        concave_hull[:, 1],
+        '-',
+        color='#cc241d',
+        lw=1,
+        label='Concave hull',
+    )
+
+    polygon = Polygon(concave_hull)
+    hull_area = polygon.area
+
+    if alpha is None:
+        alpha = 'unknown'
+
+    # Write area and alpha in a text box
+    plt.text(
+        0.05,
+        0.95,
+        f'Alpha: {alpha:.2f}\nHull area: {hull_area:.2f}',
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+    )
 
     plt.title('Concave Hull')
     plt.xlabel('Embedded dimension 1')
     plt.ylabel('Embedded dimension 2')
     plt.legend()
+
+    # Save as PNG
     plt.savefig(filename, dpi=300)
+
+    # Save as SVG
+    filename_svg = filename.with_suffix('.svg')
+    plt.savefig(filename_svg, dpi=300)
+
     plt.show(block=False)
     plt.clf()
 
