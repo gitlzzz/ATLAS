@@ -162,17 +162,20 @@ This section is optional.
 :::
 
 
-- `target_alpha_range_min`: (optional, float) No description available.
+- `target_alpha_range_min`: (optional, float) Minimum alpha value for the concave hull.
   - Default is `3.0`.
 
-- `target_alpha_range_max`: (optional, float) No description available.
+- `target_alpha_range_max`: (optional, float) Maximum alpha value for the concave hull.
   - Default is `8.0`.
 
-- `default_alpha_if_issues`: (optional, float) No description available.
+- `default_alpha_if_issues`: (optional, float) Default alpha value if there are issues with the concave hull generation.
   - Default is `5.0`.
 
-- `nn_dist_scale_factor`: (optional, float) No description available.
+- `nn_dist_scale_factor`: (optional, float) Scaling factor for the alpha candidate calculation, where `alpha_candidate = nn_dist_scale_factor / mean_nn_dist`
   - Default is `1.5`.
+
+- `frac_points_allowed_out`: (optional, float) Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%.
+  - Default is `0.002`.
 
 ### Settings for MD simulations. - `[md]`
 
