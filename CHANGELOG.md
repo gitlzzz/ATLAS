@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.41.0 (2025-10-06)
+
+### Docs
+
+- **schema**: add `frac_points_allowed_out` and descriptions to alpha shape settings in schema ([#41618ff](https://github.com/pol-sb/MatDBForge/commit/41618ffd9ee3508d0eddd8c9d1c9f6f5e5500559))
+- **schema**: add alpha hull options ([#7d912a2](https://github.com/pol-sb/MatDBForge/commit/7d912a2126815b4820e1a783ecb970ce8363ae86))
+
+### Feature
+
+- **domain_validity**: add alpha and area values to alpha hull plot ([#f30e75e](https://github.com/pol-sb/MatDBForge/commit/f30e75e56909a092028903a41cbf3bacc5c98648))
+- **domain_validity**: add iterative alpha selection during advanced extrapolation check ([#d81436f](https://github.com/pol-sb/MatDBForge/commit/d81436fa969be59b12235e0d78e234f8de27eac0))
+
+### Fix
+
+- **al_loop**: check for rmse_e and rmse_f after gathering mace training data to avoid crash ([#20c1b09](https://github.com/pol-sb/MatDBForge/commit/20c1b092ea7379a5cd447324805b60af4a471571))
+- **report**: load nodes that get passed as np.int instead of orm.Node ([#df3b4d6](https://github.com/pol-sb/MatDBForge/commit/df3b4d6c2591d4388f279355b9b405f9e08da9f9))
+- **dft**: add blocking schema entry for vasp dft calculator and fix dft log output ([#c966f04](https://github.com/pol-sb/MatDBForge/commit/c966f04c5bc1b97aff742619afc72abc89a92a3c))
+
+### Misc
+
+- **core**: update documentation workflow ([#2993e7f](https://github.com/pol-sb/MatDBForge/commit/2993e7f1c49afb738bc32bc900405c346f47ed8e))
+
+### Refactor
+
+- **al_loop**: removed unused functions in `simple_active_learning.py` ([#fb51106](https://github.com/pol-sb/MatDBForge/commit/fb51106434c68f30017ce36e59f42d2dccda4213))
+- **domain_validity**: simplify and remove duplicate functions in `mdb_check_descr_combined.py` ([#5d41cfc](https://github.com/pol-sb/MatDBForge/commit/5d41cfca4843edb12a103b84fd306693bea4d2d8))
+
+### Style
+
+- **al_loop**: include loop pk in ntfy.sh messages ([#d2feb81](https://github.com/pol-sb/MatDBForge/commit/d2feb819f86b683b2f84496566e1b123b0aab57f))
+- **al_loop**: separate qr code from logs ([#959cd06](https://github.com/pol-sb/MatDBForge/commit/959cd06c0c2bf71424481a754a5f823313e15fc5))
+
 ## 0.40.6 (2025-10-02)
 
 ### Fix
