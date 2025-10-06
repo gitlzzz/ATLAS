@@ -99,6 +99,7 @@ def get_concave_hull_python(
     target_alpha_range: tuple[float, float] = (3.0, 8.0),
     default_alpha_if_issues: float = 5,
     nn_dist_scale_factor: float = 1.5,
+    frac_points_allowed_out: float = 0.002,
 ) -> np.ndarray:
     """
     Compute the concave hull of a set of points using the alpha-shape algorithm.
@@ -118,12 +119,19 @@ def get_concave_hull_python(
         Scaling factor for the alpha candidate calculation:
         `alpha_candidate = nn_dist_scale_factor / mean_nn_dist`.
         Defaults to 1.5.
+    frac_points_allowed_out: float, optional
+        The maximum fraction of points allowed to be outside the concave hull.
+        If the fraction of points outside the hull exceeds this value,
+        alpha will be decreased iteratively until the condition is met or
+        alpha reaches zero. Defaults to 0.002 (0.2%).
 
     Returns
     -------
     np.ndarray
         The coordinates of the vertices of the concave hull (N, 2).
         Returns an empty array np.empty((0,2)) if a hull cannot be formed.
+    float
+        The alpha value used to compute the concave hull.
     """
     num_points = latent_space.shape[0]
     alpha = default_alpha_if_issues
@@ -190,54 +198,119 @@ def get_concave_hull_python(
         )
         alpha = default_alpha_if_issues
 
-    # Get alpha shape using the determined alpha
-    shape = alpha_shape(latent_space, alpha=alpha, only_outer=True)
+    total_num_points = latent_space.shape[0]
+    frac_outside = 1.0
+    decrease_factor = alpha * 0.1
+    num_attempts = 0
 
-    if shape.is_empty:
-        mdb_cut.custom_print(
-            f'Alpha shape with alpha={alpha:.4f} resulted in an empty geometry. '
-            'This can happen if alpha is too large (too restrictive) for the point set.'
-            ' Attempting to return convex hull as a fallback.',
-            'warn',
-        )
-        # Fallback to convex hull if alpha shape is empty
-        if num_points >= 3:
-            try:
-                hull = ConvexHull(latent_space)
-                return latent_space[hull.vertices]
-            except Exception as e_cvx:  # pragma: no cover
-                mdb_cut.custom_print(
-                    f'Convex hull fallback also failed: {e_cvx}', 'error'
-                )
-                return np.empty((0, 2))
+    while num_attempts <= 20:
+        print()
+        mdb_cut.custom_print(f'Computing alpha shape with alpha: {alpha:.4f}', 'info')
+
+        # Get alpha shape using the determined alpha
+        shape = alpha_shape(latent_space, alpha=alpha, only_outer=True)
+
+        if shape.is_empty:
+            mdb_cut.custom_print(
+                f'Alpha shape with alpha={alpha:.4f} resulted in an empty geometry. '
+                'This can happen if alpha is too large (too restrictive) for the point '
+                'set. Attempting to return convex hull as a fallback.',
+                'warn',
+            )
+            # Fallback to convex hull if alpha shape is empty
+            if num_points >= 3:
+                try:
+                    hull = ConvexHull(latent_space)
+                    return latent_space[hull.vertices]
+                except Exception as e_cvx:  # pragma: no cover
+                    mdb_cut.custom_print(
+                        f'Convex hull fallback also failed: {e_cvx}', 'error'
+                    )
+                    return np.empty((0, 2))
+            else:
+                # Should have been caught earlier, but as a safeguard
+                return np.array(latent_space) if num_points > 0 else np.empty((0, 2))
+
+        if hasattr(shape.exterior, 'coords'):
+            exterior_xy = shape.exterior.coords.xy
+            alpha_shape_arr = np.stack((exterior_xy[0], exterior_xy[1]), axis=1)
         else:
-            # Should have been caught earlier, but as a safeguard
-            return np.array(latent_space) if num_points > 0 else np.empty((0, 2))
+            mdb_cut.custom_print(
+                f'Alpha shape (alpha={alpha:.4f}) did not return a simple polygon '
+                'with an exterior. '
+                f'Shape type: {type(shape)}. This is unexpected with only_outer=True. '
+                'Attempting to return convex hull as a fallback.',
+                'error',
+            )
+            if num_points >= 3:
+                try:
+                    hull = ConvexHull(latent_space)
+                    return latent_space[hull.vertices]
+                except Exception as e_cvx2:  # pragma: no cover
+                    mdb_cut.custom_print(
+                        f'Convex hull fallback also failed: {e_cvx2}', 'error'
+                    )
+                    return np.empty((0, 2))
+            else:
+                return np.array(latent_space) if num_points > 0 else np.empty((0, 2))
 
-    if hasattr(shape.exterior, 'coords'):
-        exterior_xy = shape.exterior.coords.xy
-        alpha_shape_arr = np.stack((exterior_xy[0], exterior_xy[1]), axis=1)
-    else:
-        mdb_cut.custom_print(
-            f'Alpha shape (alpha={alpha:.4f}) did not return a simple polygon '
-            'with an exterior. '
-            f'Shape type: {type(shape)}. This is unexpected with only_outer=True. '
-            'Attempting to return convex hull as a fallback.',
-            'error',
+        # Check status of the points
+        _, point_outside, _ = check_atom_in_domain(
+            concave_hull=alpha_shape_arr, descriptors=latent_space
         )
-        if num_points >= 3:
-            try:
-                hull = ConvexHull(latent_space)
-                return latent_space[hull.vertices]
-            except Exception as e_cvx2:  # pragma: no cover
-                mdb_cut.custom_print(
-                    f'Convex hull fallback also failed: {e_cvx2}', 'error'
-                )
-                return np.empty((0, 2))
-        else:
-            return np.array(latent_space) if num_points > 0 else np.empty((0, 2))
+        points_to_check = point_outside.shape[0]
 
-    return alpha_shape_arr
+        # Compute fraction of points outside the hull
+        frac_outside = points_to_check / total_num_points
+
+        # Decrease alpha to make hull less strict
+        last_alpha = alpha
+        alpha -= decrease_factor
+
+        # Decrease the factor for more gradual changes next iteration
+        decrease_factor *= 0.95
+
+        if alpha < 1:
+            mdb_cut.custom_print(
+                'Alpha has reached the minimum threshold of 1. Stopping adjustments.',
+                'warn',
+            )
+            break
+
+        if frac_outside > frac_points_allowed_out:
+            mdb_cut.custom_print(
+                (
+                    f'Current fraction of points outside hull is {frac_outside:.4f}, '
+                    f'above the allowed {frac_points_allowed_out:.4f} threshold.'
+                ),
+                'warn',
+            )
+            mdb_cut.custom_print(f'Decreasing alpha to: {alpha:.4f}', 'info')
+            last_alpha = alpha
+            num_attempts += 1
+        else:
+            mdb_cut.custom_print(
+                (
+                    f'Current fraction of points outside hull is {frac_outside:.4f}, '
+                    f'below the allowed {frac_points_allowed_out:.4f} threshold.'
+                ),
+                'info',
+            )
+            break
+
+    # After optimizing alpha, print final status.
+    print()
+    mdb_cut.custom_print(
+        (
+            f'Current fraction of points outside hull is {frac_outside:.4f}, '
+            f'after {num_attempts} attempts.'
+        ),
+        'info',
+    )
+    mdb_cut.custom_print(f'Final alpha: {last_alpha:.4f}', 'done')
+    print()
+
+    return alpha_shape_arr, last_alpha
 
 
 def check_atom_in_domain(
@@ -338,7 +411,7 @@ if __name__ == '__main__':
     descriptors = np.load(descriptors_file)
 
     # Compute the concave hull.
-    concave_hull = get_concave_hull_python(latent_space)
+    concave_hull, alpha = get_concave_hull_python(latent_space)
 
     # Check if the random points are inside the concave hull.
     point_inside, point_outside, all_points = check_atom_in_domain(

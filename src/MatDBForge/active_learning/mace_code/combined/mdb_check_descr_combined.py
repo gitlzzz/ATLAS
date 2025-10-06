@@ -105,6 +105,9 @@ if __name__ == '__main__':
     target_alpha_range_max = concave_hull_settings.get('target_alpha_range_max', 8.0)
     default_alpha_if_issues = concave_hull_settings.get('default_alpha_if_issues', 5.0)
     nn_dist_scale_factor = concave_hull_settings.get('nn_dist_scale_factor', 1.5)
+    frac_points_allowed_out = concave_hull_settings.get(
+        'frac_points_allowed_out', 0.002
+    )
 
     # Ensure target alpha range is a tuple
     target_alpha_range = (target_alpha_range_min, target_alpha_range_max)
@@ -113,6 +116,7 @@ if __name__ == '__main__':
         f'Read concave hull settings. Target alpha range: {target_alpha_range}, '
         f'default alpha if issues: {default_alpha_if_issues}, '
         f'NN distance scale factor: {nn_dist_scale_factor}',
+        f'Fraction of points allowed outside: {frac_points_allowed_out}',
         'info',
     )
 
@@ -246,6 +250,7 @@ if __name__ == '__main__':
                     target_alpha_range=target_alpha_range,
                     default_alpha_if_issues=default_alpha_if_issues,
                     nn_dist_scale_factor=nn_dist_scale_factor,
+                    frac_points_allowed_out=frac_points_allowed_out,
                 )
                 concave_hull_path = res_folder / 'concave_hull.npy'
                 np.save(file=concave_hull_path, arr=concave_hull)
