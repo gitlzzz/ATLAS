@@ -929,18 +929,27 @@ active_learning:
         type: float
         default: 3.0
         mandatory: false
+        description: "Minimum alpha value for the concave hull."
       target_alpha_range_max:
         type: float
         default: 8.0
         mandatory: false
+        description: "Maximum alpha value for the concave hull."
       default_alpha_if_issues:
         type: float
         default: 5.0
         mandatory: false
+        description: "Default alpha value if there are issues with the concave hull generation."
       nn_dist_scale_factor:
         type: float
         default: 1.5
         mandatory: false
+        description: "Scaling factor for the alpha candidate calculation, where `alpha_candidate = nn_dist_scale_factor / mean_nn_dist`"
+      frac_points_allowed_out:
+        type: float
+        default: 0.002
+        mandatory: false
+        description: "Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%."
   md:
     description: "Settings for MD simulations."
     ignore_container:
