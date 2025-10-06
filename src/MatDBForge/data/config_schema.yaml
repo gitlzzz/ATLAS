@@ -933,6 +933,14 @@ active_learning:
         type: float
         default: 8.0
         mandatory: false
+      default_alpha_if_issues:
+        type: float
+        default: 5.0
+        mandatory: false
+      nn_dist_scale_factor:
+        type: float
+        default: 1.5
+        mandatory: false
   md:
     description: "Settings for MD simulations."
     ignore_container:

@@ -1181,9 +1181,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.m_rmse_e = self.ctx.m0_rmse_e
             proc_seed_builder.m_rmse_f = self.ctx.m0_rmse_f
 
+
             # Optional input, advanced extrapolation might not be enabled.
             if hasattr(self.ctx, 'concave_hull'):
                 proc_seed_builder.concave_hull = self.ctx.concave_hull
+            if hasattr(self.ctx, 'concave_hull_array'):
+                proc_seed_builder.concave_hull_array = self.ctx.concave_hull_array
             if hasattr(self.ctx, 'autoencoder_model_file'):
                 proc_seed_builder.autoencoder_model = self.ctx.autoencoder_model_file
 
@@ -1285,11 +1288,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 )
             else:
                 # Get portable code
-                code_path = Path(f'{MDB_ROOT_DIR}/active_learning/md')
                 # TODO: This should not be `descriptor_settings`` after the simple
                 # loop is introduced. A new section containing all settings
                 # should be included, and this should be changed to the section
                 # name.
+                code_path = Path(f'{MDB_ROOT_DIR}/active_learning/md')
 
                 prepend_text = (
                     prepend_text_conf

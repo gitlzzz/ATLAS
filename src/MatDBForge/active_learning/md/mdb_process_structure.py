@@ -189,7 +189,6 @@ if __name__ == '__main__':
     # Initialize the logger
     log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
-    logger = mdb_cut.init_logger(source='proc_structure', log_path=log_folder)
 
     # Read TOML file with settings
     with open(prepend_path / 'settings.toml', 'rb') as f:

@@ -168,6 +168,12 @@ This section is optional.
 - `target_alpha_range_max`: (optional, float) No description available.
   - Default is `8.0`.
 
+- `default_alpha_if_issues`: (optional, float) No description available.
+  - Default is `5.0`.
+
+- `nn_dist_scale_factor`: (optional, float) No description available.
+  - Default is `1.5`.
+
 ### Settings for MD simulations. - `[md]`
 
 
