@@ -64,6 +64,12 @@ jobs:
           echo "Appending to conf.py:"
           tail -n 6 docs/conf.py
 
+      - name: Display conf.py for debugging
+        run: |
+          echo "--- Contents of docs/conf.py before build ---"
+          cat docs/conf.py
+          echo "--- End of conf.py ---"
+
       - name: Build docs for the current version
         run: sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
 
