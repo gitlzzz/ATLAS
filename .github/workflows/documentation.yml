@@ -5,7 +5,7 @@ on:
     branches:
       - master
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -90,7 +90,24 @@ jobs:
 
       - name: Create index.html redirect
         run: |
-          echo '<!DOCTYPE html><html><head><title>Redirect</title><meta http-equiv=\"refresh\" content=\"0; url=./master/index.html\"></head></html>' > _build/html/index.html
+          cat > _build/html/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Redirecting...</title>
+            <meta charset="utf-8">
+            <link rel="canonical" href="./master/index.html">
+            <meta http-equiv="refresh" content="0; url=./master/index.html">
+            <script>
+              // Use JavaScript to redirect, which is more reliable than meta refresh
+              window.location.replace("./master/index.html" + window.location.search + window.location.hash);
+            </script>
+          </head>
+          <body>
+            <p>If you are not redirected automatically, follow this <a href="./master/index.html">link to the documentation</a>.</p>
+          </body>
+          </html>
+          EOF
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
