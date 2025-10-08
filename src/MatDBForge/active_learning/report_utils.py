@@ -57,7 +57,7 @@ LINE_COLOR = '#28282855'
 TRAINING_LABEL = 'TrainMACEModelCalculation'
 DESCRIPTORS_LABEL = 'GetDescriptorsCombinedCalculation'
 MD_LABEL = 'ProcessMDSeedStructCalculation'
-DFT_LABEL = 'EvaluateMACEConfigsCalculation'
+DFT_LABELS = ['EvaluateMACEConfigsCalculation', 'VaspCalculation']
 AL_STEP_WORKCHAIN_LABEL = (
     'SimpleActiveLearningWorkChain'  # Ensure this matches your WorkChain label
 )
@@ -2416,6 +2416,23 @@ def gather_stdout_and_scheduler(calcjob: orm.CalcJobNode) -> tuple[str, str]:
 
 
 def get_runtime_from_calcjob(calcjob: orm.CalcJobNode) -> datetime.timedelta:
+    """
+    Get the total runtime of a CalcJob.
+
+    Allows to get information from different schedulers, including SGE and
+    SLURM. For SLURM, see: https://slurm.schedmd.com/sacct.html
+    Does not take into account time in the queue.
+
+    Parameters
+    ----------
+    calcjob : orm.CalcJobNode
+        CalcJob node to analyze.
+
+    Returns
+    -------
+    datetime.timedelta
+        Total runtime of the CalcJob.
+    """
     stdout, scheduler = gather_stdout_and_scheduler(calcjob)
 
     if stdout is None or scheduler is None:
@@ -2423,7 +2440,8 @@ def get_runtime_from_calcjob(calcjob: orm.CalcJobNode) -> datetime.timedelta:
 
     if 'slurm' in scheduler:
         header: list[str] = stdout.splitlines()[0].split('|')
-        n_cpu_posc: int = header.index('CPUTimeRAW')
+        # n_cpu_posc: int = header.index('CPUTimeRAW')
+        n_cpu_posc: int = header.index('ElapsedRaw')
         content: list[str] = stdout.splitlines()[1].split('|')
         cpu_time = datetime.timedelta(seconds=int(content[n_cpu_posc]))
     elif 'sge' in scheduler:
@@ -2505,7 +2523,7 @@ def get_al_step_performance(al_step: orm.WorkChainNode) -> dict:
             stage_stats['md']['mtimes'].append(job_mtime)
             stage_stats['md']['durations'].append(job_duration)
             stage_stats['md']['cores'] = n_cores
-        elif label == DFT_LABEL:
+        elif label in DFT_LABELS:
             stage_stats['dft']['ctimes'].append(job_ctime)
             stage_stats['dft']['mtimes'].append(job_mtime)
             stage_stats['dft']['durations'].append(job_duration)
@@ -2797,13 +2815,17 @@ def print_performance_report(all_performance_data: list):
         step_pk = str(step_info.get('pk', 'N/A'))
         step_duration = step_info.get('step_duration', datetime.timedelta(0))
 
+        # Add Step, PK, Duration
         row_data = [str(step_idx + 1), step_pk, simplify_timedelta_str(step_duration)]
 
         for stage_name in ['training', 'descriptors', 'md', 'dft']:
             stage = stages_info.get(stage_name, {})
+            all_durations_s = [
+                td.total_seconds() for td in stage.get('duration_list', [0])
+            ]
             time_val = stage.get('total_elapsed_time', datetime.timedelta(0))
             cores = stage.get('cores', 0)
-            core_h = (time_val.total_seconds() / 3600) * cores
+            core_h = np.sum(np.array(all_durations_s)) / 3600 * cores
 
             row_data.extend([simplify_timedelta_str(time_val), f'{core_h:.1f}'])
 
@@ -2880,7 +2902,6 @@ def print_performance_report(all_performance_data: list):
 
 
 def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = None):
-    init_logger(source='get_run_performance')
 
     try:
         load_profile()
