@@ -29,23 +29,26 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser
+          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion # Added back
           pip install .
 
       - name: Checkout existing gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: _build/html
-          # If the branch doesn't exist, this will fail.
-          # On the very first run, you might need to create an empty gh-pages branch.
+        run: |
+          # Create an empty directory for checkout
+          mkdir -p _build/html
+          # Check if the gh-pages branch exists
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            echo "gh-pages branch exists, checking it out."
+            git clone --branch=gh-pages --single-branch "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" _build/html
+          else
+            echo "gh-pages branch does not exist yet. It will be created."
+          fi
 
       - name: Generate API documentation
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
       - name: Build docs for the current version
         run: |
-          # Build only the current ref and place it in the correct subdirectory
           sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
 
       - name: Generate versions.json
@@ -56,14 +59,13 @@ jobs:
           from packaging.version import parse as parse_version
 
           build_dir = '_build/html'
-          versions = [d for d in os.listdir(build_dir) if os.path.isdir(os.path.join(build_dir, d))]
-
-          # Sort versions: master first, then tags newest to oldest
+          # Filter out git files and other non-version directories
+          versions = [d for d in os.listdir(build_dir) if os.path.isdir(os.path.join(build_dir, d)) and not d.startswith('.')]
+          
           def sort_key(version):
               if version == 'master':
                   return (0, parse_version('9999.0.0')) # Puts master at the top
               try:
-                  # Handle tags like 'v1.2.3'
                   return (1, parse_version(version.lstrip('v')))
               except:
                   return (2, version) # Other branches last
