@@ -41,8 +41,23 @@ jobs:
       - name: Generate API documentation
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
+      - name: Prepare theme context for build
+        run: |
+          # Get all git tags for the version list
+          git fetch --prune --unshallow --tags
+          VERSIONS=$(git tag -l "v*.*.*" | sort -rV)
+          VERSIONS_LIST="('master', './master/'),"
+          for version in $VERSIONS; do
+            VERSIONS_LIST+="('"$version"', './"$version"/'),"
+          done
+
+          # Append the necessary context variables to conf.py
+          echo "html_context = {'current_version': '${{ github.ref_name }}', 'versions': [${VERSIONS_LIST}]}" >> docs/conf.py
+          echo "Appending to conf.py:"
+          tail -n 1 docs/conf.py
+
       - name: Build docs for the current version
-        run: sphinx-build -b html -A current_version=${{ github.ref_name }} docs "_build/html/${{ github.ref_name }}"
+        run: sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
 
       - name: Generate versions.json
         run: |
