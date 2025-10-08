@@ -33,20 +33,16 @@ jobs:
           pip install .
 
       - name: Checkout existing gh-pages branch
-        run: |
-          mkdir -p _build/html
-          if git ls-remote --exit-code --heads origin gh-pages; then
-            echo "gh-pages branch exists, checking it out."
-            git clone --branch=gh-pages --single-branch "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" _build/html
-          else
-            echo "gh-pages branch does not exist yet. It will be created."
-          fi
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: _build/html
 
       - name: Generate API documentation
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
       - name: Build docs for the current version
-        run: sphinx-multiversion docs _build/html ${{ github.ref_name }}
+        run: sphinx-build -b html -A smv_current_version=${{ github.ref_name }} docs "_build/html/${{ github.ref_name }}"
 
       - name: Generate versions.json
         run: |
