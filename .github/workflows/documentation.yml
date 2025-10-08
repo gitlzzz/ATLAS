@@ -42,7 +42,7 @@ jobs:
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
       - name: Build docs for the current version
-        run: sphinx-build -b html -A smv_current_version=${{ github.ref_name }} docs "_build/html/${{ github.ref_name }}"
+        run: sphinx-build -b html -A current_version=${{ github.ref_name }} docs "_build/html/${{ github.ref_name }}"
 
       - name: Generate versions.json
         run: |
