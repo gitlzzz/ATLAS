@@ -44,7 +44,7 @@ jobs:
       - name: Prepare theme context for build
         run: |
           # Get all git tags for the version list
-          git fetch --prune --unshallow --tags
+          git fetch --prune --tags
           VERSIONS=$(git tag -l "v*.*.*" | sort -rV)
           VERSIONS_LIST="('master', './master/'),"
           for version in $VERSIONS; do
