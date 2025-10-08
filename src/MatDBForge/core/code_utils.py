@@ -123,7 +123,9 @@ class LevelNameFilter(logging.Filter):
         return record.levelname in self.levels_to_keep
 
 
-def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=False):
+def custom_print(
+    string: str, print_type: str = 'default', end='\n', extra_tab=False, logger=None
+):
     """Prints a string using different formatting styles for easier debugging.
 
     Parameters
@@ -145,7 +147,8 @@ def custom_print(string: str, print_type: str = 'default', end='\n', extra_tab=F
     prefix = ''
     extra_tab = '\t' if extra_tab else ''
 
-    logger = logging.getLogger('mdb')
+    if not logger:
+        logger = logging.getLogger('mdb')
 
     # Allows to use the custom print function without initializing
     # the logger first

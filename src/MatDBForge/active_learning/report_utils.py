@@ -57,7 +57,7 @@ LINE_COLOR = '#28282855'
 TRAINING_LABEL = 'TrainMACEModelCalculation'
 DESCRIPTORS_LABEL = 'GetDescriptorsCombinedCalculation'
 MD_LABEL = 'ProcessMDSeedStructCalculation'
-DFT_LABEL = 'EvaluateMACEConfigsCalculation'
+DFT_LABELS = ['EvaluateMACEConfigsCalculation', 'VaspCalculation']
 AL_STEP_WORKCHAIN_LABEL = (
     'SimpleActiveLearningWorkChain'  # Ensure this matches your WorkChain label
 )
@@ -260,7 +260,9 @@ def gen_al_loop_report(
 
         if not model_path:
             try:
-                first_al_step = al_loop_node[0].called[0]
+                if isinstance(al_loop_node, list):
+                    al_loop_node = al_loop_node[0]
+                first_al_step = al_loop_node.called[0]
                 model_path = first_al_step.outputs.m0_model_file
             except Exception:
                 custom_print(
@@ -274,6 +276,7 @@ def gen_al_loop_report(
         # one using the descriptors from the first iteration.
         if not autoencoder_path:
             # TODO: Get the autoencoder model from the first iteration
+            ignore_latent_spaces = False
 
             descr_calc_ini = [
                 calc
@@ -376,15 +379,19 @@ def gen_al_loop_report(
                 descr_calc = descr_calc[0]
                 autoencoder_model = descr_calc.outputs.autoencoder_model
 
+                # If the al_loop is a collection of nodes, get the last one
+                if isinstance(al_loop_node, list):
+                    al_loop_node = al_loop_node[-1]
+
                 try:
-                    last_iter = al_loop_node[0].called[-1]
+                    last_iter = al_loop_node.called[-1]
                     train_calc = [
                         calc
                         for calc in last_iter.called
                         if calc.process_label == TRAINING_LABEL and calc.is_finished_ok
                     ][0]
                 except IndexError:
-                    last_iter = al_loop_node[0].called[-2]
+                    last_iter = al_loop_node.called[-2]
                     train_calc = [
                         calc
                         for calc in last_iter.called
@@ -2054,104 +2061,128 @@ def generate_latent_space_evol(
     else:
         latent_spaces = []
 
-    # If pickle file does not exist, check if the latent spaces
-    # can be gathered from the workchain
-    if len(latent_spaces) == 0 and not ignore_latent_spaces:
-        all_steps = []
-        for node in al_loop_node:
-            all_steps.extend(
-                [
-                    stp
-                    for stp in node.called
-                    if stp.process_type == 'aiida.workflows:mdb-active-learning'
-                    or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
-                ]
-            )
+    if Path('./concave_hulls.json').exists():
+        with open('concave_hulls.json') as f:
+            concave_hulls = json.load(f)
+            concave_hulls = concave_hulls['concave_hulls']
+            num_steps_saved = len(concave_hulls)
+        custom_print(
+            f'Loaded concave hulls for {num_steps_saved} steps from '
+            "'concave_hulls.json'.",
+            'info',
+        )
 
-        auto_steps = []
+    # If we have the concave hulls, we don't need to compute the latent spaces
+    # again, so we can skip to plotting
+    else:
+        concave_hulls = {}
 
-        for node in all_steps:
-            for substep in node.called:
-                if (
-                    substep.process_type
-                    == 'aiida.calculations:mdb-descriptors-combined'
-                ):
-                    auto_steps.append(substep)
+        # If pickle file does not exist, check if the latent spaces
+        # can be gathered from the workchain
+        if len(latent_spaces) == 0 and not ignore_latent_spaces:
+            all_steps = []
 
-        if len(auto_steps) == 0:
-            return
+            # Ensure al_loop_node is a list
+            if not isinstance(al_loop_node, list):
+                al_loop_node = [al_loop_node]
 
-        for step in auto_steps:
-            try:
-                curr_latent_space = step.outputs.latent_space.get_array('default')
-                latent_spaces.append(curr_latent_space)
-            except Exception:
-                custom_print(
-                    f'Could not get latent space from step {step.pk}. '
-                    'Computing latent space on the fly...',
-                    'warning',
+            for node in al_loop_node:
+                all_steps.extend(
+                    [
+                        stp
+                        for stp in node.called
+                        if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                        or stp.process_type
+                        == 'aiida.workflows:mdb-simple-active-learning'
+                    ]
                 )
-                break
 
-    # Get number of steps saved
-    num_steps_saved = len(latent_spaces)
-    # Computing latent space for all structures
-    if num_steps_saved == 0:
-        if databases:
-            autoencoder_file_path = Path(autoencoder_model)
-            autoencoder = None
-            descr_dict = None
+            auto_steps = []
 
-            get_latent_spaces_database_files(
-                device_str,
-                model_path,
-                autoencoder_path,
-                databases,
-                autoencoder_file_path,
-                autoencoder,
-                latent_spaces,
-                descr_dict,
-            )
-        else:
-            # Getting latent spaces from workchain. Using the model_path
-            # as the model to use.
-            if isinstance(model_path, (str, Path)):
-                latent_spaces = get_latent_spaces_workchain(
-                    database_path=database_path,
-                    model_path=model_path,
-                    device_str=device_str,
-                    latent_spaces=latent_spaces,
-                    autoencoder_model=autoencoder_model,
-                    latent_spaces_list=latent_spaces,
+            for node in all_steps:
+                for substep in node.called:
+                    if (
+                        substep.process_type
+                        == 'aiida.calculations:mdb-descriptors-combined'
+                    ):
+                        auto_steps.append(substep)
+
+            if len(auto_steps) == 0:
+                return
+
+            for step in auto_steps:
+                try:
+                    curr_latent_space = step.outputs.latent_space.get_array('default')
+                    latent_spaces.append(curr_latent_space)
+                except Exception:
+                    missing_step = step.caller.inputs.al_loop_iteration.value
+                    custom_print(
+                        'Could not get latent '
+                        f'space from step {missing_step} ({step.pk}). '
+                        'Computing latent space on the fly...',
+                        'warning',
+                    )
+                    break
+
+        # Get number of steps saved
+        num_steps_saved = len(latent_spaces)
+        # Computing latent space for all structures
+        if num_steps_saved == 0:
+            if databases:
+                autoencoder_file_path = Path(autoencoder_model)
+                autoencoder = None
+                descr_dict = None
+
+                get_latent_spaces_database_files(
+                    device_str,
+                    model_path,
+                    autoencoder_path,
+                    databases,
+                    autoencoder_file_path,
+                    autoencoder,
+                    latent_spaces,
+                    descr_dict,
                 )
-            # If model path is a SinglefileData node, a context manager
-            # must be loaded to provide a temporary path and then use it
-            # to load the model
-            elif isinstance(model_path, orm.SinglefileData):
-                with model_path.as_path() as model_path_load:
-                    get_latent_spaces_workchain(
+            else:
+                # Getting latent spaces from workchain. Using the model_path
+                # as the model to use.
+                if isinstance(model_path, (str, Path)):
+                    latent_spaces = get_latent_spaces_workchain(
                         database_path=database_path,
-                        model_path=model_path_load,
+                        model_path=model_path,
                         device_str=device_str,
                         latent_spaces=latent_spaces,
                         autoencoder_model=autoencoder_model,
                         latent_spaces_list=latent_spaces,
                     )
-            else:
-                custom_print(
-                    'Model path is missing or is not a valid type. '
-                    'Expected str, Path or SinglefileData. '
-                    f"Got '{model_path}'.",
-                    'error',
-                )
+                # If model path is a SinglefileData node, a context manager
+                # must be loaded to provide a temporary path and then use it
+                # to load the model
+                elif isinstance(model_path, orm.SinglefileData):
+                    with model_path.as_path() as model_path_load:
+                        get_latent_spaces_workchain(
+                            database_path=database_path,
+                            model_path=model_path_load,
+                            device_str=device_str,
+                            latent_spaces=latent_spaces,
+                            autoencoder_model=autoencoder_model,
+                            latent_spaces_list=latent_spaces,
+                        )
+                else:
+                    custom_print(
+                        'Model path is missing or is not a valid type. '
+                        'Expected str, Path or SinglefileData. '
+                        f"Got '{model_path}'.",
+                        'error',
+                    )
 
-        # Saving latent spaces to pickle file
-        if len(latent_spaces) > 0:
-            with open('latent_spaces.pkl', 'wb') as f:
-                pickle.dump(latent_spaces, file=f)
+            # Saving latent spaces to pickle file
+            if len(latent_spaces) > 0:
+                with open('latent_spaces.pkl', 'wb') as f:
+                    pickle.dump(latent_spaces, file=f)
 
-    # Update number of steps saved
-    num_steps_saved = len(latent_spaces)
+        # Update number of steps saved
+        num_steps_saved = len(latent_spaces)
 
     # Getting colormap for step number
     cmap = colormaps.get_cmap('viridis')
@@ -2177,21 +2208,32 @@ def generate_latent_space_evol(
     )
     ax1 = ax.figure.add_subplot(gs_bottom[0, 0])
 
-    for idx, latent_space in enumerate(latent_spaces):
-        latent_space_vals = []
+    # Get concave hulls if missing
+    if concave_hulls == {}:
+        for idx, latent_space in enumerate(latent_spaces):
+            latent_space_vals = []
 
-        # Different structures for latent_space list when coming from
-        # workchain or from on the fly generation.
-        if isinstance(latent_space, dict):
-            for structure in latent_space:
-                curr_struct_latent = latent_space[structure]['latent_space'][0]
-                latent_space_vals.append(curr_struct_latent)
-            latent_space_vals = np.vstack(latent_space_vals)
-        else:
-            latent_space_vals = latent_space
+            # Different structures for latent_space list when coming from
+            # workchain or from on the fly generation.
+            if isinstance(latent_space, dict):
+                for structure in latent_space:
+                    curr_struct_latent = latent_space[structure]['latent_space'][0]
+                    latent_space_vals.append(curr_struct_latent)
+                latent_space_vals = np.vstack(latent_space_vals)
+            else:
+                latent_space_vals = latent_space
 
-        # Get concave hull if step is 0
-        concave_hull = get_concave_hull_python(latent_space_vals)
+            # Get concave hull if step is 0
+            concave_hull, alpha = get_concave_hull_python(latent_space_vals)
+
+            # Save concave hulls
+            concave_hulls[idx] = concave_hull.tolist()
+
+    for idx, concave_hull in concave_hulls.items():
+        # Converting from list to np.array
+        concave_hull = np.array(concave_hull)
+
+        idx = int(idx)
 
         # Initial concave hull. Do scatter and fill.
         if idx == 0:
@@ -2230,6 +2272,7 @@ def generate_latent_space_evol(
                 linewidth=0.25,
                 edgecolors='#282828',
             )
+            ax1.fill(concave_hull[:, 0], concave_hull[:, 1], color=color, alpha=0.15)
 
         ax1.set_title('Latent Space Evolution')
         ax1.set_xlabel('Reduced dimension 1')
@@ -2248,6 +2291,10 @@ def generate_latent_space_evol(
         # )
 
         ax1.legend()
+
+    # Save concave hulls to json file
+    with open('concave_hulls.json', 'w') as f:
+        json.dump({'concave_hulls': concave_hulls}, f)
 
     # Adding colorbar once all iterations are plotted
     # cax = ax1.inset_axes([1.0, 0.2, 0.5, 1])
@@ -2416,6 +2463,23 @@ def gather_stdout_and_scheduler(calcjob: orm.CalcJobNode) -> tuple[str, str]:
 
 
 def get_runtime_from_calcjob(calcjob: orm.CalcJobNode) -> datetime.timedelta:
+    """
+    Get the total runtime of a CalcJob.
+
+    Allows to get information from different schedulers, including SGE and
+    SLURM. For SLURM, see: https://slurm.schedmd.com/sacct.html
+    Does not take into account time in the queue.
+
+    Parameters
+    ----------
+    calcjob : orm.CalcJobNode
+        CalcJob node to analyze.
+
+    Returns
+    -------
+    datetime.timedelta
+        Total runtime of the CalcJob.
+    """
     stdout, scheduler = gather_stdout_and_scheduler(calcjob)
 
     if stdout is None or scheduler is None:
@@ -2423,7 +2487,8 @@ def get_runtime_from_calcjob(calcjob: orm.CalcJobNode) -> datetime.timedelta:
 
     if 'slurm' in scheduler:
         header: list[str] = stdout.splitlines()[0].split('|')
-        n_cpu_posc: int = header.index('CPUTimeRAW')
+        # n_cpu_posc: int = header.index('CPUTimeRAW')
+        n_cpu_posc: int = header.index('ElapsedRaw')
         content: list[str] = stdout.splitlines()[1].split('|')
         cpu_time = datetime.timedelta(seconds=int(content[n_cpu_posc]))
     elif 'sge' in scheduler:
@@ -2505,7 +2570,7 @@ def get_al_step_performance(al_step: orm.WorkChainNode) -> dict:
             stage_stats['md']['mtimes'].append(job_mtime)
             stage_stats['md']['durations'].append(job_duration)
             stage_stats['md']['cores'] = n_cores
-        elif label == DFT_LABEL:
+        elif label in DFT_LABELS:
             stage_stats['dft']['ctimes'].append(job_ctime)
             stage_stats['dft']['mtimes'].append(job_mtime)
             stage_stats['dft']['durations'].append(job_duration)
@@ -2797,13 +2862,17 @@ def print_performance_report(all_performance_data: list):
         step_pk = str(step_info.get('pk', 'N/A'))
         step_duration = step_info.get('step_duration', datetime.timedelta(0))
 
+        # Add Step, PK, Duration
         row_data = [str(step_idx + 1), step_pk, simplify_timedelta_str(step_duration)]
 
         for stage_name in ['training', 'descriptors', 'md', 'dft']:
             stage = stages_info.get(stage_name, {})
+            all_durations_s = [
+                td.total_seconds() for td in stage.get('duration_list', [0])
+            ]
             time_val = stage.get('total_elapsed_time', datetime.timedelta(0))
             cores = stage.get('cores', 0)
-            core_h = (time_val.total_seconds() / 3600) * cores
+            core_h = np.sum(np.array(all_durations_s)) / 3600 * cores
 
             row_data.extend([simplify_timedelta_str(time_val), f'{core_h:.1f}'])
 
@@ -2880,7 +2949,6 @@ def print_performance_report(all_performance_data: list):
 
 
 def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = None):
-    init_logger(source='get_run_performance')
 
     try:
         load_profile()

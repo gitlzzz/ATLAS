@@ -892,10 +892,17 @@ def run_active_learning():
             complete=args.complete,
         )
 
-    # Enable ntfysh if specified in the config file
+    # Start a new al loop
     ntfysh_topic = None
-    if builder.active_learning.get('enable_ntfysh', Bool(False)).value:
-        from MatDBForge.active_learning.active_learning_utils import generate_model_name
+    if (
+        args.command in ['run', 'resume']
+        and builder.active_learning.get('enable_ntfysh', Bool(False)).value
+    ):
+        # Enable ntfysh if specified in the config file
+        # if builder.active_learning.get('enable_ntfysh', Bool(False)).value:
+        from MatDBForge.active_learning.active_learning_utils import (
+            generate_model_name,
+        )
         from MatDBForge.core.code_utils import display_qr_in_cli, save_qr_to_file
 
         ntfysh_topic = 'mdb_' + generate_model_name()

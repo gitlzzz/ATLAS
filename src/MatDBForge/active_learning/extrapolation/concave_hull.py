@@ -270,14 +270,14 @@ def get_concave_hull_python(
         # Decrease the factor for more gradual changes next iteration
         decrease_factor *= 0.95
 
-        if alpha < 1:
+        if alpha <= 1:
             mdb_cut.custom_print(
                 'Alpha has reached the minimum threshold of 1. Stopping adjustments.',
                 'warn',
             )
             break
 
-        if frac_outside > frac_points_allowed_out:
+        if frac_outside >= frac_points_allowed_out:
             mdb_cut.custom_print(
                 (
                     f'Current fraction of points outside hull is {frac_outside:.4f}, '
@@ -401,12 +401,14 @@ def plot_concave_hull(
 
     if alpha is None:
         alpha = 'unknown'
+    if isinstance(alpha, (float, int)):
+        alpha = f'{alpha:.2f}'
 
     # Write area and alpha in a text box
     plt.text(
         0.05,
         0.95,
-        f'Alpha: {alpha:.2f}\nHull area: {hull_area:.2f}',
+        f'Alpha: {alpha}\nHull area: {hull_area:.2f}',
         transform=plt.gca().transAxes,
         fontsize=10,
         verticalalignment='top',

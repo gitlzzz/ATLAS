@@ -9,6 +9,9 @@
 
 [![documentation](https://github.com/pol-sb/MatDBForge/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/MatDBForge/master/index.html)
 
+![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/MatDBForge?label=current%20version)
+
+
 MatDBForge is a Python library that aids in the training process for MLIPs (Machine Learning Interatomic Potentials) to be used in heterogeneous catalysis. To do this, it provides tools for data generation, allowing to create and manage databases of structures, and provides a robust active learning framework to efficiently expand the training data, while interacting with workflow tools in order to automate the structure labelling.
 
 ## Table of Contents

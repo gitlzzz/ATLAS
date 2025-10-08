@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.41.1 (2025-10-08)
+
+### Fix
+
+- **core**: ntfy.sh was preventing all options not run or resume to work in the mdb_active_learning utility ([#ced1b39](https://github.com/pol-sb/MatDBForge/commit/ced1b39411613a17f6da8e8262743ae36b638fd5))
+- **report**: allow al_loop report to work with latent space exploration in new style AL ([#d49b4e3](https://github.com/pol-sb/MatDBForge/commit/d49b4e36aab3b306278d9b01e0da17dddc66f8d4))
+- **report**: performance report uses ElapsedRaw instad of CPUTimeRaw to properly compute core*h values ([#5416809](https://github.com/pol-sb/MatDBForge/commit/54168097d4964e4cceff7e76a0c496970be80f3d))
+- **domain_validity**: update alpha condition to <= 1, fix alpha print in plot ([#c0817ab](https://github.com/pol-sb/MatDBForge/commit/c0817ab6e77df1f0d57e9686fd6053af2c4f9782))
+- **core**: add optional logger option to custom_print and use it in mdb_process_structure.py script ([#7e724a4](https://github.com/pol-sb/MatDBForge/commit/7e724a4311bdd68e3a3b5a559e00b18586e482a5))
+
+### Misc
+
+- **core**: update LICENSE and README.md ([#93a0e13](https://github.com/pol-sb/MatDBForge/commit/93a0e13a2a1b28a5401184253b13163f08c08366))
+
 ## 0.41.0 (2025-10-06)
 
 ### Docs
