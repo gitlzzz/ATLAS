@@ -26,6 +26,7 @@ Please, check the tool's corresponding section below to learn more about all the
 - [DFT Batch](./input_dft.md)
 - [Active Learning](./input_active_learning.md) -->
 
+
 ```{toctree}
 :maxdepth: 1
 
