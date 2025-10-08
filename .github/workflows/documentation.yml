@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed for version discovery
+          fetch-depth: 0
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -29,14 +29,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion # Added back
+          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
           pip install .
 
       - name: Checkout existing gh-pages branch
         run: |
-          # Create an empty directory for checkout
           mkdir -p _build/html
-          # Check if the gh-pages branch exists
           if git ls-remote --exit-code --heads origin gh-pages; then
             echo "gh-pages branch exists, checking it out."
             git clone --branch=gh-pages --single-branch "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" _build/html
@@ -48,8 +46,7 @@ jobs:
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
       - name: Build docs for the current version
-        run: |
-          sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
+        run: sphinx-multiversion docs _build/html ${{ github.ref_name }}
 
       - name: Generate versions.json
         run: |
@@ -59,16 +56,15 @@ jobs:
           from packaging.version import parse as parse_version
 
           build_dir = '_build/html'
-          # Filter out git files and other non-version directories
           versions = [d for d in os.listdir(build_dir) if os.path.isdir(os.path.join(build_dir, d)) and not d.startswith('.')]
-          
+
           def sort_key(version):
               if version == 'master':
-                  return (0, parse_version('9999.0.0')) # Puts master at the top
+                  return (0, parse_version('9999.0.0'))
               try:
                   return (1, parse_version(version.lstrip('v')))
               except:
-                  return (2, version) # Other branches last
+                  return (2, version)
 
           versions.sort(key=sort_key, reverse=True)
 
