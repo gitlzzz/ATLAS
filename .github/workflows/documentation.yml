@@ -51,10 +51,18 @@ jobs:
             VERSIONS_LIST+="('"$version"', './"$version"/'),"
           done
 
-          # Append the necessary context variables to conf.py
-          echo "html_context = {'current_version': '${{ github.ref_name }}', 'versions': [${VERSIONS_LIST}]}" >> docs/conf.py
+          # Append Python code that *updates* the existing html_context
+          echo "
+          # --- Dynamically added by workflow ---
+          if 'html_context' in globals():
+              html_context.update({'current_version': '${{ github.ref_name }}', 'versions': [${VERSIONS_LIST}]})
+          else:
+              html_context = {'current_version': '${{ github.ref_name }}', 'versions': [${VERSIONS_LIST}]}
+          # --- End dynamic section ---
+          " >> docs/conf.py
+
           echo "Appending to conf.py:"
-          tail -n 1 docs/conf.py
+          tail -n 6 docs/conf.py
 
       - name: Build docs for the current version
         run: sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
