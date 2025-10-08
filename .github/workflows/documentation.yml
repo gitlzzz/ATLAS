@@ -1,13 +1,11 @@
 name: Build and Deploy Documentation
 
-# Run on pushes to master, any tag starting with 'v', and on manual dispatch
 on:
   push:
     branches:
       - master
     tags:
-      - 'v*.*.*' # Matches tags like v1.0, v2.3.4, etc.
-  pull_request:
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:
@@ -20,55 +18,76 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches all history for all branches and tags
-          fetch-tags: true
+          fetch-depth: 0 # Needed for version discovery
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip" # Caches pip dependencies
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
-          pip install . # Assumes your package is installable from the root
+          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser
+          pip install .
 
-      - name: Cache Sphinx build files
-        uses: actions/cache@v4
+      - name: Checkout existing gh-pages branch
+        uses: actions/checkout@v4
         with:
+          ref: gh-pages
           path: _build/html
-          key: ${{ runner.os }}-sphinx-${{ hashFiles('docs/**/*', 'src/**/*') }}
-          restore-keys: |
-            ${{ runner.os }}-sphinx-
+          # If the branch doesn't exist, this will fail.
+          # On the very first run, you might need to create an empty gh-pages branch.
 
       - name: Generate API documentation
-        run: |
-          sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
+        run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
-      - name: Build documentation with Sphinx
+      - name: Build docs for the current version
         run: |
-          sphinx-multiversion docs _build/html
+          # Build only the current ref and place it in the correct subdirectory
+          sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
+
+      - name: Generate versions.json
+        run: |
+          python -c "
+          import json
+          import os
+          from packaging.version import parse as parse_version
+
+          build_dir = '_build/html'
+          versions = [d for d in os.listdir(build_dir) if os.path.isdir(os.path.join(build_dir, d))]
+
+          # Sort versions: master first, then tags newest to oldest
+          def sort_key(version):
+              if version == 'master':
+                  return (0, parse_version('9999.0.0')) # Puts master at the top
+              try:
+                  # Handle tags like 'v1.2.3'
+                  return (1, parse_version(version.lstrip('v')))
+              except:
+                  return (2, version) # Other branches last
+
+          versions.sort(key=sort_key, reverse=True)
+
+          output = [{'version': v, 'url': f'./{v}/index.html'} for v in versions]
+
+          with open(os.path.join(build_dir, 'versions.json'), 'w') as f:
+              json.dump(output, f, indent=2)
+
+          print('Generated versions.json:')
+          print(json.dumps(output, indent=2))
+          "
 
       - name: Create index.html redirect
         run: |
-          echo '<!DOCTYPE html>
-          <html>
-          <head>
-            <title>Redirecting to master branch</title>
-            <meta charset="utf-8">
-            <meta http-equiv="refresh" content="0; url=./master/index.html">
-            <link rel="canonical" href="https://pol-sb.github.io/MatDBForge/master/index.html">
-          </head>
-          </html>' > _build/html/index.html
+          echo '<!DOCTYPE html><html><head><title>Redirect</title><meta http-equiv=\"refresh\" content=\"0; url=./master/index.html\"></head></html>' > _build/html/index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        # Deploy only on a push to the master branch or a tag push
-        if: ${{ github.event_name == 'push' }}
+        if: github.event_name == 'push'
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: _build/html/
-          keep_files: true # IMPORTANT: This preserves existing documentation versions
+          keep_files: true

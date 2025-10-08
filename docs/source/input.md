@@ -22,6 +22,14 @@ generate_type = ['bulk', 'surface', 'cluster']
 
 Please, check the tool's corresponding section below to learn more about all the available options:
 
-- [Database Generation](./input_database_generation.md)
+<!-- - [Database Generation](./input_database_generation.md)
 - [DFT Batch](./input_dft.md)
-- [Active Learning](./input_active_learning.md)
+- [Active Learning](./input_active_learning.md) -->
+
+```{toctree}
+:maxdepth: 1
+
+input_database_generation.md
+input_dft.md
+input_active_learning.md
+```
