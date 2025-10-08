@@ -926,21 +926,24 @@ def run_active_learning():
 
     # Launch dashboard
     if hasattr(args, 'dashboard') and args.dashboard:
-        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+        if args.dashboard is None:
+            pass
+        else:
+            from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
-        node = submit(builder)
-        time.sleep(1)
+            node = submit(builder)
+            time.sleep(1)
 
-        run_dashboard_app(
-            process_id=str(node.pk),
-            port=args.port,
-            update_interval=args.update_interval,
-            debug=args.debug,
-            online=args.online,
-        )
+            run_dashboard_app(
+                process_id=str(node.pk),
+                port=args.port,
+                update_interval=args.update_interval,
+                debug=args.debug,
+                online=args.online,
+            )
 
     # Launch normal CLI or resume run, without dashboard
-    if hasattr(args, 'dashboard') and args.dashboard is None:
+    if not hasattr(args, 'dashboard'):
         if not args.debug:
             builder.active_learning.debug_mode = Bool(False)
 
