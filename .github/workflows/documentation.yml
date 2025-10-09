@@ -5,7 +5,7 @@ on:
     branches:
       - master
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:
@@ -32,96 +32,23 @@ jobs:
           pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
           pip install .
 
-      - name: Checkout existing gh-pages branch
-        uses: actions/checkout@v4
+      - name: Cache the Sphinx build environment
+        uses: actions/cache@v4
         with:
-          ref: gh-pages
-          path: _build/html
+          path: docs/.doctrees
+          key: ${{ runner.os }}-sphinx-doctrees-${{ hashFiles('docs/**/*', 'src/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-sphinx-doctrees-
 
       - name: Generate API documentation
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
-      - name: Prepare theme context for build
-        run: |
-          # Get all git tags for the version list
-          git fetch --prune --tags
-          VERSIONS=$(git tag -l "v*.*.*" | sort -rV)
-          VERSIONS_LIST="('master', './master/'),"
-          for version in $VERSIONS; do
-            VERSIONS_LIST+="('"$version"', './"$version"/'),"
-          done
-
-          # Append Python code that *updates* the existing html_context
-          echo "
-          # --- Dynamically added by workflow ---
-          if 'html_context' in globals():
-              html_context.update({'current_version': '${{ github.ref_name }}', 'versions': [${VERSIONS_LIST}]})
-          else:
-              html_context = {'current_version': '${{ github.ref_name }}', 'versions': [${VERSIONS_LIST}]}
-          # --- End dynamic section ---
-          " >> docs/conf.py
-
-          echo "Appending to conf.py:"
-          tail -n 6 docs/conf.py
-
-      - name: Display conf.py for debugging
-        run: |
-          echo "--- Contents of docs/conf.py before build ---"
-          cat docs/conf.py
-          echo "--- End of conf.py ---"
-
-      - name: Build docs for the current version
-        run: sphinx-build -b html docs "_build/html/${{ github.ref_name }}"
-
-      - name: Generate versions.json
-        run: |
-          python -c "
-          import json
-          import os
-          from packaging.version import parse as parse_version
-
-          build_dir = '_build/html'
-          versions = [d for d in os.listdir(build_dir) if os.path.isdir(os.path.join(build_dir, d)) and not d.startswith('.')]
-
-          def sort_key(version):
-              if version == 'master':
-                  return (0, parse_version('9999.0.0'))
-              try:
-                  return (1, parse_version(version.lstrip('v')))
-              except:
-                  return (2, version)
-
-          versions.sort(key=sort_key, reverse=True)
-
-          output = [{'version': v, 'url': f'./{v}/index.html'} for v in versions]
-
-          with open(os.path.join(build_dir, 'versions.json'), 'w') as f:
-              json.dump(output, f, indent=2)
-
-          print('Generated versions.json:')
-          print(json.dumps(output, indent=2))
-          "
+      - name: Build all documentation versions
+        run: sphinx-multiversion docs _build/html
 
       - name: Create index.html redirect
         run: |
-          cat > _build/html/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Redirecting...</title>
-            <meta charset="utf-8">
-            <link rel="canonical" href="./master/index.html">
-            <meta http-equiv="refresh" content="0; url=./master/index.html">
-            <script>
-              // Use JavaScript to redirect, which is more reliable than meta refresh
-              window.location.replace("./master/index.html" + window.location.search + window.location.hash);
-            </script>
-          </head>
-          <body>
-            <p>If you are not redirected automatically, follow this <a href="./master/index.html">link to the documentation</a>.</p>
-          </body>
-          </html>
-          EOF
+          echo '<!DOCTYPE html><html><head><title>Redirecting...</title><meta http-equiv="refresh" content="0; url=./master/index.html"></head></html>' > _build/html/index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
@@ -130,4 +57,4 @@ jobs:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: _build/html/
-          keep_files: true
+          force_orphan: true # Recommended by sphinx-multiversion for a clean deployment
