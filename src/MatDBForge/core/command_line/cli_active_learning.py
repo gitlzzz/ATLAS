@@ -924,26 +924,29 @@ def run_active_learning():
             display_qr_in_cli(f'ntfy.sh/{ntfysh_topic}')
         print()
 
+    # Check if dashboard is enabled
+    if hasattr(args, 'dashboard'):
+        dashboard_enabled = args.dashboard is not None
+    else:
+        dashboard_enabled = False
+
     # Launch dashboard
-    if hasattr(args, 'dashboard') and args.dashboard:
-        if args.dashboard is None:
-            pass
-        else:
-            from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
+    if dashboard_enabled:
+        from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
-            node = submit(builder)
-            time.sleep(1)
+        node = submit(builder)
+        time.sleep(1)
 
-            run_dashboard_app(
-                process_id=str(node.pk),
-                port=args.port,
-                update_interval=args.update_interval,
-                debug=args.debug,
-                online=args.online,
-            )
+        run_dashboard_app(
+            process_id=str(node.pk),
+            port=args.port,
+            update_interval=args.update_interval,
+            debug=args.debug,
+            online=args.online,
+        )
 
     # Launch normal CLI or resume run, without dashboard
-    if not hasattr(args, 'dashboard'):
+    else:
         if not args.debug:
             builder.active_learning.debug_mode = Bool(False)
 
