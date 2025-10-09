@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.41.2 (2025-10-09)
+
+### Docs
+
+- **core**: debug documentation.yml ([#bf0a8a5](https://github.com/pol-sb/MatDBForge/commit/bf0a8a52807509d673ea621f11251200bfa6eddf))
+- **core**: fix 1 missing versions in docs ([#897e3e4](https://github.com/pol-sb/MatDBForge/commit/897e3e4c27ebd834df54aa521b9746219e5e44cb))
+- **core**: fix redirect in documentation.yml ([#94cdc7b](https://github.com/pol-sb/MatDBForge/commit/94cdc7bfbe4d10ccb838172fcf75ba32c10abad0))
+- **core**: workflow ([#f4f6a3d](https://github.com/pol-sb/MatDBForge/commit/f4f6a3d3d8c76af220d293fee20d9787567040c8))
+- **core**: documentation.yml ([#f9bb571](https://github.com/pol-sb/MatDBForge/commit/f9bb571a4ef2b4f95070066361c04ac493d997a2))
+- **core**: test documentation.yml ([#fd0571f](https://github.com/pol-sb/MatDBForge/commit/fd0571f8df6a6c0fe10fd09e3ca1c61aabf9125a))
+- **core**: test documentation.yml workflow ([#9723ed5](https://github.com/pol-sb/MatDBForge/commit/9723ed5bed56eb031b781a93075102f26f3dd102))
+- **core**: test documentation workflow ([#471e070](https://github.com/pol-sb/MatDBForge/commit/471e0701038a4def7c03d37521898320cdd88df4))
+- **core**: test documentation.yml ([#fae1e59](https://github.com/pol-sb/MatDBForge/commit/fae1e59d8c3b930ad437a82210f2b045c3f78a3f))
+- **core**: update documentation.yml ([#91bc730](https://github.com/pol-sb/MatDBForge/commit/91bc730be802d85aef526147ea05623c93ad0d3c))
+
+### Fix
+
+- **al_loop**: allow al runs to proceed even when no dashboard arg is provided ([#92cdd0a](https://github.com/pol-sb/MatDBForge/commit/92cdd0adfff5d4607abb92fb663c286b72d61b9e))
+- **al_loop**: change dashboard argument parsing so that al resume runs can run ([#5141670](https://github.com/pol-sb/MatDBForge/commit/5141670ff97cfecfec9cd055817df44ec91137bf))
+
+### Misc
+
+- **core**: retry caching in documentation workflow ([#b80c23d](https://github.com/pol-sb/MatDBForge/commit/b80c23dc75303b9181e2528f21e5c7c9943a1b9e))
+- **core**: test documentation workflow ([#d68f59f](https://github.com/pol-sb/MatDBForge/commit/d68f59fad92a62a7bfb3153f2ec36dd02d4d475b))
+
 ## 0.41.1 (2025-10-08)
 
 ### Fix
