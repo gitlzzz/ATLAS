@@ -6,6 +6,7 @@ import sys
 import tomllib
 import warnings
 
+import pandas as pd
 import yaml
 
 from MatDBForge.core import MDB_DATA_DIR
@@ -120,7 +121,7 @@ def validate_config_file(
         for warning in deprecation_warnings:
             custom_print(warning, print_type='warning')
 
-    # Validate the (possibly migrated) configuration
+    # Validate the configuration
     errors = validate_section_recursive(
         migrated_config,
         config_schema,
@@ -465,10 +466,66 @@ def validate_section_recursive(
         param_errors = validate_parameter(
             value, param_key, param_schema, path, root_config_data
         )
-        errors.extend(param_errors)
 
         if len(param_errors) == 0:
             config_data_removal.pop(param_key, None)
+
+        # Check for mandatory parameters for job submission
+        if param_key == 'computer':
+            try:
+                from aiida import load_profile, orm
+                from aiida.schedulers.plugins.sge import SgeScheduler
+                from aiida.schedulers.plugins.slurm import SlurmScheduler
+
+                load_profile()
+                loaded_comp = orm.load_computer(value)
+                scheduler = loaded_comp.get_scheduler()
+
+                # Default arrangement for scheduler options in config
+                scheduler_options_to_check = config_data.get('options')
+
+                # Alternative arrangement under metadata section
+                if scheduler_options_to_check is None:
+                    scheduler_options_to_check = config_data.get('metadata', {}).get(
+                        'options'
+                    )
+
+                mandatory_keys_for_scheduler = []
+                if isinstance(scheduler, SgeScheduler):
+                    mandatory_keys_for_scheduler = [
+                        'resources.parallel_env',
+                        'resources.tot_num_mpiprocs',
+                    ]
+
+                    # Flatten dict to ease key checking
+                    # Nested keys will use '.' as separator
+                    [scheduler_options_to_check] = pd.json_normalize(
+                        scheduler_options_to_check, sep='.'
+                    ).to_dict(orient='records')
+
+                elif isinstance(scheduler, SlurmScheduler):
+                    # TODO: add slurm mandatory keys
+                    #  'At least two among `num_machines`, `num_mpiprocs_per_machine`
+                    # or `tot_num_mpiprocs` must be specified.'
+                    pass
+
+                if scheduler_options_to_check is not None:
+                    for key in mandatory_keys_for_scheduler:
+                        if key not in scheduler_options_to_check:
+                            errors.append(
+                                f"Missing mandatory scheduler option '{key}' "
+                                f"for scheduler '{type(scheduler).__name__}' "
+                                f"in computer '{value}' in {path}.{param_key}."
+                            )
+                else:
+                    errors.append(
+                        f"Missing 'options' section for scheduler "
+                        f"'{type(scheduler).__name__}' "
+                        f"in computer '{value}' in {path}.{param_key}."
+                    )
+
+            except Exception as e:
+                errors.append(f"Failed to load computer '{value}': {e}")
 
     # Handle flattened sections
     for section_name, section_schema in sections.items():
@@ -537,8 +594,7 @@ def validate_section_recursive(
         for key in unexpected_keys:
             full_key_path = f'{path}.{key}' if path else key
             if not key_path_in_schema(full_key_path, original_schema_dict):
-                errors.append('Unexpected key found: '
-                               f'[yellow italic]{full_key_path}')
+                errors.append(f'Unexpected key found: [yellow italic]{full_key_path}')
     return errors
 
 
