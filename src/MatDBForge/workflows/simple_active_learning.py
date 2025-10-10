@@ -727,6 +727,19 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # Sending committee model paths to current context
         self.ctx.commitee_models_tupl_name_uuid = commitee_models_tupl_name_uuid
 
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'Committee model training complete for step '
+                    f'{self.inputs.al_loop_iteration.value + 1}'
+                    f' - {self.node.pk}.\n\n'
+                    f"Best model of current step '{model_name}' ({calc.pk}) as M0 - "
+                    f'RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, '
+                    f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
+                ),
+            )
+
     def check_extrapolation_enabled(self):
         """Check if the extrapolation check is enabled."""
         if self.inputs.check_extrapolation_type.value in [None, 'none', 'disabled']:
@@ -889,58 +902,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if hasattr(curr_calc.outputs, 'autoencoder_model'):
             self.ctx.autoencoder_model_file = curr_calc.outputs.autoencoder_model
 
-    def get_mace_descriptors_output(self):
-        """Process the descriptors in the workchain context."""
-        descriptor_results = self.ctx.descriptor_results
-        for calc in descriptor_results:
-            # Loading calculation node
-            curr_calc = orm.load_node(calc.uuid)
-
-            # Storing results in context
-            self.ctx.descriptors_min_array = (
-                curr_calc.outputs.descriptors_min_array.get_array()
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'Descriptors calculation complete for step '
+                    f'{self.inputs.al_loop_iteration.value + 1}'
+                    f' - {self.node.pk}.\n'
+                ),
             )
-
-            self.ctx.descriptors_max_array = (
-                curr_calc.outputs.descriptors_max_array.get_array()
-            )
-
-            # Getting latent space and autoencoder model from the
-            # autoencoder calculation
-            dimensionality_reduction_method = self.inputs.descriptor_settings.get(
-                'dimensionality_reduction_method'
-            )
-            if dimensionality_reduction_method == 'autoencoder':
-                with curr_calc.outputs.descriptors_file.open(mode='rb') as f:
-                    db_descriptor_dict = pickle.load(f)
-
-                db_latent_space = np.vstack(
-                    [strc['latent_space'] for strc in db_descriptor_dict.values()]
-                )
-                self.ctx.latent_space = db_latent_space
-                self.ctx.autoencoder_model_file = (
-                    curr_calc.outputs.autoencoder_model_file
-                )
-                self.report(
-                    'Gathered descriptor ranges, latent space, and autoencoder model'
-                    ' for training database.'
-                )
-            else:
-                self.report('Gathered descriptor ranges for training database.')
-
-    def get_concave_hull_output(self):
-        """Process the concave hull in the workchain context."""
-        concave_hull_results = self.ctx.concave_hull_results
-        for calc in concave_hull_results:
-            # Loading calculation node
-            curr_calc = orm.load_node(calc.uuid)
-
-            # Storing results in context
-            self.ctx.concave_hull_array = (
-                curr_calc.outputs.concave_hull_array.get_array()
-            )
-
-            self.report('Gathered concave hull for training database.')
 
     def run_md_seed(self):
         with open(self.inputs.current_md_seed_structs_path.value, 'rb') as f:
@@ -1181,6 +1151,16 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Get all of the processed structures
         processed_structures = self.ctx.process_committee_results
+
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'{len(processed_structures)} MD calculations complete for step '
+                    f'{self.inputs.al_loop_iteration.value + 1}'
+                    f' - {self.node.pk}.\n'
+                ),
+            )
 
         mace_calcs_struct_list = []
         mace_calcs_idx_list = []
@@ -1517,6 +1497,16 @@ class SimpleActiveLearningWorkChain(WorkChain):
             'stop_md_seed_no_disagreement',
             mdb_al_ut.check_md_seed_agreement(return_list_path),
         )
+
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'Data acquisition stage complete for step '
+                    f'{self.inputs.al_loop_iteration.value + 1}'
+                    f' - {self.node.pk}.\n'
+                ),
+            )
 
 
 class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
@@ -2215,7 +2205,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.inputs.ntfysh_topic = self.inputs.active_learning.ntfysh_topic
         if hasattr(self.inputs.active_learning, 'enable_ntfysh'):
             requests.post(
-                f'https://ntfy.sh/{self.inputs.active_learning.ntfysh_topic.value}',
+                f'https://ntfy.sh/{self.ctx.inputs.ntfysh_topic.value}',
                 data=(
                     f'Starting Active Learning Loop - {self.node.pk}: '
                     f'{self.inputs.active_learning.run_name.value}'
