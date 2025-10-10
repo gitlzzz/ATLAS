@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.41.3 (2025-10-10)
+
+### Fix
+
+- **al_loop**: make ntfysh_topic optional so it does not prevent AL from running if not passed in toml settings ([#dbe86eb](https://github.com/pol-sb/MatDBForge/commit/dbe86eb9007d264ed20bcc1e5cbfd5c3f237558e))
+
+### Misc
+
+- **core**: bump up minimum scipy version from 1.14.1 to 1.16.1 ([#d9832fb](https://github.com/pol-sb/MatDBForge/commit/d9832fbcb684205c0774a15bb8e75532f9779fc7))
+
+### Refactor
+
+- **core**: implement sanity check for sge computers in toml inputs ([#bfd309e](https://github.com/pol-sb/MatDBForge/commit/bfd309e63907ed04c106ffd4a92cddaeb6279605))
+- **md**: allow usage of md_apply_temperature_ramp() on benchmark md ([#787ded6](https://github.com/pol-sb/MatDBForge/commit/787ded6cdc1fbe1aa42e62aa62278bfaa7a49cc4))
+
 ## 0.41.2 (2025-10-09)
 
 ### Docs
