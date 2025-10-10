@@ -151,9 +151,9 @@ This section is optional.
   - Default is `'training'`.
   - Possible values are: `training`, `md_threshold`.
 
-- `check_extrapolation_type`: (optional, str) Method for extrapolation check. With `basic`, check for extrapolation using the range of the MACE descriptors. With `advanced`, check for extrapolation using the concave hull of the MACE descriptors. With `none`, disable the extrapolation check, only leaving committee disagreement for EF for the domain.
+- `check_extrapolation_type`: (optional, str) Method for extrapolation check. With `min-max` or `basic`, check for extrapolation using the range of the MACE descriptors. With `alpha-shape` or `advanced`, check for extrapolation using the concave hull of the MACE descriptors. With `disabled` or `none`, disable the extrapolation check, only leaving committee disagreement for EF for the domain.
   - Default is `'none'`.
-  - Possible values are: `none`, `basic`, `advanced`.
+  - Possible values are: `disabled`, `none`, `basic`, `min-max`, `alpha-shape`, `advanced`.
 
 #### Settings for the concave hull extrapolation check. - `[extrapolation.concave_hull]`
 

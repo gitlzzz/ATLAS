@@ -729,7 +729,22 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
     def check_extrapolation_enabled(self):
         """Check if the extrapolation check is enabled."""
-        return bool(self.inputs.check_extrapolation_type.value)
+        if self.inputs.check_extrapolation_type.value in [None, 'none', 'disabled']:
+            extrapolation_status = False
+
+            # Loading descriptor min and max into context as empty arrays
+            self.ctx.descriptors_max_array = orm.ArrayData(np.array([]))
+            self.ctx.descriptors_min_array = orm.ArrayData(np.array([]))
+        else:
+            extrapolation_status = True
+
+        self.report(
+            'Extrapolation check type is '
+            f'{self.inputs.check_extrapolation_type.value}, '
+            'therefore extrapolation is set as: '
+            f'{extrapolation_status}'
+        )
+        return extrapolation_status
 
     def gen_descriptors_and_concave_hull(self):
         self.report('Preparing descriptors calculation...')
@@ -847,7 +862,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
 
         future = self.submit(desc_builder)
-        if self.inputs.check_extrapolation_type.value == 'advanced':
+        if self.inputs.check_extrapolation_type.value in ['advanced', 'alpha-shape']:
             self.report(
                 f'Submitted calculation ({future.pk}) for descriptors + concave hull.'
             )

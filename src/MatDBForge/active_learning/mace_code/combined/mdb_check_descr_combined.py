@@ -22,7 +22,7 @@ from MatDBForge.core import code_utils as mdb_cut
 def is_advanced_extrapolation_set(input_dict: dict):
     """Check if the advanced extrapolation check is enabled."""
     extr_type = input_dict.get('extrapolation', {}).get('check_extrapolation_type')
-    if extr_type == 'advanced':
+    if extr_type in ['advanced', 'alpha-shape']:
         return True
     return
 

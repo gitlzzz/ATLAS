@@ -817,7 +817,7 @@ if __name__ == '__main__':
 
         print()
         # Advanced extrapolation (concave hull) check
-        if extrap_type == 'advanced':
+        if extrap_type in ['advanced', 'alpha-shape']:
             mdb_cut.custom_print(
                 'Applying advanced extrapolation check...', 'info', logger=logger
             )
@@ -887,7 +887,7 @@ if __name__ == '__main__':
                     descriptor_dict[structure_uuid]['is_extrapolating'][idx] = True
 
         # Simple extrapolation check (descriptor min/max)
-        elif extrap_type == 'basic':
+        elif extrap_type in ['basic', 'min-max']:
             # Read the minimum and maximum values for each descriptor
             # for the entire database
             curr_it_db_max = np.load(prepend_path / 'curr_it_db_max.npy')
@@ -898,7 +898,7 @@ if __name__ == '__main__':
             )
         # Dont apply any further extrapolation check. Use the EF commitee check
         # already applied.
-        elif extrap_type == 'none':
+        elif extrap_type in ['none', 'disabled', None]:
             mdb_cut.custom_print(
                 (
                     'No extrapolation check applied. Only interpolation (EF commitee)'
