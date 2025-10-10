@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.41.4 (2025-10-10)
+
+### Fix
+
+- **al_loop**: allow disabling extrapolation and add extra options for advanced and basic extrapolation ([#9fb221b](https://github.com/pol-sb/MatDBForge/commit/9fb221bae65ea1dcdcc549f691ac0e40abf50a37))
+
+### Refactor
+
+- **al_loop**: cleanup simple_active_learning.py and add notifications for all stages ([#1cae3db](https://github.com/pol-sb/MatDBForge/commit/1cae3dbef834e814a38679ad56eaf1d900642c11))
+
 ## 0.41.3 (2025-10-10)
 
 ### Fix
