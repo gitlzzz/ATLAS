@@ -105,6 +105,12 @@ def aiida_wait_submit(
     #     time.sleep(10)
 
 
+def manual_progress_display(dyn):
+    print(
+        f'Step: {dyn.nsteps:<6} ({dyn.nsteps / dyn.max_steps * 100:.1f} %)',
+        end='\r',
+    )
+
 def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
     """
     Function to compute the temperature ramp during ASE MD simulations.
@@ -126,7 +132,11 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
         Temperature to set for the current step in the MD simulation.
     """
     # Adding current T value to the list
-    T_list.append(dyn.todict()['temperature_K'])
+    if dyn.todict().get('temperature_K') is not None:
+        T_list.append(dyn.todict().get('temperature_K'))
+    else:
+        # convert eV to K
+        T_list.append(dyn.temperature * 11604.5250061657)
 
     # Update the temperature using the ramp function
     current_temperature = T_start + (T_end - T_start) * dyn.nsteps / total_steps
