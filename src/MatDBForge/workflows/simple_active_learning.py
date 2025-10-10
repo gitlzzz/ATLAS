@@ -59,7 +59,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.input('final_db_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input('debug_mode', valid_type=orm.Bool, serializer=orm.to_aiida_type)
         spec.input('enable_ntfysh', valid_type=orm.Bool, serializer=orm.to_aiida_type)
-        spec.input('ntfysh_topic', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input(
+            'ntfysh_topic',
+            valid_type=(orm.Str, type(None)),
+            serializer=orm.to_aiida_type,
+            required=False,
+        )
         spec.input('run_name', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             'load_init_models',

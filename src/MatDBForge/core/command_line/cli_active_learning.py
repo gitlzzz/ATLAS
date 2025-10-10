@@ -907,7 +907,6 @@ def run_active_learning():
 
         ntfysh_topic = 'mdb_' + generate_model_name()
 
-        builder.active_learning.ntfysh_topic = Str(ntfysh_topic)
         custom_print(
             f'ntfy.sh notifications enabled. '
             f"Subscribe to 'https://ntfy.sh/{ntfysh_topic}'"
@@ -923,6 +922,8 @@ def run_active_learning():
             )
             display_qr_in_cli(f'ntfy.sh/{ntfysh_topic}')
         print()
+
+    builder.active_learning.ntfysh_topic = Str(ntfysh_topic)
 
     # Check if dashboard is enabled
     if hasattr(args, 'dashboard'):
