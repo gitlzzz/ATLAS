@@ -33,4 +33,5 @@ Please, check the tool's corresponding section below to learn more about all the
 input_database_generation.md
 input_dft.md
 input_active_learning.md
+input_mlip_benchmarks.md
 ```

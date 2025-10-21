@@ -170,6 +170,7 @@ def generate_tool_section(schema, tool_name, tool_config):
         'database_generation': 'Database Generation',
         'dft': 'DFT Calculations',
         'active_learning': 'Active Learning Loop',
+        'mlip_benchmarks': 'MLIP Benchmarks',
     }
 
     # Tool command mapping
@@ -177,6 +178,7 @@ def generate_tool_section(schema, tool_name, tool_config):
         'database_generation': 'database_generation',
         'dft': 'dft',
         'active_learning': 'active_learning',
+        'mlip_benchmarks': 'mlip_benchmarks',
     }
 
     header = tool_headers.get(tool_name, tool_name.replace('_', ' ').title())
@@ -212,7 +214,12 @@ def generate_full_documentation(schema, args):
         str: Complete documentation as string
     """
     # Generate documentation for each tool
-    for tool_name in ['database_generation', 'dft', 'active_learning']:
+    for tool_name in [
+        'database_generation',
+        'dft',
+        'active_learning',
+        'mlip_benchmarks',
+    ]:
         if tool_name in schema:
             tool_lines = generate_tool_section(schema, tool_name, schema[tool_name])
             # lines.extend(tool_lines)

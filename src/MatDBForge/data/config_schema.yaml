@@ -1639,3 +1639,242 @@ active_learning:
                 "add_magmom": true,
                 "add_bandocc": true,
               }
+
+mlip_benchmarks:
+  description: "Settings for MLIP benchmarking (evaluate_mlip_performance)."
+  general:
+    description: "General benchmark settings."
+    output_dir:
+      description: "Directory to save benchmark results."
+      type: str
+      mandatory: true
+      default: "./mlip_evaluation"
+    metal:
+      description: "Metal symbol for the benchmark systems."
+      type: str
+      mandatory: true
+      default: "Cu"
+    device:
+      description: "Device to run calculations on."
+      type: str
+      mandatory: false
+      default: "cuda"
+      choices: ["cuda", "cpu"]
+    dtype:
+      description: "Data type for calculations."
+      type: str
+      mandatory: false
+      default: "float64"
+      choices: ["float32", "float64"]
+    no_rich_ui:
+      description: "Disable Rich UI and use plain text output."
+      type: bool
+      mandatory: false
+      default: false
+  models:
+    description: "Model specifications for benchmarking."
+    model_files:
+      description: "List of paths to .model files."
+      type: list[str]
+      mandatory: false
+      default: []
+      example: ["/path/to/model1.model", "/path/to/model2.model"]
+    aiida_pks:
+      description: "List of AiiDA workchain PKs/UUIDs to load models from."
+      type: list[int]
+      mandatory: false
+      default: []
+      example: [12345, 67890]
+    foundation_models:
+      description: "List of foundation model specifications. Format: 'library:model_name'."
+      type: list[str]
+      mandatory: false
+      default: []
+      example: ["mace:small", "mace:medium", "mace:large"]
+  slab_generation:
+    description: "Settings for slab generation in benchmarks."
+    surface_indices:
+      description: "Miller indices for the surface."
+      type: list[int]
+      mandatory: false
+      default: [1, 1, 1]
+      example: [1, 1, 1]
+    supercell_size:
+      description: "Size of the supercell (x, y, z)."
+      type: list[int]
+      mandatory: false
+      default: [3, 3, 4]
+      example: [3, 3, 4]
+    vacuum:
+      description: "Vacuum layer in Angstrom."
+      type: float
+      mandatory: false
+      default: 10.0
+  md_parameters:
+    description: "Molecular dynamics simulation parameters."
+    temp:
+      description: "MD temperature in Kelvin."
+      type: float
+      mandatory: false
+      default: 300.0
+    n_steps:
+      description: "Number of MD steps."
+      type: int
+      mandatory: false
+      default: 10000
+    timestep:
+      description: "MD timestep in femtoseconds."
+      type: float
+      mandatory: false
+      default: 2.0
+    friction:
+      description: "Friction coefficient for Langevin dynamics."
+      type: float
+      mandatory: false
+      default: 0.005
+  benchmarks:
+    description: "Selection of benchmarks to run."
+    run_energy_md:
+      description: "Run the energy MD benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_accuracy_test_set:
+      description: "Run energy and force error benchmark on a test set."
+      type: bool
+      mandatory: false
+      default: false
+    run_elastic_properties:
+      description: "Run elastic properties benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_defect_formation_energy:
+      description: "Run defect formation energy benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_surface_energies:
+      description: "Run surface energies benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_phonon_dispersion:
+      description: "Run phonon dispersion benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_high_temp_md:
+      description: "Run high-temperature MD benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_melting_point:
+      description: "Run melting point calculation benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_gsfe:
+      description: "Run Generalized Stacking Fault Energy (GSFE) benchmark."
+      type: bool
+      mandatory: false
+      default: false
+    run_learning_curves:
+      description: "Plot learning curves from AL runs."
+      type: bool
+      mandatory: false
+      default: false
+    run_final_db_size:
+      description: "Compare final database sizes from AL runs."
+      type: bool
+      mandatory: false
+      default: false
+    run_md_count:
+      description: "Count total MD calculations performed during AL loops."
+      type: bool
+      mandatory: false
+      default: false
+    run_evaluate_database:
+      description: "Evaluate models against a user-provided structure database."
+      type: bool
+      mandatory: false
+      default: false
+    run_magic_cluster:
+      description: "Run magic number cluster benchmark."
+      type: bool
+      mandatory: false
+      default: false
+  test_set:
+    description: "Test set configuration for accuracy benchmarks."
+    mandatory: false
+    test_set_path:
+      description: "Path to the held-out test set for accuracy benchmarks."
+      type: str
+      mandatory: false
+      example: "/path/to/test_set.xyz"
+  database_evaluation:
+    description: "Configuration for database evaluation benchmark."
+    mandatory: false
+    database_path:
+      description: "Path to the structure database file for evaluation."
+      type: str
+      mandatory: false
+      example: "/path/to/database.xyz"
+  magic_cluster:
+    description: "Magic cluster benchmark settings."
+    mandatory: false
+    magic_cluster_dft_refs:
+      description: "Path to JSON file with DFT reference energies for magic clusters."
+      type: str
+      mandatory: false
+      example: "/path/to/dft_refs.json"
+    magic_cluster_sizes:
+      description: "List of magic number cluster sizes to test."
+      type: list[int]
+      mandatory: false
+      default: [13, 19, 55, 147, 309, 561]
+  surface_energy_benchmark:
+    description: "Surface energy benchmark specific settings."
+    mandatory: false
+    dft_refs:
+      description: "Path to JSON file with DFT reference energies."
+      type: str
+      mandatory: false
+      example: "/path/to/surface_energies.json"
+    bulk_structure:
+      description: "Path to DFT-optimized bulk structure file."
+      type: str
+      mandatory: false
+      example: "/path/to/bulk.xyz"
+    slab_structures:
+      description: "Dictionary of slab structures with surface indices as keys."
+      type: dict
+      mandatory: false
+      example: {"100": "/path/to/slab_100.xyz", "110": "/path/to/slab_110.xyz"}
+  melting_point_benchmark:
+    description: "Melting point benchmark settings."
+    supercell_size:
+      description: "Supercell size for melting point calculation (x, y, z)."
+      type: list[int]
+      mandatory: false
+      default: [6, 6, 6]
+    solid_temp_K:
+      description: "Temperature in Kelvin for solid phase."
+      type: float
+      mandatory: false
+      default: 1100.0
+    liquid_temp_K:
+      description: "Temperature in Kelvin for liquid phase."
+      type: float
+      mandatory: false
+      default: 1600.0
+    nve_initial_T_test_K:
+      description: "Initial temperature in Kelvin for NVE test."
+      type: float
+      mandatory: false
+      default: 800.0
+    melting_point_supercell_path:
+      description: "Path to the supercell structure file for melting point calculation."
+      type: str
+      mandatory: false
+      example: "/path/to/supercell.xyz"
