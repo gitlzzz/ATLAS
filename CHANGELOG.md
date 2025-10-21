@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.42.0 (2025-10-21)
+
+### Docs
+
+- **schema**: add 'mlip_benchmarks' section to schema ([#49a75d1](https://github.com/pol-sb/MatDBForge/commit/49a75d1945a6eb59f3dd41abc67eda5220a4cf06))
+
+### Feature
+
+- **domain_validity**: improve alpha-shape alpha iterative selection ([#fa6e573](https://github.com/pol-sb/MatDBForge/commit/fa6e5737a1742c70a72b5a5e33f66ce6cf55ee49))
+- **benchmarks**: add toml input to benchmarks and finish implementation of coexistence benchmark ([#72920ff](https://github.com/pol-sb/MatDBForge/commit/72920ff3c351cadeb001c67d57c1eb9093880e78))
+
+### Fix
+
+- **schema**: update parser for computer resources in toml checker ([#4507b0a](https://github.com/pol-sb/MatDBForge/commit/4507b0aa26b0bd44109c1841bdda6199f36a2272))
+
 ## 0.41.4 (2025-10-10)
 
 ### Fix
