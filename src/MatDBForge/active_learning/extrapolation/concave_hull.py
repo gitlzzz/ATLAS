@@ -100,6 +100,9 @@ def get_concave_hull_python(
     default_alpha_if_issues: float = 5,
     nn_dist_scale_factor: float = 1.5,
     frac_points_allowed_out: float = 0.002,
+    n_attempts: int = 20,
+    decrease_factor_multiplier: float = 0.95,
+    use_alpha: float = None,
 ) -> np.ndarray:
     """
     Compute the concave hull of a set of points using the alpha-shape algorithm.
@@ -133,126 +136,15 @@ def get_concave_hull_python(
     float
         The alpha value used to compute the concave hull.
     """
-    num_points = latent_space.shape[0]
-    alpha = default_alpha_if_issues
-
-    try:
-        tree = KDTree(latent_space)
-
-        # k=2 for 1st nearest neighbor (k=1 is the point itself)
-        distances, _ = tree.query(latent_space, k=2, workers=-1)
-        nn_distances = distances[:, 1]
-
-        # Filter out zero distances if any point is duplicated or coincident
-        # Use a small epsilon for floating point comparisons
-        valid_nn_distances = nn_distances[nn_distances > 1e-9]
-
-        # If all points are coincident or extremely close
-        if valid_nn_distances.size == 0:
-            mdb_cut.custom_print(
-                'All points are likely duplicates or extremely close. '
-                'Using max alpha from target range.',
-                'warn',
-            )
-            # Use max alpha, tends to shrink
-            alpha = target_alpha_range[1]
-
-        else:
-            mean_nn_dist = np.mean(valid_nn_distances)
-
-            # Effectively zero
-            if mean_nn_dist < 1e-7:
-                # This case implies extremely dense points.
-                # A very large alpha candidate will be clipped to max of range.
-                alpha_candidate = np.inf
-                mdb_cut.custom_print(
-                    'Mean nearest neighbor distance is very small '
-                    f'({mean_nn_dist:.2e}). Alpha candidate set to infinity'
-                    ' before clipping.',
-                    'debug',
-                )
-            else:
-                alpha_candidate = nn_dist_scale_factor / mean_nn_dist
-                mdb_cut.custom_print(
-                    f'Mean NN dist: {mean_nn_dist:.4f}, '
-                    f'NN Distance Scale Factor: {nn_dist_scale_factor:.1f}, '
-                    f'Alpha candidate (factor/mean_nn_dist): {alpha_candidate:.4f}',
-                    'debug',
-                )
-
-            # Limiting alpha to the target range
-            alpha = np.clip(
-                alpha_candidate, target_alpha_range[0], target_alpha_range[1]
-            )
-            mdb_cut.custom_print(
-                f'Calculated alpha: {alpha:.4f}'
-                f' (clipped to range {target_alpha_range})',
-                'info',
-            )
-
-    except Exception as e:
-        mdb_cut.custom_print(
-            f'Error during KDTree query or mean_nn_dist calculation: {e}. '
-            f'Using default alpha: {default_alpha_if_issues}',
-            'warn',
-        )
-        alpha = default_alpha_if_issues
-
     total_num_points = latent_space.shape[0]
-    frac_outside = 1.0
-    decrease_factor = alpha * 0.1
-    num_attempts = 0
 
-    while num_attempts <= 20:
-        print()
-        mdb_cut.custom_print(f'Computing alpha shape with alpha: {alpha:.4f}', 'info')
+    if use_alpha is not None:
+        mdb_cut.custom_print(f'Using user-defined alpha: {use_alpha}', 'info')
+        # Get alpha shape using the user-defined alpha
+        shape = alpha_shape(latent_space, alpha=use_alpha, only_outer=True)
 
-        # Get alpha shape using the determined alpha
-        shape = alpha_shape(latent_space, alpha=alpha, only_outer=True)
-
-        if shape.is_empty:
-            mdb_cut.custom_print(
-                f'Alpha shape with alpha={alpha:.4f} resulted in an empty geometry. '
-                'This can happen if alpha is too large (too restrictive) for the point '
-                'set. Attempting to return convex hull as a fallback.',
-                'warn',
-            )
-            # Fallback to convex hull if alpha shape is empty
-            if num_points >= 3:
-                try:
-                    hull = ConvexHull(latent_space)
-                    return latent_space[hull.vertices]
-                except Exception as e_cvx:  # pragma: no cover
-                    mdb_cut.custom_print(
-                        f'Convex hull fallback also failed: {e_cvx}', 'error'
-                    )
-                    return np.empty((0, 2))
-            else:
-                # Should have been caught earlier, but as a safeguard
-                return np.array(latent_space) if num_points > 0 else np.empty((0, 2))
-
-        if hasattr(shape.exterior, 'coords'):
-            exterior_xy = shape.exterior.coords.xy
-            alpha_shape_arr = np.stack((exterior_xy[0], exterior_xy[1]), axis=1)
-        else:
-            mdb_cut.custom_print(
-                f'Alpha shape (alpha={alpha:.4f}) did not return a simple polygon '
-                'with an exterior. '
-                f'Shape type: {type(shape)}. This is unexpected with only_outer=True. '
-                'Attempting to return convex hull as a fallback.',
-                'error',
-            )
-            if num_points >= 3:
-                try:
-                    hull = ConvexHull(latent_space)
-                    return latent_space[hull.vertices]
-                except Exception as e_cvx2:  # pragma: no cover
-                    mdb_cut.custom_print(
-                        f'Convex hull fallback also failed: {e_cvx2}', 'error'
-                    )
-                    return np.empty((0, 2))
-            else:
-                return np.array(latent_space) if num_points > 0 else np.empty((0, 2))
+        exterior_xy = shape.exterior.coords.xy
+        alpha_shape_arr = np.stack((exterior_xy[0], exterior_xy[1]), axis=1)
 
         # Check status of the points
         _, point_outside, _ = check_atom_in_domain(
@@ -263,52 +155,218 @@ def get_concave_hull_python(
         # Compute fraction of points outside the hull
         frac_outside = points_to_check / total_num_points
 
-        # Decrease alpha to make hull less strict
-        last_alpha = alpha
-        alpha -= decrease_factor
+        mdb_cut.custom_print(
+            f'Current fraction of points outside hull is {frac_outside:.4f}.',
+            'info',
+        )
 
-        # Decrease the factor for more gradual changes next iteration
-        decrease_factor *= 0.95
+        return alpha_shape_arr, use_alpha
 
-        if alpha <= 1:
+    else:
+        alpha = default_alpha_if_issues
+
+        try:
+            tree = KDTree(latent_space)
+
+            # k=2 for 1st nearest neighbor (k=1 is the point itself)
+            distances, _ = tree.query(latent_space, k=2, workers=-1)
+            nn_distances = distances[:, 1]
+
+            # Filter out zero distances if any point is duplicated or coincident
+            # Use a small epsilon for floating point comparisons
+            valid_nn_distances = nn_distances[nn_distances > 1e-9]
+
+            # If all points are coincident or extremely close
+            if valid_nn_distances.size == 0:
+                mdb_cut.custom_print(
+                    'All points are likely duplicates or extremely close. '
+                    'Using max alpha from target range.',
+                    'warn',
+                )
+                # Use max alpha, tends to shrink
+                alpha = target_alpha_range[1]
+
+            else:
+                mean_nn_dist = np.mean(valid_nn_distances)
+
+                # Effectively zero
+                if mean_nn_dist < 1e-7:
+                    # This case implies extremely dense points.
+                    # A very large alpha candidate will be clipped to max of range.
+                    alpha_candidate = np.inf
+                    mdb_cut.custom_print(
+                        'Mean nearest neighbor distance is very small '
+                        f'({mean_nn_dist:.2e}). Alpha candidate set to infinity'
+                        ' before clipping.',
+                        'debug',
+                    )
+                else:
+                    alpha_candidate = nn_dist_scale_factor / mean_nn_dist
+                    mdb_cut.custom_print(
+                        f'Mean NN dist: {mean_nn_dist:.4f}, '
+                        f'NN Distance Scale Factor: {nn_dist_scale_factor:.1f}, '
+                        f'Alpha candidate (factor/mean_nn_dist): {alpha_candidate:.4f}',
+                        'debug',
+                    )
+
+                # Limiting alpha to the target range
+                alpha = np.clip(
+                    alpha_candidate, target_alpha_range[0], target_alpha_range[1]
+                )
+                mdb_cut.custom_print(
+                    f'Calculated alpha: {alpha:.4f}'
+                    f' (clipped to range {target_alpha_range})',
+                    'info',
+                )
+
+        except Exception as e:
             mdb_cut.custom_print(
-                'Alpha has reached the minimum threshold of 1. Stopping adjustments.',
+                f'Error during KDTree query or mean_nn_dist calculation: {e}. '
+                f'Using default alpha: {default_alpha_if_issues}',
                 'warn',
             )
-            break
+            alpha = default_alpha_if_issues
 
-        if frac_outside >= frac_points_allowed_out:
+        frac_outside = 1.0
+        change_factor = alpha * 0.1
+        min_change_factor = change_factor * 0.01
+        num_attempts = 0
+        alpha_lower_bound = 0.0
+
+        while num_attempts <= n_attempts:
+            print()
             mdb_cut.custom_print(
-                (
-                    f'Current fraction of points outside hull is {frac_outside:.4f}, '
-                    f'above the allowed {frac_points_allowed_out:.4f} threshold.'
-                ),
-                'warn',
+                f'Computing alpha shape with alpha: {alpha:.4f}', 'info'
             )
-            mdb_cut.custom_print(f'Decreasing alpha to: {alpha:.4f}', 'info')
+
+            # Get alpha shape using the determined alpha
+            shape = alpha_shape(latent_space, alpha=alpha, only_outer=True)
+
+            if shape.is_empty:
+                mdb_cut.custom_print(
+                    f'Alpha shape with alpha={alpha:.4f} resulted in an empty geometry.'
+                    ' This can happen if alpha is too large (too restrictive)'
+                    ' for the point set. Attempting to return convex hull'
+                    ' as a fallback.',
+                    'warn',
+                )
+                # Fallback to convex hull if alpha shape is empty
+                if total_num_points >= 3:
+                    try:
+                        hull = ConvexHull(latent_space)
+                        return latent_space[hull.vertices]
+                    except Exception as e_cvx:  # pragma: no cover
+                        mdb_cut.custom_print(
+                            f'Convex hull fallback also failed: {e_cvx}', 'error'
+                        )
+                        return np.empty((0, 2))
+                else:
+                    # Should have been caught earlier, but as a safeguard
+                    return (
+                        np.array(latent_space)
+                        if total_num_points > 0
+                        else np.empty((0, 2))
+                    )
+
+            if hasattr(shape.exterior, 'coords'):
+                exterior_xy = shape.exterior.coords.xy
+                alpha_shape_arr = np.stack((exterior_xy[0], exterior_xy[1]), axis=1)
+            else:
+                mdb_cut.custom_print(
+                    f'Alpha shape (alpha={alpha:.4f}) did not return a simple polygon '
+                    'with an exterior. '
+                    f'Shape type: {type(shape)}. This is unexpected '
+                    'with only_outer=True.  Attempting to return convex'
+                    ' hull as a fallback.',
+                    'error',
+                )
+                if total_num_points >= 3:
+                    try:
+                        hull = ConvexHull(latent_space)
+                        return latent_space[hull.vertices]
+                    except Exception as e_cvx2:  # pragma: no cover
+                        mdb_cut.custom_print(
+                            f'Convex hull fallback also failed: {e_cvx2}', 'error'
+                        )
+                        return np.empty((0, 2))
+                else:
+                    return (
+                        np.array(latent_space)
+                        if total_num_points > 0
+                        else np.empty((0, 2))
+                    )
+
+            # Check status of the points
+            _, point_outside, _ = check_atom_in_domain(
+                concave_hull=alpha_shape_arr, descriptors=latent_space
+            )
+            points_to_check = point_outside.shape[0]
+
+            # Compute fraction of points outside the hull
+            prev_frac_outside = frac_outside
+            frac_outside = points_to_check / total_num_points
+            prev_distance_to_target = abs(prev_frac_outside - frac_points_allowed_out)
+            distance_to_target = abs(frac_outside - frac_points_allowed_out)
+
+            # Decrease alpha to make hull less strict
             last_alpha = alpha
-            num_attempts += 1
-        else:
-            mdb_cut.custom_print(
-                (
-                    f'Current fraction of points outside hull is {frac_outside:.4f}, '
-                    f'below the allowed {frac_points_allowed_out:.4f} threshold.'
-                ),
-                'info',
-            )
-            break
 
-    # After optimizing alpha, print final status.
-    print()
-    mdb_cut.custom_print(
-        (
-            f'Current fraction of points outside hull is {frac_outside:.4f}, '
-            f'after {num_attempts} attempts.'
-        ),
-        'info',
-    )
-    mdb_cut.custom_print(f'Final alpha: {last_alpha:.4f}', 'done')
-    print()
+            # Change the sign of the change factor if we overshot
+            if distance_to_target <= prev_distance_to_target:
+                change_factor = abs(change_factor)
+            else:
+                change_factor = -1 * abs(change_factor)
+
+            # alpha -= change_factor
+            alpha -= change_factor
+
+            # Decrease the factor for more gradual changes next iteration
+            change_factor = np.max(
+                (change_factor * decrease_factor_multiplier, min_change_factor)
+            )
+
+            if alpha <= alpha_lower_bound:
+                mdb_cut.custom_print(
+                    f'Alpha has reached the minimum threshold of {alpha_lower_bound}.'
+                    'Stopping adjustments.',
+                    'warn',
+                )
+                break
+
+            if frac_outside >= frac_points_allowed_out:
+                mdb_cut.custom_print(
+                    (
+                        f'Current fraction of points outside hull is'
+                        f' {frac_outside:.4f}, above the allowed'
+                        f' {frac_points_allowed_out:.4f} threshold.'
+                    ),
+                    'warn',
+                )
+                mdb_cut.custom_print(f'Decreasing alpha to: {alpha:.4f}', 'info')
+                last_alpha = alpha
+                num_attempts += 1
+            else:
+                mdb_cut.custom_print(
+                    (
+                        f'Current fraction of points outside hull'
+                        f' is {frac_outside:.4f}, '
+                        f' below the allowed {frac_points_allowed_out:.4f} threshold.'
+                    ),
+                    'info',
+                )
+                break
+
+        # After optimizing alpha, print final status.
+        print()
+        mdb_cut.custom_print(
+            (
+                f'Current fraction of points outside hull is {frac_outside:.4f}, '
+                f'after {num_attempts} attempts.'
+            ),
+            'info',
+        )
+        mdb_cut.custom_print(f'Final alpha: {last_alpha:.4f}', 'done')
+        print()
 
     return alpha_shape_arr, last_alpha
 
@@ -427,7 +485,6 @@ def plot_concave_hull(
     filename_svg = filename.with_suffix('.svg')
     plt.savefig(filename_svg, dpi=300)
 
-    plt.show(block=False)
     plt.clf()
 
 
