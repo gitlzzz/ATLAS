@@ -489,6 +489,8 @@ def validate_section_recursive(
                     scheduler_options_to_check = config_data.get('metadata', {}).get(
                         'options'
                     )
+                if scheduler_options_to_check is None:
+                    scheduler_options_to_check = config_data.get('options_resources')
 
                 mandatory_keys_for_scheduler = []
                 if isinstance(scheduler, SgeScheduler):
