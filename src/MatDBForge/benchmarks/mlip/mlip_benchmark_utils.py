@@ -7,6 +7,7 @@ import pathlib as pl
 import re
 import shutil
 import time
+import tomllib
 import warnings
 
 import matplotlib.pyplot as plt
@@ -90,223 +91,156 @@ def adjust_color_brightness(hex_color, brightness_factor):
     return f'#{adjusted_rgb[0]:02x}{adjusted_rgb[1]:02x}{adjusted_rgb[2]:02x}'
 
 
+def create_args_from_toml(toml_dict: dict) -> argparse.Namespace:
+    """
+    Create an argparse.Namespace object from TOML configuration.
+
+    Parameters
+    ----------
+    toml_dict : dict
+        Dictionary loaded from TOML file
+
+    Returns
+    -------
+    Namespace
+        Arguments namespace populated with values from TOML
+    """
+    args = argparse.Namespace()
+
+    # General settings
+    general = toml_dict.get('general', {})
+    args.output_dir = pl.Path(general.get('output_dir', './mlip_evaluation'))
+    args.metal = general.get('metal', 'Cu')
+    args.device = general.get('device', 'cuda')
+    args.dtype = general.get('dtype', 'float64')
+    args.no_rich_ui = general.get('no_rich_ui', False)
+
+    # Models
+    models = toml_dict.get('models', {})
+    args.model_files = models.get('model_files', [])
+    args.aiida_pks = models.get('aiida_pks', [])
+    args.foundation_models = models.get('foundation_models', [])
+
+    # Slab generation
+    slab = toml_dict.get('slab_generation', {})
+    args.surface_indices = slab.get('surface_indices', [1, 1, 1])
+    args.supercell_size = slab.get('supercell_size', [3, 3, 4])
+    args.vacuum = slab.get('vacuum', 10.0)
+
+    # MD parameters
+    md = toml_dict.get('md_parameters', {})
+    args.temp = md.get('temp', 300.0)
+    args.n_steps = md.get('n_steps', 10000)
+    args.timestep = md.get('timestep', 2.0)
+    args.friction = md.get('friction', 0.005)
+
+    # Benchmarks selection
+    benchmarks = toml_dict.get('benchmarks', {})
+    args.run_energy_md = benchmarks.get('run_energy_md', False)
+    args.run_accuracy_test_set = benchmarks.get('run_accuracy_test_set', False)
+    args.run_elastic_properties = benchmarks.get('run_elastic_properties', False)
+    args.run_defect_formation_energy = benchmarks.get(
+        'run_defect_formation_energy', False
+    )
+    args.run_surface_energies = benchmarks.get('run_surface_energies', False)
+    args.run_phonon_dispersion = benchmarks.get('run_phonon_dispersion', False)
+    args.run_high_temp_md = benchmarks.get('run_high_temp_md', False)
+    args.run_melting_point = benchmarks.get('run_melting_point', False)
+    args.run_gsfe = benchmarks.get('run_gsfe', False)
+    args.run_learning_curves = benchmarks.get('run_learning_curves', False)
+    args.run_final_db_size = benchmarks.get('run_final_db_size', False)
+    args.run_md_count = benchmarks.get('run_md_count', False)
+    args.run_evaluate_database = benchmarks.get('run_evaluate_database', False)
+    args.run_magic_cluster = benchmarks.get('run_magic_cluster', False)
+
+    # Test set
+    test_set = toml_dict.get('test_set', {})
+    if 'test_set_path' in test_set:
+        args.test_set_path = pl.Path(test_set['test_set_path'])
+    else:
+        args.test_set_path = None
+
+    # Database evaluation
+    db_eval = toml_dict.get('database_evaluation', {})
+    if 'database_path' in db_eval:
+        args.database_path = pl.Path(db_eval['database_path'])
+    else:
+        args.database_path = None
+
+    # Magic cluster
+    mc = toml_dict.get('magic_cluster', {})
+    if 'magic_cluster_dft_refs' in mc:
+        args.magic_cluster_dft_refs = pl.Path(mc['magic_cluster_dft_refs'])
+    else:
+        args.magic_cluster_dft_refs = None
+    args.magic_cluster_sizes = mc.get(
+        'magic_cluster_sizes', [13, 19, 55, 147, 309, 561]
+    )
+
+    # Surface energy benchmark
+    surf = toml_dict.get('surface_energy_benchmark', {})
+    if 'dft_refs' in surf:
+        args.surf_ene_benchmark_dft_refs = pl.Path(surf['dft_refs'])
+    else:
+        args.surf_ene_benchmark_dft_refs = None
+
+    if 'bulk_structure' in surf:
+        args.surf_ene_benchmark_bulk_structure = pl.Path(surf['bulk_structure'])
+    else:
+        args.surf_ene_benchmark_bulk_structure = None
+
+    if 'slab_structures' in surf:
+        # Convert dict to list format
+        slab_list = [f'{idx}:{path}' for idx, path in surf['slab_structures'].items()]
+        args.surf_ene_benchmark_slab_structures = slab_list
+    else:
+        args.surf_ene_benchmark_slab_structures = None
+
+    # Melting point benchmark
+    mp = toml_dict.get('melting_point_benchmark', {})
+    args.melting_point_supercell_size = mp.get('supercell_size', [6, 6, 6])
+    args.melting_point_solid_temp_K = mp.get('solid_temp_K', 1100.0)
+    args.melting_point_liquid_temp_K = mp.get('liquid_temp_K', 1600.0)
+    args.melting_point_nve_initial_T_test_K = mp.get('nve_initial_T_test_K', 800.0)
+    args.melting_point_supercell_path = mp.get('melting_point_supercell_path', None)
+
+    return args
+
+
+def load_toml_config(toml_path: pl.Path) -> dict:
+    """
+    Load TOML configuration file.
+
+    Parameters
+    ----------
+    toml_path : Path
+        Path to the TOML configuration file
+
+    Returns
+    -------
+    dict
+        Parsed TOML configuration
+    """
+    if not toml_path.exists():
+        raise FileNotFoundError(f'TOML config file not found: {toml_path}')
+
+    with open(toml_path, 'rb') as f:
+        return tomllib.load(f)
+
+
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description='Evaluate and compare MLIPs performance.'
+        description='Evaluate and compare MLIPs performance using TOML configuration. '
+        'All settings must be specified in a TOML configuration file.'
     )
     parser.add_argument(
-        '--model_files',
-        nargs='+',
-        help='Paths to .model files.',
-        default=[],
-    )
-    parser.add_argument(
-        '--aiida_pks',
-        nargs='+',
-        type=int,
-        help='AiiDA workchain PKs/UUIDs to load models from.',
-        default=[],
-    )
-    parser.add_argument(
-        '--foundation_models',
-        nargs='+',
-        help='Foundation model specifications. Format: "library:model_name". '
-        'Examples: "mace:small", "mace:medium", "mace:large", "mace:medium-mpa-0". '
-        'Supported libraries: mace.',
-        default=[],
-    )
-    parser.add_argument(
-        '--output_dir',
+        'config_path',
         type=pl.Path,
-        default=pl.Path('./mlip_evaluation'),
-        help='Directory to save results.',
-    )
-
-    # Slab generation arguments
-    slab_group = parser.add_argument_group('Slab Generation')
-    slab_group.add_argument(
-        '--metal',
-        type=str,
-        default='Cu',
-        help='Metal symbol for the benchmark systems.',
-    )
-    slab_group.add_argument(
-        '--surface_indices',
-        nargs=3,
-        type=int,
-        default=[1, 1, 1],
-        help='Miller indices for the surface.',
-    )
-    slab_group.add_argument(
-        '--supercell_size',
-        nargs=3,
-        type=int,
-        default=[3, 3, 4],
-        help='Size of the supercell (e.g., 3 3 4).',
-    )
-    slab_group.add_argument(
-        '--vacuum', type=float, default=10.0, help='Vacuum layer in Angstrom.'
-    )
-
-    # MD arguments
-    md_group = parser.add_argument_group('MD Parameters')
-    md_group.add_argument(
-        '--temp', type=float, default=300.0, help='MD temperature in Kelvin.'
-    )
-    md_group.add_argument(
-        '--n_steps', type=int, default=10000, help='Number of MD steps.'
-    )
-    md_group.add_argument(
-        '--timestep', type=float, default=2.0, help='MD timestep in fs.'
-    )
-    md_group.add_argument(
-        '--friction', type=float, default=5e-3, help='Friction for Langevin dynamics.'
-    )
-    md_group.add_argument(
-        '--device',
-        type=str,
-        default='cuda',
-        choices=['cuda', 'cpu'],
-        help='Device to run the calculations on.',
-    )
-    md_group.add_argument(
-        '--dtype',
-        type=str,
-        default='float64',
-        choices=['float32', 'float64'],
-        help='Data type for the calculations.',
-    )
-
-    # Benchmark selection
-    benchmark_group = parser.add_argument_group('Benchmark Selection')
-    benchmark_group.add_argument(
-        '--run_energy_md',
-        action='store_true',
-        help='Run the energy MD benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--test_set_path',
-        type=pl.Path,
-        help='Path to the held-out test set for accuracy benchmarks.',
-    )
-    benchmark_group.add_argument(
-        '--run_accuracy_test_set',
-        action='store_true',
-        help='Run energy and force error benchmark on a test set.',
-    )
-    benchmark_group.add_argument(
-        '--run_elastic_properties',
-        action='store_true',
-        help='Run elastic properties benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_defect_formation_energy',
-        action='store_true',
-        help='Run defect formation energy benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_surface_energies',
-        action='store_true',
-        help='Run surface energies benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_phonon_dispersion',
-        action='store_true',
-        help='Run phonon dispersion benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_high_temp_md',
-        action='store_true',
-        help='Run high-temperature MD benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_melting_point',
-        action='store_true',
-        help='Run melting point calculation benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_gsfe',
-        action='store_true',
-        help='Run Generalized Stacking Fault Energy (GSFE) benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--run_learning_curves',
-        action='store_true',
-        help='Plot learning curves from AL runs.',
-    )
-    benchmark_group.add_argument(
-        '--run_final_db_size',
-        action='store_true',
-        help='Compare final database sizes from AL runs.',
-    )
-    benchmark_group.add_argument(
-        '--run_md_count',
-        action='store_true',
-        help='Count total MD calculations performed during AL loops.',
-    )
-    benchmark_group.add_argument(
-        '--run_evaluate_database',
-        action='store_true',
-        help='Evaluate models against a user-provided structure database.',
-    )
-    benchmark_group.add_argument(
-        '--database_path',
-        type=pl.Path,
-        help='Path to the structure database file for evaluation '
-        '(required for --run_evaluate_database).',
-    )
-    benchmark_group.add_argument(
-        '--run_magic_cluster',
-        action='store_true',
-        help='Run magic number cluster benchmark.',
-    )
-    benchmark_group.add_argument(
-        '--magic_cluster_dft_refs',
-        type=pl.Path,
-        help='Path to JSON file with DFT reference energies for magic clusters. '
-        'Format: {64: -1231.25, 110: -1432.35, 421: -1441.15}. '
-        'Keys are number of atoms, values are DFT energies.',
-    )
-    benchmark_group.add_argument(
-        '--magic_cluster_sizes',
-        nargs='+',
-        type=int,
-        help='Magic number cluster sizes to test (default: 13, 19, 55, 147, 309, 561).',
-        default=[13, 19, 55, 147, 309, 561],
-    )
-
-    # Surface Energy Benchmark Options
-    surf_group = parser.add_argument_group('Surface Energy Benchmark Options')
-    surf_group.add_argument(
-        '--surf_ene_benchmark-dft_refs',
-        type=pl.Path,
-        help='Path to JSON file with DFT reference energies. '
-        'Format: {"100": -1231.25, "110": -1432.35, "111": -1441.15, '
-        '"bulk": {"energy": -89.1, "num_atoms": 4}}',
-    )
-    surf_group.add_argument(
-        '--surf_ene_benchmark-bulk_structure',
-        type=pl.Path,
-        help='Path to DFT-optimized bulk structure file (e.g., .xyz, .cif). '
-        'This structure will be used as the reference for surface energy calculations '
-        'instead of generating a new bulk structure.',
-    )
-    surf_group.add_argument(
-        '--surf_ene_benchmark-slab_structures',
-        nargs='+',
-        help='Paths to DFT-optimized slab structure files with their corresponding '
-        'surface indices. Format: "surface_indices:path_to_structure". '
-        'Example: "100:/path/to/slab_100.xyz 110:/path/to/slab_110.xyz". '
-        'These structures will be used instead of generating new slabs.',
-    )
-
-    # UI options
-    ui_group = parser.add_argument_group('UI Options')
-    ui_group.add_argument(
-        '--no_rich_ui',
-        action='store_true',
-        help='Disable Rich UI and use plain text output.',
+        nargs='?',
+        default=None,
+        help='Path to TOML configuration file. If not provided, will look for '
+        '"mdb_benchmark_settings.toml" in the current directory.',
     )
 
     return parser.parse_args()

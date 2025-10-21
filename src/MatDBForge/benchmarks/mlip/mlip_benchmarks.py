@@ -6,9 +6,11 @@ import pathlib as pl
 
 import matplotlib.pyplot as plt
 import numpy as np
-from ase import Atoms, units
+from ase import units
 from ase.build import bulk, surface
+from ase.calculators.lammpsrun import LAMMPS
 from ase.io import read as ase_read
+from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryWriter
 from ase.md import MDLogger
 from ase.md.langevin import Langevin
@@ -17,6 +19,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.md.verlet import VelocityVerlet
 from ase.optimize import LBFGS
 
+import MatDBForge.active_learning.active_learning_utils as mdb_al_ut
 import MatDBForge.benchmarks.mlip.mlip_benchmark_utils as mdb_b_ut
 from MatDBForge.active_learning.report_utils import (
     get_loop_report,
@@ -306,50 +309,29 @@ def run_md_count_benchmark(args, model_paths: list[pl.Path]):
 
 
 def run_melting_point_benchmark(args, model_paths: list[pl.Path]):
-    """
-    Calculates the melting point using the Two-Phase Coexistence Method.
-
-    This method creates a solid-liquid interface and monitors its stability
-    at different temperatures to determine the melting point.
-    """
     mdb_b_ut.custom_print('Running Melting Point Benchmark', 'info')
     benchmark_dir = args.output_dir / 'melting_point'
     benchmark_dir.mkdir(exist_ok=True)
 
-    # Two-phase coexistence parameters
-    # Temperature range to test (around typical Cu melting point ~1358 K)
-    base_temp = 1358  # Approximate experimental melting point for Cu
-    temp_range = 200  # ±200 K range
-    temperatures = [
-        base_temp - (temp_range * 1.5),
-        base_temp - temp_range,
-        base_temp - temp_range // 2,
-        base_temp,
-        base_temp + temp_range // 2,
-        base_temp + temp_range,
-        base_temp + (temp_range * 1.5),
-    ]
-
-    # Simulation parameters
-    # Large cell to accommodate interface - [4,4,10]
-    supercell_size = [4, 4, 10]
-
-    # 100 ps at 2 fs timestep
-    sim_steps = 50000
-
-    # 20 ps equilibration
-    equilibration_steps = 10000
-
-    # 1 bar (in ASE units: eV/Å³)
-    pressure = 1.0
+    # Get settings from args (already loaded from TOML)
+    benchmark_settings = {
+        'supercell_size': args.melting_point_supercell_size,
+        'solid_temp_K': args.melting_point_solid_temp_K,
+        'liquid_temp_K': args.melting_point_liquid_temp_K,
+        'nve_initial_T_test_K': args.melting_point_nve_initial_T_test_K,
+        'supercell_path': args.melting_point_supercell_path,
+    }
 
     # Results storage
     results = {}
 
     # For each model, prepare structure and test at different temperatures
     for _, model_path in enumerate(model_paths):
+        print()
         model_name = mdb_b_ut.get_model_display_name(model_path)
-        mdb_b_ut.custom_print(f'Testing melting point for model: {model_name}', 'info')
+        mdb_b_ut.custom_print(
+            f"Testing melting point for model: '{model_name}'", 'info'
+        )
 
         # Skip if already calculated
         results_file = benchmark_dir / f'{model_name}_melting_point.json'
@@ -363,9 +345,10 @@ def run_melting_point_benchmark(args, model_paths: list[pl.Path]):
 
         try:
             # Set up calculator for this model
-            calculator = mdb_b_ut.create_calculator_for_model(
-                model_path, device=args.device, dtype=args.dtype, enable_cueq=True
-            )
+            if 'lammps.pt' not in model_path.name:
+                calculator = mdb_b_ut.create_calculator_for_model(
+                    model_path, device=args.device, dtype=args.dtype, enable_cueq=True
+                )
 
             # Create model-specific directory for structures and trajectories
             model_benchmark_dir = benchmark_dir / model_name
@@ -375,212 +358,23 @@ def run_melting_point_benchmark(args, model_paths: list[pl.Path]):
             mdb_b_ut.custom_print(
                 f'Preparing coexistence structure for model: {model_name}', 'info'
             )
-            coexistence_path = prepare_coexistence_structure(
-                args.metal,
-                supercell_size,
-                model_benchmark_dir,
-                calculator,
-                base_temp,
+
+            # 1. Prepare initial cell, and heat to temperature below melting point
+            # 2. Prepare initial cell, and heat to temperature above melting point
+            # 3. Join two cells together, and run 10 steps at solid_temp_K
+            # 4. Run NVE, checking for coexistence. Average temperature will be
+            # the melting temperature.
+            melting_temperature, coexistence_path = coexistence_structure_melting_point(
+                metal=args.metal,
+                benchmark_dir=model_benchmark_dir,
+                calculator=calculator,
+                config_dict=benchmark_settings,
             )
 
-            model_results = {
-                'temperatures_tested': temperatures,
-                'interface_stability': [],
-                'potential_energies': [],
-                'estimated_melting_point': None,
-                'temperature_analysis': {},
+            results[model_name] = {
+                'estimated_melting_point': melting_temperature,
                 'coexistence_structure_path': str(coexistence_path),
             }
-
-            # Get cell dimensions for interface analysis
-            test_structure = ase_read(coexistence_path, format='extxyz')
-            cell = test_structure.get_cell()
-            z_max = cell[2, 2]
-
-            # Test at each temperature
-            for temp in temperatures:
-                mdb_b_ut.custom_print(f'Testing temperature: {temp} K', 'info')
-
-                traj_path = model_benchmark_dir / f'T{temp}K.traj'
-
-                # Load fresh coexistence structure
-                test_atoms = ase_read(coexistence_path, format='extxyz')
-                test_atoms.set_calculator(calculator)
-
-                # Data storage for this temperature
-                energies = []
-                interface_positions = []
-
-                def collect_melting_point_req_data(
-                    atoms=test_atoms,
-                    energy_list=energies,
-                    interface_list=interface_positions,
-                    z_max_val=z_max,
-                ):
-                    """Collect energy and interface position data."""
-                    energy_list.append(atoms.get_potential_energy())
-
-                    # Analyze interface position by finding density transitions
-                    positions = atoms.get_positions()
-                    z_coords = positions[:, 2]
-
-                    # Bin atoms along z-axis and calculate density
-                    z_bins = np.linspace(0, z_max_val, 50)
-                    hist, _ = np.histogram(z_coords, bins=z_bins)
-                    density = hist / (len(atoms) / len(z_bins))
-
-                    # Find interfaces as locations where density changes rapidly
-                    density_gradient = np.gradient(density)
-                    threshold = np.std(density_gradient) * 2
-                    interface_indices = np.where(np.abs(density_gradient) > threshold)[
-                        0
-                    ]
-
-                    if len(interface_indices) >= 2:
-                        # Record positions of solid-liquid interfaces
-                        interface_z = z_bins[interface_indices]
-                        interface_list.append([interface_z[0], interface_z[-1]])
-                    else:
-                        # No clear interface found
-                        interface_list.append([None, None])
-
-                if traj_path.exists():
-                    mdb_b_ut.custom_print(
-                        f'Trajectory for {temp} K already exists. Loading...',
-                        'warn',
-                    )
-                    md_traj = ase_read(traj_path, format='traj', index=':')
-                    for frame_idx in range(len(md_traj)):
-                        curr_idx = md_traj[frame_idx]
-                        collect_melting_point_req_data(atoms=curr_idx)
-
-                else:
-                    # Initialize velocities for the target temperature
-                    MaxwellBoltzmannDistribution(test_atoms, temperature_K=temp)
-
-                    # Set up NPT dynamics
-                    npt = NPT(
-                        test_atoms,
-                        timestep=args.timestep * units.fs,
-                        temperature_K=temp,
-                        externalstress=pressure * units.GPa,  # Convert to ASE units
-                        ttime=50 * units.fs,  # Thermostat time constant
-                        pfactor=75 * units.fs**2,  # Barostat time constant
-                    )
-
-                    # Set up trajectory and data collection
-                    traj = TrajectoryWriter(traj_path, 'w', test_atoms)
-
-                    # Attach data collection and trajectory writing
-                    npt.attach(collect_melting_point_req_data, interval=100)
-                    npt.attach(traj.write, interval=100)
-
-                    # Equilibration phase
-                    mdb_b_ut.custom_print(f'Equilibrating at {temp} K...', 'info')
-                    npt.run(equilibration_steps)
-
-                    # Production phase
-                    mdb_b_ut.custom_print(f'Production run at {temp} K...', 'info')
-
-                    # Clear equilibration data
-                    energies.clear()
-                    interface_positions.clear()
-
-                    # Run simulation
-                    npt.run(sim_steps)
-
-                # Analyze results for this temperature
-                avg_energy = np.mean(energies)
-                energy_std = np.std(energies)
-
-                # Analyze interface stability
-                valid_interfaces = [
-                    pos for pos in interface_positions if pos[0] is not None
-                ]
-                # Need sufficient data
-                if len(valid_interfaces) > 10:
-                    interface_lower = [pos[0] for pos in valid_interfaces]
-                    interface_upper = [pos[1] for pos in valid_interfaces]
-
-                    # Calculate interface drift (indicates melting/freezing)
-                    lower_drift = np.polyfit(
-                        range(len(interface_lower)), interface_lower, 1
-                    )[0]
-                    upper_drift = np.polyfit(
-                        range(len(interface_upper)), interface_upper, 1
-                    )[0]
-                    total_drift = abs(lower_drift) + abs(upper_drift)
-
-                    # Threshold for stability
-                    interface_stable = total_drift < 0.01
-                else:
-                    interface_stable = False
-                    total_drift = float('inf')
-
-                # Store results for this temperature
-                temp_analysis = {
-                    'avg_energy': avg_energy,
-                    'energy_std': energy_std,
-                    'interface_stable': interface_stable,
-                    'interface_drift': total_drift,
-                    'num_interface_points': len(valid_interfaces),
-                }
-
-                model_results['potential_energies'].append(avg_energy)
-                model_results['interface_stability'].append(interface_stable)
-                model_results['temperature_analysis'][temp] = temp_analysis
-
-                mdb_b_ut.custom_print(
-                    f'T={temp}K: Energy={avg_energy:.3f}±{energy_std:.3f} eV, '
-                    f'Interface stable: {interface_stable}, Drift: {total_drift:.4f}',
-                    'info',
-                )
-
-                # Clean up trajectory if it was created
-                if 'traj' in locals():
-                    traj.close()
-
-            # Estimate melting point from results
-            stable_temps = [
-                temp
-                for i, temp in enumerate(temperatures)
-                if model_results['interface_stability'][i]
-            ]
-
-            if stable_temps:
-                # Take the average of stable temperatures as melting point estimate
-                estimated_tm = np.mean(stable_temps)
-                model_results['estimated_melting_point'] = estimated_tm
-                mdb_b_ut.custom_print(
-                    f'Estimated melting point for {model_name}: {estimated_tm:.1f} K',
-                    'done',
-                )
-            else:
-                mdb_b_ut.custom_print(
-                    f'Could not determine melting point for {model_name} - '
-                    'no stable interfaces found',
-                    'warn',
-                )
-
-            results[model_name] = model_results
-
-            # Serialize bool types in results dict
-            results[model_name]['interface_stability'] = [
-                str(x).lower() for x in results[model_name]['interface_stability']
-            ]
-
-            for key in results[model_name]['temperature_analysis']:
-                results[model_name]['temperature_analysis'][key]['interface_stable'] = (
-                    str(
-                        results[model_name]['temperature_analysis'][key][
-                            'interface_stable'
-                        ]
-                    ).lower()
-                )
-
-            # Save individual results
-            with open(results_file, 'w') as f:
-                json.dump(model_results, f, indent=2)
 
         except Exception as exc:
             mdb_b_ut.custom_print(
@@ -1577,26 +1371,25 @@ def run_high_temp_md_benchmark(args, model_paths: list[pl.Path]):
     run_energy_md_benchmark(high_temp_args, model_paths)
 
 
-def prepare_coexistence_structure(
+def coexistence_structure_melting_point(
     metal: str,
-    supercell_size: list[int],
     benchmark_dir: pl.Path,
     calculator,
-    base_temp: float,
+    config_dict: dict,
 ) -> pl.Path:
     """
     Prepare a solid-liquid coexistence structure using proper equilibration.
 
     This function implements the multi-step preparation process:
-    1. Equilibrate solid phase at T < T_melt
-    2. Create and equilibrate liquid phase at T > T_melt
-    3. Combine solid and liquid phases into coexistence structure
-    4. Relax interfaces
+    1. Equilibrate solid phase at T < T_melt using NPT
+    2. Take the equilibrated cell, and heat at T > T_melt with NPAT to get liquid
+    3. Combine solid and liquid phases into coexistence structure, run short NPAT
+    4. Relax interfaces using NVE
 
     Returns path to the final coexistence structure.
     """
     # Check if final structure already exists
-    final_coexistence_path = benchmark_dir / 'coexistence_structure_prepared.xyz'
+    final_coexistence_path = benchmark_dir / '4_coexistence_structure_final.xyz'
     if final_coexistence_path.exists():
         mdb_b_ut.custom_print(
             f'Using existing prepared coexistence structure: {final_coexistence_path}',
@@ -1608,209 +1401,730 @@ def prepare_coexistence_structure(
         'Preparing coexistence structure through multi-step process...', 'info'
     )
 
+    # Parsing settings dict
+    supercell_path = config_dict.get('supercell_path')
+    supercell_size = config_dict.get('supercell_size')
+    solid_temp_K = config_dict.get('solid_temp_K')
+    liquid_temp_K = config_dict.get('liquid_temp_K')
+
     # Phase 1: Prepare equilibrated solid phase
-    mdb_b_ut.custom_print('Phase 1: Equilibrating solid phase...', 'info')
+    solid_path = benchmark_dir / '1_equilibrated_solid.xyz'
+    step_1_nsteps = 333334
+    step_1_tstep_fs = 3.0
 
-    solid_path = benchmark_dir / 'equilibrated_solid.xyz'
     if not solid_path.exists():
-        # Use temperature well below base_temp for solid equilibration
-
-        # 200K below melting point
-        solid_temp = base_temp - 200
+        mdb_b_ut.custom_print('Phase 1: Equilibrating solid phase...', 'info')
 
         # Create initial solid structure
-        solid_bulk = bulk(metal, cubic=True)
-        solid_supercell = solid_bulk.repeat(supercell_size)
-        mdb_b_ut.custom_print(
-            f'Initial solid supercell created with {len(solid_supercell)} atoms',
-            'debug',
-        )
-        solid_supercell.set_calculator(calculator)
+        if supercell_path is None:
+            solid_bulk = bulk(metal, cubic=True)
+            solid_bulk.pbc = True
+            solid_supercell = solid_bulk.repeat(supercell_size)
+            mdb_b_ut.custom_print(
+                f'Initial solid supercell created with {len(solid_supercell)} atoms',
+                'debug',
+            )
+        else:
+            solid_supercell = ase_read(supercell_path, format='extxyz')
+            solid_supercell.pbc = True
+            mdb_b_ut.custom_print(
+                f"Initial solid supercell read from '{supercell_path}' "
+                f'with {len(solid_supercell)} atoms.',
+            )
+        solid_supercell.calc = calculator
         solid_supercell.write(
             benchmark_dir / 'init_equilibrated_solid.xyz', format='extxyz'
         )
 
         # Initialize velocities for solid temperature
-        MaxwellBoltzmannDistribution(solid_supercell, temperature_K=solid_temp)
+        MaxwellBoltzmannDistribution(solid_supercell, temperature_K=solid_temp_K)
 
-        # Equilibrate solid using NPT
+        # 1. Equilibrate solid using NPT at the solid temperature.
         solid_npt = NPT(
             solid_supercell,
-            timestep=2.0 * units.fs,
-            temperature_K=solid_temp,
+            timestep=step_1_tstep_fs * units.fs,
+            temperature_K=solid_temp_K,
             externalstress=1.0 * units.bar,
             ttime=50 * units.fs,
             pfactor=75 * units.fs**2,
+            trajectory=benchmark_dir / '2_melted_liquid.traj',
+            loginterval=10,
         )
 
         mdb_b_ut.custom_print(
-            f'Equilibrating solid at {solid_temp} K for 20 ps...', 'info'
-        )
-
-        # 20 ps equilibration
-        solid_npt.run(10000)
-
-        # Save equilibrated solid
-        solid_supercell.write(solid_path, format='extxyz')
-        mdb_b_ut.custom_print(f'Equilibrated solid saved to {solid_path}', 'info')
-    else:
-        solid_supercell = ase_read(solid_path, format='extxyz')
-        mdb_b_ut.custom_print(
-            f'Loaded existing equilibrated solid from {solid_path}', 'info'
-        )
-
-    # Phase 2: Prepare equilibrated liquid phase
-    liquid_path = benchmark_dir / 'equilibrated_liquid.xyz'
-    if not liquid_path.exists():
-        mdb_b_ut.custom_print(
-            'Phase 2: Creating and equilibrating liquid phase...', 'info'
-        )
-
-        # 200K above base_temp for melting
-        liquid_temp_high_K = base_temp + 200
-
-        # Target temperature for coexistence
-        liquid_temp_target_K = base_temp
-
-        # Start with solid structure for melting
-        liquid_supercell = solid_supercell.copy()
-        liquid_supercell.set_calculator(calculator)
-        solid_supercell.write(
-            benchmark_dir / 'init_equilibrated_liquid.xyz', format='extxyz'
-        )
-
-        # Heat to high temperature for melting
-        MaxwellBoltzmannDistribution(liquid_supercell, temperature_K=liquid_temp_high_K)
-
-        # Melt using NVT dynamics (fixed volume to preserve density)
-        liquid_nvt_melt = Langevin(
-            liquid_supercell,
-            timestep=2.0 * units.fs,
-            temperature_K=liquid_temp_high_K,
-            friction=0.01,  # Strong coupling for rapid equilibration
-        )
-
-        # Equilibrate solid using NPT
-        mdb_b_ut.custom_print(
-            f'Melting structure at {liquid_temp_high_K} K for 20 ps...', 'info'
-        )
-
-        # 20 ps melting
-        liquid_nvt_melt.run(10000)
-
-        # Cool down to target temperature and equilibrate
-        MaxwellBoltzmannDistribution(
-            liquid_supercell, temperature_K=liquid_temp_target_K
-        )
-
-        liquid_nvt_cool = Langevin(
-            liquid_supercell,
-            timestep=2.0 * units.fs,
-            temperature_K=liquid_temp_target_K,
-            friction=0.005,  # Moderate coupling for equilibration
-        )
-
-        mdb_b_ut.custom_print(
-            f'Equilibrating liquid at {liquid_temp_target_K} K for 20 ps...',
+            f'Equilibrating solid at {solid_temp_K} K'
+            f' for {step_1_nsteps * step_1_tstep_fs * 0.001:.1f} ps...',
             'info',
         )
 
-        # 20 ps equilibration
-        liquid_nvt_cool.run(10000)
+        solid_npt.attach(
+            mdb_al_ut.manual_progress_display,
+            interval=1000,
+            dyn=solid_npt,
+        )
+        solid_npt.run(step_1_nsteps)
 
-        # Save equilibrated liquid
-        liquid_supercell.write(liquid_path, format='extxyz')
-        mdb_b_ut.custom_print(f'Equilibrated liquid saved to {liquid_path}', 'info')
+        # Save equilibrated solid
+        solid_supercell.write(solid_path, format='extxyz')
+        mdb_b_ut.custom_print(f'Equilibrated solid saved to {solid_path}', 'done')
     else:
-        liquid_supercell = ase_read(liquid_path, format='extxyz')
+        solid_supercell = ase_read(solid_path, format='extxyz')
         mdb_b_ut.custom_print(
-            f'Loaded existing equilibrated liquid from {liquid_path}', 'info'
+            f'Phase 1: Loaded existing equilibrated solid from {solid_path}', 'done'
         )
 
-    # Phase 3: Combine solid and liquid phases
-    mdb_b_ut.custom_print('Phase 3: Combining solid and liquid phases...', 'info')
+    print()
 
-    # Get positions and cell info
-    solid_positions = solid_supercell.get_positions()
-    liquid_positions = liquid_supercell.get_positions()
-    cell = solid_supercell.get_cell()
+    # Phase 2: Prepare equilibrated liquid phase
+    melted_liquid_path = benchmark_dir / '2_melted_liquid.xyz'
 
-    # Create extended cell in z-direction to accommodate both phases
-    z_extend_factor = 2.0
-    new_cell = cell.copy()
-    new_cell[2, 2] *= z_extend_factor
+    stage_2_nsteps = 333334
+    stage_2_timestep_fs = 3.0
 
-    # Select atoms from each phase (use z-coordinate sorting)
-    solid_z_sorted = np.argsort(solid_positions[:, 2])
-    liquid_z_sorted = np.argsort(liquid_positions[:, 2])
+    mdb_b_ut.custom_print('Phase 2: Creating and melting liquid phase...', 'info')
 
-    # Take half the atoms from each phase
-    n_atoms_half = len(solid_supercell) // 2
+    # Perform NPAT melting and equilibration
+    if melted_liquid_path.exists():
+        mdb_b_ut.custom_print(
+            f'Using existing intermediate structure: {melted_liquid_path}',
+            'info',
+        )
+        liquid_supercell = ase_read(
+            melted_liquid_path,
+            format='extxyz',
+        )
+    else:
+        liquid_supercell = ase_read(solid_path, format='extxyz')
+        mdb_b_ut.custom_print(
+            f'Melting liquid part at {liquid_temp_K:.1f} K '
+            f'for {stage_2_nsteps * stage_2_timestep_fs * 0.001} ps...',
+            'info',
+        )
+        # Heat to high temperature for melting
+        MaxwellBoltzmannDistribution(liquid_supercell, temperature_K=liquid_temp_K)
 
-    # Bottom half
-    solid_half_indices = solid_z_sorted[:n_atoms_half]
+        # Melt using NPAT
+        liquid_supercell.calc = calculator
+        liquid_npt_melt = NPT(
+            liquid_supercell,
+            timestep=stage_2_timestep_fs * units.fs,
+            temperature_K=liquid_temp_K,
+            ttime=25 * units.fs,
+            # pfactor=ptime^2*B (B = Bulk Modulus)
+            pfactor=(75 * units.fs**2) * 100,
+            externalstress=(1.01325 * units.bar),  # 1 atm in bar
+            mask=(0, 0, 1),
+            trajectory=benchmark_dir / '2_melted_liquid.traj',
+            loginterval=10,
+        )
 
-    # Top half
-    liquid_half_indices = liquid_z_sorted[n_atoms_half:]
+        liquid_npt_melt.attach(
+            mdb_al_ut.manual_progress_display,
+            interval=1000,
+            dyn=liquid_npt_melt,
+        )
 
-    # Create combined structure
-    combined_positions = []
-    combined_symbols = []
+        # Run melting
+        liquid_npt_melt.run(stage_2_nsteps)
+        liquid_supercell.write(melted_liquid_path, format='extxyz')
 
-    # Add solid atoms (bottom region)
-    for idx in solid_half_indices:
-        pos = solid_positions[idx].copy()
+        print()
 
-        # Center in cell, extend towards bottom
-        pos[2] = (pos[2]) + (0.25 * new_cell[2, 2])
-        combined_positions.append(pos)
-        combined_symbols.append(solid_supercell[idx].symbol)
+    cooled_liquid_path = benchmark_dir / '3_1_cooled_liquid.xyz'
+    coexistence_initial_path = benchmark_dir / '3_2_coexistence_initial.xyz'
+    coexistence_relaxed_path = benchmark_dir / '3_3_coexistence_relaxed.xyz'
+    # low_energy_liquid_path = benchmark_dir / '2_low_energy_liquid.xyz'
+    mdb_b_ut.custom_print('Phase 3: Cooling down liquid phase...', 'info')
 
-    # Add liquid atoms (top region)
-    for idx in liquid_half_indices:
-        pos = liquid_positions[idx].copy()
+    if not coexistence_relaxed_path.exists():
+        # 3.1 Cool from liquid_temp_K to solid_temp_K using NPAT
+        # Use a temperature ramp do decrease temperature continously
+        # This is to lower the energy of the liquid, while keeping liquid-like structure
+        # so that it won't break the structure of the solid later
 
-        # Center in cell, extend towards bottom
-        pos[2] = (pos[2]) + (0.30 * new_cell[2, 2])
-        combined_positions.append(pos)
-        combined_symbols.append(liquid_supercell[idx].symbol)
+        if not cooled_liquid_path.exists():
+            # Make a short temperature ramp to raise T from solid_temp_K to
+            # liquid temp_K in 3 ps
+            num_steps_ramp = 1000
+            timestep_ramp_fs = 3.0
+            liquid_supercell.pbc = True
 
-    # Create coexistence structure
-    coexistence_atoms = Atoms(
-        symbols=combined_symbols,
-        positions=combined_positions,
-        cell=new_cell,
-        pbc=True,
-    )
+            MaxwellBoltzmannDistribution(
+                liquid_supercell,
+                temperature_K=solid_temp_K,
+            )
 
-    # Save initial combined structure
-    initial_combined_path = benchmark_dir / 'initial_combined.xyz'
-    coexistence_atoms.write(initial_combined_path, format='extxyz')
+            mdb_b_ut.custom_print('Heating solid to liquid temperature...', 'info')
+
+            liquid_supercell.calc = calculator
+            liquid_nvt_heating_ramp = NPT(
+                liquid_supercell,
+                timestep=timestep_ramp_fs * units.fs,
+                temperature_K=solid_temp_K,
+                ttime=25 * units.fs,
+                # pfactor=ptime^2*B (B = Bulk Modulus)
+                pfactor=(75 * units.fs**2) * 100,
+                externalstress=(1.01325 * units.bar),  # 1 atm in bar
+                mask=(0, 0, 1),
+                trajectory=benchmark_dir / '3_1_heating_liquid.traj',
+                loginterval=10,
+            )
+
+            liquid_nvt_heating_ramp.attach(
+                mdb_al_ut.manual_progress_display,
+                interval=10,
+                dyn=liquid_nvt_heating_ramp,
+            )
+
+            T_list_heating_ramp = []
+            liquid_nvt_heating_ramp.attach(
+                interval=1,
+                function=mdb_al_ut.md_apply_temperature_ramp,
+                dyn=liquid_nvt_heating_ramp,
+                total_steps=num_steps_ramp,
+                T_start=solid_temp_K,
+                T_end=liquid_temp_K,
+                T_list=T_list_heating_ramp,
+            )
+
+            # Run cooling
+            liquid_nvt_heating_ramp.run(num_steps_ramp)
+
+            # 100 ps cooling
+            num_steps_cool = 33334
+            timestep_cool_fs = 3.0
+
+            liquid_supercell.pbc = True
+
+            mdb_b_ut.custom_print(
+                f'Reducing energy of liquid by changing T from {liquid_temp_K} K to '
+                f'{solid_temp_K} K for '
+                f'{num_steps_cool * timestep_cool_fs * 0.001} ps...',
+                'info',
+            )
+            T_list = []
+            liquid_supercell.calc = calculator
+            liquid_nvt_ramp = NPT(
+                liquid_supercell,
+                timestep=timestep_cool_fs * units.fs,
+                temperature_K=liquid_temp_K,
+                ttime=25 * units.fs,
+                # pfactor=ptime^2*B (B = Bulk Modulus)
+                pfactor=(75 * units.fs**2) * 100,
+                externalstress=(1.01325 * units.bar),  # 1 atm in bar
+                mask=(0, 0, 1),
+                trajectory=benchmark_dir / '3_1_cooling_liquid.traj',
+                loginterval=100,
+            )
+
+            liquid_nvt_ramp.attach(
+                interval=1,
+                function=mdb_al_ut.md_apply_temperature_ramp,
+                dyn=liquid_nvt_ramp,
+                total_steps=num_steps_cool,
+                T_start=liquid_temp_K,
+                T_end=solid_temp_K,
+                T_list=T_list,
+            )
+
+            liquid_nvt_ramp.attach(
+                mdb_al_ut.manual_progress_display,
+                interval=1000,
+                dyn=liquid_nvt_ramp,
+            )
+
+            # Run cooling
+            liquid_nvt_ramp.run(num_steps_cool)
+
+            # Save equilibrated liquid
+            liquid_supercell.write(cooled_liquid_path, format='extxyz')
+            mdb_b_ut.custom_print(
+                f'Saved cooled liquid to {cooled_liquid_path}', 'info'
+            )
+        else:
+            liquid_supercell = ase_read(cooled_liquid_path, format='extxyz')
+            mdb_b_ut.custom_print(
+                f'Loaded existing cooled liquid from {cooled_liquid_path}', 'info'
+            )
+
+        # 3.2 Join solid and liquid phase in same cell,
+        # and run 10 steps at solid_temp_K
+
+        # Create the coexistence structure by combining solid and liquid
+        coexistence_atoms = solid_supercell.copy()
+
+        mdb_b_ut.custom_print(
+            'Combining solid and liquid phases into one cell...',
+            'info',
+        )
+
+        # Add the z length of the liquid cell to the solid cell to make it fit
+        gap = 1.75
+        new_cell = solid_supercell.get_cell().copy()
+        new_cell[2, 2] += liquid_supercell.get_cell()[2, 2] + gap
+
+        coexistence_atoms.set_cell(new_cell, scale_atoms=False)
+
+        # Add the shifted liquid atoms to the coexistence structure
+        liquid_atoms_shifted = liquid_supercell.copy()
+
+        # Wrap coordinates
+        liquid_atoms_shifted.wrap()
+
+        # Translate the liquid atoms to sit on top of the solid slab.
+        # The starting z-position for the liquid will be the z-height of the solid cell.
+        liquid_atoms_shifted.translate([0, 0, solid_supercell.get_cell()[2, 2]])
+
+        # Add the shifted liquid atoms to the coexistence structure
+        coexistence_atoms.extend(liquid_atoms_shifted)
+
+        # The new structure is now in liquid_supercell for the next steps
+        liquid_supercell = coexistence_atoms
+        liquid_supercell.pbc = True
+
+        # Save the combined structure for inspection
+        liquid_supercell.write(coexistence_initial_path, format='extxyz')
+        mdb_b_ut.custom_print('Combined solid and liquid phases into one cell.', 'info')
+
+        # 3.3 Relax the combined structure with short NPT run at solid_temp_K
+        num_steps_relax = 10
+        timestep_relax_fs = 2.0
+        T_mult = 1.0
+
+        liquid_supercell.calc = calculator
+        cool_low_energy_liquid = NPT(
+            liquid_supercell,
+            timestep=timestep_relax_fs * units.fs,
+            temperature_K=solid_temp_K * T_mult,
+            ttime=25 * units.fs,
+            # pfactor=ptime^2*B (B = Bulk Modulus)
+            pfactor=(75 * units.fs**2) * 100,
+            externalstress=(1.01325 * units.bar),  # 1 atm in bar
+            mask=(0, 0, 1),
+        )
+
+        cool_low_energy_liquid.attach(
+            mdb_al_ut.manual_progress_display,
+            interval=250,
+            dyn=cool_low_energy_liquid,
+        )
+
+        cool_low_energy_liquid.run(num_steps_relax)
+
+        # Save equilibrated liquid
+        liquid_supercell.write(coexistence_relaxed_path, format='extxyz')
+        mdb_b_ut.custom_print(
+            f'Saved equilibrated coexistence to {coexistence_relaxed_path}', 'info'
+        )
+
+    else:
+        liquid_supercell = ase_read(coexistence_relaxed_path, format='extxyz')
+        mdb_b_ut.custom_print(
+            'Phase 2 and 3: Loaded equilibrated coexistence from '
+            f'{coexistence_relaxed_path}',
+            'info',
+        )
+
+    print()
+
+    # Phase 4: Coexistence of liquid and solid phases with NVE
+    mdb_b_ut.custom_print('Phase 4: Coexistence of liquid and solid (NVE)...', 'info')
+
+    nve_initial_T_test_K = config_dict.get('nve_initial_T_test_K')
     mdb_b_ut.custom_print(
-        f'Initial combined structure saved to {initial_combined_path}', 'info'
+        f'Rescaling velocities to a starting T of {nve_initial_T_test_K} K', 'info'
+    )
+    MaxwellBoltzmannDistribution(
+        liquid_supercell, temperature_K=nve_initial_T_test_K, force_temp=True
+    )
+    mdb_b_ut.custom_print(
+        'Velocities rescaled. '
+        f'Actual starting T: {liquid_supercell.get_temperature():.1f} K',
+        'info',
     )
 
-    # Phase 4: Relax interfaces
-    mdb_b_ut.custom_print('Phase 4: Relaxing interfaces...', 'info')
-
-    coexistence_atoms.set_calculator(calculator)
-    MaxwellBoltzmannDistribution(coexistence_atoms, temperature_K=liquid_temp_target_K)
+    # 10 ps at 1 fs timestep
+    n_steps_nve = 333334
+    timestep_nve_fs = 3.0
 
     # Use NVE dynamics to relax interfaces at fixed volume
+    liquid_supercell.calc = calculator
     interface_relaxer = VelocityVerlet(
-        coexistence_atoms,
-        timestep=1.0 * units.fs,  # Smaller timestep for stability
+        liquid_supercell,
+        timestep=timestep_nve_fs * units.fs,  # Smaller timestep for stability
+        trajectory=benchmark_dir
+        / f'4_1_nve_{liquid_supercell.get_temperature():.1f}K.traj',
+        loginterval=1000,
     )
 
-    mdb_b_ut.custom_print('Relaxing interfaces with NVE dynamics for 10 ps...', 'info')
+    mdb_b_ut.custom_print(
+        f'Relaxing interface (NVE) for '
+        f'{n_steps_nve * timestep_nve_fs * 0.001:.1f} ps...',
+        'info',
+    )
 
-    # 10 ps interface relaxation
-    interface_relaxer.run(10000)
+    nve_log_path = (
+        benchmark_dir / f'4_1_nve_{liquid_supercell.get_temperature():.1f}K.log'
+    )
+    interface_relaxer.attach(
+        MDLogger(
+            dyn=interface_relaxer,
+            atoms=liquid_supercell,
+            logfile=nve_log_path,
+            header=True,
+            stress=False,
+            peratom=False,
+            mode='a',
+        ),
+        interval=100,
+    )
+
+    interface_relaxer.run(n_steps_nve)
 
     # Save final prepared structure
-    coexistence_atoms.write(final_coexistence_path, format='extxyz')
+    liquid_supercell.write(final_coexistence_path, format='extxyz')
+
     mdb_b_ut.custom_print(
         f'Final coexistence structure saved to {final_coexistence_path}', 'info'
+    )
+
+    md_log = np.loadtxt(
+        nve_log_path,
+        skiprows=1,
+        dtype={
+            'names': ('time_ps', 'e_tot_eV', 'e_pot_eV', 'e_kin_eV', 'temp_K'),
+            'formats': (np.float32, np.float32, np.float32, np.float32, np.float32),
+        },
+    )
+    step_4_temperatures_K = md_log['temp_K']
+    potential_energies = md_log['e_pot_eV']
+    total_energies = md_log['e_tot_eV']
+
+    average_T_K = np.average(
+        step_4_temperatures_K[int(step_4_temperatures_K.shape[0] * 0.25) :]
+    )
+
+    mdb_b_ut.custom_print(
+        f'Average temperature during final interface relaxation: {average_T_K:.1f} K'
+        f' ({average_T_K - 273.15:.1f} °C)',
+        'done',
+    )
+
+    # Create multipanel figure with temperature, potential energy, and total energy
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+    # Panel 1: Temperature vs timestep
+    ax = axes[0]
+    ax.plot(
+        range(step_4_temperatures_K.shape[0]),
+        step_4_temperatures_K,
+        'b-',
+        linewidth=1.5,
+    )
+    ax.axhline(
+        y=average_T_K,
+        color='k',
+        linestyle='--',
+        linewidth=2,
+        label=f'Average: {average_T_K:.1f} K',
+    )
+    ax.set_xlabel('Timestep')
+    ax.set_ylabel('Temperature (K)')
+    ax.set_title('Temperature during Interface Relaxation')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+
+    # Panel 2: Potential energy vs timestep
+    ax = axes[1]
+    ax.plot(range(len(potential_energies)), potential_energies, 'r-', linewidth=1.5)
+    ax.set_xlabel('Timestep')
+    ax.set_ylabel('Potential Energy (eV)')
+    ax.set_title('Potential Energy during Interface Relaxation')
+    ax.grid(True, alpha=0.3)
+
+    # Panel 3: Total energy vs timestep
+    ax = axes[2]
+    ax.plot(range(len(total_energies)), total_energies, 'g-', linewidth=1.5)
+    ax.set_xlabel('Timestep')
+    ax.set_ylabel('Total Energy (eV)')
+    ax.set_title('Total Energy during Interface Relaxation')
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    # Save the multipanel plot
+    temp_plot_path = benchmark_dir / 'coexistence_interface_relaxation_multipanel'
+    plt.savefig(temp_plot_path.with_suffix('.png'), dpi=300, bbox_inches='tight')
+    plt.savefig(temp_plot_path.with_suffix('.svg'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return average_T_K, final_coexistence_path
+
+
+def _get_lammps_calculator(
+    mace_model_path: pl.Path,
+    lammps_commands: list[str],
+    metal_symbol: str,
+    tmp_dir: pl.Path,
+) -> LAMMPS:
+    """
+    Helper function to configure the ASE LAMMPS calculator for MACE.
+
+    Args:
+        mace_model_path: Path to the MACE model file.
+        lammps_commands: A list of LAMMPS commands to execute.
+        metal_symbol: The chemical symbol of the metal (e.g., 'Ni').
+        tmp_dir: Temporary directory for LAMMPS input/output.
+
+    Returns
+    -------
+        An ASE LAMMPS calculator instance.
+    """
+    # Ensure the directory for LAMMPS temp files exists
+    tmp_dir.mkdir(exist_ok=True)
+
+    parameters = {
+        'pair_style': 'mace',
+        'pair_coeff': f'* * {mace_model_path.resolve()} {metal_symbol}',
+        'mass': '1 *',  # Mass will be inferred from ASE atoms
+        'thermo_style': 'custom step temp pe etotal press vol',
+        'thermo': '100',  # Print thermo data every 100 steps
+    }
+
+    # ASE's LAMMPS calculator needs a unique label for each run to avoid
+    # overwriting temp files in the same directory.
+    label = f'lammps_{np.random.randint(1e9)}'
+
+    lammps = LAMMPS(
+        label=label,
+        tmp_dir=str(tmp_dir),
+        files=[str(mace_model_path.resolve())],
+        specorder=[metal_symbol],
+        lammps_header=[
+            'units metal',
+            'atom_style atomic',
+            'atom_modify map array',
+        ],
+        # The 'run 0' is a trick to make ASE write the data file without
+        # starting a long run, allowing us to add custom velocity commands.
+        lammps_main=['run 0'],
+        # Keep log file for parsing temperature data in the NVE step
+        keep_log_file=True,
+        # Post-commands are executed after the data file is written
+        # but before the main run command.
+        post_changebox_commands=lammps_commands,
+        **parameters,
+    )
+    return lammps
+
+
+def prepare_coexistence_structure_lammps(
+    metal: str,
+    supercell_size: list[int],
+    benchmark_dir: pl.Path,
+    mace_model_path: pl.Path,
+    solid_temp_K: float,
+    liquid_temp_K: float,
+) -> pl.Path:
+    """
+    Prepare a solid-liquid coexistence structure using LAMMPS for dynamics.
+
+    This function implements the multi-step preparation process:
+    1. Equilibrate solid phase at T < T_melt using NPT.
+    2. Melt a copy of the solid at T > T_melt.
+    3. Cool the liquid down to the solid temperature.
+    4. Combine solid and liquid phases into a coexistence structure.
+    5. Relax the interface using NVE dynamics.
+
+    Returns
+    -------
+        Path to the final coexistence structure.
+    """
+    final_coexistence_path = benchmark_dir / 'coexistence_structure_prepared.xyz'
+    if final_coexistence_path.exists():
+        mdb_b_ut.custom_print(
+            f'Using existing prepared coexistence structure: {final_coexistence_path}',
+            'info',
+        )
+        return final_coexistence_path
+
+    mdb_b_ut.custom_print('Preparing coexistence structure via LAMMPS...', 'info')
+
+    # --- Phase 1: Prepare equilibrated solid phase ---
+    solid_path = benchmark_dir / 'equilibrated_solid.xyz'
+    if not solid_path.exists():
+        mdb_b_ut.custom_print('Phase 1: Equilibrating solid phase (NPT)...', 'info')
+        solid_bulk = bulk(metal, cubic=True)
+        solid_supercell = solid_bulk.repeat(supercell_size)
+        MaxwellBoltzmannDistribution(solid_supercell, temperature_K=solid_temp_K)
+
+        step_1_nsteps = 33334
+        step_1_tstep_fs = 3.0
+        ttime_fs = 100.0 * step_1_tstep_fs
+        ptime_fs = 1000.0 * step_1_tstep_fs
+
+        mdb_b_ut.custom_print(
+            f'Equilibrating solid at {solid_temp_K} K for '
+            f'{step_1_nsteps * step_1_tstep_fs * 0.001:.1f} ps...',
+            'info',
+        )
+
+        solid_commands = [
+            f'timestep {step_1_tstep_fs / 1000.0}',  # Timestep in ps
+            f'fix 1 all npt temp {solid_temp_K} {solid_temp_K} {ttime_fs / 1000.0} '
+            f'iso 1.0 1.0 {ptime_fs / 1000.0}',
+            f'run {step_1_nsteps}',
+        ]
+        solid_supercell.calc = _get_lammps_calculator(
+            mace_model_path, solid_commands, metal, benchmark_dir
+        )
+        # This triggers the LAMMPS run
+        solid_supercell.get_potential_energy()
+
+        ase_write(solid_path, solid_supercell, format='extxyz')
+        mdb_b_ut.custom_print(f'Equilibrated solid saved to {solid_path}', 'done')
+    else:
+        solid_supercell = ase_read(solid_path, format='extxyz')
+        mdb_b_ut.custom_print(
+            f'Phase 1: Loaded existing solid from {solid_path}', 'done'
+        )
+    print()
+
+    # --- Phase 2: Prepare equilibrated liquid phase ---
+    cooled_liquid_path = benchmark_dir / 'equilibrated_liquid.xyz'
+    if not cooled_liquid_path.exists():
+        # --- 2a: Melt the solid ---
+        mdb_b_ut.custom_print('Phase 2a: Melting the structure (NPT)...', 'info')
+        liquid_supercell = ase_read(solid_path, format='extxyz')
+        MaxwellBoltzmannDistribution(liquid_supercell, temperature_K=liquid_temp_K)
+
+        step_2_nsteps = 33334
+        step_2_tstep_fs = 3.0
+        ttime_fs = 100.0 * step_2_tstep_fs
+        ptime_fs = 1000.0 * step_2_tstep_fs
+
+        mdb_b_ut.custom_print(
+            f'Melting at {liquid_temp_K} K for '
+            f'{step_2_nsteps * step_2_tstep_fs * 0.001:.1f} ps...',
+            'info',
+        )
+
+        melt_commands = [
+            f'timestep {step_2_tstep_fs / 1000.0}',
+            f'fix 1 all npt temp {liquid_temp_K} {liquid_temp_K} {ttime_fs / 1000.0} '
+            f'iso 1.0 1.0 {ptime_fs / 1000.0}',
+            f'run {step_2_nsteps}',
+        ]
+        liquid_supercell.calc = _get_lammps_calculator(
+            mace_model_path, melt_commands, metal, benchmark_dir
+        )
+        liquid_supercell.get_potential_energy()
+
+        # --- 2b: Cool the liquid ---
+        mdb_b_ut.custom_print('Phase 2b: Cooling the liquid (NPT)...', 'info')
+        num_steps_cool = 11334
+        tstep_cool_fs = 3.0
+        mdb_b_ut.custom_print(
+            f'Cooling from {liquid_temp_K} K to {solid_temp_K} K for '
+            f'{num_steps_cool * tstep_cool_fs * 0.001:.1f} ps...',
+            'info',
+        )
+
+        cool_commands = [
+            f'timestep {tstep_cool_fs / 1000.0}',
+            f'fix 1 all npt temp {liquid_temp_K} {solid_temp_K} {ttime_fs / 1000.0} '
+            f'iso 1.0 1.0 {ptime_fs / 1000.0}',
+            f'run {num_steps_cool}',
+        ]
+        liquid_supercell.calc = _get_lammps_calculator(
+            mace_model_path, cool_commands, metal, benchmark_dir
+        )
+        liquid_supercell.get_potential_energy()
+        ase_write(cooled_liquid_path, liquid_supercell, format='extxyz')
+    else:
+        liquid_supercell = ase_read(cooled_liquid_path, format='extxyz')
+        mdb_b_ut.custom_print(
+            f'Phase 2: Loaded existing liquid from {cooled_liquid_path}', 'done'
+        )
+    print()
+
+    # --- Phase 3: Combine solid and liquid and relax briefly ---
+    mdb_b_ut.custom_print('Phase 3: Assembling coexistence structure...', 'info')
+    coexistence_atoms = solid_supercell.copy()
+    cell = coexistence_atoms.get_cell()
+    cell[2, 2] *= 2.0
+    coexistence_atoms.set_cell(cell, scale_atoms=False)
+
+    liquid_atoms_shifted = liquid_supercell.copy()
+    liquid_atoms_shifted.translate([0, 0, cell[2, 2] / 2.0])
+    coexistence_atoms.extend(liquid_atoms_shifted)
+    ase_write(
+        benchmark_dir / 'coexistence_structure_combined.xyz',
+        coexistence_atoms,
+        format='extxyz',
+    )
+
+    mdb_b_ut.custom_print(
+        'Running brief NPAT relaxation on combined structure...', 'info'
+    )
+    npt_z_commands = [
+        'timestep 0.001',  # 1 fs
+        f'fix 1 all npt temp {solid_temp_K} {solid_temp_K} 0.1 '
+        'x NULL NULL y NULL NULL z 1.0 1.0 1.0',
+        'run 1000',  # 1 ps relaxation
+    ]
+    coexistence_atoms.calc = _get_lammps_calculator(
+        mace_model_path, npt_z_commands, metal, benchmark_dir
+    )
+    coexistence_atoms.get_potential_energy()
+    print()
+
+    # --- Phase 4: Coexistence of liquid and solid phases with NVE ---
+    mdb_b_ut.custom_print('Phase 4: Coexistence interface relaxation (NVE)...', 'info')
+    n_steps_nve = 33334
+    timestep_nve_fs = 3.0
+    mdb_b_ut.custom_print(
+        f'Relaxing interface (NVE) for '
+        f'{n_steps_nve * timestep_nve_fs * 0.001:.1f} ps...',
+        'info',
+    )
+
+    nve_commands = [
+        f'timestep {timestep_nve_fs / 1000.0}',
+        'fix 1 all nve',
+        f'run {n_steps_nve}',
+    ]
+    # Re-use the calculator object to access the log file after the run
+    nve_calc = _get_lammps_calculator(
+        mace_model_path, nve_commands, metal, benchmark_dir
+    )
+    coexistence_atoms.calc = nve_calc
+    coexistence_atoms.get_potential_energy()
+
+    # Parse the LAMMPS log file for temperature data
+    log_file = pl.Path(nve_calc.tmpdir) / nve_calc.label / 'log.lammps'
+    log_data = np.genfromtxt(log_file, comments='#', skip_header=1, invalid_raise=False)
+    step_4_temperatures_K = log_data[:, 1]  # Temperature is the 2nd column
+
+    np.savetxt(
+        benchmark_dir / 'coexistence_interface_relaxation_temperature.txt',
+        np.array(step_4_temperatures_K),
+        header='Temperature (K) during interface relaxation',
+    )
+
+    ase_write(final_coexistence_path, coexistence_atoms, format='extxyz')
+    mdb_b_ut.custom_print(
+        f'Final coexistence structure saved to {final_coexistence_path}', 'info'
+    )
+
+    # Average over the last 75% of the run
+    start_index = int(len(step_4_temperatures_K) * 0.25)
+    average_T_K = np.mean(step_4_temperatures_K[start_index:])
+    print()
+    mdb_b_ut.custom_print(
+        f'Average temperature during NVE relaxation: {average_T_K:.1f} K '
+        f'({average_T_K - 273.15:.1f} °C)',
+        'done',
     )
 
     return final_coexistence_path

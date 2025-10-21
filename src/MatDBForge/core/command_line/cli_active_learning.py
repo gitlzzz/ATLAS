@@ -8,6 +8,7 @@ import tomllib
 import warnings
 from argparse import RawTextHelpFormatter
 
+from aiida.orm import Bool, Dict, Int, Str
 from rich.traceback import install as traceback_install
 
 from MatDBForge.core.code_utils import (
@@ -41,7 +42,6 @@ def create_active_learning_builder(
         A process builder that helps setting up the inputs for
         an ActiveLearningWorkChain.
     """
-    from aiida.orm import Bool, Dict, Int, Str
     from aiida.plugins import WorkflowFactory
 
     # Getting builder for workchain

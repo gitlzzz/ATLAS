@@ -21,8 +21,10 @@ import warnings
 import MatDBForge.benchmarks.mlip.mlip_benchmark_utils as mdb_b_ut
 import MatDBForge.benchmarks.mlip.mlip_benchmarks as mdb_benchmarks
 from MatDBForge.core.code_utils import (
+    custom_print,
     init_logger,
 )
+from MatDBForge.core.command_line.command_line_utils import validate_config_file
 
 # Ignore all warnings
 warnings.filterwarnings('ignore')
@@ -30,8 +32,48 @@ warnings.filterwarnings('ignore')
 
 def main():
     """Main function to run the evaluation."""
-    args = mdb_b_ut.parse_arguments()
+    parsed_args = mdb_b_ut.parse_arguments()
     init_logger(source='mdb_benchmark_mlip')
+
+    # Determine config path
+    config_path = parsed_args.config_path
+    if config_path is None:
+        default_config = pl.Path('./mdb_benchmark_settings.toml')
+        if default_config.exists():
+            config_path = default_config
+            custom_print(f'Found default config file: {default_config}', 'info')
+        else:
+            custom_print(
+                'No configuration file specified and mdb_benchmark_settings.toml '
+                'not found in current directory.',
+                'error',
+            )
+            custom_print(
+                'Please provide a configuration file or create '
+                'mdb_benchmark_settings.toml',
+                'error',
+            )
+            return
+
+    # Check if config file exists
+    if not config_path.exists():
+        custom_print(f'Configuration file not found: {config_path}', 'error')
+        return
+
+    custom_print(f'Loading configuration from: {config_path}', 'info')
+
+    # Validate the config file
+    validate_config_file(
+        config_path=config_path,
+        config_type='mlip_benchmarks',
+        run_mode='workflow',
+    )
+
+    # Load TOML config and create args
+    toml_dict = mdb_b_ut.load_toml_config(config_path)
+    args = mdb_b_ut.create_args_from_toml(toml_dict)
+    custom_print('Configuration loaded and validated successfully!', 'done')
+    print()
 
     # Create output directory
     args.output_dir.mkdir(exist_ok=True)
@@ -188,10 +230,7 @@ def main():
 
             # Initialize model data with consistent colors
             mdb_b_ut.initialize_model_data(model_paths)
-            mdb_b_ut.custom_print(
-                f'Initialized {len(model_paths)} model(s).',
-                'info'
-            )
+            mdb_b_ut.custom_print(f'Initialized {len(model_paths)} model(s).', 'info')
 
             # Run selected benchmarks
             for benchmark_name in benchmarks_to_run:
@@ -247,11 +286,12 @@ def main():
                 benchmark_functions[benchmark_name]()
                 mdb_b_ut.custom_print(f'Completed benchmark: {benchmark_name}', 'done')
             except Exception as e:
+                raise e
                 mdb_b_ut.custom_print(
                     f"Benchmark '{benchmark_name}' failed: {e}", 'error'
                 )
 
-        mdb_b_ut.custom_print('', 'empty')
+        print()
         mdb_b_ut.custom_print('All selected benchmarks finished!', 'done')
 
         # Create final multi-panel plot if any data was collected

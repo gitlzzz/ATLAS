@@ -111,6 +111,7 @@ def manual_progress_display(dyn):
         end='\r',
     )
 
+
 def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
     """
     Function to compute the temperature ramp during ASE MD simulations.
@@ -146,6 +147,39 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
 
     # Adding T value to info dict
     dyn.atoms.info['md_temperature'] = current_temperature
+
+
+def md_coexistence_final_step_log(dyn, T_list):
+    """
+    Function to compute the temperature ramp during ASE MD simulations.
+
+    Parameters
+    ----------
+    step : int
+        Current step in the MD simulation.
+    total_steps : int
+        Total number of steps in the MD simulation.
+    T_start : float
+        Initial temperature of the MD simulation.
+    T_end : float
+        Final temperature of the MD simulation.
+
+    Returns
+    -------
+    float
+        Temperature to set for the current step in the MD simulation.
+    """
+    # Adding current T value to the list
+    t_val = dyn.atoms.get_temperature()
+    T_list.append(t_val)
+
+    # Print the current temperature and total energy
+    print(
+        f'Step: {dyn.nsteps:<6} ({dyn.nsteps / dyn.max_steps * 100:.1f} %) '
+        f'- Current Temperature: {t_val:.6} K ',
+        f'- Total Energy: {dyn.atoms.get_total_energy():.6} eV',
+        end='\r',
+    )
 
 
 def md_write_frame_traj(dyn, traj):
