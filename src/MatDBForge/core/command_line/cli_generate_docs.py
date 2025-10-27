@@ -186,6 +186,17 @@ def generate_tool_section(schema, tool_name, tool_config):
 
     lines.append(f'## {header}')
     lines.append('')
+    if tool_name == 'mlip_benchmarks':
+        lines.append(
+            'The MLIP Benchmarks tool allows you to run a series of benchmarks '
+            'to evaluate the performance of Machine Learning Interatomic Potentials'
+            ' (MLIPs) trained with MatDBForge.\n'
+            'These benchmarks include:\n'
+            '- Accuracy tests on a given dataset.\n'
+            '- Melting point benchmark via the coexistence method.\n'
+            '- Monovacancy formation energy calculations.\n'
+            '- Surface energy calculations for various crystallographic facets.\n'
+        )
     lines.append(
         f'Generate a {tool_name.replace("_", " ")} template file using '
         + f'`mdb_gen_configuration_file -t {command}`.'
