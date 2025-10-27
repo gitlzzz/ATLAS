@@ -62,6 +62,7 @@ def create_active_learning_builder(
     builder.active_learning.mdb_working_directory = Str(pl.Path.cwd().resolve())
     builder.active_learning.run_name = al_conf['run_name']
     builder.active_learning.load_init_models = al_conf.get('load_init_models')
+    builder.active_learning.load_descriptor_calc = al_conf.get('load_descriptor_calc')
     builder.active_learning.init_db_path = str(
         pl.Path(al_conf['init_db_path']).resolve()
     )
@@ -128,7 +129,7 @@ def create_active_learning_builder(
         toml_dict['committee_eval']['committee_num_models']
     )
     builder.active_learning.model_acc_multiplier = float(
-        al_conf['model_acc_multiplier']
+        toml_dict['interpolation']['model_acc_multiplier']
     )
 
     ## Data reduction settings
