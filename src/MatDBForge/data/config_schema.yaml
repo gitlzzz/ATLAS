@@ -732,11 +732,11 @@ active_learning:
       type: int
       mandatory: true
       default: 3
-    model_acc_multiplier:
-      description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
-      type: float
-      mandatory: true
-      default: 10.0
+    # model_acc_multiplier:
+    #   description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
+    #   type: float
+    #   mandatory: true
+    #   default: 10.0
     # check_extrapolation:
     #   description: "Whether to check for extrapolation using MACE descriptors."
     #   type: bool
@@ -747,6 +747,11 @@ active_learning:
       type: list[int]
       mandatory: false
       default: []
+    load_descriptor_calc:
+      description: "Load a descriptor calculation from a AiiDA UUID/PK."
+      type: str
+      mandatory: false
+      default: ""
     al_mode:
       description: "Active learning mode."
       type: str
@@ -842,9 +847,9 @@ active_learning:
         default: "random"
         choices: ["random", "descriptor_fps"]
       descriptor_fps:
-        description: "Farthest Point Sampling (FPS) ranking.`"
+        description: "Farthest Point Sampling (FPS) ranking."
         descriptor_type:
-          description: "What descriptors to use."
+          description: "What descriptors to use for the seed selection process."
           type: str
           mandatory: false
           default: "soap"
@@ -908,6 +913,14 @@ active_learning:
             type: bool
             mandatory: false
             default: false
+  interpolation:
+    description: "Settings for the interpolation check."
+    mandatory: true
+    model_acc_multiplier:
+      description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
+      type: float
+      mandatory: true
+      default: 10.0
   extrapolation:
     description: "Settings for extrapolation checks."
     disagreement_check_type:
@@ -921,7 +934,8 @@ active_learning:
       type: str
       mandatory: false
       default: "none"
-      choices: ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
+      choices:
+        ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
     concave_hull:
       mandatory: false
       description: "Settings for the concave hull extrapolation check."
@@ -950,6 +964,138 @@ active_learning:
         default: 0.002
         mandatory: false
         description: "Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%."
+  safeguard:
+    description: "Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point."
+    mandatory: false
+    enable:
+      description: "Whether to enable the safeguard mechanism."
+      type: bool
+      mandatory: true
+      default: false
+    target_structure_mode:
+      description: "Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures. If `target` is provided, a selection of targeted must be included through the `struct_target_list` option below."
+      type: str
+      default: "base"
+      mandatory: true
+      choices: ["base", "target"]
+    struct_target_list:
+      description: "List of structure IDs or paths to be used as target structures in the safeguard. Only used if `target_structure_mode` is set to `target`."
+      type: list[str, int]
+      depends_on:
+        key: active_learning.safeguard.target_structure_mode
+        value: "target"
+      mandatory: false
+    ignore_container:
+      description: "Whether to ignore the container specified in the container settings for the safeguard."
+      type: bool
+      mandatory: false
+      default: false
+    metadata:
+      description: "AiiDA metadata and scheduler options for the safeguard."
+      computer:
+        description: "AiiDA computer name for safeguard calculations."
+        type: str
+        mandatory: true
+        example: "my_cluster"
+      prepend_text:
+        description: "Text to prepend to job scripts for AiiDA."
+        type: str
+        mandatory: false
+        example: "module load singularity\nexport PATH=$PATH:."
+      options:
+        description: "AiiDA scheduler options for safeguard calculations."
+        type: dict
+        mandatory: true
+    md_parameters:
+      description: "MD simulation parameters for safeguard."
+      mandatory: true
+      depends_on:
+        key: active_learning.safeguard.enable
+        value: true
+      temperature_list_K:
+        description: "List of different temperatures (in K) for MD simulations."
+        type: list[float]
+        mandatory: true
+        default: [300.0, 500.0, 900.0]
+      # num_at_large_struct:
+      #   description: "Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations."
+      #   type: int
+      #   mandatory: false
+      #   default: None
+      max_temp_multiplier:
+        description: "Multiplier for MD temperature to determine the upper bound of the temperature."
+        type: float
+        mandatory: true
+        default: 1.3
+      num_steps:
+        description: "Total number of timesteps for each MD simulation."
+        type: int
+        mandatory: true
+        default: 1000
+      timestep_duration_ps:
+        description: "Duration of each timestep in picoseconds."
+        type: float
+        mandatory: true
+        default: 0.003
+      langevin_friction_ps-1:
+        description: "Friction coefficient for the Langevin thermostat in ps⁻¹."
+        type: float
+        mandatory: true
+        default: 10.0
+      gather_traj_cnt_lattice:
+        description: "Consider constant lattice when gathering trajectories."
+        type: bool
+        mandatory: true
+        default: true
+      use_kokkos:
+        description: "Whether to use Kokkos to run the MD."
+        type: bool
+        mandatory: true
+        default: true
+      device:
+        description: "Device for the MACE model in MD simulations."
+        type: str
+        mandatory: true
+        default: "cuda"
+        choices: ["cpu", "cuda"]
+      enable_cueq:
+        description: "Enable CUEQ for MACE."
+        type: bool
+        mandatory: false
+        default: false
+      default_dtype:
+        description: "Default data type for the MACE model in MD simulations."
+        type: str
+        mandatory: true
+        default: "float32"
+        choices: ["float32", "float64"]
+      al_keep_struct_every_n_ps:
+        description: "Keep a structure every N picoseconds of MD simulation."
+        type: float
+        mandatory: true
+        default: 0.5
+      log_save_interval:
+        description: "Log energy and force information every N MD steps."
+        type: int
+        mandatory: false
+        default: 1
+      max_energy_threshold_per_atom:
+        description: "Maximum energy threshold per atom in eV."
+        type: float
+        mandatory: false
+        default: 1000.0
+      num_cpus_large_struct:
+        description: "Number of CPUs to use for structures larger than `large_struct_size`."
+        type: int
+        mandatory: false
+        default: 16
+      md_thermostat:
+        description: "Thermostat used in the MD simulation."
+        type: str
+        mandatory: false
+        default: "langevin"
+        choices: ["langevin", "nvt", "npt", "nose-hoover"]
+
   md:
     description: "Settings for MD simulations."
     ignore_container:
@@ -964,6 +1110,11 @@ active_learning:
         type: list[float]
         mandatory: true
         default: [300.0, 500.0, 900.0]
+      sample_frames_during_md:
+        type: bool
+        description: "Whether to sample frames during MD simulations for AL."
+        mandatory: false
+        default: false
       num_at_large_struct:
         description: "Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations."
         type: int
@@ -1041,7 +1192,7 @@ active_learning:
         type: str
         mandatory: false
         default: "langevin"
-        choices: ["langevin", "nvt", "npt", 'nose-hoover']
+        choices: ["langevin", "nvt", "npt", "nose-hoover"]
     filters:
       description: "Settings for MD trajectory filters."
       save_filtered_structures:
@@ -1110,10 +1261,7 @@ active_learning:
         description: "AiiDA scheduler options for MD calculations."
         type: dict
         mandatory: false
-        max_layer_distance_ang:
-          description: "Maximum accepted distance between layers in Angstrom."
-          type: float
-          default: 3.5
+
   code:
     description: "Settings for containerized code execution."
     container:
@@ -1850,7 +1998,8 @@ mlip_benchmarks:
       description: "Dictionary of slab structures with surface indices as keys."
       type: dict
       mandatory: false
-      example: {"100": "/path/to/slab_100.xyz", "110": "/path/to/slab_110.xyz"}
+      example:
+        { "100": "/path/to/slab_100.xyz", "110": "/path/to/slab_110.xyz" }
   melting_point_benchmark:
     description: "Melting point benchmark settings."
     supercell_size:

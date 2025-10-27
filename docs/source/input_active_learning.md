@@ -29,11 +29,11 @@ All keys are mandatory unless stated otherwise.
 - `max_iterations`: (int) Maximum number of AL loop iterations.
   - Default is `3`.
 
-- `model_acc_multiplier`: (float) Multiplier for model accuracy threshold. Higher values mean more DFT calculations.
-  - Default is `10.0`.
-
 - `load_init_models`: (optional, list[int]) Load initial models from a list of AiiDA UUIDs/PKs.
   - Default is `[]`.
+
+- `load_descriptor_calc`: (optional, str) Load a descriptor calculation from a AiiDA UUID/PK.
+  - Default is `''`.
 
 - `al_mode`: (optional, str) Active learning mode.
   - Default is `'data_acquisition'`.
@@ -97,10 +97,10 @@ This section is optional.
   - Default is `'random'`.
   - Possible values are: `random`, `descriptor_fps`.
 
-##### Farthest Point Sampling (FPS) ranking.` - `[al_seed.seed_ranking_settings.descriptor_fps]`
+##### Farthest Point Sampling (FPS) ranking. - `[al_seed.seed_ranking_settings.descriptor_fps]`
 
 
-- `descriptor_type`: (optional, str) What descriptors to use.
+- `descriptor_type`: (optional, str) What descriptors to use for the seed selection process.
   - Default is `'soap'`.
   - Possible values are: `soap`, `mace`.
 
@@ -144,6 +144,12 @@ This section is optional.
 - `enable_cueq`: (optional, bool) Enable CUEQ for MACE.
   - Default is `False`.
 
+### Settings for the interpolation check. - `[interpolation]`
+
+
+- `model_acc_multiplier`: (float) Multiplier for model accuracy threshold. Higher values mean more DFT calculations.
+  - Default is `10.0`.
+
 ### Settings for extrapolation checks. - `[extrapolation]`
 
 
@@ -177,6 +183,88 @@ This section is optional.
 - `frac_points_allowed_out`: (optional, float) Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%.
   - Default is `0.002`.
 
+### Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point. - `[safeguard]`
+
+:::{attention}
+This section is optional.
+:::
+
+
+- `enable`: (bool) Whether to enable the safeguard mechanism.
+  - Default is `False`.
+
+- `target_structure_mode`: (str) Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures. If `target` is provided, a selection of targeted must be included through the `struct_target_list` option below.
+  - Default is `'base'`.
+  - Possible values are: `base`, `target`.
+
+- `struct_target_list`: (optional, list[str, int]) List of structure IDs or paths to be used as target structures in the safeguard. Only used if `target_structure_mode` is set to `target`.
+
+- `ignore_container`: (optional, bool) Whether to ignore the container specified in the container settings for the safeguard.
+  - Default is `False`.
+
+#### AiiDA metadata and scheduler options for the safeguard. - `[safeguard.metadata]`
+
+
+- `computer`: (str) AiiDA computer name for safeguard calculations.
+  - Example: `'my_cluster'`.
+
+- `prepend_text`: (optional, str) Text to prepend to job scripts for AiiDA.
+  - Example: `'module load singularity
+export PATH=$PATH:.'`.
+
+- `options`: (dict) AiiDA scheduler options for safeguard calculations.
+
+#### MD simulation parameters for safeguard. - `[safeguard.md_parameters]`
+
+
+- `temperature_list_K`: (list[float]) List of different temperatures (in K) for MD simulations.
+  - Default is `[300.0, 500.0, 900.0]`.
+
+- `max_temp_multiplier`: (float) Multiplier for MD temperature to determine the upper bound of the temperature.
+  - Default is `1.3`.
+
+- `num_steps`: (int) Total number of timesteps for each MD simulation.
+  - Default is `1000`.
+
+- `timestep_duration_ps`: (float) Duration of each timestep in picoseconds.
+  - Default is `0.003`.
+
+- `langevin_friction_ps-1`: (float) Friction coefficient for the Langevin thermostat in ps⁻¹.
+  - Default is `10.0`.
+
+- `gather_traj_cnt_lattice`: (bool) Consider constant lattice when gathering trajectories.
+  - Default is `True`.
+
+- `use_kokkos`: (bool) Whether to use Kokkos to run the MD.
+  - Default is `True`.
+
+- `device`: (str) Device for the MACE model in MD simulations.
+  - Default is `'cuda'`.
+  - Possible values are: `cpu`, `cuda`.
+
+- `enable_cueq`: (optional, bool) Enable CUEQ for MACE.
+  - Default is `False`.
+
+- `default_dtype`: (str) Default data type for the MACE model in MD simulations.
+  - Default is `'float32'`.
+  - Possible values are: `float32`, `float64`.
+
+- `al_keep_struct_every_n_ps`: (float) Keep a structure every N picoseconds of MD simulation.
+  - Default is `0.5`.
+
+- `log_save_interval`: (optional, int) Log energy and force information every N MD steps.
+  - Default is `1`.
+
+- `max_energy_threshold_per_atom`: (optional, float) Maximum energy threshold per atom in eV.
+  - Default is `1000.0`.
+
+- `num_cpus_large_struct`: (optional, int) Number of CPUs to use for structures larger than `large_struct_size`.
+  - Default is `16`.
+
+- `md_thermostat`: (optional, str) Thermostat used in the MD simulation.
+  - Default is `'langevin'`.
+  - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
+
 ### Settings for MD simulations. - `[md]`
 
 
@@ -188,6 +276,9 @@ This section is optional.
 
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) for MD simulations.
   - Default is `[300.0, 500.0, 900.0]`.
+
+- `sample_frames_during_md`: (optional, bool) Whether to sample frames during MD simulations for AL.
+  - Default is `False`.
 
 - `num_at_large_struct`: (optional, int) Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
   - Default is `'None'`.

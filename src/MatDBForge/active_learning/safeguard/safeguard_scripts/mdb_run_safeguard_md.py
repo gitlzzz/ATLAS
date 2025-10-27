@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Script to run MACE MD simulations, descriptor generation and extrapolation checks.
+"""Script to run safeguard MD, descriptor generation and extrapolation checks.
 
-This script is part of MatDBForge's active learning loop, and is used to combine
-in one single calculation job the acquisition of the MD trajectory, the generation
-of the descriptors followed by performing any extrapolation checks, filtering
-the MD trajectory if necessary.
+This script is part of MatDBForge's active learning loop, and is used to check
+if the current iteration of the model is robust enough before early stopping.
 """
 
 import pathlib as pl
@@ -171,15 +169,13 @@ if __name__ == '__main__':
     # Initialize the logger
     log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
-    logger, log_filename = mdb_cut.init_logger(
-        source='proc_structure', log_path=log_folder
-    )
+    logger, log_filename = mdb_cut.init_logger(source='safeguard', log_path=log_folder)
 
     # Initialize random seed
     rng_seed = np.random.randint(0, int(1e15))
     mdb_cut.custom_print(f"Using random seed: '{rng_seed}'", logger=logger)
 
-    mdb_cut.custom_print('Starting process structure script...', 'info', logger=logger)
+    mdb_cut.custom_print('Starting safeguard MD script...', 'info', logger=logger)
 
     # Load the rmse_arr.npy file and assign the values to the variables
     rmse_arr = np.load(prepend_path / 'rmse_arr.npy')
@@ -202,18 +198,18 @@ if __name__ == '__main__':
         settings = tomllib.load(f)
 
     # Parse settings
-    md_params = settings.get('md', {}).get('parameters')
+    safe_md_params = settings.get('safeguard', {}).get('md_parameters')
 
     # Adding key explicitly to display it in the log
-    if not md_params.get('sample_frames_during_md'):
-        md_params['sample_frames_during_md'] = False
+    if not safe_md_params.get('sample_frames_during_md'):
+        safe_md_params['sample_frames_during_md'] = False
 
     md_filters = settings.get('md', {}).get('filters', {})
-    T_list = md_params['temperature_list_K']
+    T_list = safe_md_params['temperature_list_K']
 
     # Logging CUDA information
     enable_cueq = False
-    if md_params.get('device') == 'cuda':
+    if safe_md_params.get('device') == 'cuda':
         mdb_cut.custom_print(
             (
                 f'CUDA INFO - available: {torch.cuda.is_available()}, '
@@ -224,7 +220,7 @@ if __name__ == '__main__':
             logger=logger,
         )
 
-        if md_params.get('enable_cueq'):
+        if safe_md_params.get('enable_cueq'):
             mdb_cut.custom_print(
                 'Using CUEQ to accelerate MD simulations...', 'info', logger=logger
             )
@@ -278,13 +274,14 @@ if __name__ == '__main__':
             f"Running MD simulation for 'T={T_start} K'", 'info', logger=logger
         )
         mdb_al_ut.run_mace_md_ase(
-            md_params=md_params,
+            md_params=safe_md_params,
             T_start=T_start,
             traj_obj=traj_obj,
             init_conf=init_conf,
             prepend_path=prepend_path,
             explode_filter_dict=md_filters.get('exploding_structures', {}),
             enable_cueq=enable_cueq,
+            model_name='sampler_model.model',
         )
         mdb_cut.custom_print('MD simulation completed!', 'done', logger=logger)
 
@@ -354,7 +351,7 @@ if __name__ == '__main__':
             cov_rad_multiplier_min: float = explod_filt_settings.get(
                 'cov_rad_multiplier_min', 0.8
             )
-            max_T = curr_temp * md_params.get('max_temp_multiplier', 1)
+            max_T = curr_temp * safe_md_params.get('max_temp_multiplier', 1)
             max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
             remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
 
@@ -465,8 +462,10 @@ if __name__ == '__main__':
             )
 
         # Limit total number of frames if sampling during md is disabled
-        if not md_params.get('sample_frames_during_md'):
-            md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
+        if not safe_md_params.get('sample_frames_during_md'):
+            md_traj_short, short_mask = limit_md_frames(
+                md_traj_filtered, safe_md_params
+            )
             mdb_cut.custom_print(
                 f'Limited number of frames to: {len(md_traj_short)}',
                 'info',
@@ -482,311 +481,29 @@ if __name__ == '__main__':
                 logger=logger,
             )
 
-        # Running evaluation of the energies and forces using each commitee model
-        mdb_cut.custom_print('Running committee evaluation...', 'info', logger=logger)
-        model_file_list = list(prepend_path.glob('*.model'))
-        comm_settings = settings.get('committee_eval', {})
-        comm_results = {}
-        for model in model_file_list:
-            comm_results[model.stem] = {'REF_energy': [], 'REF_forces': []}
+        # # Running evaluation of the energies and forces using each commitee model
+        # mdb_cut.custom_print('Running committee evaluation...', 'info', logger=logger)
+        # model_file_list = list(prepend_path.glob('*.model'))
+        # comm_settings = settings.get('committee_eval', {})
+        # comm_results = {}
+        # for model in model_file_list:
+        # comm_results[model.stem] = {'REF_energy': [], 'REF_forces': []}
 
-            # Use torch.load with map_location to ensure model loads
-            # on the correct device
-            device_str = comm_settings.get('mace', {}).get('device', 'cpu')
-            model_path = prepend_path / model
-            model_loaded = torch.load(model_path, map_location=torch.device(device_str))
+        # Use torch.load with map_location to ensure model loads
+        # on the correct device
+        device_str = safe_md_params.get('device', 'cpu')
 
-            calculator = MACECalculator(
-                models=[model_loaded],
-                device=device_str,
-                default_dtype=comm_settings.get('mace', {}).get(
-                    'default_dtype', 'float32'
-                ),
-                batch_size=comm_settings.get('mace', {}).get('batch_size', 12),
-            )
+        model_path = pl.Path(prepend_path) / 'sampler_model.model'
+        model_loaded = torch.load(model_path, map_location=torch.device(device_str))
 
-            for _, frame in enumerate(md_traj_short):
-                frame.calc = calculator
-
-                # Get the energy [meV/at] and forces [meV/A]
-                comm_results[model.stem]['REF_energy'].append(
-                    frame.get_potential_energy() * 1000 / len(frame)
-                )
-                comm_results[model.stem]['REF_forces'].append(frame.get_forces() * 1000)
-
-        ## Apply E/F commitee extrapolation filter
-        model_acc_multiplier = settings['interpolation'].get('model_acc_multiplier', 1)
-
-        mdb_cut.custom_print(
-            f"Using disagreement check type: '{ef_disagreement_type}'",
-            'info',
-            logger=logger,
-        )
-        mdb_cut.custom_print(
-            'Printing extrapolation statistics for E:', 'debug', logger=logger
+        calculator = MACECalculator(
+            models=[model_loaded],
+            device=device_str,
+            default_dtype=safe_md_params.get('default_dtype', 'float32'),
         )
 
-        if ef_disagreement_type == 'training':
-            e_error_threshold = model_acc_multiplier * e_rmse  # meV / at
-            f_error_threshold = model_acc_multiplier * f_rmse  # meV / A
-
-            mdb_cut.custom_print(
-                f'model_acc_multiplier: {model_acc_multiplier}', 'none', logger=logger
-            )
-
-            # Prepare energies and forces dict
-            model_names = list(comm_results.keys())
-            model_energies_dict = {}
-            model_forces_dict = {}
-            for model_name in model_names:
-                if not model_energies_dict.get(model_name):
-                    model_energies_dict[model_name] = []
-                if not model_forces_dict.get(model_name):
-                    model_forces_dict[model_name] = []
-
-                model_energies_dict[model_name].append(
-                    comm_results[model_name]['REF_energy']
-                )
-                model_forces_dict[model_name].append(
-                    comm_results[model_name]['REF_forces']
-                )
-
-            # Checking if the energies are over the error threshold
-            energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)  # meV
-            maximum_value_e = np.average(energies_stat) * 10  # meV
-            mdb_cut.custom_print(
-                f'e_error_threshold: {e_error_threshold}', 'none', logger=logger
-            )
-            mdb_cut.custom_print(
-                f'e_maximum_value: {maximum_value_e}', 'none', logger=logger
-            )
-            mdb_cut.custom_print(
-                f'energies_stat: {energies_stat}', 'none', logger=logger
-            )
-
-            error_e_structures_sm = np.ma.make_mask(
-                energies_stat >= e_error_threshold,
-                shrink=False,
-            )
-            error_e_structures_bg = np.ma.make_mask(
-                energies_stat < maximum_value_e,
-                shrink=False,
-            )
-
-            # Any True value in this array is over the energy error threshold
-            # and must be sent to calculate with DFT.
-            error_e_structures = np.logical_and(
-                error_e_structures_sm, error_e_structures_bg
-            )
-            mdb_cut.custom_print(
-                f'Extrapolating structures according to E: {error_e_structures}',
-                'none',
-                logger=logger,
-            )
-
-            mdb_cut.custom_print(
-                'Printing extrapolation statistics for F...', 'none', logger=logger
-            )
-
-            # model_forces_dict shape: (1, n_frames, n_atoms, 3, n_models)
-            # Shape: (1, n_frames, n_atoms, 3)
-            forces_std = mdb_al_ut.get_model_forces_std(model_forces_dict)
-
-            # Getting the magnitude for the force vector (Euclidean norm)
-            # Shape: (1, n_frames, n_atoms)
-            forces_std_norm = np.linalg.norm(forces_std, axis=3)
-
-            # Keeping only the maximum force for every structure
-            # Shape: (1, n_frames)
-            forces_std_norm_max = np.amax(forces_std_norm, axis=2)
-
-            maximum_value_f = np.average(forces_std_norm_max) * 10  # meV
-            mdb_cut.custom_print(
-                f'f_error_threshold: {f_error_threshold}', 'none', logger=logger
-            )
-            mdb_cut.custom_print(
-                f'f_maximum_value: {maximum_value_f}', 'none', logger=logger
-            )
-            mdb_cut.custom_print(
-                f'forces_std_norm_max: {forces_std_norm_max}', 'none', logger=logger
-            )
-
-            # Checking if the forces are over the error threshold
-            err_f_struct_sm = np.ma.make_mask(
-                forces_std_norm_max >= f_error_threshold,
-                shrink=False,
-            )
-            err_f_struct_bg = np.ma.make_mask(
-                forces_std_norm_max < maximum_value_f,
-                shrink=False,
-            )
-
-            # Any True value in this array is over the force error threshold
-            # and must be sent to calculate with DFT.
-            error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
-
-            mdb_cut.custom_print(
-                f'Extrapolating structures according to F: {error_f_structures}',
-                'none',
-                logger=logger,
-            )
-
-            # Adding extrapolating indices to list
-            e_f_extrapol = []
-            if isinstance(error_e_structures, np.ndarray):
-                for err_idx, error in enumerate(error_e_structures[0]):
-                    if error:
-                        e_f_extrapol.append(short_mask[err_idx])
-            if isinstance(error_f_structures, np.ndarray):
-                for err_idx, error in enumerate(error_f_structures[0]):
-                    if error:
-                        e_f_extrapol.append(short_mask[err_idx])
-
-            # Any index in this array is extrapolating and must
-            # be sent to calculate with DFT.
-            extrap_frame_idx.extend(set(e_f_extrapol))
-
-        elif ef_disagreement_type == 'md_threshold':
-            mdb_cut.custom_print(
-                f'model_acc_multiplier: {model_acc_multiplier}', 'none', logger=logger
-            )
-
-            # Get the energy and forces and save into arrays
-            # shape: (n_frames, n_models)
-            all_energies_array = np.array(
-                [comm_results[model]['REF_energy'] for model in comm_results]
-            ).T
-
-            # Getting the standard deviation of the energies across
-            # all models for each frame.
-            energies_stat = np.nanstd(all_energies_array, axis=1, ddof=1)
-            mdb_cut.custom_print(
-                f'energies_stat: {energies_stat}', 'none', logger=logger
-            )
-
-            # Average variability in energy predictions across models for all frames
-            e_mean_error = np.mean(energies_stat)
-            mdb_cut.custom_print(f'e_mean_error: {e_mean_error}', 'none', logger=logger)
-
-            # Spread of variability in the energy predictions across frames
-            e_std_error = np.std(energies_stat)
-            mdb_cut.custom_print(f'e_std_error: {e_std_error}', 'none', logger=logger)
-
-            # Threshold for identifying frames with unusually high variability
-            e_error_threshold = e_mean_error + 3 * e_std_error  # meV
-            mdb_cut.custom_print(
-                f'e_error_threshold: {e_error_threshold}', 'none', logger=logger
-            )
-
-            # Threshold for outliers
-            e_maximum_value = e_mean_error + 10 * e_std_error  # meV
-            mdb_cut.custom_print(
-                f'e_maximum_value: {e_maximum_value}', 'none', logger=logger
-            )
-
-            # Checking if the energies are over the error threshold
-            error_e_structures_sm = np.ma.make_mask(
-                energies_stat >= e_error_threshold,
-                shrink=False,
-            )
-            # Structures need to be below the maximum value,
-            # otherwise they are considered as outliers and should be ignored.
-            error_e_structures_bg = np.ma.make_mask(
-                energies_stat < e_maximum_value,
-                shrink=False,
-            )
-
-            # Marked structures should be both above the error threshold
-            # and below the maximum value.
-            # True values are the structures that are considered as extrapolation.
-            error_e_structures = np.logical_and(
-                error_e_structures_sm, error_e_structures_bg
-            )
-            mdb_cut.custom_print(
-                f'Extrapolating structures according to E: {error_e_structures}',
-                'none',
-                logger=logger,
-            )
-
-            mdb_cut.custom_print(
-                'Printing extrapolation statistics for forces...', 'none', logger=logger
-            )
-            # Array containing the forces for each model
-            # shape: (3, n_at, n_frames, n_models)
-            all_forces_array = np.array(
-                [comm_results[model]['REF_forces'] for model in comm_results]
-            ).T
-
-            # Shape: (n_at, n_frames, n_models)
-            f_magnitudes = np.linalg.norm(all_forces_array, axis=0)
-
-            # Shape: (n_at, n_frames)
-            f_std_devs = np.nanstd(f_magnitudes, axis=-1)
-
-            # Shape: (n_frames)
-            f_std_norm_max = np.amax(f_std_devs, axis=0)
-            mdb_cut.custom_print(
-                f'f_std_norm_max: {f_std_norm_max}', 'none', logger=logger
-            )
-
-            # Average variability in forces predictions across models for all frames
-            f_mean_error = np.mean(f_std_norm_max)
-            mdb_cut.custom_print(f'f_mean_error: {f_mean_error}', 'none', logger=logger)
-
-            # Spread of variability in the forces predictions across frames
-            f_std_error = np.std(f_std_norm_max)
-            mdb_cut.custom_print(f'f_std_error: {f_std_error}', 'none', logger=logger)
-
-            # Threshold for identifying frames with unusually high variability
-            f_error_threshold = f_mean_error + 3 * f_std_error  # meV
-            mdb_cut.custom_print(
-                f'f_error_threshold meV: {f_error_threshold}', 'none', logger=logger
-            )
-
-            # Threshold for outliers
-            f_maximum_value = f_mean_error + 10 * f_std_error  # meV
-            mdb_cut.custom_print(
-                f'f_maximum_value meV: {f_maximum_value}', 'none', logger=logger
-            )
-
-            # Checking if the forces are over the error threshold
-            err_f_struct_sm = np.ma.make_mask(
-                f_std_norm_max >= f_error_threshold,
-                shrink=False,
-            )
-            err_f_struct_bg = np.ma.make_mask(
-                f_std_norm_max < f_maximum_value,
-                shrink=False,
-            )
-
-            # Marked structures should be both above the error threshold
-            # and below the maximum value.
-            # True values are the structures that are considered as extrapolation.
-            error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
-            mdb_cut.custom_print(
-                f'Extrapolating structures according to F: {error_f_structures}',
-                'none',
-                logger=logger,
-            )
-
-            # Adding extrapolating indices to list
-            e_f_extrapol = []
-            if isinstance(error_e_structures, np.ndarray):
-                for err_idx, error in enumerate(error_e_structures):
-                    if error:
-                        e_f_extrapol.append(short_mask[err_idx])
-            if isinstance(error_f_structures, np.ndarray):
-                for err_idx, error in enumerate(error_f_structures):
-                    if error:
-                        e_f_extrapol.append(short_mask[err_idx])
-
-            # Any index in this array is extrapolating and must
-            # be sent to calculate with DFT.
-            extrap_frame_idx.extend(set(e_f_extrapol))
-
         mdb_cut.custom_print(
-            'Frames with committee disagreement found by committee check: '
-            f'{len(extrap_frame_idx)}',
+            'Checking extrapolating frames...',
             'info',
             logger=logger,
         )
@@ -802,7 +519,7 @@ if __name__ == '__main__':
                 )
             else:
                 descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
-                    model_path=prepend_path / 'curr_model.model',
+                    model_path=prepend_path / 'sampler_model.model',
                     database=md_traj_short,
                     descriptor_settings=settings['descriptors'],
                 )
@@ -899,10 +616,7 @@ if __name__ == '__main__':
         # already applied.
         elif extrap_type in ['none', 'disabled', None]:
             mdb_cut.custom_print(
-                (
-                    'No extrapolation check applied. Only interpolation (EF commitee)'
-                    'check applied.'
-                ),
+                ('No extrapolation check applied.'),
                 'warn',
                 logger=logger,
             )

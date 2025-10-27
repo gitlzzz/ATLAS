@@ -299,7 +299,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
 
 
 class ProcessMDSeedStructCalculationParser(Parser):
-    """Parser for the retrieved files from a MACE training calculation job."""
+    """Parser for the retrieved files from an active learning MD sampling job."""
 
     def parse(self, **kwargs):
         """Parse the retrieved files of the calculation job."""

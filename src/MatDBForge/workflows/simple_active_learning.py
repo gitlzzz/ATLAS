@@ -72,7 +72,17 @@ class SimpleActiveLearningWorkChain(WorkChain):
             serializer=orm.to_aiida_type,
             default=None,
         )
+        spec.input(
+            'load_descriptor_calc',
+            valid_type=(orm.Str, orm.Int, type(None)),
+            serializer=orm.to_aiida_type,
+            default=None,
+        )
         spec.input('results_dir', valid_type=orm.Str, serializer=orm.to_aiida_type)
+        spec.input(
+            'current_seed_size', valid_type=orm.Int, serializer=orm.to_aiida_type
+        )
+
         spec.input(
             'al_loop_iteration', valid_type=orm.Int, serializer=orm.to_aiida_type
         )
@@ -753,7 +763,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         self.report(
             'Extrapolation check type is '
-            f'{self.inputs.check_extrapolation_type.value}, '
+            f"'{self.inputs.check_extrapolation_type.value}', "
             'therefore extrapolation is set as: '
             f'{extrapolation_status}'
         )
@@ -761,6 +771,21 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
     def gen_descriptors_and_concave_hull(self):
         self.report('Preparing descriptors calculation...')
+
+        # Stop the calculation if initial models must be loaded
+        if (
+            self.inputs.load_descriptor_calc
+            and self.inputs.al_loop_iteration.value == 0
+        ) or (
+            self.inputs.load_descriptor_calc
+            and self.ctx.resume_mode
+            and not hasattr(self.ctx, 'loaded_descriptor_calc')
+        ):
+            self.report(
+                'Loading descriptor calculation from node: '
+                f"'{self.inputs.load_descriptor_calc.value}'."
+            )
+            return
 
         # Run training and save new model file
         desc_calc = CalculationFactory('mdb-descriptors-combined')
@@ -886,8 +911,27 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
     def get_descriptor_results(self):
         """Get descriptor results from the calculation and store them in the context."""
-        # Get combined descriptor calculation node
-        curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
+        # Get the current iteration and resume mode
+        curr_iter = self.inputs.al_loop_iteration.value
+
+        # Ensure that models are loaded only for the first resumed step
+        if self.inputs.load_descriptor_calc:
+            if curr_iter == 0 or (
+                self.ctx.resume_mode and not hasattr(self.ctx, 'loaded_descriptor_calc')
+            ):
+                curr_calc = orm.load_node(self.inputs.load_descriptor_calc.value)
+
+                # Mark that models have been loaded
+                self.ctx.loaded_descriptor_calc = True
+
+                self.report(f"Loaded descriptors calculation from '{curr_calc.pk}'.")
+            else:
+                curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
+        else:
+            # Get combined descriptor calculation node
+            curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
+
+        # curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
 
         # Loading descriptor min and max into context as numpy arrays
         self.ctx.descriptors_max_array = curr_calc.outputs.descriptor_max
@@ -1144,7 +1188,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
     def send_calc_or_remove_structures(self):
-        """Decide which structures to keep and send to DFT or remove from db."""
+        """Decide which structures to keep and send to DFT or remove from DB."""
         self.report(
             'Selecting which structures need performing DFT or removing from DB...'
         )
@@ -1217,11 +1261,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 sampled_indices = [int(i * step) for i in range(dft_calc_limit)]
                 calcs_to_submit = [calcs_to_submit[idx] for idx in sampled_indices]
 
-        if len(calcs_to_submit) == 0:
+        if len(calcs_to_submit) == 0 and proc_calcjob.is_finished_ok:
+            self.ctx.curr_md_all_structures_in_domain = True
+            self.report(
+                'No structures to send to DFT. All explored structures are in domain.'
+            )
+        elif len(calcs_to_submit) == 0:
             self.report(
                 'No structures to send to DFT. '
-                'Either all explored structures are well represented or '
-                'there were problems during the processing step (MD).'
+                'There were problems during the processing step (MD).'
             )
 
         # Submitting calcs
@@ -1495,7 +1543,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         self.out(
             'stop_md_seed_no_disagreement',
-            mdb_al_ut.check_md_seed_agreement(return_list_path),
+            mdb_al_ut.check_md_seed_agreement(
+                return_list_path,
+                self.ctx.curr_md_all_structures_in_domain,
+            ),
         )
 
         if hasattr(self.inputs, 'enable_ntfysh'):
@@ -1544,6 +1595,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """Define the process specification."""
         super().define(spec)
 
+        # Expose all inputs from SimpleActiveLearningWorkChain except
+        # those that are specific to the active learning loop steps themselves.
+        # Add those in the exclude list so they are not asked for at this level.
         spec.expose_inputs(
             SimpleActiveLearningWorkChain,
             namespace='active_learning',
@@ -1561,6 +1615,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 'debug_mode',
                 'enable_ntfysh',
                 'ntfysh_topic',
+                'current_seed_size',
             ],
         )
         spec.input('log_path', valid_type=orm.Str, serializer=orm.to_aiida_type)
@@ -1590,25 +1645,31 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             cls.setup,
             # Get a settings report for the active learning loop.
             cls.get_input_report,
-            # This part will loop to complete the process
-            # It will loop `self.ctx.inputs.max_al_iterations` times.
-            # while_(cls.should_run_process)(
-            while_(cls.check_al_loop_conditions)(
-                # Check status of resume mode.
-                cls.check_resume_mode,
-                # Get random structures from Ds to generate the MD seed.
-                # For data reduction mode, filter out structures already in training DB.
-                cls.get_seed_structures,
-                # Run training seed
-                cls.run_process,
-                # Check for correct results
-                # cls.inspect_process,
-                # Get results from workchain
-                cls.get_results_loop,
-                # Update Ds and Di to include results from DFT.
-                # Update the inputs for the next workchain.
-                cls.add_dft_results_to_db,
-                cls.get_al_loop_break_conditions,
+            # Keep the loop running while the safeguard check is not failed
+            while_(cls.should_run_according_to_safeguard_check)(
+                # This part will loop to complete the process
+                # It will loop `self.ctx.inputs.max_al_iterations` times.
+                while_(cls.check_al_loop_conditions)(
+                    # Check status of resume mode.
+                    cls.check_resume_mode,
+                    # Get random structures from Ds to generate the MD seed.
+                    # For data reduction mode, filter out structures already
+                    # in training DB.
+                    cls.get_seed_structures,
+                    # Run training seed
+                    cls.run_process,
+                    # Check for correct results
+                    # cls.inspect_process,
+                    # Get results from workchain
+                    cls.get_results_loop,
+                    # Update Ds and Di to include results from DFT.
+                    # Update the inputs for the next workchain.
+                    cls.add_dft_results_to_db,
+                    cls.get_al_loop_break_conditions,
+                ),
+                # Run safeguard check
+                cls.run_safeguard_check,
+                cls.parse_safeguard_check_results,
             ),
             cls.results_final,
         )
@@ -2212,6 +2273,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 ),
             )
 
+        # Initialize safeguard setttings
+        self.ctx.safeguard_check_done = False
+
         self.report('Workchain setup finished.')
 
     def check_resume_mode(self):
@@ -2319,6 +2383,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # This will be True if the workchain can be repeated.
         continue_cond = continue_loop_conditions and iterations_status_ok
 
+        # Check if we need to stop the loop and report accordingly
         if self.ctx.stop_md_seed_no_disagreement.value:
             self.report('Stopping AL Loop as all predictions agree for a MD seed.')
         elif self.ctx.seed_gen_db_all_structs_removed.value:
@@ -2326,6 +2391,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 'Stopping AL Loop as seed generating database has been depleted.'
             )
         else:
+            # This condition avoids printing a confusing message during first
+            # the first loop iteration
             if self.ctx.iteration != 0:
                 self.report(
                     f'Proceeding with iteration-{self.ctx.iteration + 1} of AL Loop '
@@ -2334,6 +2401,397 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.inputs.al_loop_iteration = self.ctx.iteration
 
         return continue_cond
+
+    def should_run_according_to_safeguard_check(self) -> bool:
+        """
+        Decide whether to continue the AL loop based on the safeguard check.
+
+        The loop will continue if the safeguard check has not been completed or has
+        passed correctly in the previous attempt, and the maximum number of iterations
+        has not been reached.
+
+        Returns
+        -------
+        bool
+            True if the loop should continue, False otherwise.
+        """
+        max_iterations = self.inputs.active_learning.max_iterations.value
+        below_max_iterations = self.ctx.iteration < max_iterations
+
+        # This will be True if the safeguard check allows to continue the loop
+        should_run = not self.ctx.safeguard_check_done and below_max_iterations
+        self.report(
+            f'Safeguard check decision on whether to continue the loop: {should_run}.'
+        )
+
+        if should_run is False:
+            self.report('Stopping AL Loop due to passed safeguard check!')
+        return should_run
+
+    def run_safeguard_check(self):
+        self.report('Running safeguard checks...')
+
+        # Skipping safeguard if there was an error in the previous step
+        if hasattr(self.ctx, 'stop_al_loop_error'):
+            self.report(
+                f'Last step ({self.ctx.last_workchain_completed.pk}) '
+                'did not finish correctly. '
+                'Skipping safeguard checks and stopping AL Loop.'
+            )
+            self.ctx.safeguard_check_done = True
+            return False
+
+        # Implement safeguard logic
+        self.safeguard_check_md()
+
+    def safeguard_check_md(self):
+        self.report('Running MD for safeguard check...')
+
+        # Load sampler model
+        last_wk = self.ctx.last_workchain_completed
+        sampler_model: orm.SinglefileData = last_wk.outputs['m0_model_file']
+
+        # Get types of all called calculations
+        called_types = [nod.process_label for nod in last_wk.called]
+
+        # Get training errors from last workchain. Since workchains can be resumed
+        # there might not be any training calculations in the last workchain,
+        # so we read the values from the MD calculations instead
+        md_calc = last_wk.called[called_types.index('ProcessMDSeedStructCalculation')]
+        m_rmse_e: orm.Float = md_calc.inputs['m_rmse_e']
+        m_rmse_f: orm.Float = md_calc.inputs['m_rmse_f']
+
+        # Load extrapolation files if available in last workchain
+        try:
+            descriptor_calc = last_wk.called[
+                called_types.index('GetDescriptorsCombinedCalculation')
+            ]
+        except ValueError:
+            if hasattr(self.inputs.active_learning, 'load_descriptor_calc'):
+                descriptor_calc = orm.load_node(
+                    self.inputs.active_learning.load_descriptor_calc.value
+                )
+
+        # Keep default values as None if not available
+        desc_max_arr = None
+        concave_hull = None
+        autoencoder_model = None
+        desc_min_arr = None
+
+        try:
+            desc_max_arr: orm.ArrayData = descriptor_calc.outputs['descriptor_max']
+            desc_min_arr: orm.ArrayData = descriptor_calc.outputs['descriptor_min']
+            autoencoder_model: orm.SinglefileData = descriptor_calc.outputs[
+                'autoencoder_model'
+            ]
+            concave_hull: orm.ArrayData = descriptor_calc.outputs['concave_hull']
+        except ValueError:
+            pass
+
+        # Loading the settings file again to get updated settings
+        settings_path = Path(self.ctx.inputs.toml_file.value)
+        if settings_path.exists:
+            current_settings = mdb_al_ut.read_toml_settings(
+                settings_file=self.ctx.inputs.toml_file.value
+            )
+        else:
+            current_settings = None
+
+        # # Loading computer and removing it from the input dictionary
+        if current_settings:
+            safeguard_settings = current_settings.get('safeguard', {})
+            ignore_container = safeguard_settings.get('ignore_container', False)
+            metadata_dict = safeguard_settings.get('metadata', {})
+            resc_dict = metadata_dict.get('options', {}).get('resources', {})
+            num_threads = resc_dict.get('num_cores_per_mpiproc')
+
+            # In case the number of threads is not set in the first try
+            # try to get an additional key. If it does not work, set it to 1.
+            if num_threads is None:
+                num_threads = resc_dict.get('tot_num_mpiprocs', 1)
+
+            prepend_text_conf = metadata_dict.get('prepend_text', '')
+        else:
+            # Fallback settings
+            metadata_dict = {}
+            num_threads = 1
+            prepend_text_conf = ''
+            ignore_container = False
+
+        options_dict = metadata_dict['options']
+        computer = orm.load_computer(metadata_dict.get('computer'))
+
+        # Getting container settings
+        containerized = False
+        container_dict = self.inputs.active_learning.container_settings.get_dict()
+        if container_dict.get('use_container'):
+            containerized = container_dict.get('use_container', False)
+        if ignore_container is True:
+            containerized = False
+
+        if containerized:
+            image_name = container_dict.get('image_name', '')
+            engine_command = container_dict.get('engine_command', '')
+            prepend_text = (
+                prepend_text_conf
+                + '\n'
+                + container_dict.get('prepend_text', '')
+                + f'\nexport OMP_NUM_THREADS={num_threads}'
+            )
+            code = orm.ContainerizedCode(
+                computer=computer,
+                image_name=image_name,
+                filepath_executable='mdb_process_structure.py',
+                prepend_text=prepend_text,
+                engine_command=engine_command,
+            )
+        else:
+            # Get portable code
+            code_path = Path(
+                f'{MDB_ROOT_DIR}/active_learning/safeguard/safeguard_scripts'
+            )
+
+            prepend_text = (
+                prepend_text_conf
+                + '\nexport PATH=$PATH:.'
+                + f'\nexport OMP_NUM_THREADS={num_threads}'
+            )
+            code = orm.PortableCode(
+                label='mdb_run_safeguard_md',
+                filepath_files=code_path,
+                filepath_executable='mdb_run_safeguard_md.py',
+                prepend_text=prepend_text,
+            )
+
+        # Select and generate structures for safeguard
+        target_structure_mode = safeguard_settings.get('target_structure_mode', 'base')
+
+        # Load target structures based on the selected mode
+        if target_structure_mode == 'base':
+            self.report('Using base structures for safeguard processing.')
+
+            database_training = ase_read(
+                filename=self.inputs.active_learning.init_db_path.value,
+                format='extxyz',
+                index=':',
+            )
+
+            # Load MD input structures
+            target_md_structs: list[Atoms] = [
+                struct for struct in database_training if struct.info.get('base')
+            ]
+
+        elif target_structure_mode == 'target':
+            # Get target structures from the user settings, which can either contain
+            # a path to a database file or a list of structure UUIDs.
+            self.report('Using target structures for safeguard processing.')
+            struct_target_list: list = safeguard_settings.get('struct_target_list', [])
+
+            target_md_structs: list[Atoms] = []
+
+            for target in struct_target_list:
+                if isinstance(target, str) and Path(target).exists():
+                    # Load structures from database file
+                    loaded_structs = ase_read(
+                        filename=target,
+                        format='extxyz',
+                        index=':',
+                    )
+                    target_md_structs.extend(loaded_structs)
+                elif isinstance(target, str):
+                    # Load structure by UUID from the training database
+                    database_training = ase_read(
+                        filename=self.inputs.active_learning.init_db_path.value,
+                        format='extxyz',
+                        index=':',
+                    )
+                    for struct in database_training:
+                        if struct.info.get('mdb_id') == target:
+                            target_md_structs.append(struct)
+
+        self.report(
+            f'Starting submission of {len(target_md_structs)} '
+            'structures for safeguard...'
+        )
+
+        calc_count = 0
+        for target_struct in target_md_structs:
+            # Creating builder for safeguard code
+            safeguard_calc = CalculationFactory('mdb-safeguard-md')
+            sg_builder = safeguard_calc.get_builder()
+            sg_builder.code = code
+
+            sg_builder.metadata.computer = computer
+            sg_builder.metadata.label = (
+                f'process_{target_struct.info.get("struct_name", "unknown")}'
+            )
+            sg_builder.metadata.description = (
+                'Processing structure using MD as a safeguard.'
+            )
+
+            sg_builder.metadata.options = options_dict
+            sg_builder.metadata.options.parser_name = 'mdb-safeguard-md-parser'
+
+            sg_builder.settings_file_pth = self.ctx.inputs.toml_file
+
+            # Write xyz file into a string captured in the stdout,
+            # write it to a temporary file.
+            f = io.StringIO()
+            with redirect_stdout(f):
+                ase_write(
+                    filename='-',
+                    format='extxyz',
+                    images=target_struct,
+                )
+            xyz_string = f.getvalue()
+
+            # Generating tmp file
+            target_structure_file = orm.SinglefileData(
+                file=io.BytesIO(str.encode(xyz_string)),
+                filename='md_db.xyz',
+            )
+            target_structure_file.store()
+
+            sg_builder.md_structure = target_structure_file
+
+            sg_builder.sampler_model = sampler_model
+
+            sg_builder.m_rmse_e = m_rmse_e
+            sg_builder.m_rmse_f = m_rmse_f
+
+            if autoencoder_model:
+                sg_builder.autoencoder_model = autoencoder_model
+
+            if concave_hull:
+                sg_builder.concave_hull = concave_hull
+
+            if desc_max_arr is not None:
+                sg_builder.desc_max_arr = desc_max_arr
+                sg_builder.desc_min_arr = desc_min_arr
+
+            # Get the calculation limit, from the computer metadata set to 0
+            # if not present.
+            # `mdb_calc_limit` is a custom property set with:
+            # computer.set_property(name='mdb_calc_limit', value=366)
+            calc_limit = sg_builder.metadata.computer.metadata.get('mdb_calc_limit', 0)
+
+            if calc_limit != 0:
+                mdb_al_ut.aiida_wait_submit(
+                    builder=sg_builder,
+                    computer=computer,
+                    calc_count=calc_count,
+                )
+            future = self.submit(sg_builder)
+
+            if target_struct.info.get('aiida_uuid'):
+                future.base.extras.set(
+                    'unique_id_old', target_struct.info['aiida_uuid']
+                )
+            if target_struct.info.get('mdb_id'):
+                future.base.extras.set('unique_id', target_struct.info['mdb_id'])
+
+            future.base.extras.set('mdb_db_index', target_struct.info['mdb_db_index'])
+            # future.base.extras.set("md_temperature", temp_val)
+            self.to_context(process_safeguard_results=append_(future))
+
+        self.report(
+            f'Submission done. Running MD for {len(self.ctx.process_safeguard_results)}'
+            ' safeguard structures...'
+        )
+
+    def parse_safeguard_check_results(self):
+        """Check safeguard output, setting flags to stop/continue the AL Loop."""
+        self.report('Checking safeguard results...')
+
+        # Get all of the processed structures
+        processed_structures = self.ctx.process_safeguard_results
+
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'{len(processed_structures)} MD calculations complete for step '
+                    f'{self.inputs.al_loop_iteration.value + 1}'
+                    f' - {self.node.pk}.\n'
+                ),
+            )
+
+        safeguard_failed_ids = []
+        safeguard_passed_ids = []
+
+        proc_calcjob: orm.CalcJobNode
+        for proc_calcjob in processed_structures:
+            # Skip calculation if it didn't finish correctly.
+            # Skipped calculations count as failed checks.
+            if proc_calcjob.exit_status != 0:
+                self.report(
+                    'Removing struct. processing that finished with errors '
+                    f'(pk: {proc_calcjob.pk}).'
+                )
+                safeguard_failed_ids.append(
+                    proc_calcjob.base.extras.all.get('unique_id')
+                )
+                continue
+
+            # Getting unique_id from extras
+            orig_str_uuid = proc_calcjob.base.extras.all.get('unique_id')
+
+            # Loading extrapolating structures
+            extrap_strc_file: orm.SinglefileData = (
+                proc_calcjob.outputs.extrapolating_structures
+            )
+            with extrap_strc_file.as_path() as file_path:
+                extrap_structs = ase_read(
+                    filename=file_path, format='extxyz', index=':'
+                )
+
+            for struct in extrap_structs:
+                struct.info['mdb_md_node'] = proc_calcjob.uuid
+                struct.info['mdb_db_index'] = proc_calcjob.base.extras.get(
+                    'mdb_db_index'
+                )
+
+            # If no extrapolating structures, the safeguard check is successful
+            if len(extrap_structs) == 0:
+                safeguard_passed_ids.append(orig_str_uuid)
+            # If there are extrapolating structures, the safeguard check is failed.
+            else:
+                safeguard_failed_ids.extend(extrap_structs)
+
+            self.logger.debug(
+                f'Trajectory from {proc_calcjob.pk} has {len(extrap_structs)} '
+                'out of domain frames.'
+            )
+
+        # Set flags based on safeguard results
+        if len(safeguard_failed_ids) > 0:
+            self.report(
+                f'Safeguard check failed for {len(safeguard_failed_ids)} structures. '
+                'Continuing AL Loop...'
+            )
+
+            # Setting flag for continuing the AL loop
+            self.ctx.safeguard_check_done = False
+
+            # Adding failed structures to the seed generation database
+            seed_gen_db: list = mdb_al_ut.load_database(self.ctx.seed_db_path)
+
+            for failed_struct in safeguard_failed_ids:
+                if isinstance(failed_struct, Atoms):
+                    seed_gen_db.append(failed_struct)
+
+            ase_write(
+                filename=self.ctx.seed_db_path,
+                images=seed_gen_db,
+                format='extxyz',
+            )
+
+        elif len(safeguard_failed_ids) == 0:
+            self.report(
+                f'Safeguard check passed for all ({len(processed_structures)}) '
+                'structures. Stopping AL Loop.'
+            )
+            self.ctx.safeguard_check_done = True
 
     def get_seed_structures(self):
         """
@@ -2659,6 +3117,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f'{self.ctx.results_dir}/run_tmp_data/md_seed_structures-'
             f'{self.ctx.iteration}.pkl'
         )
+
+        # Providing current seed size as a variable
+        self.ctx.inputs.current_seed_size = orm.Int(seed_size)
 
         with open(self.ctx.current_md_seed_structs_path, 'wb') as seed_file:
             pickle.dump(current_md_seed_structs, seed_file)

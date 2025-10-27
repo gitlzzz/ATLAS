@@ -713,8 +713,9 @@ def run_mace_md_ase(
     prepend_path: str | Path = '.',
     explode_filter_dict: dict = None,
     mode='normal',
-    md_struct_list=None,
-    enable_cueq=False,
+    md_struct_list: list = None,
+    enable_cueq: bool = False,
+    model_name: str = None,
 ):
     """
     Run MD simulations using ASE and MACE.
@@ -739,6 +740,9 @@ def run_mace_md_ase(
         Whether to enable the CUEQ mode for the MD simulation.
         If True, the MD simulation will be run in CUEQ mode.
         Default is False.
+    model_name: str
+        Name of the model to use. If None, 'curr_model.model' is used.
+        Default is None.
     """
     from mace.calculators import MACECalculator
 
@@ -799,7 +803,10 @@ def run_mace_md_ase(
         else:
             # Load the trained model as an ASE calculator and attach it to the
             # atoms object
-            model_path = Path(prepend_path) / 'curr_model.model'
+            if model_name:
+                model_path = Path(prepend_path) / model_name
+            else:
+                model_path = Path(prepend_path) / 'curr_model.model'
 
             nn_calculator = MACECalculator(
                 model_paths=model_path,
@@ -2163,7 +2170,9 @@ def remove_structs_from_seed_gen_db(
 
 
 @calcfunction
-def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
+def check_md_seed_agreement(
+    return_list_path: str | None, md_structs_in_domain: bool | None
+) -> orm.Bool:
     """
     Check if all predictions agree for current seed.
 
@@ -2180,10 +2189,15 @@ def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
         on the current AL iteration. False if there is no agreement on
         on all structures.
     """
-    # If no DFT calculations were found, because all calcs have failed,
-    # the predictions are considered to be in disagreement.
     if not return_list_path or return_list_path == '':
-        return orm.Bool(False)
+        # If no DFT calculations were found, because all calcs have failed,
+        # the predictions are considered to be in disagreement.
+        if md_structs_in_domain is False:
+            return orm.Bool(False)
+        # If all structures were in domain, the predictions
+        # are considered to be in agreement.
+        else:
+            return orm.Bool(True)
 
     if isinstance(return_list_path, orm.Str):
         return_list_path = return_list_path.value
@@ -2197,9 +2211,6 @@ def check_md_seed_agreement(return_list_path: str | None) -> orm.Bool:
         return orm.Bool(False)
     else:
         return orm.Bool(True)
-
-
-def get_concave_hull(latent_space: np.ndarray) -> np.ndarray: ...
 
 
 def read_toml_settings(settings_file: str | Path) -> dict:
