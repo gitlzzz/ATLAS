@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.43.0 (2025-10-28)
+
+### Docs
+
+- **schema**: add explanation for benchmark tools ([#8155482](https://github.com/pol-sb/MatDBForge/commit/815548235db26b010b5b73f2fb70c2f5fbadcb21))
+
+### Feature
+
+- **schema**: enable use of interpolation key ([#845435f](https://github.com/pol-sb/MatDBForge/commit/845435f1f852062b2b9fc78774f4c13a85d7d7dd))
+- **al_loop**: fix implementation of safeguard ([#7dadba1](https://github.com/pol-sb/MatDBForge/commit/7dadba187068df4522ad58ee1952dbbb9dcd9039))
+
 ## 0.42.0 (2025-10-21)
 
 ### Docs
