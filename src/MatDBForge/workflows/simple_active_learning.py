@@ -2703,95 +2703,100 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         """Check safeguard output, setting flags to stop/continue the AL Loop."""
         self.report('Checking safeguard results...')
 
-        # Get all of the processed structures
-        processed_structures = self.ctx.process_safeguard_results
+        if hasattr(self.ctx, 'process_safeguard_results'):
+            # Get all of the processed structures
+            processed_structures = self.ctx.process_safeguard_results
 
-        if hasattr(self.inputs, 'enable_ntfysh'):
-            requests.post(
-                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
-                data=(
-                    f'{len(processed_structures)} MD calculations complete for step '
-                    f'{self.inputs.al_loop_iteration.value + 1}'
-                    f' - {self.node.pk}.\n'
-                ),
-            )
+            if hasattr(self.inputs, 'enable_ntfysh'):
+                requests.post(
+                    f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                    data=(
+                        f'{len(processed_structures)} MD calculations complete for'
+                        f' step {self.inputs.al_loop_iteration.value + 1}'
+                        f' - {self.node.pk}.\n'
+                    ),
+                )
 
-        safeguard_failed_ids = []
-        safeguard_passed_ids = []
+            safeguard_failed_ids = []
+            safeguard_passed_ids = []
 
-        proc_calcjob: orm.CalcJobNode
-        for proc_calcjob in processed_structures:
-            # Skip calculation if it didn't finish correctly.
-            # Skipped calculations count as failed checks.
-            if proc_calcjob.exit_status != 0:
+            proc_calcjob: orm.CalcJobNode
+            for proc_calcjob in processed_structures:
+                # Skip calculation if it didn't finish correctly.
+                # Skipped calculations count as failed checks.
+                if proc_calcjob.exit_status != 0:
+                    self.report(
+                        'Removing struct. processing that finished with errors '
+                        f'(pk: {proc_calcjob.pk}).'
+                    )
+                    safeguard_failed_ids.append(
+                        proc_calcjob.base.extras.all.get('unique_id')
+                    )
+                    continue
+
+                # Getting unique_id from extras
+                orig_str_uuid = proc_calcjob.base.extras.all.get('unique_id')
+
+                # Loading extrapolating structures
+                extrap_strc_file: orm.SinglefileData = (
+                    proc_calcjob.outputs.extrapolating_structures
+                )
+                with extrap_strc_file.as_path() as file_path:
+                    extrap_structs = ase_read(
+                        filename=file_path, format='extxyz', index=':'
+                    )
+
+                for struct in extrap_structs:
+                    struct.info['mdb_md_node'] = proc_calcjob.uuid
+                    struct.info['mdb_db_index'] = proc_calcjob.base.extras.get(
+                        'mdb_db_index'
+                    )
+
+                # If no extrapolating structures, the safeguard check is successful
+                if len(extrap_structs) == 0:
+                    safeguard_passed_ids.append(orig_str_uuid)
+                # If there are extrapolating structures, the safeguard check is failed.
+                else:
+                    safeguard_failed_ids.extend(extrap_structs)
+
+                self.logger.debug(
+                    f'Trajectory from {proc_calcjob.pk} has {len(extrap_structs)} '
+                    'out of domain frames.'
+                )
+
+            # Set flags based on safeguard results
+            if len(safeguard_failed_ids) > 0:
                 self.report(
-                    'Removing struct. processing that finished with errors '
-                    f'(pk: {proc_calcjob.pk}).'
-                )
-                safeguard_failed_ids.append(
-                    proc_calcjob.base.extras.all.get('unique_id')
-                )
-                continue
-
-            # Getting unique_id from extras
-            orig_str_uuid = proc_calcjob.base.extras.all.get('unique_id')
-
-            # Loading extrapolating structures
-            extrap_strc_file: orm.SinglefileData = (
-                proc_calcjob.outputs.extrapolating_structures
-            )
-            with extrap_strc_file.as_path() as file_path:
-                extrap_structs = ase_read(
-                    filename=file_path, format='extxyz', index=':'
+                    f'Safeguard check failed for {len(safeguard_failed_ids)}'
+                    ' structures. Continuing AL Loop...'
                 )
 
-            for struct in extrap_structs:
-                struct.info['mdb_md_node'] = proc_calcjob.uuid
-                struct.info['mdb_db_index'] = proc_calcjob.base.extras.get(
-                    'mdb_db_index'
+                # Setting flag for continuing the AL loop
+                self.ctx.safeguard_check_done = False
+
+                # Adding failed structures to the seed generation database
+                seed_gen_db: list = mdb_al_ut.load_database(self.ctx.seed_db_path)
+
+                for failed_struct in safeguard_failed_ids:
+                    if isinstance(failed_struct, Atoms):
+                        seed_gen_db.append(failed_struct)
+
+                ase_write(
+                    filename=self.ctx.seed_db_path,
+                    images=seed_gen_db,
+                    format='extxyz',
                 )
 
-            # If no extrapolating structures, the safeguard check is successful
-            if len(extrap_structs) == 0:
-                safeguard_passed_ids.append(orig_str_uuid)
-            # If there are extrapolating structures, the safeguard check is failed.
-            else:
-                safeguard_failed_ids.extend(extrap_structs)
+            elif len(safeguard_failed_ids) == 0:
+                self.report(
+                    f'Safeguard check passed for all ({len(processed_structures)}) '
+                    'structures. Stopping AL Loop.'
+                )
+                self.ctx.safeguard_check_done = True
 
-            self.logger.debug(
-                f'Trajectory from {proc_calcjob.pk} has {len(extrap_structs)} '
-                'out of domain frames.'
-            )
-
-        # Set flags based on safeguard results
-        if len(safeguard_failed_ids) > 0:
-            self.report(
-                f'Safeguard check failed for {len(safeguard_failed_ids)} structures. '
-                'Continuing AL Loop...'
-            )
-
-            # Setting flag for continuing the AL loop
+        else:
+            self.report('No safeguard results found. Proceeding without safeguard.')
             self.ctx.safeguard_check_done = False
-
-            # Adding failed structures to the seed generation database
-            seed_gen_db: list = mdb_al_ut.load_database(self.ctx.seed_db_path)
-
-            for failed_struct in safeguard_failed_ids:
-                if isinstance(failed_struct, Atoms):
-                    seed_gen_db.append(failed_struct)
-
-            ase_write(
-                filename=self.ctx.seed_db_path,
-                images=seed_gen_db,
-                format='extxyz',
-            )
-
-        elif len(safeguard_failed_ids) == 0:
-            self.report(
-                f'Safeguard check passed for all ({len(processed_structures)}) '
-                'structures. Stopping AL Loop.'
-            )
-            self.ctx.safeguard_check_done = True
 
     def get_seed_structures(self):
         """
