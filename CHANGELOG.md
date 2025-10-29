@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.43.1 (2025-10-29)
+
+### Fix
+
+- **al_loop**: al_loop not proceeding when new safeguard is disabled ([#9764f99](https://github.com/pol-sb/MatDBForge/commit/9764f9908158872d1e40456a339ee79231513512))
+
 ## 0.43.0 (2025-10-28)
 
 ### Docs
