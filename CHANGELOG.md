@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.43.2 (2025-10-30)
+
+### Docs
+
+- **schema**: add 'name_pretty' fields to missing entries in schema ([#7f88526](https://github.com/pol-sb/MatDBForge/commit/7f88526a8f4b8b1be2d79f6214f1a28ebaa296b2))
+
+### Fix
+
+- **schema**: use name_pretty field for documentation headers ([#5368b5a](https://github.com/pol-sb/MatDBForge/commit/5368b5a49c0012e22d7272860511ed17645c6b52))
+
 ## 0.43.1 (2025-10-29)
 
 ### Fix
