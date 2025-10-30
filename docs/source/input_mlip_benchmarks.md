@@ -1,5 +1,12 @@
 ## MLIP Benchmarks
 
+The MLIP Benchmarks tool allows you to run a series of benchmarks to evaluate the performance of Machine Learning Interatomic Potentials (MLIPs) trained with MatDBForge.
+These benchmarks include:
+- Accuracy tests on a given dataset.
+- Melting point benchmark via the coexistence method.
+- Monovacancy formation energy calculations.
+- Surface energy calculations for various crystallographic facets.
+
 Generate a mlip benchmarks template file using `mdb_gen_configuration_file -t mlip_benchmarks`.
 
 :::{attention}
@@ -7,7 +14,9 @@ All keys are mandatory unless stated otherwise.
 :::
 
 
-### General benchmark settings. - `[general]`
+### General - `[general]`
+
+General benchmark settings.
 
 
 - `output_dir`: (str) Directory to save benchmark results.
@@ -27,7 +36,9 @@ All keys are mandatory unless stated otherwise.
 - `no_rich_ui`: (optional, bool) Disable Rich UI and use plain text output.
   - Default is `False`.
 
-### Model specifications for benchmarking. - `[models]`
+### Models - `[models]`
+
+Model specifications for benchmarking.
 
 
 - `model_files`: (optional, list[str]) List of paths to .model files.
@@ -39,7 +50,9 @@ All keys are mandatory unless stated otherwise.
 - `foundation_models`: (optional, list[str]) List of foundation model specifications. Format: 'library:model_name'.
   - Default is `[]`.
 
-### Settings for slab generation in benchmarks. - `[slab_generation]`
+### Slab_Generation - `[slab_generation]`
+
+Settings for slab generation in benchmarks.
 
 
 - `surface_indices`: (optional, list[int]) Miller indices for the surface.
@@ -51,7 +64,9 @@ All keys are mandatory unless stated otherwise.
 - `vacuum`: (optional, float) Vacuum layer in Angstrom.
   - Default is `10.0`.
 
-### Molecular dynamics simulation parameters. - `[md_parameters]`
+### Md_Parameters - `[md_parameters]`
+
+Molecular dynamics simulation parameters.
 
 
 - `temp`: (optional, float) MD temperature in Kelvin.
@@ -66,7 +81,9 @@ All keys are mandatory unless stated otherwise.
 - `friction`: (optional, float) Friction coefficient for Langevin dynamics.
   - Default is `0.005`.
 
-### Selection of benchmarks to run. - `[benchmarks]`
+### Benchmarks - `[benchmarks]`
+
+Selection of benchmarks to run.
 
 
 - `run_energy_md`: (optional, bool) Run the energy MD benchmark.
@@ -111,7 +128,9 @@ All keys are mandatory unless stated otherwise.
 - `run_magic_cluster`: (optional, bool) Run magic number cluster benchmark.
   - Default is `False`.
 
-### Test set configuration for accuracy benchmarks. - `[test_set]`
+### Test_Set - `[test_set]`
+
+Test set configuration for accuracy benchmarks.
 
 :::{attention}
 This section is optional.
@@ -121,7 +140,9 @@ This section is optional.
 - `test_set_path`: (optional, str) Path to the held-out test set for accuracy benchmarks.
   - Example: `'/path/to/test_set.xyz'`.
 
-### Configuration for database evaluation benchmark. - `[database_evaluation]`
+### Database_Evaluation - `[database_evaluation]`
+
+Configuration for database evaluation benchmark.
 
 :::{attention}
 This section is optional.
@@ -131,7 +152,9 @@ This section is optional.
 - `database_path`: (optional, str) Path to the structure database file for evaluation.
   - Example: `'/path/to/database.xyz'`.
 
-### Magic cluster benchmark settings. - `[magic_cluster]`
+### Magic_Cluster - `[magic_cluster]`
+
+Magic cluster benchmark settings.
 
 :::{attention}
 This section is optional.
@@ -144,7 +167,9 @@ This section is optional.
 - `magic_cluster_sizes`: (optional, list[int]) List of magic number cluster sizes to test.
   - Default is `[13, 19, 55, 147, 309, 561]`.
 
-### Surface energy benchmark specific settings. - `[surface_energy_benchmark]`
+### Surface_Energy_Benchmark - `[surface_energy_benchmark]`
+
+Surface energy benchmark specific settings.
 
 :::{attention}
 This section is optional.
@@ -158,9 +183,15 @@ This section is optional.
   - Example: `'/path/to/bulk.xyz'`.
 
 - `slab_structures`: (optional, dict) Dictionary of slab structures with surface indices as keys.
-  - Example: `{'100': '/path/to/slab_100.xyz', '110': '/path/to/slab_110.xyz'}`.
+  - Example:
 
-### Melting point benchmark settings. - `[melting_point_benchmark]`
+```python
+{'100': '/path/to/slab_100.xyz', '110': '/path/to/slab_110.xyz'}
+```
+
+### Melting_Point_Benchmark - `[melting_point_benchmark]`
+
+Melting point benchmark settings.
 
 
 - `supercell_size`: (optional, list[int]) Supercell size for melting point calculation (x, y, z).

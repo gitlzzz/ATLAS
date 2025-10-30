@@ -765,6 +765,8 @@ active_learning:
     #   default: "vasp"
     #   choices: ["vasp", "mace"]
   data_reduction:
+    name: "data_reduction"
+    name_pretty: "Data Reduction Settings"
     depends_on:
       key: active_learning.al_mode
       value: "data_reduction"
@@ -820,6 +822,8 @@ active_learning:
       mandatory: false
       default: true
     seed_select_settings:
+      name: "seed_select_settings"
+      name_pretty: "Seed Selection Settings"
       description: "MD seed selection mode settings."
       seed_select_type:
         description: "MD seed selection mode."
@@ -838,6 +842,8 @@ active_learning:
         mandatory: true
         default: 5
     seed_ranking_settings:
+      name: "seed_ranking_settings"
+      name_pretty: "Seed Ranking Settings for Seed Selection"
       description: "Settings for the seed ranking methods."
       mandatory: false
       seed_ranking_algorithm:
@@ -847,6 +853,8 @@ active_learning:
         default: "random"
         choices: ["random", "descriptor_fps"]
       descriptor_fps:
+        name: "descriptor_fps"
+        name_pretty: "Farthest Point Sampling (FPS) Configuration"
         description: "Farthest Point Sampling (FPS) ranking."
         descriptor_type:
           description: "What descriptors to use for the seed selection process."
@@ -862,6 +870,8 @@ active_learning:
           choices: ["random", "lowest_energy"]
         # TODO: Change descriptor into a dict for each descriptor type, i.e., descriptor_fps.soap, descriptor_fps.mace...
         descriptor:
+          name: "descriptor"
+          name_pretty: "FPS Seed Selection - Selected Descriptor Settings"
           description: "Entry containing settings that depend on the descriptor type selected."
           mandatory: false
           # For SOAP
@@ -914,7 +924,9 @@ active_learning:
             mandatory: false
             default: false
   interpolation:
-    description: "Settings for the interpolation check."
+    name: "interpolation"
+    name_pretty: "Interpolation Check Settings"
+    description: "Settings for the interpolation check. The interpolation check determines whether a structure is within the model's domain or requires a DFT calculation, by checking the committee models disagreement, considering the model accuracy threshold."
     mandatory: true
     model_acc_multiplier:
       description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
@@ -922,6 +934,8 @@ active_learning:
       mandatory: true
       default: 10.0
   extrapolation:
+    name: "extrapolation"
+    name_pretty: "Extrapolation Check Settings"
     description: "Settings for extrapolation checks."
     disagreement_check_type:
       description: "Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames."
@@ -937,8 +951,10 @@ active_learning:
       choices:
         ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
     concave_hull:
+      name: "concave_hull"
+      name_pretty: "Concave Hull Extrapolation Check Settings"
+      description: "Settings for the concave hull / alpha shape extrapolation check."
       mandatory: false
-      description: "Settings for the concave hull extrapolation check."
       target_alpha_range_min:
         type: float
         default: 3.0
@@ -965,6 +981,8 @@ active_learning:
         mandatory: false
         description: "Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%."
   safeguard:
+    name: "safeguard"
+    name_pretty: "Active Learning Safeguard Settings"
     description: "Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point."
     mandatory: false
     enable:
@@ -973,6 +991,8 @@ active_learning:
       mandatory: true
       default: false
     target_structure_mode:
+      name: "target_structure_mode"
+      name_pretty: "Safeguard - Target Structure Mode"
       description: "Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures. If `target` is provided, a selection of targeted must be included through the `struct_target_list` option below."
       type: str
       default: "base"
@@ -1007,7 +1027,9 @@ active_learning:
         type: dict
         mandatory: true
     md_parameters:
-      description: "MD simulation parameters for safeguard."
+      name: "md_parameters"
+      name_pretty: "Safeguard MD Parameters"
+      description: "MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations."
       mandatory: true
       depends_on:
         key: active_learning.safeguard.enable
@@ -1097,6 +1119,8 @@ active_learning:
         choices: ["langevin", "nvt", "npt", "nose-hoover"]
 
   md:
+    name: "md"
+    name_pretty: "Molecular Dynamics Settings"
     description: "Settings for MD simulations."
     ignore_container:
       description: "Whether to ignore the container specified in the container settings for the MD calculations."
@@ -1194,6 +1218,8 @@ active_learning:
         default: "langevin"
         choices: ["langevin", "nvt", "npt", "nose-hoover"]
     filters:
+      name: "filters"
+      name_pretty: "MD Trajectory Filters"
       description: "Settings for MD trajectory filters."
       save_filtered_structures:
         description: "Whether to save filtered structures."
@@ -1241,6 +1267,8 @@ active_learning:
           mandatory: false
           default: 0.1
     metadata:
+      name: "md_metadata"
+      name_pretty: "MD Metadata and Scheduler Options (AiiDA)"
       description: "AiiDA metadata and scheduler options for MD simulations."
       code:
         description: "AiiDA code name for MD software."
@@ -1263,6 +1291,8 @@ active_learning:
         mandatory: false
 
   code:
+    name: "code"
+    name_pretty: "Code and Containerization Settings"
     description: "Settings for containerized code execution."
     container:
       description: "Container settings for code execution."
@@ -1286,7 +1316,10 @@ active_learning:
         type: str
         mandatory: false
         example: "module load singularity\nexport PATH=$PATH:."
+  
   mace_train:
+    name: "mace_train"
+    name_pretty: "MLIP Training Settings"
     description: "Settings for MACE model training."
     result_force_weight:
       description: "Weight of the force when considering model performance in weighted sum calculation."
@@ -1326,7 +1359,10 @@ active_learning:
       description: "MACE training parameters and hyperparameters."
       type: dict
       mandatory: false
+  
   committee_eval:
+    name: "committee_eval"
+    name_pretty: "Committee Evaluation Settings"
     description: "Settings for committee evaluation using multiple MACE models."
     committee_num_models:
       description: "Total number of MACE models in the committee."
@@ -1348,6 +1384,8 @@ active_learning:
       type: str
       mandatory: false
     mace:
+      name: "mace"
+      name_pretty: "Commitee Evaluation - MACE Settings"
       description: "Settings for MACE evaluator."
       device:
         description: "Device for MACE evaluation."
@@ -1375,7 +1413,10 @@ active_learning:
       description: "AiiDA metadata and scheduler options for committee evaluation."
       type: dict
       mandatory: false
+  
   descriptors:
+    name: "descriptors"
+    name_pretty: "Descriptor Computation Settings"
     description: "Settings for descriptor computation and dimensionality reduction."
     dimensionality_reduction_method:
       description: "Dimensionality reduction method for MACE descriptors."
@@ -1523,6 +1564,8 @@ active_learning:
           mandatory: false
           default: ""
   dft:
+    name: "dft"
+    name_pretty: "DFT Calculation Settings"
     description: "DFT settings specific to active learning (different from top-level dft section)."
     ignore_container:
       description: "Whether to ignore container settings for DFT calculations."
@@ -1547,6 +1590,8 @@ active_learning:
       mandatory: false
       default: None
     mace:
+      name: "mace"
+      name_pretty: "MACE DFT Calculator Settings"
       description: "MACE settings as DFT calculator."
       depends_on:
         key: dft.dft_method
@@ -1608,6 +1653,8 @@ active_learning:
           mandatory: false
           default: 10000.0
     vasp:
+      name: "vasp"
+      name_pretty: "VASP DFT Calculator Settings"
       description: "VASP settings as DFT calculator."
       depends_on:
         key: dft.dft_method
@@ -1735,6 +1782,8 @@ active_learning:
           mandatory: false
           example: { "ldipol": true, "dipol": [0.5, 0.5, 0.5], "idipol": 4 }
       aiida_vasp:
+        name: "aiida_vasp"
+        name_pretty: "AiiDA-VASP Settings"
         description: "AiiDA-VASP specific settings."
         parser_settings:
           description: "Contains entries to include in the results gathered using the aiida-vasp parser settings"

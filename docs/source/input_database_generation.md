@@ -7,7 +7,9 @@ All keys are mandatory unless stated otherwise.
 :::
 
 
-### General settings and file paths for the database. - `[database]`
+### Database - `[database]`
+
+General settings and file paths for the database.
 
 
 - `database_name`: (str) Name of the database to be used for internal reference and as the filename.
@@ -34,13 +36,17 @@ All keys are mandatory unless stated otherwise.
 - `overwrite_db`: (optional, bool) Allow database overwrite. If false, and the database exists, the new database name will include a timestamp.
   - Default is `False`.
 
-#### Settings for the composition of the database. - `[database.composition]`
+#### Composition - `[database.composition]`
+
+Settings for the composition of the database.
 
 
 - `size`: (int) Maximum number of structures to generate for the database.
   - Default is `7500`.
 
-##### Fraction of different structure types. The sum of the fractions must be equal to 1.0. - `[database.composition.ratios]`
+##### Ratios - `[database.composition.ratios]`
+
+Fraction of different structure types. The sum of the fractions must be equal to 1.0.
 
 
 - `bulk`: (float) Fraction of structures that will be bulk.
@@ -52,7 +58,9 @@ All keys are mandatory unless stated otherwise.
 - `cluster`: (optional, float) Fraction of structures that will be clusters.
   - Default is `0.0`.
 
-#### Display and Export Options for the phase diagram plot. - `[database.plot_db]`
+#### Plot_Db - `[database.plot_db]`
+
+Display and Export Options for the phase diagram plot.
 
 
 - `show`: (optional, bool) Whether to display the database with a phase diagram after creation.
@@ -62,7 +70,9 @@ All keys are mandatory unless stated otherwise.
   - Default is `'png'`.
   - Possible values are: `png`, `svg`.
 
-##### Matplotlib rcParams for the plot. - `[database.plot_db.rc_params]`
+##### Rc_Params - `[database.plot_db.rc_params]`
+
+Matplotlib rcParams for the plot.
 
 
 - `font.family`: (str) Font family for the phase diagram plot.
@@ -71,7 +81,9 @@ All keys are mandatory unless stated otherwise.
 - `font.size`: (int) Font size for the phase diagram plot.
   - Default is `14`.
 
-#### ASE GUI display options. - `[database.show_db_ase]`
+#### Show_Db_Ase - `[database.show_db_ase]`
+
+ASE GUI display options.
 
 :::{attention}
 This section is optional.
@@ -81,7 +93,9 @@ This section is optional.
 - `show`: (optional, bool) Whether to display the database using ASE GUI after creation.
   - Default is `False`.
 
-#### Export options for the database. - `[database.export]`
+#### Export - `[database.export]`
+
+Export options for the database.
 
 
 - `export`: (bool) Whether to export the database.
@@ -96,14 +110,20 @@ This section is optional.
 - `file_name`: (str) Name of the exported file.
   - Default is `'export_db_filename'`.
 
-### Description of the phase diagram. - `[phase_diagram]`
+### Phase_Diagram - `[phase_diagram]`
+
+Description of the phase diagram.
 
 
 - `material_name`: (str) Internal name for the material in the phase diagram.
   - Default is `'default_material_name'`.
 
 - `element_list`: (list[str]) List of elements to include in the phase diagram.
-  - Example: `['Cu', 'O']`.
+  - Example:
+
+```python
+['Cu', 'O']
+```
 
 - `base_element`: (str) Symbol of the most abundant element in the phase.
   - Example: `'Cu'`.
@@ -149,18 +169,26 @@ Parameters using `replacements.` prefix:
 - `replacements.replace`: (optional, bool) Whether to replace specific elements. Elements in element_list will be considered for replacement and replaced by a single element species.
   - Default is `False`.
 - `replacements.element_list`: (optional, list[str]) List of elements to be replaced.
-  - Example: `['Ti']`.
+  - Example:
+
+```python
+['Ti']
+```
 - `replacements.replace_with`: (optional, str) Element to replace with.
   - Example: `'Ir'`.
 
-### Structure generation settings. - `[generation]`
+### Generation - `[generation]`
+
+Structure generation settings.
 
 
 - `generate_type`: (list[str]) Types of structures to generate.
   - Default is `['bulk', 'surface', 'cluster']`.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
-#### Bulk structure generation settings. - `[generation.bulk]`
+#### Bulk - `[generation.bulk]`
+
+Bulk structure generation settings.
 
 
 - `num_struct`: (int) Number of structures to generate.
@@ -172,7 +200,9 @@ Parameters using `replacements.` prefix:
 - `supercell_max_idx`: (int) Maximum Miller index for the bulk supercells.
   - Default is `2`.
 
-#### Surface structure generation settings. - `[generation.surface]`
+#### Surface - `[generation.surface]`
+
+Surface structure generation settings.
 
 
 - `min_miller_index`: (int) Minimum Miller index used to generate surface structures.
@@ -216,7 +246,9 @@ Parameters using `replacements.` prefix:
 
 - `n_workers`: (optional, int) Maximum number of workers for parallel processing.
 
-### Lattice deformation settings. - `[deformation]`
+### Deformation - `[deformation]`
+
+Lattice deformation settings.
 
 :::{attention}
 This section is optional.
@@ -235,7 +267,9 @@ This section is optional.
 - `limit_max_num_deformations`: (int) Maximum number of lattice deformations to generate.
   - Default is `100`.
 
-### Perturbation settings. - `[perturbation]`
+### Perturbation - `[perturbation]`
+
+Perturbation settings.
 
 :::{attention}
 This section is optional.
@@ -255,7 +289,9 @@ This section is optional.
 - `perturbation_ang`: (optional, float) Perturbation magnitude in Angstrom.
   - Default is `0.04`.
 
-### Adsorbate placement settings. - `[adsorbates]`
+### Adsorbates - `[adsorbates]`
+
+Adsorbate placement settings.
 
 :::{attention}
 This section is optional.
@@ -273,22 +309,32 @@ This section is optional.
   - Default is `1`.
 
 - `adsorbate_species`: (list[str]) List of adsorbate species to consider.
-  - Example: `['H', 'H2O']`.
+  - Example:
 
-### Settings for filtering out incorrect structures. - `[struct_filters]`
+```python
+['H', 'H2O']
+```
+
+### Struct_Filters - `[struct_filters]`
+
+Settings for filtering out incorrect structures.
 
 :::{attention}
 This section is optional.
 :::
 
 
-#### Filter for structures with atoms that have no neighbors. - `[struct_filters.no_neighbors]`
+#### No_Neighbors - `[struct_filters.no_neighbors]`
+
+Filter for structures with atoms that have no neighbors.
 
 
 - `cov_rad_multiplier`: (optional, float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check.
   - Default is `1.2`.
 
-#### Filter for layer distances in surface slabs. - `[struct_filters.layer_distance]`
+#### Layer_Distance - `[struct_filters.layer_distance]`
+
+Filter for layer distances in surface slabs.
 
 :::{attention}
 This section is optional.
@@ -298,7 +344,9 @@ This section is optional.
 - `max_layer_distance_ang`: (optional, float) Maximum accepted distance between layers in Angstrom.
   - Default is `4.0`.
 
-#### Filter for duplicate slabs. - `[struct_filters.duplicate_slabs]`
+#### Duplicate_Slabs - `[struct_filters.duplicate_slabs]`
+
+Filter for duplicate slabs.
 
 :::{attention}
 This section is optional.
@@ -308,7 +356,9 @@ This section is optional.
 - `tolerance`: (optional, float) Tolerance for the duplicate slabs filter.
   - Default is `0.2`.
 
-### Settings for vacancy generation. - `[vacancies]`
+### Vacancies - `[vacancies]`
+
+Settings for vacancy generation.
 
 
 - `filter_struct_types`: (list[str]) Types of structures to which vacancies will be applied.
@@ -328,16 +378,24 @@ This section is optional.
   - Default is `0.025`.
 
 - `element_list`: (list[str]) List of elements to consider for the vacancies.
-  - Example: `['O']`.
+  - Example:
 
-### Settings for targeted structural modifications. - `[targeted_modification]`
+```python
+['O']
+```
+
+### Targeted_Modification - `[targeted_modification]`
+
+Settings for targeted structural modifications.
 
 :::{attention}
 This section is optional.
 :::
 
 
-#### Apply perturbations to the central atom in octahedral sites. - `[targeted_modification.central_atom_octahedral]`
+#### Central_Atom_Octahedral - `[targeted_modification.central_atom_octahedral]`
+
+Apply perturbations to the central atom in octahedral sites.
 
 :::{attention}
 This section is optional.
@@ -345,7 +403,11 @@ This section is optional.
 
 
 - `filter_phases`: (optional, list[str]) Only apply the modification to the following phases.
-  - Example: `['rutile', 'original_IrO2']`.
+  - Example:
+
+```python
+['rutile', 'original_IrO2']
+```
 
 - `filter_struct_types`: (optional, list[str]) Types of structures to which the modification will be applied.
   - Default is `['bulk', 'surface']`.
@@ -363,7 +425,9 @@ This section is optional.
 - `max_perturbation_ang`: (optional, float) Maximum perturbation movement of the central atom in Angstrom.
   - Default is `0.2`.
 
-### Settings for descriptors and concave hull generation. - `[concave_hull]`
+### Concave_Hull - `[concave_hull]`
+
+Settings for descriptors and concave hull generation.
 
 :::{attention}
 This section is optional.

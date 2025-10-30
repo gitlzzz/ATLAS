@@ -7,7 +7,9 @@ All keys are mandatory unless stated otherwise.
 :::
 
 
-### General active learning settings. - `[active_learning]`
+### Active Learning - `[active_learning]`
+
+General active learning settings.
 
 
 - `aiida_profile`: (str) Name of the AiiDA profile to be used.
@@ -39,7 +41,9 @@ All keys are mandatory unless stated otherwise.
   - Default is `'data_acquisition'`.
   - Possible values are: `md`, `data_reduction`, `data_acquisition`.
 
-### Settings for the data reduction AL mode. - `[data_reduction]`
+### Data Reduction Settings - `[data_reduction]`
+
+Settings for the data reduction AL mode.
 
 
 - `large_database_path`: (str, PosixPath) Path to the large database file from which to select structures.
@@ -58,7 +62,9 @@ All keys are mandatory unless stated otherwise.
   - Default is `'uncertainty'`.
   - Possible values are: `random`, `fps`, `uncertainty`, `lowest_energy`.
 
-### Settings for the AL seed generation for MD. - `[al_seed]`
+### Active Learning Seed Settings - `[al_seed]`
+
+Settings for the AL seed generation for MD.
 
 
 - `seed_size_frac`: (float) Sets total structures in an MD seed as a fraction of the training db size.
@@ -73,7 +79,9 @@ All keys are mandatory unless stated otherwise.
 - `delete_seed_structs`: (optional, bool) Whether to delete structures from the seed database even if they are in domain.
   - Default is `True`.
 
-#### MD seed selection mode settings. - `[al_seed.seed_select_settings]`
+#### Seed Selection Settings - `[al_seed.seed_select_settings]`
+
+MD seed selection mode settings.
 
 
 - `seed_select_type`: (str) MD seed selection mode.
@@ -86,7 +94,9 @@ All keys are mandatory unless stated otherwise.
 - `small_first_max_iter`: (int) Apply small_first mode for the first n iterations.
   - Default is `5`.
 
-#### Settings for the seed ranking methods. - `[al_seed.seed_ranking_settings]`
+#### Seed Ranking Settings for Seed Selection - `[al_seed.seed_ranking_settings]`
+
+Settings for the seed ranking methods.
 
 :::{attention}
 This section is optional.
@@ -97,7 +107,9 @@ This section is optional.
   - Default is `'random'`.
   - Possible values are: `random`, `descriptor_fps`.
 
-##### Farthest Point Sampling (FPS) ranking. - `[al_seed.seed_ranking_settings.descriptor_fps]`
+##### Farthest Point Sampling (FPS) Configuration - `[al_seed.seed_ranking_settings.descriptor_fps]`
+
+Farthest Point Sampling (FPS) ranking.
 
 
 - `descriptor_type`: (optional, str) What descriptors to use for the seed selection process.
@@ -108,7 +120,9 @@ This section is optional.
   - Default is `'random'`.
   - Possible values are: `random`, `lowest_energy`.
 
-###### Entry containing settings that depend on the descriptor type selected. - `[al_seed.seed_ranking_settings.descriptor_fps.descriptor]`
+###### FPS Seed Selection - Selected Descriptor Settings - `[al_seed.seed_ranking_settings.descriptor_fps.descriptor]`
+
+Entry containing settings that depend on the descriptor type selected.
 
 :::{attention}
 This section is optional.
@@ -144,13 +158,17 @@ This section is optional.
 - `enable_cueq`: (optional, bool) Enable CUEQ for MACE.
   - Default is `False`.
 
-### Settings for the interpolation check. - `[interpolation]`
+### Interpolation Check Settings - `[interpolation]`
+
+Settings for the interpolation check. The interpolation check determines whether a structure is within the model's domain or requires a DFT calculation, by checking the committee models disagreement, considering the model accuracy threshold.
 
 
 - `model_acc_multiplier`: (float) Multiplier for model accuracy threshold. Higher values mean more DFT calculations.
   - Default is `10.0`.
 
-### Settings for extrapolation checks. - `[extrapolation]`
+### Extrapolation Check Settings - `[extrapolation]`
+
+Settings for extrapolation checks.
 
 
 - `disagreement_check_type`: (optional, str) Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames.
@@ -161,7 +179,9 @@ This section is optional.
   - Default is `'none'`.
   - Possible values are: `disabled`, `none`, `basic`, `min-max`, `alpha-shape`, `advanced`.
 
-#### Settings for the concave hull extrapolation check. - `[extrapolation.concave_hull]`
+#### Concave Hull Extrapolation Check Settings - `[extrapolation.concave_hull]`
+
+Settings for the concave hull / alpha shape extrapolation check.
 
 :::{attention}
 This section is optional.
@@ -183,7 +203,9 @@ This section is optional.
 - `frac_points_allowed_out`: (optional, float) Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%.
   - Default is `0.002`.
 
-### Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point. - `[safeguard]`
+### Active Learning Safeguard Settings - `[safeguard]`
+
+Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point.
 
 :::{attention}
 This section is optional.
@@ -202,7 +224,9 @@ This section is optional.
 - `ignore_container`: (optional, bool) Whether to ignore the container specified in the container settings for the safeguard.
   - Default is `False`.
 
-#### AiiDA metadata and scheduler options for the safeguard. - `[safeguard.metadata]`
+#### Metadata - `[safeguard.metadata]`
+
+AiiDA metadata and scheduler options for the safeguard.
 
 
 - `computer`: (str) AiiDA computer name for safeguard calculations.
@@ -214,7 +238,9 @@ export PATH=$PATH:.'`.
 
 - `options`: (dict) AiiDA scheduler options for safeguard calculations.
 
-#### MD simulation parameters for safeguard. - `[safeguard.md_parameters]`
+#### Safeguard MD Parameters - `[safeguard.md_parameters]`
+
+MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations.
 
 
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) for MD simulations.
@@ -265,13 +291,17 @@ export PATH=$PATH:.'`.
   - Default is `'langevin'`.
   - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
 
-### Settings for MD simulations. - `[md]`
+### Molecular Dynamics Settings - `[md]`
+
+Settings for MD simulations.
 
 
 - `ignore_container`: (optional, bool) Whether to ignore the container specified in the container settings for the MD calculations.
   - Default is `False`.
 
-#### MD simulation parameters. - `[md.parameters]`
+#### Parameters - `[md.parameters]`
+
+MD simulation parameters.
 
 
 - `temperature_list_K`: (list[float]) List of different temperatures (in K) for MD simulations.
@@ -328,13 +358,17 @@ export PATH=$PATH:.'`.
   - Default is `'langevin'`.
   - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
 
-#### Settings for MD trajectory filters. - `[md.filters]`
+#### MD Trajectory Filters - `[md.filters]`
+
+Settings for MD trajectory filters.
 
 
 - `save_filtered_structures`: (optional, bool) Whether to save filtered structures.
   - Default is `False`.
 
-##### Filter for structures with atoms that have no neighbors. - `[md.filters.check_atoms_no_neighbor]`
+##### Check_Atoms_No_Neighbor - `[md.filters.check_atoms_no_neighbor]`
+
+Filter for structures with atoms that have no neighbors.
 
 
 - `enable`: (bool) No description available.
@@ -343,7 +377,9 @@ export PATH=$PATH:.'`.
 - `covalent_radius_multiplier`: (float) Multiplier for covalent radii to define cutoff for neighbor check.
   - Default is `1.05`.
 
-##### Filter for layer distances in surface slabs. - `[md.filters.layer_distance]`
+##### Layer_Distance - `[md.filters.layer_distance]`
+
+Filter for layer distances in surface slabs.
 
 
 - `enable`: (bool) No description available.
@@ -352,7 +388,9 @@ export PATH=$PATH:.'`.
 - `max_layer_distance_ang`: (float) Maximum accepted distance between layers in Angstrom.
   - Default is `3.5`.
 
-##### Filter for exploding structures based on covalent radius limits. - `[md.filters.exploding_structures]`
+##### Exploding_Structures - `[md.filters.exploding_structures]`
+
+Filter for exploding structures based on covalent radius limits.
 
 
 - `enable`: (optional, bool) Whether to enable the exploding structures filter.
@@ -367,7 +405,9 @@ export PATH=$PATH:.'`.
 - `explode_check_interval_perc`: (optional, float) Interval percentage (as a fraction) of MD steps to check for exploding structures.
   - Default is `0.1`.
 
-#### AiiDA metadata and scheduler options for MD simulations. - `[md.metadata]`
+#### MD Metadata and Scheduler Options (AiiDA) - `[md.metadata]`
+
+AiiDA metadata and scheduler options for MD simulations.
 
 
 - `code`: (optional, str) AiiDA code name for MD software.
@@ -382,10 +422,14 @@ export PATH=$PATH:.'`.
 
 - `options`: (optional, dict) AiiDA scheduler options for MD calculations.
 
-### Settings for containerized code execution. - `[code]`
+### Code and Containerization Settings - `[code]`
+
+Settings for containerized code execution.
 
 
-#### Container settings for code execution. - `[code.container]`
+#### Container - `[code.container]`
+
+Container settings for code execution.
 
 
 - `use_container`: (optional, bool) Whether to use a containerized version of the code.
@@ -401,7 +445,9 @@ export PATH=$PATH:.'`.
   - Example: `'module load singularity
 export PATH=$PATH:.'`.
 
-### Settings for MACE model training. - `[mace_train]`
+### MLIP Training Settings - `[mace_train]`
+
+Settings for MACE model training.
 
 
 - `result_force_weight`: (optional, float) Weight of the force when considering model performance in weighted sum calculation.
@@ -426,7 +472,9 @@ export PATH=$PATH:.'`.
 
 - `train_settings`: (optional, dict) MACE training parameters and hyperparameters.
 
-### Settings for committee evaluation using multiple MACE models. - `[committee_eval]`
+### Committee Evaluation Settings - `[committee_eval]`
+
+Settings for committee evaluation using multiple MACE models.
 
 
 - `committee_num_models`: (optional, int) Total number of MACE models in the committee.
@@ -442,7 +490,9 @@ export PATH=$PATH:.'`.
 
 - `metadata`: (optional, dict) AiiDA metadata and scheduler options for committee evaluation.
 
-#### Settings for MACE evaluator. - `[committee_eval.mace]`
+#### Commitee Evaluation - MACE Settings - `[committee_eval.mace]`
+
+Settings for MACE evaluator.
 
 
 - `device`: (optional, str) Device for MACE evaluation.
@@ -459,7 +509,9 @@ export PATH=$PATH:.'`.
 - `compute_stress`: (optional, bool) Whether to compute stress during evaluation.
   - Default is `False`.
 
-### Settings for descriptor computation and dimensionality reduction. - `[descriptors]`
+### Descriptor Computation Settings - `[descriptors]`
+
+Settings for descriptor computation and dimensionality reduction.
 
 
 - `dimensionality_reduction_method`: (optional, str) Dimensionality reduction method for MACE descriptors.
@@ -483,10 +535,14 @@ export PATH=$PATH:.'`.
   - Default is `'cpu'`.
   - Possible values are: `cpu`, `cuda`.
 
-#### Settings for autoencoder-based dimensionality reduction. - `[descriptors.autoencoder]`
+#### Autoencoder - `[descriptors.autoencoder]`
+
+Settings for autoencoder-based dimensionality reduction.
 
 
-##### Training settings for the autoencoder. - `[descriptors.autoencoder.train_settings]`
+##### Train_Settings - `[descriptors.autoencoder.train_settings]`
+
+Training settings for the autoencoder.
 
 
 - `device`: (optional, str) Device for autoencoder training.
@@ -555,7 +611,9 @@ export PATH=$PATH:.'`.
 - `wandb_project`: (optional, str) Name of the wandb project.
   - Default is `''`.
 
-### DFT settings specific to active learning (different from top-level dft section). - `[dft]`
+### DFT Calculation Settings - `[dft]`
+
+DFT settings specific to active learning (different from top-level dft section).
 
 
 - `ignore_container`: (optional, bool) Whether to ignore container settings for DFT calculations.
@@ -572,7 +630,9 @@ export PATH=$PATH:.'`.
 - `dft_calc_limit`: (optional, int) Maximum number of DFT calculations to perform per AL step.
   - Default is `'None'`.
 
-#### MACE settings as DFT calculator. - `[dft.mace]`
+#### MACE DFT Calculator Settings - `[dft.mace]`
+
+MACE settings as DFT calculator.
 
 :::{attention}
 This section is optional.
@@ -586,7 +646,9 @@ This section is optional.
 
 - `options`: (optional, dict) AiiDA scheduler options for MACE calculations.
 
-##### Options for MACE that will be passed as arguments during execution. - `[dft.mace.settings]`
+##### Settings - `[dft.mace.settings]`
+
+Options for MACE that will be passed as arguments during execution.
 
 
 - `device`: (optional, str) Device for MACE calculations.
@@ -603,7 +665,9 @@ This section is optional.
 - `compute_stress`: (optional, bool) Whether to compute stress.
   - Default is `False`.
 
-##### Settings for filtering structures after DFT calculations, based on energy and force thresholds. - `[dft.mace.filter]`
+##### Filter - `[dft.mace.filter]`
+
+Settings for filtering structures after DFT calculations, based on energy and force thresholds.
 
 :::{attention}
 This section is optional.
@@ -619,7 +683,9 @@ This section is optional.
 - `threshold_F_meV`: (optional, float) Force threshold in meV/Å for filtering structures.
   - Default is `10000.0`.
 
-#### VASP settings as DFT calculator. - `[dft.vasp]`
+#### VASP DFT Calculator Settings - `[dft.vasp]`
+
+VASP settings as DFT calculator.
 
 :::{attention}
 This section is optional.
@@ -641,12 +707,22 @@ This section is optional.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
 - `kspacing`: (optional, dict) K-spacing settings for different phases or default value.
-  - Example: `{'MDB_DEFAULT': 0.15, 'alpha': 0.135}`.
+  - Example:
+
+```python
+{'MDB_DEFAULT': 0.15, 'alpha': 0.135}
+```
 
 - `incar`: (optional, dict) INCAR settings for VASP calculations.
-  - Example: `{'istart': 0, 'icharg': 2, 'gga': 'Pe', 'encut': 450}`.
+  - Example:
 
-##### Settings for filtering structures after DFT calculations, based on energy and force thresholds. - `[dft.vasp.filter]`
+```python
+{'encut': 450, 'gga': 'Pe', 'icharg': 2, 'istart': 0}
+```
+
+##### Filter - `[dft.vasp.filter]`
+
+Settings for filtering structures after DFT calculations, based on energy and force thresholds.
 
 :::{attention}
 This section is optional.
@@ -662,7 +738,9 @@ This section is optional.
 - `threshold_F_meV`: (optional, float) Force threshold in meV/Å for filtering structures.
   - Default is `10000.0`.
 
-##### Queue settings for VASP calculations. - `[dft.vasp.queue]`
+##### Queue - `[dft.vasp.queue]`
+
+Queue settings for VASP calculations.
 
 
 - `queue_type`: (str) Scheduler type.
@@ -690,27 +768,64 @@ This section is optional.
   - Default is `28800`.
 
 - `options_resources`: (optional, dict) Resource options for the scheduler.
-  - Example: `{'tot_num_mpiprocs': 112, 'num_machines': 1}`.
+  - Example:
+
+```python
+{'num_machines': 1, 'tot_num_mpiprocs': 112}
+```
 
 - `multiple`: (optional, int) Multiple factor for resources.
   - Default is `1`.
 
 - `custom_scheduler_commands`: (optional, str) Custom scheduler commands.
 
-##### Surface-specific INCAR settings. - `[dft.vasp.surface]`
+##### Surface - `[dft.vasp.surface]`
+
+Surface-specific INCAR settings.
 
 
 - `incar`: (optional, dict) INCAR settings specific to surface calculations.
-  - Example: `{'ldipol': True, 'idipol': 3, 'ispin': 2}`.
+  - Example:
 
-##### Cluster-specific INCAR settings. - `[dft.vasp.cluster]`
+```python
+{'idipol': 3, 'ispin': 2, 'ldipol': True}
+```
+
+##### Cluster - `[dft.vasp.cluster]`
+
+Cluster-specific INCAR settings.
 
 
 - `incar`: (optional, dict) INCAR settings specific to cluster calculations.
-  - Example: `{'ldipol': True, 'dipol': [0.5, 0.5, 0.5], 'idipol': 4}`.
+  - Example:
 
-##### AiiDA-VASP specific settings. - `[dft.vasp.aiida_vasp]`
+```python
+{'dipol': [0.5, 0.5, 0.5], 'idipol': 4, 'ldipol': True}
+```
+
+##### AiiDA-VASP Settings - `[dft.vasp.aiida_vasp]`
+
+AiiDA-VASP specific settings.
 
 
 - `parser_settings`: (optional, dict) Contains entries to include in the results gathered using the aiida-vasp parser settings
-  - Example: `{'add_trajectory': False, 'add_bands': False, 'add_charge_density': False, 'add_dos': False, 'add_kpoints': False, 'add_energies': True, 'add_misc': True, 'add_structure': False, 'add_projectors': False, 'add_born_charges': False, 'add_dielectrics': False, 'add_hessian': False, 'add_dynmat': False, 'add_wavecar': False, 'add_forces': False, 'add_stress': False}`.
+  - Example:
+
+```python
+{   'add_bands': False,
+    'add_born_charges': False,
+    'add_charge_density': False,
+    'add_dielectrics': False,
+    'add_dos': False,
+    'add_dynmat': False,
+    'add_energies': True,
+    'add_forces': False,
+    'add_hessian': False,
+    'add_kpoints': False,
+    'add_misc': True,
+    'add_projectors': False,
+    'add_stress': False,
+    'add_structure': False,
+    'add_trajectory': False,
+    'add_wavecar': False}
+```

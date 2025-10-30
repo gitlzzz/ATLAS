@@ -7,7 +7,9 @@ All keys are mandatory unless stated otherwise.
 :::
 
 
-### General settings for the DFT script. - `[general]`
+### General - `[general]`
+
+General settings for the DFT script.
 
 
 - `log_path`: (str, PosixPath) Path where the logs will be stored.
@@ -36,7 +38,9 @@ All keys are mandatory unless stated otherwise.
 - `selected_structure_type`: (optional, str) If specified, only structures of this type will be processed.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
-### DFT calculation settings. - `[calculation]`
+### Calculation - `[calculation]`
+
+DFT calculation settings.
 
 
 - `calc_type`: (str) Type of calculation.
@@ -47,15 +51,27 @@ All keys are mandatory unless stated otherwise.
   - Example: `'vasp-5.4-PBE-2023'`.
 
 - `potential_mapping`: (optional, dict) Mapping of elements to specific potential labels.
-  - Example: `{'Si': 'Si_GW'}`.
+  - Example:
 
-### K-point settings. - `[kpoints]`
+```python
+{'Si': 'Si_GW'}
+```
+
+### Kpoints - `[kpoints]`
+
+K-point settings.
 
 
 - `kspacing`: (dict) K-spacing in Å⁻¹ for different phases or a single value for all structures.
-  - Example: `{'alpha': 0.125, 'default': 0.15}`.
+  - Example:
 
-### Queue settings for HPC schedulers (e.g., SLURM). - `[queue]`
+```python
+{'alpha': 0.125, 'default': 0.15}
+```
+
+### Queue - `[queue]`
+
+Queue settings for HPC schedulers (e.g., SLURM).
 
 
 - `code_string`: (str) Name of the code as defined in AiiDA.
@@ -76,7 +92,9 @@ All keys are mandatory unless stated otherwise.
 
 - `custom_scheduler_commands`: (optional, str) Custom scheduler commands.
 
-#### Scheduler resource options. - `[queue.options_resources]`
+#### Options_Resources - `[queue.options_resources]`
+
+Scheduler resource options.
 
 
 - `tot_num_mpiprocs`: (int) Total number of MPI processes.
@@ -85,7 +103,9 @@ All keys are mandatory unless stated otherwise.
 - `parallel_env`: (str) Parallel environment to be used.
   - Default is `' '`.
 
-### Settings for the AiiDA-VASP plugin. - `[aiida_vasp]`
+### Aiida_Vasp - `[aiida_vasp]`
+
+Settings for the AiiDA-VASP plugin.
 
 :::{attention}
 This section is optional.
@@ -94,13 +114,17 @@ This section is optional.
 
 - `critical_notifications`: (optional, dict) Errors and warnings to be treated as critical (general).
 
-#### Parser settings for aiida-vasp. - `[aiida_vasp.parser_settings]`
+#### Parser_Settings - `[aiida_vasp.parser_settings]`
+
+Parser settings for aiida-vasp.
 
 
 - `add_kpoints`: (optional, bool) Whether to add k-points information to the parsed results.
   - Default is `True`.
 
-##### Critical error and warning notifications to be treated as important. - `[aiida_vasp.parser_settings.critical_notifications]`
+##### Critical_Notifications - `[aiida_vasp.parser_settings.critical_notifications]`
+
+Critical error and warning notifications to be treated as important.
 
 
 - `add_edddav_zhegv`: (optional, bool) Add EDDDAV ZHEGV error notification.
@@ -118,7 +142,9 @@ This section is optional.
 - `add_bandocc`: (optional, bool) Add band occupation error notification.
   - Default is `False`.
 
-### INCAR settings for different structure types. - `[incar]`
+### Incar - `[incar]`
+
+INCAR settings for different structure types.
 
 
 - `bulk`: (optional, dict) INCAR settings for bulk structures.
