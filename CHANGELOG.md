@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.43.3 (2025-10-30)
+
+### Docs
+
+- **schema**: add commit explanation to doc generating utility ([#22f6818](https://github.com/pol-sb/MatDBForge/commit/22f681819ac93508c68e05bbe3f84540d858ee36))
+- **schema**: apply correct indentation for critical_notifications key ([#3295e7d](https://github.com/pol-sb/MatDBForge/commit/3295e7d3c461654b93536b43251d359bf59f7f03))
+
+### Fix
+
+- **al_loop**: use `self.ctx.stop_al_loop_error` to determine safeguard stop ([#0c31d3e](https://github.com/pol-sb/MatDBForge/commit/0c31d3ec7ac13f644eb474e4608713dba12547e8))
+
 ## 0.43.2 (2025-10-30)
 
 ### Docs
