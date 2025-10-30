@@ -1809,6 +1809,8 @@ active_learning:
               "add_stress": false,
             }
         critical_notifications:
+          name: "critical_notifications"
+          name_pretty: "AiiDA-VASP Critical Notifications"
           description: "Critical error and warning notifications. These represent VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The example contains all defults."
           type: dict
           mandatory: false

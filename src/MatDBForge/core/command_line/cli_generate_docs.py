@@ -9,7 +9,7 @@ from argparse import RawTextHelpFormatter
 import yaml
 
 from MatDBForge.core import MDB_DATA_DIR
-from MatDBForge.core.code_utils import custom_print, init_logger
+from MatDBForge.core.code_utils import custom_print
 
 
 def format_parameter_line(key, details, level=0):
@@ -277,7 +277,7 @@ def generate_full_documentation(schema, args):
 
 def generate_docs():
     """Main function to generate documentation."""
-    init_logger(source='gen_docs')
+    # init_logger(source='gen_docs')
 
     parser = argparse.ArgumentParser(
         prog='mdb_gen_docs',
@@ -313,6 +313,11 @@ def generate_docs():
     # Generate documentation
     custom_print('Generating documentation from schema...', print_type='info')
     generate_full_documentation(schema, args)
+    custom_print(
+        'Documentation updated! If commiting changes to `config_schema.yaml` '
+        'please add and commit the updated doc files too.',
+        print_type='done',
+    )
 
 
 if __name__ == '__main__':
