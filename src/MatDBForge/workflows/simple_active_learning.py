@@ -679,7 +679,18 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Get the most accurate model name during the validation by checking
         # the lowest E+F*weight.
-        self.ctx.best_model_name = model_name_list[np.argmin(weighted_E_F_sum_list)]
+        # In case no valid models were found, raise an error, since we need
+        # at least one valid model to act as sampler model for the active learning
+        # to work.
+        try:
+            self.ctx.best_model_name = model_name_list[np.argmin(weighted_E_F_sum_list)]
+        except ValueError as e:
+            self.ctx.stop_al_loop_error = orm.Bool(True)
+            raise ChildProcessError(
+                'No valid MLIP models were found after training! '
+                f'Check for issues in the training step. '
+                f'Calculation PKs: \n{mace_training_results}'
+            ) from e
 
         commitee_models_tupl_name_uuid = []
         for calc in mace_training_results:
@@ -2415,11 +2426,28 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         bool
             True if the loop should continue, False otherwise.
         """
+        # Check maximum iterations
         max_iterations = self.inputs.active_learning.max_iterations.value
         below_max_iterations = self.ctx.iteration < max_iterations
 
+        # Check previous AL loop error status
+        if hasattr(self.ctx, 'stop_al_loop_error'):
+            al_error_stop = self.ctx.stop_al_loop_error.value
+        else:
+            al_error_stop = False
+
+        self.report(f'Is safeguard check complete: {self.ctx.safeguard_check_done}.')
+        self.report(
+            f'Is Current step is below maximum allowed step? {below_max_iterations}.'
+        )
+        self.report(f'Did previous AL stop with errors? {al_error_stop}.')
+
         # This will be True if the safeguard check allows to continue the loop
-        should_run = not self.ctx.safeguard_check_done and below_max_iterations
+        should_run = (
+            not self.ctx.safeguard_check_done
+            and below_max_iterations
+            and not al_error_stop
+        )
         self.report(
             f'Safeguard check decision on whether to continue the loop: {should_run}.'
         )
