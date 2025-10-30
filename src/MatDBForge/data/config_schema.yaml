@@ -1363,14 +1363,14 @@ active_learning:
   committee_eval:
     name: "committee_eval"
     name_pretty: "Committee Evaluation Settings"
-    description: "Settings for committee evaluation using multiple MACE models."
+    description: "Settings for committee evaluation using multiple MLIP models."
     committee_num_models:
-      description: "Total number of MACE models in the committee."
+      description: "Total number of MLIP models in the committee."
       type: int
       mandatory: false
       default: 4
     openmp_threads:
-      description: "Number of OpenMP threads for MACE CPU evaluation."
+      description: "Number of OpenMP threads for MLIP CPU evaluation."
       type: int
       mandatory: false
       default: 24
@@ -1808,34 +1808,34 @@ active_learning:
               "add_forces": false,
               "add_stress": false,
             }
-          critical_notifications:
-            description: "Critical error and warning notifications. These represent VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The example contains all defults."
-            type: dict
-            mandatory: false
-            example:
-              {
-                "add_brmix": true,
-                "add_cnormn": true,
-                "add_denmp": true,
-                "add_dentet": true,
-                "add_edddav_zhegv": true,
-                "add_eddrmm_zhegv": true,
-                "add_edwav": true,
-                "add_fexcp": true,
-                "add_fock_acc": true,
-                "add_non_collinear": true,
-                "add_not_hermitian": true,
-                "add_psmaxn": true,
-                "add_pzstein": true,
-                "add_real_optlay": true,
-                "add_rhosyg": true,
-                "add_rspher": true,
-                "add_set_indpw_full": true,
-                "add_sgrcon": true,
-                "add_no_potimm": true,
-                "add_magmom": true,
-                "add_bandocc": true,
-              }
+        critical_notifications:
+          description: "Critical error and warning notifications. These represent VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The example contains all defults."
+          type: dict
+          mandatory: false
+          example:
+            {
+              "add_brmix": true,
+              "add_cnormn": true,
+              "add_denmp": true,
+              "add_dentet": true,
+              "add_edddav_zhegv": true,
+              "add_eddrmm_zhegv": true,
+              "add_edwav": true,
+              "add_fexcp": true,
+              "add_fock_acc": true,
+              "add_non_collinear": true,
+              "add_not_hermitian": true,
+              "add_psmaxn": true,
+              "add_pzstein": true,
+              "add_real_optlay": true,
+              "add_rhosyg": true,
+              "add_rspher": true,
+              "add_set_indpw_full": true,
+              "add_sgrcon": true,
+              "add_no_potimm": true,
+              "add_magmom": true,
+              "add_bandocc": true,
+            }
 
 mlip_benchmarks:
   description: "Settings for MLIP benchmarking (evaluate_mlip_performance)."

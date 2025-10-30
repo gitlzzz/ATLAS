@@ -474,13 +474,13 @@ Settings for MACE model training.
 
 ### Committee Evaluation Settings - `[committee_eval]`
 
-Settings for committee evaluation using multiple MACE models.
+Settings for committee evaluation using multiple MLIP models.
 
 
-- `committee_num_models`: (optional, int) Total number of MACE models in the committee.
+- `committee_num_models`: (optional, int) Total number of MLIP models in the committee.
   - Default is `4`.
 
-- `openmp_threads`: (optional, int) Number of OpenMP threads for MACE CPU evaluation.
+- `openmp_threads`: (optional, int) Number of OpenMP threads for MLIP CPU evaluation.
   - Default is `24`.
 
 - `ignore_container`: (optional, bool) Whether to ignore container settings for committee evaluation.
@@ -828,4 +828,31 @@ AiiDA-VASP specific settings.
     'add_structure': False,
     'add_trajectory': False,
     'add_wavecar': False}
+```
+
+- `critical_notifications`: (optional, dict) Critical error and warning notifications. These represent VASP errors and warnings to be treated as critical, which will result in an error code being thrown by the aiida calculation job. The example contains all defults.
+  - Example:
+
+```python
+{   'add_bandocc': True,
+    'add_brmix': True,
+    'add_cnormn': True,
+    'add_denmp': True,
+    'add_dentet': True,
+    'add_edddav_zhegv': True,
+    'add_eddrmm_zhegv': True,
+    'add_edwav': True,
+    'add_fexcp': True,
+    'add_fock_acc': True,
+    'add_magmom': True,
+    'add_no_potimm': True,
+    'add_non_collinear': True,
+    'add_not_hermitian': True,
+    'add_psmaxn': True,
+    'add_pzstein': True,
+    'add_real_optlay': True,
+    'add_rhosyg': True,
+    'add_rspher': True,
+    'add_set_indpw_full': True,
+    'add_sgrcon': True}
 ```
