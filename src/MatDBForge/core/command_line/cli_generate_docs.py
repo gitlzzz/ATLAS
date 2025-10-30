@@ -2,6 +2,7 @@
 
 import argparse
 import pathlib as pl
+import pprint
 import sys
 from argparse import RawTextHelpFormatter
 
@@ -49,6 +50,9 @@ def format_parameter_line(key, details, level=0):
     elif example_value is not None:
         if isinstance(example_value, str):
             line += f"\n  - Example: `'{example_value}'`."
+        elif isinstance(example_value, (dict, list)):
+            example_str = pprint.pformat(example_value, indent=4)
+            line += f'\n  - Example:\n\n```python\n{example_str}\n```'
         else:
             line += f'\n  - Example: `{example_value}`.'
 
@@ -135,9 +139,24 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
             section_path = '.'.join(path_parts + [name])
 
             lines.append('')
-            lines.append(
-                f'{header_level} {content["description"]} - `[{section_path}]`'
-            )
+
+            # Select title based on presence of 'name_pretty' key
+            if 'name_pretty' in content:
+                lines.append(
+                    f'{header_level} {content["name_pretty"]} - `[{section_path}]`'
+                )
+            else:
+                lines.append(f'{header_level} {name.title()} - `[{section_path}]`')
+
+            # lines.append(
+            #     f'{header_level} {content["description"]} - `[{section_path}]`'
+            # )
+
+            # Add section description
+            if 'description' in content:
+                lines.append('')
+                lines.append(content['description'])
+
             lines.append('')
 
             # Check if section is optional
