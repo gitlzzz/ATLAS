@@ -1204,6 +1204,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
             'Selecting which structures need performing DFT or removing from DB...'
         )
 
+        self.ctx.curr_md_all_structures_in_domain = False
+
         # Get all of the processed structures
         processed_structures = self.ctx.process_committee_results
 
