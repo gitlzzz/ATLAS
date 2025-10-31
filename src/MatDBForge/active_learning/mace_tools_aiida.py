@@ -97,6 +97,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
             required=False,
             # non_db=True,
             default=None,
+            serializer=orm.to_aiida_type,
         )
 
         spec.input(
@@ -122,13 +123,14 @@ class ProcessMDSeedStructCalculation(CalcJob):
             required=False,
             # non_db=True,
             default=None,
+            serializer=orm.to_aiida_type,
         )
         spec.input(
             'desc_max_arr',
             valid_type=orm.ArrayData,
             help=('Array containing the maximum values for the descriptors,'),
             required=True,
-            non_db=True,
+            # non_db=True,
             serializer=orm.to_aiida_type,
         )
         spec.input(
@@ -136,7 +138,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
             valid_type=orm.ArrayData,
             help=('Array containing the minimum values for the descriptors.'),
             required=True,
-            non_db=True,
+            # non_db=True,
             serializer=orm.to_aiida_type,
         )
         spec.input(
@@ -203,10 +205,13 @@ class ProcessMDSeedStructCalculation(CalcJob):
         )
 
         # Copying concave hull for extrapolation
-        if self.inputs.concave_hull:
+        if hasattr(self.inputs, 'concave_hull'):
             concave_hull = self.inputs.concave_hull.get_array()
             with tempfile.NamedTemporaryFile(
-                mode='w', delete=True, suffix='.npy', prefix='mdb_process_md-'
+                mode='w',
+                delete=True,
+                suffix='.npy',
+                prefix='mdb_process_md-',
             ) as f:
                 np.save(f.name, concave_hull)
                 folder.insert_path(
