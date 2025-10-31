@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.43.4 (2025-10-31)
+
+### Fix
+
+- **al_loop**: check for existence of `concave_hull` array using hasattr ([#13a6cb7](https://github.com/pol-sb/MatDBForge/commit/13a6cb7d848e2a07400812c8674d3750e8de1a15))
+- **al_loop**: add mising `self.ctx.curr_md_all_structures_in_domain` definition ([#b4bb38f](https://github.com/pol-sb/MatDBForge/commit/b4bb38fe647cc961b9fe51e0f78b40110ac9e3ef))
+
 ## 0.43.3 (2025-10-30)
 
 ### Docs
