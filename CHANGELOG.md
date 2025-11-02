@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.43.5 (2025-11-02)
+
+### Fix
+
+- **al_loop**: avoid infinite loop by not setting `self.ctx.stop_al_loop_error` to True and checking for errored safeguard calcs. ([#b1d9d26](https://github.com/pol-sb/MatDBForge/commit/b1d9d26a4eee330f08069e406041c1ba8fa5f376))
+
 ## 0.43.4 (2025-10-31)
 
 ### Fix
