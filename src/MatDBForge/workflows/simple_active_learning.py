@@ -2100,8 +2100,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.stop_md_seed_no_disagreement = node.outputs[
                 'stop_md_seed_no_disagreement'
             ]
-        else:
-            self.ctx.stop_al_loop_error = orm.Bool(True)
+        # TODO: Does this need to be reenabled?
+        # else:
+        # self.ctx.stop_al_loop_error = orm.Bool(True)
 
         self.ctx.last_workchain_completed = node
         self.logger.log(15, f'Done getting results for iteration {self.ctx.iteration}.')
@@ -2440,7 +2441,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.report(f'Is safeguard check complete: {self.ctx.safeguard_check_done}.')
         self.report(
-            f'Is Current step is below maximum allowed step? {below_max_iterations}.'
+            f'Is current step below maximum allowed step? {below_max_iterations}.'
         )
         self.report(f'Did previous AL stop with errors? {al_error_stop}.')
 
@@ -2737,6 +2738,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             # Get all of the processed structures
             processed_structures = self.ctx.process_safeguard_results
 
+            tot_num_safeguard_calcs = len(processed_structures)
+
             if hasattr(self.inputs, 'enable_ntfysh'):
                 requests.post(
                     f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
@@ -2749,6 +2752,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             safeguard_failed_ids = []
             safeguard_passed_ids = []
+            safeguard_errored_ids = []
 
             proc_calcjob: orm.CalcJobNode
             for proc_calcjob in processed_structures:
@@ -2760,6 +2764,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                         f'(pk: {proc_calcjob.pk}).'
                     )
                     safeguard_failed_ids.append(
+                        proc_calcjob.base.extras.all.get('unique_id')
+                    )
+                    safeguard_errored_ids.append(
                         proc_calcjob.base.extras.all.get('unique_id')
                     )
                     continue
@@ -2795,7 +2802,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 )
 
             # Set flags based on safeguard results
-            if len(safeguard_failed_ids) > 0:
+            if len(safeguard_errored_ids) == tot_num_safeguard_calcs:
+                self.report('All safeguard calculations errored. Stopping AL Loop.')
+                self.ctx.safeguard_check_done = True
+            elif len(safeguard_failed_ids) > 0:
                 self.report(
                     f'Safeguard check failed for {len(safeguard_failed_ids)}'
                     ' structures. Continuing AL Loop...'
@@ -2817,9 +2827,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     format='extxyz',
                 )
 
+                # Cleaning up context
+                del self.ctx.process_safeguard_results
+
             elif len(safeguard_failed_ids) == 0:
                 self.report(
-                    f'Safeguard check passed for all ({len(processed_structures)}) '
+                    f'Safeguard check passed for all ({tot_num_safeguard_calcs}) '
                     'structures. Stopping AL Loop.'
                 )
                 self.ctx.safeguard_check_done = True
