@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import ConvexHull, Delaunay, KDTree
+from scipy.stats import gaussian_kde
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 from shapely.ops import polygonize, unary_union
 
@@ -127,6 +128,8 @@ def get_concave_hull_python(
         If the fraction of points outside the hull exceeds this value,
         alpha will be decreased iteratively until the condition is met or
         alpha reaches zero. Defaults to 0.002 (0.2%).
+    n_attempts : int, optional
+        Number of attempts to compute the concave hull by adjusting alpha.
 
     Returns
     -------
@@ -405,47 +408,77 @@ def plot_concave_hull(
     point_outside: np.ndarray = None,
     filename: str = None,
     alpha: float = None,
+    plot_density: bool = False,
 ):
+    """
+    Generate a plot for the concave hull area in 2D space, including in and out
+    of domain points if provided.
+    """
     if not filename:
         filename = 'concave_hull.png'
 
+    fig, ax = plt.subplots()
+
+    # Concave hull plots may come from md simulations or other sources.
+    # This block stacks descriptors for density coloring in all types of concave hull
+    # plots
+    if latent_space is None and (point_inside is not None or point_outside is not None):
+        if point_outside.size == 0:
+            point_outside = point_outside.reshape((0, 2))
+        if point_inside.size == 0:
+            point_inside = point_inside.reshape((0, 2))
+        latent_space_dens = np.vstack((point_inside, point_outside))
+    else:
+        latent_space_dens = latent_space
+
+    x = latent_space_dens[:, 0]
+    y = latent_space_dens[:, 1]
+
+    if plot_density:
+        # Get point density for coloring
+        xy = np.vstack((x, y))
+        z = gaussian_kde(xy)(xy)
+    else:
+        z = '#b16286'
+
     # Plotting the concave hull in 2D space using lines
     if latent_space is not None and latent_space.size != 0:
-        plt.plot(
-            latent_space[:, 0],
-            latent_space[:, 1],
-            'o',
-            markersize=3.5,
+        scatter = ax.scatter(
+            x,
+            y,
+            marker='o',
+            s=25,
             alpha=0.5,
             label='Descriptor in database',
-            markeredgewidth=0,
-            color='#b16286',
+            linewidths=0,
+            c=z,
         )
+        fig.colorbar(scatter, ax=ax, label='Density')
 
     if point_inside is not None and point_inside.size != 0:
-        plt.plot(
-            point_inside[:, 0],
-            point_inside[:, 1],
-            's',
+        ax.scatter(
+            x,
+            y,
+            marker='s',
             label='Structure in domain',
             color='#8ec07c',
-            markersize=3.5,
-            markeredgewidth=1.5,
-            markeredgecolor='#282828',
+            s=3.5,
+            linewidths=1.5,
+            edgecolors='#282828',
         )
     if point_outside is not None and point_outside.size != 0:
-        plt.plot(
-            point_outside[:, 0],
-            point_outside[:, 1],
-            's',
+        ax.scatter(
+            x,
+            y,
+            marker='s',
             label='Structure out of domain',
             color='#fb4934',
-            markersize=3.5,
-            markeredgewidth=1.5,
-            markeredgecolor='#282828',
+            s=3.5,
+            linewidths=1.5,
+            edgecolors='#282828',
         )
 
-    plt.plot(
+    ax.plot(
         concave_hull[:, 0],
         concave_hull[:, 1],
         '-',
@@ -466,7 +499,7 @@ def plot_concave_hull(
     plt.text(
         0.05,
         0.95,
-        f'Alpha: {alpha}\nHull area: {hull_area:.2f}',
+        f'Alpha: {alpha}\nHull area: {hull_area:.2e}',
         transform=plt.gca().transAxes,
         fontsize=10,
         verticalalignment='top',
