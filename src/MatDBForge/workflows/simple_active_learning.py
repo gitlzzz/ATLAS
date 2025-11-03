@@ -40,8 +40,8 @@ from MatDBForge.core.code_utils import (
 
 class SimpleActiveLearningWorkChain(WorkChain):
     """
-    WorkChain to run an active learning loop for a MACE potential using MD
-    simulations to generate training data.
+    WorkChain to run an active learning loop for a MLIP using MD simulations
+    to generate training data.
     """
 
     @classmethod
@@ -951,10 +951,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # Checking if outputs contains the concave hull and if so,
         # storing it in the context
         if hasattr(curr_calc.outputs, 'concave_hull'):
+            self.logger.debug('Concave hull output found, storing in context.')
             self.ctx.concave_hull = curr_calc.outputs.concave_hull
 
         # Get the autoencoder model file
         if hasattr(curr_calc.outputs, 'autoencoder_model'):
+            self.logger.debug('Autoencoder output found, storing in context.')
             self.ctx.autoencoder_model_file = curr_calc.outputs.autoencoder_model
 
         if hasattr(self.inputs, 'enable_ntfysh'):
@@ -1035,11 +1037,21 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # Optional input, advanced extrapolation might not be enabled.
             if hasattr(self.ctx, 'concave_hull'):
+                self.logger.debug('Adding concave hull to md seed processing inputs...')
+                self.logger.debug(f'{self.ctx.concave_hull}')
                 proc_seed_builder.concave_hull = self.ctx.concave_hull
-            if hasattr(self.ctx, 'concave_hull_array'):
-                proc_seed_builder.concave_hull_array = self.ctx.concave_hull_array
+                self.logger.debug(f'{proc_seed_builder.concave_hull}')
+                self.logger.debug('Concave hull added.')
+            # if hasattr(self.ctx, 'concave_hull_array'):
+            #     proc_seed_builder.concave_hull_array = self.ctx.concave_hull_array
             if hasattr(self.ctx, 'autoencoder_model_file'):
+                self.logger.debug(
+                    'Adding autoencoder model to md seed processing inputs...'
+                )
+                self.logger.debug(f'{self.ctx.autoencoder_model_file}')
                 proc_seed_builder.autoencoder_model = self.ctx.autoencoder_model_file
+                self.logger.debug(f'{proc_seed_builder.autoencoder_model}')
+                self.logger.debug('Autoencoder model added.')
 
             proc_seed_builder.desc_max_arr = self.ctx.descriptors_max_array
             proc_seed_builder.desc_min_arr = self.ctx.descriptors_min_array
@@ -1580,7 +1592,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
     It handles setup of the workchain and the main loop, where the active learning
     steps are launched. After every step, the results are checked and added to the
     database, and the next step is prepared. The workchain will loop until the
-    stopping conditions are met.
+    stopping conditions are met. If the stopping conditions and the safeguard check
+    is enabled, a MD-based safeguard mechanism will be employed to ensure the current
+    sampler model is robust, and therefore the loop can be stopped.
 
     It takes all the inputs of the `SimpleActiveLearningWorkChain` workchain, except for
     the inputs that are specific to the active learning loop.
