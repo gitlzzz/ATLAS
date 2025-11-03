@@ -2386,7 +2386,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         `self.ctx.stop_md_seed_no_disagreement.value`,
         and `self.ctx.seed_gen_db_all_structs_removed.value`
         """
-        if hasattr(self.ctx, 'stop_al_loop_error'):
+        if hasattr(self.ctx, 'stop_al_loop_error') and self.ctx.stop_al_loop_error:
             self.report(
                 f'Last step ({self.ctx.last_workchain_completed.pk}) '
                 'did not finish correctly. Stopping AL Loop.'
