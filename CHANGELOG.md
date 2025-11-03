@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.43.6 (2025-11-03)
+
+### Fix
+
+- **domain_validity**: add density to concave hull plot ([#f886869](https://github.com/pol-sb/MatDBForge/commit/f8868698ba93ebe8c6087115c557c09ce87838ae))
+- **al_loop**: use correct script for safeguard calcjob ([#553886c](https://github.com/pol-sb/MatDBForge/commit/553886c2e73d9ad2bbf8ebb532ab400289261ac8))
+- **domain_validity**: allow SOAP descriptor generation function to generate uuid4 on the fly ([#626b6ad](https://github.com/pol-sb/MatDBForge/commit/626b6adbf19847a1532b16167e0e3480d94a3b0e))
+
+### Misc
+
+- **core**: pin version of `scipy` to `1.16.2` ([#3e94ed8](https://github.com/pol-sb/MatDBForge/commit/3e94ed887ccbfbdf83d4c2a45410cd66750277ec))
+
+### Refactor
+
+- **al_loop**: improve logging for al_loop ([#85e26c6](https://github.com/pol-sb/MatDBForge/commit/85e26c6260738c77cca6a987fc261c09a17dd0d0))
+
 ## 0.43.5 (2025-11-02)
 
 ### Fix
