@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.43.7 (2025-11-03)
+
+### Fix
+
+- **al_loop**: check if `stop_al_loop_error` both exists and is true before stopping loop ([#d0ba190](https://github.com/pol-sb/MatDBForge/commit/d0ba19013b3221adb9bc31ccbe92405a9021ef7c))
+
 ## 0.43.6 (2025-11-03)
 
 ### Fix
