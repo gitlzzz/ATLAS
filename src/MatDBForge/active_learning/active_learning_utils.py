@@ -656,11 +656,11 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
     from dscribe.descriptors import SOAP
 
     # Setting default SOAP parameters
-    r_cut = descriptor_settings.get('r_cut', 6.0)
-    n_max = int(descriptor_settings.get('n_max', 8))
-    l_max = int(descriptor_settings.get('l_max', 6))
-    periodic = descriptor_settings.get('periodic', True)
-    average = descriptor_settings.get('average', 'off')
+    r_cut = descriptor_settings.pop('r_cut', 6.0)
+    n_max = int(descriptor_settings.pop('n_max', 8))
+    l_max = int(descriptor_settings.pop('l_max', 6))
+    periodic = descriptor_settings.pop('periodic', True)
+    average = descriptor_settings.pop('average', 'off')
 
     # Getting the species from the database
     species = get_species_from_database(database)
@@ -673,6 +673,7 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
         n_max=n_max,
         average=average,
         l_max=l_max,
+        **descriptor_settings,
     )
 
     descriptor_dict = {}
@@ -682,8 +683,11 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
     for struct in database:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
-        else:
+        elif struct.info.get('aiida_uuid'):
             struct_key = struct.info.get('aiida_uuid')
+        else:
+            struct_key = str(uuid4())
+            struct.info['mdb_id'] = struct_key
 
         # Creating empty lists to store the descriptors if not already present
         if descriptor_dict.get(struct_key) is None:
