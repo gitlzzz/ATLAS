@@ -2471,6 +2471,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         if should_run is False:
             self.report('Stopping AL Loop due to passed safeguard check!')
+
+            # DEBUG: Check if this will stop the safeguard check loop
+            self.ctx.safeguard_check_done = True
+
         return should_run
 
     def run_safeguard_check(self):
@@ -2586,7 +2590,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             code = orm.ContainerizedCode(
                 computer=computer,
                 image_name=image_name,
-                filepath_executable='mdb_process_structure.py',
+                filepath_executable='mdb_run_safeguard_md.py',
                 prepend_text=prepend_text,
                 engine_command=engine_command,
             )
@@ -2743,6 +2747,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f'Submission done. Running MD for {len(self.ctx.process_safeguard_results)}'
             ' safeguard structures...'
         )
+        del target_md_structs
 
     def parse_safeguard_check_results(self):
         """Check safeguard output, setting flags to stop/continue the AL Loop."""
@@ -2819,6 +2824,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if len(safeguard_errored_ids) == tot_num_safeguard_calcs:
                 self.report('All safeguard calculations errored. Stopping AL Loop.')
                 self.ctx.safeguard_check_done = True
+                del self.ctx.process_safeguard_results
             elif len(safeguard_failed_ids) > 0:
                 self.report(
                     f'Safeguard check failed for {len(safeguard_failed_ids)}'
