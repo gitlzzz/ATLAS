@@ -45,10 +45,10 @@ dependencies = [
 dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==4.1.1", "ipdb"]
 mace = [
     "mace-torch==0.3.14",
-    "torch==2.5.0",
-    "cuequivariance",
-    "cuequivariance-torch",
-    "cuequivariance-ops-torch-cu12",
+    "torch>=2.5.0",
+    "cuequivariance==0.5.1",
+    "cuequivariance-torch==0.5.1",
+    "cuequivariance-ops-torch-cu12==0.5.1",
 ]
 
 [project.urls]
