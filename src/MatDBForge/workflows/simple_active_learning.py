@@ -2820,8 +2820,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     'out of domain frames.'
                 )
 
+            self.logger.debug(f'Errored structures count: {len(safeguard_errored_ids)}')
+            self.logger.debug(f'Failed structures count: {len(safeguard_failed_ids)}')
+            self.logger.debug(f'Passed structures count: {len(safeguard_passed_ids)}')
+
             # Set flags based on safeguard results
-            if len(safeguard_errored_ids) == tot_num_safeguard_calcs:
+            if len(safeguard_errored_ids) >= tot_num_safeguard_calcs:
                 self.report('All safeguard calculations errored. Stopping AL Loop.')
                 self.ctx.safeguard_check_done = True
                 del self.ctx.process_safeguard_results
