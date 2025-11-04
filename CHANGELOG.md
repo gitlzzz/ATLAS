@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.43.8 (2025-11-04)
+
+### Fix
+
+- **safeguard**: improve check for `safeguard_errored_ids` ([#da743e7](https://github.com/pol-sb/MatDBForge/commit/da743e7260bdc791de27b7921c136038755bd223))
+
+### Misc
+
+- **core**: pin cuequivariance versions to `0.5.1` to allow usage of old mace models ([#602fc73](https://github.com/pol-sb/MatDBForge/commit/602fc733eecf6c4f3aea8a4611ba5d98a510d3c6))
+- **safeguard**: add safeguard section to cz commit messages ([#87741fa](https://github.com/pol-sb/MatDBForge/commit/87741fac26af59de41eef500079afb6a7207fc14))
+
 ## 0.43.7 (2025-11-03)
 
 ### Fix
