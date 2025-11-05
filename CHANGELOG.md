@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.43.9 (2025-11-05)
+
+### Fix
+
+- **al_loop**: add `cls.safeguard_not_attempted` to al_loop to ensure proper execution of safeguard ([#bf137b9](https://github.com/pol-sb/MatDBForge/commit/bf137b96e964a55722dcfee0818ec93a84a7a4ec))
+- **al_loop**: improve check for existence of autoencoder model and concave hull file in md inputs ([#2cd6d7f](https://github.com/pol-sb/MatDBForge/commit/2cd6d7f924fbd03a738bdbc872d24c315c82c3f1))
+- **domain_validity**: remove extra commas from prints in `mdb_check_descr_combined.py` script ([#c6a8656](https://github.com/pol-sb/MatDBForge/commit/c6a86564608092659200d055b9f666edc5770f62))
+
 ## 0.43.8 (2025-11-04)
 
 ### Fix
