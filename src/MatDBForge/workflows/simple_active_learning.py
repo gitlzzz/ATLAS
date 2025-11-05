@@ -1694,9 +1694,11 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     cls.add_dft_results_to_db,
                     cls.get_al_loop_break_conditions,
                 ),
-                # Run safeguard check
-                cls.run_safeguard_check,
-                cls.parse_safeguard_check_results,
+                if_(cls.safeguard_not_attempted)(
+                    # Run safeguard check
+                    cls.run_safeguard_check,
+                    cls.parse_safeguard_check_results,
+                ),
             ),
             cls.results_final,
         )
@@ -2120,6 +2122,16 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.ctx.last_workchain_completed = node
         self.logger.log(15, f'Done getting results for iteration {self.ctx.iteration}.')
+
+        # Resetting safeguard attempted flag
+        # The reasoning behind this is that the safeguard must only be attempted
+        # once per AL step at most. Since here we are finishing an AL step correctly
+        # the safeguard flag is set to False. After the safeguard is run, the flag is
+        # set to True. In that way, it can only be reset here when a new AL step is
+        # completed.
+        self.logger.debug('Setting safeguard_attempted flag to False.')
+        self.ctx.safeguard_attempted = False
+
         return None
 
     def add_dft_results_to_db(self):
@@ -2303,6 +2315,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Initialize safeguard setttings
         self.ctx.safeguard_check_done = False
+        self.ctx.safeguard_attempted = False
 
         self.report('Workchain setup finished.')
 
@@ -2430,6 +2443,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         return continue_cond
 
+    def safeguard_not_attempted(self) -> bool:
+        self.logger.debug('Checking if safeguard has not been attempted yet...')
+        self.logger.debug(f'Safeguard attempted: {self.ctx.safeguard_attempted}')
+
+        return not self.ctx.safeguard_attempted
+
     def should_run_according_to_safeguard_check(self) -> bool:
         """
         Decide whether to continue the AL loop based on the safeguard check.
@@ -2458,6 +2477,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             f'Is current step below maximum allowed step? {below_max_iterations}.'
         )
         self.report(f'Did previous AL stop with errors? {al_error_stop}.')
+
+        self.report(f'Safeguard attempted: {self.ctx.safeguard_attempted}')
 
         # This will be True if the safeguard check allows to continue the loop
         should_run = (
@@ -2823,6 +2844,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.logger.debug(f'Errored structures count: {len(safeguard_errored_ids)}')
             self.logger.debug(f'Failed structures count: {len(safeguard_failed_ids)}')
             self.logger.debug(f'Passed structures count: {len(safeguard_passed_ids)}')
+
+            self.ctx.safeguard_attempted = True
 
             # Set flags based on safeguard results
             if len(safeguard_errored_ids) >= tot_num_safeguard_calcs:
