@@ -97,6 +97,7 @@ if __name__ == '__main__':
     auto_settings = descriptor_settings.get('autoencoder', {})
     auto_train_settings = auto_settings.get('train_settings', {})
     auto_path = auto_train_settings.get('model_path', 'autoencoder_model.pth')
+
     mdb_cut.custom_print(f"Using device '{device}' and dtype '{dtype}'", 'info')
 
     # Get settings for concave hull if available
@@ -115,7 +116,7 @@ if __name__ == '__main__':
     mdb_cut.custom_print(
         f'Read concave hull settings. Target alpha range: {target_alpha_range}, '
         f'default alpha if issues: {default_alpha_if_issues}, '
-        f'NN distance scale factor: {nn_dist_scale_factor}',
+        f'NN distance scale factor: {nn_dist_scale_factor}, '
         f'Fraction of points allowed outside: {frac_points_allowed_out}',
         'info',
     )
