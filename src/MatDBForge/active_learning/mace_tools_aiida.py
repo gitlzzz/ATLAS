@@ -205,7 +205,9 @@ class ProcessMDSeedStructCalculation(CalcJob):
         )
 
         # Copying concave hull for extrapolation
-        if hasattr(self.inputs, 'concave_hull'):
+        if hasattr(self.inputs, 'concave_hull') and isinstance(
+            self.inputs.concave_hull, (np.ndarray, orm.ArrayData)
+        ):
             concave_hull = self.inputs.concave_hull.get_array()
             with tempfile.NamedTemporaryFile(
                 mode='w',
@@ -224,7 +226,10 @@ class ProcessMDSeedStructCalculation(CalcJob):
             Path(f.name).unlink(missing_ok=True)
 
         # Copying concave hull for extrapolation
-        if self.inputs.autoencoder_model:
+        if hasattr(self.inputs, 'autoencoder_model') and isinstance(
+            self.inputs.autoencoder_model,
+            orm.SinglefileData,
+        ):
             with self.inputs.autoencoder_model.as_path() as autoencoder_path:
                 folder.insert_path(
                     src=autoencoder_path,
