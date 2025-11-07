@@ -12,28 +12,28 @@ All keys are mandatory unless stated otherwise.
 General settings and file paths for the database.
 
 
-- `database_name`: (str) Name of the database to be used for internal reference and as the filename.
+- :alt:`database_name`: (str) Name of the database to be used for internal reference and as the filename.
   - Example: `'my_material_db'`.
 
-- `min_num_atoms`: (int) Minimum number of atoms allowed in the generated structures.
+- :alt:`min_num_atoms`: (int) Minimum number of atoms allowed in the generated structures.
   - Default is `64`.
 
-- `max_num_atoms`: (int) Maximum number of atoms allowed in the generated structures.
+- :alt:`max_num_atoms`: (int) Maximum number of atoms allowed in the generated structures.
   - Default is `128`.
 
-- `min_cell_size`: (float) Minimum cell size in Angstrom.
+- :alt:`min_cell_size`: (float) Minimum cell size in Angstrom.
   - Default is `5.0`.
 
-- `relax_struct_path`: (optional, str) Path to a folder containing DFT optimized structures.
+- :alt:`relax_struct_path`: (optional, str) Path to a folder containing DFT optimized structures.
   - Default is `''`.
 
-- `database_path`: (str, PosixPath) Path where the final database will be saved.
+- :alt:`database_path`: (str, PosixPath) Path where the final database will be saved.
   - Default is `''`.
 
-- `rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run.
+- :alt:`rng_seed`: (optional, int) Numerical value used to fix the RNG seed. If not specified, it will be chosen randomly each run.
   - Example: `42`.
 
-- `overwrite_db`: (optional, bool) Allow database overwrite. If false, and the database exists, the new database name will include a timestamp.
+- :alt:`overwrite_db`: (optional, bool) Allow database overwrite. If false, and the database exists, the new database name will include a timestamp.
   - Default is `False`.
 
 #### Composition - `[database.composition]`
@@ -41,7 +41,7 @@ General settings and file paths for the database.
 Settings for the composition of the database.
 
 
-- `size`: (int) Maximum number of structures to generate for the database.
+- :alt:`size`: (int) Maximum number of structures to generate for the database.
   - Default is `7500`.
 
 ##### Ratios - `[database.composition.ratios]`
@@ -49,13 +49,13 @@ Settings for the composition of the database.
 Fraction of different structure types. The sum of the fractions must be equal to 1.0.
 
 
-- `bulk`: (float) Fraction of structures that will be bulk.
+- :alt:`bulk`: (float) Fraction of structures that will be bulk.
   - Default is `0.4`.
 
-- `surface`: (float) Fraction of structures that will be surfaces.
+- :alt:`surface`: (float) Fraction of structures that will be surfaces.
   - Default is `0.6`.
 
-- `cluster`: (optional, float) Fraction of structures that will be clusters.
+- :alt:`cluster`: (optional, float) Fraction of structures that will be clusters.
   - Default is `0.0`.
 
 #### Plot_Db - `[database.plot_db]`
@@ -63,10 +63,10 @@ Fraction of different structure types. The sum of the fractions must be equal to
 Display and Export Options for the phase diagram plot.
 
 
-- `show`: (optional, bool) Whether to display the database with a phase diagram after creation.
+- :alt:`show`: (optional, bool) Whether to display the database with a phase diagram after creation.
   - Default is `True`.
 
-- `format`: (optional, str) Format for the figure.
+- :alt:`format`: (optional, str) Format for the figure.
   - Default is `'png'`.
   - Possible values are: `png`, `svg`.
 
@@ -75,10 +75,10 @@ Display and Export Options for the phase diagram plot.
 Matplotlib rcParams for the plot.
 
 
-- `font.family`: (str) Font family for the phase diagram plot.
+- :alt:`font.family`: (str) Font family for the phase diagram plot.
   - Default is `'monospace'`.
 
-- `font.size`: (int) Font size for the phase diagram plot.
+- :alt:`font.size`: (int) Font size for the phase diagram plot.
   - Default is `14`.
 
 #### Show_Db_Ase - `[database.show_db_ase]`
@@ -90,7 +90,7 @@ This section is optional.
 :::
 
 
-- `show`: (optional, bool) Whether to display the database using ASE GUI after creation.
+- :alt:`show`: (optional, bool) Whether to display the database using ASE GUI after creation.
   - Default is `False`.
 
 #### Export - `[database.export]`
@@ -98,16 +98,16 @@ This section is optional.
 Export options for the database.
 
 
-- `export`: (bool) Whether to export the database.
+- :alt:`export`: (bool) Whether to export the database.
   - Default is `True`.
 
-- `format`: (str) Export format supported by ASE (e.g., 'extxyz').
+- :alt:`format`: (str) Export format supported by ASE (e.g., 'extxyz').
   - Default is `'extxyz'`.
 
-- `file_path`: (str, PosixPath) Path where the exported file will be saved.
+- :alt:`file_path`: (str, PosixPath) Path where the exported file will be saved.
   - Default is `''`.
 
-- `file_name`: (str) Name of the exported file.
+- :alt:`file_name`: (str) Name of the exported file.
   - Default is `'export_db_filename'`.
 
 ### Phase_Diagram - `[phase_diagram]`
@@ -115,17 +115,17 @@ Export options for the database.
 Description of the phase diagram.
 
 
-- `material_name`: (str) Internal name for the material in the phase diagram.
+- :alt:`material_name`: (str) Internal name for the material in the phase diagram.
   - Default is `'default_material_name'`.
 
-- `element_list`: (list[str]) List of elements to include in the phase diagram.
+- :alt:`element_list`: (list[str]) List of elements to include in the phase diagram.
   - Example:
 
 ```python
 ['Cu', 'O']
 ```
 
-- `base_element`: (str) Symbol of the most abundant element in the phase.
+- :alt:`base_element`: (str) Symbol of the most abundant element in the phase.
   - Example: `'Cu'`.
 
 #### Defines a specific phase within the phase diagram. Multiple phases can be added. - `[phase_diagram.phase.XXXXX]`
@@ -137,44 +137,44 @@ The key name (`XXXXX`) is used as the reference name. **Replace XXXXX with a nam
 Example parameters for each entry:
 
 
-- `name`: (str) Name to be used as reference for the phase.
+- :alt:`name`: (str) Name to be used as reference for the phase.
   - Example: `'alpha'`.
 
-- `cluster_element`: (optional, str) Symbol of the element defining the cluster.
+- :alt:`cluster_element`: (optional, str) Symbol of the element defining the cluster.
 
-- `prototype`: (str) Materials Project ID of the prototypical structure.
+- :alt:`prototype`: (str) Materials Project ID of the prototypical structure.
   - Example: `'mp-30'`.
 
-- `offset`: (float) Fraction of composition allowed over and under the phase limits.
+- :alt:`offset`: (float) Fraction of composition allowed over and under the phase limits.
   - Default is `0.1`.
 
-- `limit_max_num_structures`: (optional, int) Maximum number of structures to generate for this phase.
+- :alt:`limit_max_num_structures`: (optional, int) Maximum number of structures to generate for this phase.
   - Default is `100`.
 
-- `allow_modifications`: (optional, bool) Allow modifications (supercells, replacements, etc.) to the base structure.
+- :alt:`allow_modifications`: (optional, bool) Allow modifications (supercells, replacements, etc.) to the base structure.
   - Default is `True`.
 
-- `use_cache`: (optional, bool) Store structures in cache to speed up generation. Can consume a lot of disk space.
+- :alt:`use_cache`: (optional, bool) Store structures in cache to speed up generation. Can consume a lot of disk space.
   - Default is `False`.
 
 Parameters using `composition.` prefix:
 
-- `composition.min`: (float) Minimum composition as a fraction of the current phase element.
+- :alt:`composition.min`: (float) Minimum composition as a fraction of the current phase element.
   - Example: `0.1`.
-- `composition.max`: (float) Maximum composition as a fraction of the current phase element.
+- :alt:`composition.max`: (float) Maximum composition as a fraction of the current phase element.
   - Example: `0.25`.
 
 Parameters using `replacements.` prefix:
 
-- `replacements.replace`: (optional, bool) Whether to replace specific elements. Elements in element_list will be considered for replacement and replaced by a single element species.
+- :alt:`replacements.replace`: (optional, bool) Whether to replace specific elements. Elements in element_list will be considered for replacement and replaced by a single element species.
   - Default is `False`.
-- `replacements.element_list`: (optional, list[str]) List of elements to be replaced.
+- :alt:`replacements.element_list`: (optional, list[str]) List of elements to be replaced.
   - Example:
 
 ```python
 ['Ti']
 ```
-- `replacements.replace_with`: (optional, str) Element to replace with.
+- :alt:`replacements.replace_with`: (optional, str) Element to replace with.
   - Example: `'Ir'`.
 
 ### Generation - `[generation]`
@@ -182,7 +182,7 @@ Parameters using `replacements.` prefix:
 Structure generation settings.
 
 
-- `generate_type`: (list[str]) Types of structures to generate.
+- :alt:`generate_type`: (list[str]) Types of structures to generate.
   - Default is `['bulk', 'surface', 'cluster']`.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
@@ -191,13 +191,13 @@ Structure generation settings.
 Bulk structure generation settings.
 
 
-- `num_struct`: (int) Number of structures to generate.
+- :alt:`num_struct`: (int) Number of structures to generate.
   - Default is `25`.
 
-- `num_repeat`: (int) Number of repeats for each structure.
+- :alt:`num_repeat`: (int) Number of repeats for each structure.
   - Default is `5`.
 
-- `supercell_max_idx`: (int) Maximum Miller index for the bulk supercells.
+- :alt:`supercell_max_idx`: (int) Maximum Miller index for the bulk supercells.
   - Default is `2`.
 
 #### Surface - `[generation.surface]`
@@ -205,46 +205,46 @@ Bulk structure generation settings.
 Surface structure generation settings.
 
 
-- `min_miller_index`: (int) Minimum Miller index used to generate surface structures.
+- :alt:`min_miller_index`: (int) Minimum Miller index used to generate surface structures.
   - Default is `1`.
 
-- `max_miller_index`: (int) Maximum Miller index used to generate surface structures.
+- :alt:`max_miller_index`: (int) Maximum Miller index used to generate surface structures.
   - Default is `3`.
 
-- `min_slab_size_ang`: (optional, float) Minimum slab thickness in Angstrom.
+- :alt:`min_slab_size_ang`: (optional, float) Minimum slab thickness in Angstrom.
   - Default is `7.0`.
 
-- `min_vacuum_size_ang`: (float) Minimum size of the vacuum layer in Angstroms.
+- :alt:`min_vacuum_size_ang`: (float) Minimum size of the vacuum layer in Angstroms.
   - Default is `12.0`.
 
-- `get_supercells`: (bool) Whether to generate supercells for surface structures.
+- :alt:`get_supercells`: (bool) Whether to generate supercells for surface structures.
   - Default is `True`.
 
-- `fixed_layers`: (int) Number of fixed layers in the surface slab.
+- :alt:`fixed_layers`: (int) Number of fixed layers in the surface slab.
   - Default is `3`.
 
-- `max_number_supercells`: (int) Maximum number of surface supercells to generate.
+- :alt:`max_number_supercells`: (int) Maximum number of surface supercells to generate.
   - Default is `200`.
 
-- `save_in_db`: (bool) Whether to save generated surfaces in the database.
+- :alt:`save_in_db`: (bool) Whether to save generated surfaces in the database.
   - Default is `True`.
 
-- `num_replacements`: (int) Number of replacement percentages to generate for each structure.
+- :alt:`num_replacements`: (int) Number of replacement percentages to generate for each structure.
   - Default is `20`.
 
-- `num_repeat_replace`: (int) Number of repeats for each replacement.
+- :alt:`num_repeat_replace`: (int) Number of repeats for each replacement.
   - Default is `2`.
 
-- `frac_slabs_save`: (optional, float) Fraction of slabs to save after generation.
+- :alt:`frac_slabs_save`: (optional, float) Fraction of slabs to save after generation.
   - Default is `0.1`.
 
-- `frac_supercells_save`: (optional, float) Fraction of unreplaced supercells to save after generation.
+- :alt:`frac_supercells_save`: (optional, float) Fraction of unreplaced supercells to save after generation.
   - Default is `0.1`.
 
-- `max_slab_num`: (int) Maximum number of slabs to gather from the slab generation.
+- :alt:`max_slab_num`: (int) Maximum number of slabs to gather from the slab generation.
   - Default is `15`.
 
-- `n_workers`: (optional, int) Maximum number of workers for parallel processing.
+- :alt:`n_workers`: (optional, int) Maximum number of workers for parallel processing.
 
 ### Deformation - `[deformation]`
 
@@ -255,16 +255,16 @@ This section is optional.
 :::
 
 
-- `lattice_frac_deform_max`: (float) Maximum deformation value as a percentage of the lattice side length.
+- :alt:`lattice_frac_deform_max`: (float) Maximum deformation value as a percentage of the lattice side length.
   - Default is `0.05`.
 
-- `lattice_frac_deform_min`: (float) Minimum deformation value as a percentage of the lattice side length.
+- :alt:`lattice_frac_deform_min`: (float) Minimum deformation value as a percentage of the lattice side length.
   - Default is `0.01`.
 
-- `num_repeats`: (int) Number of repeats for each structure with random deformations.
+- :alt:`num_repeats`: (int) Number of repeats for each structure with random deformations.
   - Default is `5`.
 
-- `limit_max_num_deformations`: (int) Maximum number of lattice deformations to generate.
+- :alt:`limit_max_num_deformations`: (int) Maximum number of lattice deformations to generate.
   - Default is `100`.
 
 ### Perturbation - `[perturbation]`
@@ -276,17 +276,17 @@ This section is optional.
 :::
 
 
-- `filter_struct_types`: (list[str]) Types of structures to which the perturbation will be applied.
+- :alt:`filter_struct_types`: (list[str]) Types of structures to which the perturbation will be applied.
   - Default is `['bulk', 'surface']`.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
-- `limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
+- :alt:`limit_max_num_perturbs`: (int) Maximum number of perturbations to generate.
   - Default is `100`.
 
-- `num_repeats`: (int) Number of repeats for each structure with random perturbations.
+- :alt:`num_repeats`: (int) Number of repeats for each structure with random perturbations.
   - Default is `1`.
 
-- `perturbation_ang`: (optional, float) Perturbation magnitude in Angstrom.
+- :alt:`perturbation_ang`: (optional, float) Perturbation magnitude in Angstrom.
   - Default is `0.04`.
 
 ### Adsorbates - `[adsorbates]`
@@ -298,17 +298,17 @@ This section is optional.
 :::
 
 
-- `filter_struct_types`: (optional, list[str]) Types of structures to which adsorbates will be added.
+- :alt:`filter_struct_types`: (optional, list[str]) Types of structures to which adsorbates will be added.
   - Default is `['surface']`.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
-- `limit_max_num_perturbs`: (optional, int) Maximum number of structures with adsorbates to generate.
+- :alt:`limit_max_num_perturbs`: (optional, int) Maximum number of structures with adsorbates to generate.
   - Default is `100`.
 
-- `num_repeats`: (int) Number of repeats for each structure.
+- :alt:`num_repeats`: (int) Number of repeats for each structure.
   - Default is `1`.
 
-- `adsorbate_species`: (list[str]) List of adsorbate species to consider.
+- :alt:`adsorbate_species`: (list[str]) List of adsorbate species to consider.
   - Example:
 
 ```python
@@ -329,7 +329,7 @@ This section is optional.
 Filter for structures with atoms that have no neighbors.
 
 
-- `cov_rad_multiplier`: (optional, float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check.
+- :alt:`cov_rad_multiplier`: (optional, float) Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check.
   - Default is `1.2`.
 
 #### Layer_Distance - `[struct_filters.layer_distance]`
@@ -341,7 +341,7 @@ This section is optional.
 :::
 
 
-- `max_layer_distance_ang`: (optional, float) Maximum accepted distance between layers in Angstrom.
+- :alt:`max_layer_distance_ang`: (optional, float) Maximum accepted distance between layers in Angstrom.
   - Default is `4.0`.
 
 #### Duplicate_Slabs - `[struct_filters.duplicate_slabs]`
@@ -353,7 +353,7 @@ This section is optional.
 :::
 
 
-- `tolerance`: (optional, float) Tolerance for the duplicate slabs filter.
+- :alt:`tolerance`: (optional, float) Tolerance for the duplicate slabs filter.
   - Default is `0.2`.
 
 ### Vacancies - `[vacancies]`
@@ -361,23 +361,23 @@ This section is optional.
 Settings for vacancy generation.
 
 
-- `filter_struct_types`: (list[str]) Types of structures to which vacancies will be applied.
+- :alt:`filter_struct_types`: (list[str]) Types of structures to which vacancies will be applied.
   - Default is `['bulk', 'surface']`.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
-- `limit_max_num_vacancies`: (optional, int) Maximum number of structures with vacancies to generate.
+- :alt:`limit_max_num_vacancies`: (optional, int) Maximum number of structures with vacancies to generate.
   - Default is `400`.
 
-- `num_repeats`: (int) Number of repeats for each structure with different random vacancies.
+- :alt:`num_repeats`: (int) Number of repeats for each structure with different random vacancies.
   - Default is `3`.
 
-- `max_vacancy_percentage`: (float) Maximum vacancies to generate as a percentage of the total number of atoms.
+- :alt:`max_vacancy_percentage`: (float) Maximum vacancies to generate as a percentage of the total number of atoms.
   - Default is `0.75`.
 
-- `min_vacancy_percentage`: (float) Minimum vacancies to generate as a percentage of the total number of atoms.
+- :alt:`min_vacancy_percentage`: (float) Minimum vacancies to generate as a percentage of the total number of atoms.
   - Default is `0.025`.
 
-- `element_list`: (list[str]) List of elements to consider for the vacancies.
+- :alt:`element_list`: (list[str]) List of elements to consider for the vacancies.
   - Example:
 
 ```python
@@ -402,27 +402,27 @@ This section is optional.
 :::
 
 
-- `filter_phases`: (optional, list[str]) Only apply the modification to the following phases.
+- :alt:`filter_phases`: (optional, list[str]) Only apply the modification to the following phases.
   - Example:
 
 ```python
 ['rutile', 'original_IrO2']
 ```
 
-- `filter_struct_types`: (optional, list[str]) Types of structures to which the modification will be applied.
+- :alt:`filter_struct_types`: (optional, list[str]) Types of structures to which the modification will be applied.
   - Default is `['bulk', 'surface']`.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
-- `central_element`: (optional, str) Symbol of the central element of the octahedral site.
+- :alt:`central_element`: (optional, str) Symbol of the central element of the octahedral site.
   - Example: `'Ir'`.
 
-- `num_repeats`: (optional, int) Number of repeats for each structure with different perturbations.
+- :alt:`num_repeats`: (optional, int) Number of repeats for each structure with different perturbations.
   - Default is `3`.
 
-- `limit_max_num_modifications`: (optional, int) Maximum number of modified structures to generate.
+- :alt:`limit_max_num_modifications`: (optional, int) Maximum number of modified structures to generate.
   - Default is `200`.
 
-- `max_perturbation_ang`: (optional, float) Maximum perturbation movement of the central atom in Angstrom.
+- :alt:`max_perturbation_ang`: (optional, float) Maximum perturbation movement of the central atom in Angstrom.
   - Default is `0.2`.
 
 ### Concave_Hull - `[concave_hull]`
@@ -434,16 +434,16 @@ This section is optional.
 :::
 
 
-- `gen_concave_hull`: (optional, bool) Whether to generate the concave hull of the descriptors for all structures in the database.
+- :alt:`gen_concave_hull`: (optional, bool) Whether to generate the concave hull of the descriptors for all structures in the database.
   - Default is `False`.
 
-- `descriptor`: (optional, str) Descriptor to use for the concave hull generation.
+- :alt:`descriptor`: (optional, str) Descriptor to use for the concave hull generation.
   - Default is `'SOAP'`.
   - Possible values are: `SOAP`, `MACE`.
 
-- `dim_reduction`: (optional, str) Dimensionality reduction method for the concave hull generation.
+- :alt:`dim_reduction`: (optional, str) Dimensionality reduction method for the concave hull generation.
   - Default is `'autoencoder'`.
   - Possible values are: `PCA`, `autoencoder`.
 
-- `plot_filename`: (optional, str) Filename for the figure displaying the concave hull.
+- :alt:`plot_filename`: (optional, str) Filename for the figure displaying the concave hull.
   - Default is `'descriptors_concave_hull.png'`.
