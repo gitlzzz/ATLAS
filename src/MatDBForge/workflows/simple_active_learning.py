@@ -412,8 +412,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
             model_files=model_files,
         )
 
-        breakpoint()
-
         # Remove selected structures from seed database
         selected_ids = {s.info['mdb_id'] for s in selected_structures}
         remaining_seed_database = [
@@ -819,23 +817,54 @@ class SimpleActiveLearningWorkChain(WorkChain):
             f'descriptors-combined_iter-{self.inputs.al_loop_iteration.value}'
         )
 
+        # Getting the best model file
+        desc_builder.best_model = self.ctx.best_model_file
+
+        # Getting settings file path
+        settings_file_pth = self.inputs.toml_file
+
+        # Loading the settings file again to get updated settings
+        breakpoint()
+        settings_path = Path(self.inputs.toml_file.value)
+        if settings_path.exists:
+            current_settings = mdb_al_ut.read_toml_settings(
+                settings_file=self.inputs.toml_file.value
+            )
+            self.logger.debug(
+                f'Reloaded settings from file: {self.inputs.toml_file.value}'
+            )
+        else:
+            current_settings = {}
+
+        if current_settings.get('active_learning', {}).get('results_dir'):
+            results_dir = current_settings['active_learning'].get('results_dir', '')
+            final_db_name = current_settings['active_learning'].get('final_db_name', '')
+        else:
+            results_dir = self.inputs.results_dir.value
+            final_db_name = self.inputs.final_db_name.value
+
+        desc_builder.settings_file_path = settings_file_pth
+
+        if current_settings.get('descriptors'):
+            descriptor_settings = current_settings.get('descriptors', {})
+        else:
+            descriptor_settings = self.inputs.descriptor_settings
+
+        if current_settings.get('check_extrapolation_type'):
+            check_extrapolation_type = current_settings.get('check_extrapolation_type')
+        else:
+            check_extrapolation_type = self.inputs.check_extrapolation_type.value
+
         # Getting the current seed structures
         mace_train_file_path, _ = mdb_al_ut.get_final_db_path(
-            result_dir_path=self.inputs.results_dir.value,
-            final_db_name=self.inputs.final_db_name.value,
+            result_dir_path=results_dir,
+            final_db_name=final_db_name,
             node=self.node,
         )
         desc_builder.training_database_path = str(mace_train_file_path)
 
         if not desc_builder.training_database_path.is_stored:
             desc_builder.training_database_path.store()
-
-        # Getting the best model file
-        desc_builder.best_model = self.ctx.best_model_file
-
-        # Getting settings file path
-        settings_file_pth = self.inputs.toml_file
-        desc_builder.settings_file_path = settings_file_pth
 
         # Get the autoencoder model file. If not found, the calculation will be
         # submitted without providing the file and a new one will be trained
@@ -849,22 +878,21 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
 
         # Loading metadata settings
-        computer = orm.load_computer(
-            self.inputs.descriptor_settings['metadata']['computer']
-        )
+        computer = orm.load_computer(descriptor_settings['metadata']['computer'])
         desc_builder.metadata.computer = computer
 
-        resources_dict = self.inputs.descriptor_settings['metadata']['options'][
-            'resources'
-        ]
+        # Getting resources dict
+        resources_dict = descriptor_settings['metadata']['options']['resources']
         num_threads = resources_dict.get('num_cores_per_mpiproc', 2)
-        ignore_container = self.inputs.descriptor_settings.get(
-            'ignore_container', False
-        )
 
         # Getting container settings
+        ignore_container = descriptor_settings.get('ignore_container', False)
         containerized = False
-        container_dict = self.inputs.container_settings.get_dict()
+        if current_settings.get('code', {}).get('container'):
+            container_dict = current_settings['code']['container']
+        else:
+            container_dict = self.inputs.container_settings.get_dict()
+
         if container_dict.get('use_container'):
             containerized = container_dict.get('use_container', False)
         if ignore_container is True:
@@ -874,7 +902,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             image_name = container_dict.get('image_name', '')
             engine_command = container_dict.get('engine_command', '')
             prepend_text = (
-                self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
+                descriptor_settings['metadata'].get('prepend_text', '')
                 + '\n'
                 + container_dict.get('prepend_text', '')
                 + f'\nexport OMP_NUM_THREADS={num_threads}'
@@ -888,7 +916,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
         else:
             prepend_text = (
-                self.inputs.descriptor_settings['metadata'].get('prepend_text', '')
+                descriptor_settings['metadata'].get('prepend_text', '')
                 + '\nexport PATH=$PATH:.'
                 + f'\nexport OMP_NUM_THREADS={num_threads}'
             )
@@ -901,9 +929,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         desc_builder.code = code
 
         # Loading AiiDA settings
-        mace_eval_aiida_settings_dict = self.inputs.descriptor_settings['metadata'][
-            'options'
-        ]
+        mace_eval_aiida_settings_dict = descriptor_settings['metadata']['options']
 
         # Load scheduler and resources options
         desc_builder.metadata.options = mace_eval_aiida_settings_dict
@@ -923,7 +949,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
 
         future = self.submit(desc_builder)
-        if self.inputs.check_extrapolation_type.value in ['advanced', 'alpha-shape']:
+        if check_extrapolation_type in ['advanced', 'alpha-shape']:
             self.report(
                 f'Submitted calculation ({future.pk}) for descriptors + concave hull.'
             )
@@ -1088,7 +1114,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     settings_file=self.inputs.toml_file.value
                 )
             else:
-                current_settings = None
+                current_settings = {}
 
             # Preparing comitee dict
             commitee_dict = {}
