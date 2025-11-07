@@ -647,8 +647,11 @@ def generate_descriptors_mace(
     for struct in database:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
-        else:
+        elif struct.info.get('aiida_uuid'):
             struct_key = struct.info.get('aiida_uuid')
+        else:
+            struct_key = str(uuid4())
+            struct.info['mdb_id'] = struct_key
 
         # Creating empty lists to store the descriptors if not already present
         if descriptor_dict.get(struct_key) is None:
