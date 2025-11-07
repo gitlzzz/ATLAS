@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.44.0 (2025-11-07)
+
+### Docs
+
+- **md**: improve MD CalcJobs help messages ([#007684f](https://github.com/pol-sb/MatDBForge/commit/007684f4cea917468f639eff7e98cde538f56bfe))
+
+### Feature
+
+- **al_loop**: add `load_md_calcs` AL input to load previously finished MD calculations ([#c72699d](https://github.com/pol-sb/MatDBForge/commit/c72699d23b2facd23403ec94ec6ef3a0e7f7d130))
+- **domain_validity**: allow mace foundation models for mace descriptors in descriptor calculation ([#b4f0817](https://github.com/pol-sb/MatDBForge/commit/b4f08170b7b36d8098d8b7bef033a0d3c16a48df))
+- **domain_validity**: add `outer_average` option to MACE descriptors ([#051fa4b](https://github.com/pol-sb/MatDBForge/commit/051fa4bbb8762f02968a8b30f38d3e9221cbce61))
+
+### Fix
+
+- **al_loop**: change `current_settings` initialization to empty dict instead of None to avoid errors with the .get() method ([#be917df](https://github.com/pol-sb/MatDBForge/commit/be917df1512593fa64849e24c7cc6481cb39cbf9))
+- **al_loop**: ensure error state in `SimpleActiveLearningWorkChain` is properly tracked ([#4c46d3c](https://github.com/pol-sb/MatDBForge/commit/4c46d3c0810d493488cce1d9d500cf14bb064749))
+- **domain_validity**: make colorbar optional in `plot_concave_hull` ([#eb821af](https://github.com/pol-sb/MatDBForge/commit/eb821af1324e952a5eecb7cf3511e75f6647cd8b))
+- **domain_validity**: generate structure uuid on the fly during mace descriptor calculation ([#4a8ca9a](https://github.com/pol-sb/MatDBForge/commit/4a8ca9a4acb34eed6cbfad96cc479bb590354586))
+
+### Misc
+
+- **core**: upgrade aiida-core version from `2.6.2` to `2.7.1` ([#a0480e9](https://github.com/pol-sb/MatDBForge/commit/a0480e94f3392744ce8e7a3d6484f24a7f591fe1))
+
+### Refactor
+
+- **al_loop**: change `safeguard_not_attempted` to more robust `should_run_safeguard` check ([#08910c3](https://github.com/pol-sb/MatDBForge/commit/08910c3a140779325a4fad091c70f333dc1a1b01))
+
+### Style
+
+- **al_loop**: add additional informative reports for MD calculation submission ([#36f2f9f](https://github.com/pol-sb/MatDBForge/commit/36f2f9f636edf787780fb39858827342566a3551))
+
 ## 0.43.9 (2025-11-05)
 
 ### Fix
