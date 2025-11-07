@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.44.1 (2025-11-07)
+
+### Fix
+
+- **al_loop**: add dynamic input loading to descriptor calculation ([#9862953](https://github.com/pol-sb/MatDBForge/commit/98629537c362ad808f10e71bc84e4d60d4cabd34))
+
+### Refactor
+
+- **al_loop**: enhance al_loop reporting and logging ([#33d991a](https://github.com/pol-sb/MatDBForge/commit/33d991a704f8a65f4cc10b95de8f3f39b08e04c4))
+
 ## 0.44.0 (2025-11-07)
 
 ### Docs
