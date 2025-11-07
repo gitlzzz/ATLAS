@@ -23,11 +23,43 @@ import MatDBForge.core.initial_db as mdb_indb
 import MatDBForge.core.phase_diagram as mdb_pd
 import MatDBForge.core.structure as mdb_struct
 from MatDBForge.core.code_utils import custom_print, get_config_path
-from MatDBForge.core.surfaces import AdsorbateAdder
 
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 CONFIG_EXAMPLE = {'API_KEY': 'XXXXX...'}
+
+
+class AdsorbateAdder:
+    """Class to add adsorbates to surfaces."""
+
+    def __init__(self, cutoff=1.5, coverage=1.0):
+        """
+        Initialize adsorbate adder with cutoff and coverage.
+
+        Parameters
+        ----------
+        cutoff : float
+            Distance threshold to determine if a site is exposed.
+        coverage : float
+            Fraction of sites to be used for adsorption.
+        """
+        self.cutoff = cutoff
+        self.coverage = coverage
+
+    def is_exposed(self, pos, all_positions, z_pos, z_max):
+        """Check if an atom is exposed."""
+        # Mark atom as exposed if it is among the highest z-axis atoms
+        if abs(z_pos - z_max) < 0.1:
+            return True
+
+        # Standard exposure check
+        for other_pos in all_positions:
+            if (
+                other_pos[2] > z_pos + 0.1
+                and np.linalg.norm(other_pos[:2] - pos[:2]) < self.cutoff
+            ):
+                return False
+        return True
 
 
 def clear_previous_print():

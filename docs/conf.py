@@ -22,6 +22,8 @@ def get_git_commit_hash():
         commit_hash = "unknown"
     return commit_hash
 
+autodoc_mock_imports = ["aiida"]
+
 
 # -- Path setup --------------------------------------------------------------
 
@@ -79,8 +81,8 @@ exclude_patterns = [
     "devel/*",
     "display_db/*",
     "*sync-conflict*",
+    "active_learning.py"
 ]
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -121,3 +123,10 @@ html_context = {
 }
 
 html_context["commit_hash"] = get_git_commit_hash()
+
+# --- sphinx-multiversion configuration ---
+#
+# This will build the 'master' branch AND all tags that
+# start with 'v', while ignoring all other branches.
+
+smv_branch_whitelist = r'^master$'

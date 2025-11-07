@@ -1,6 +1,14 @@
 MatDBForge.workflows package
 ============================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   MatDBForge.workflows.dft
+
 Submodules
 ----------
 
@@ -24,6 +32,14 @@ MatDBForge.workflows.monitors module
 ------------------------------------
 
 .. automodule:: MatDBForge.workflows.monitors
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+MatDBForge.workflows.simple\_active\_learning module
+----------------------------------------------------
+
+.. automodule:: MatDBForge.workflows.simple_active_learning
    :members:
    :undoc-members:
    :show-inheritance:

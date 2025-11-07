@@ -28,6 +28,14 @@ MatDBForge.core.command\_line.cli\_generate\_configuration\_file module
    :undoc-members:
    :show-inheritance:
 
+MatDBForge.core.command\_line.cli\_generate\_docs module
+--------------------------------------------------------
+
+.. automodule:: MatDBForge.core.command_line.cli_generate_docs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 MatDBForge.core.command\_line.cli\_generate\_init\_db module
 ------------------------------------------------------------
 
