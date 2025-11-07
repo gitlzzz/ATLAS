@@ -6,11 +6,11 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-
 import pathlib as pl
 import subprocess
 import sys
 
+doctreedir = './.doctrees'
 
 def get_git_commit_hash():
     try:
