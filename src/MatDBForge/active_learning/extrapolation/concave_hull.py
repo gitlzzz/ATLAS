@@ -453,7 +453,8 @@ def plot_concave_hull(
             linewidths=0,
             c=z,
         )
-        fig.colorbar(scatter, ax=ax, label='Density')
+        if plot_density:
+            fig.colorbar(scatter, ax=ax, label='Density')
 
     if point_inside is not None and point_inside.size != 0:
         ax.scatter(
