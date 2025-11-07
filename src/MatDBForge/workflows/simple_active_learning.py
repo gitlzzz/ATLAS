@@ -1335,6 +1335,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 'There were problems during the processing step (MD).'
             )
 
+            # Setting error to stop the active learning loop
+            self.ctx.stop_al_loop_error = orm.Bool(True)
+
         # Submitting calcs
         calc_count = 0
         for struct in calcs_to_submit:
@@ -1519,6 +1522,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 if len(dft_calcs_ok) == 0:
                     self.report('No DFT calculations finished correctly.')
                     dft_calc_list = ''
+                    self.ctx.stop_al_loop_error = orm.Bool(True)
                 else:
                     self.report(
                         f'Gathering {len(dft_calcs_ok)} VASP DFT calculations '
@@ -1544,6 +1548,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 if len(dft_calcs_ok) == 0:
                     self.report('No DFT calculations finished correctly.')
                     dft_calc_list = ''
+                    self.ctx.stop_al_loop_error = orm.Bool(True)
                 else:
                     # Gather all MACE evaluations, storing results into a file,
                     # stored in `result_list_path`.
