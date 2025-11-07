@@ -276,6 +276,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 '[ ✔ ]',
                 '[ ! ]',
                 '[ X ]',
+                '[...]',
             ]
         )
 
@@ -318,6 +319,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # initialized again, or messages appear doubled.
         if not self.inputs.debug_mode:
             self.set_step_logger()
+            self.logger.debug('Secondary logger setup complete.')
 
         # If notifications are enabled, send start message
         if hasattr(self.inputs, 'enable_ntfysh'):
@@ -765,7 +767,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     f'Committee model training complete for step '
                     f'{self.inputs.al_loop_iteration.value + 1}'
                     f' - {self.node.pk}.\n\n'
-                    f"Best model of current step '{model_name}' ({calc.pk}) as M0 - "
+                    f"Best model of current step: '{model_name}' ({calc.pk}) as M0 - "
                     f'RMSE E: {self.ctx.m0_rmse_e.value:.3f} meV/at, '
                     f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
                 ),
@@ -1230,10 +1232,20 @@ class SimpleActiveLearningWorkChain(WorkChain):
             self.report(f'Submission done for MD calculation: {future.pk}')
 
         self.report(
-            f'All calculation submissions done.'
+            'All calculation submissions done.'
             f'Running MD for {len(self.ctx.process_committee_results)}'
             ' structures...'
         )
+
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'All calculation submissions done.'
+                    f'Running MD for {len(self.ctx.process_committee_results)}'
+                    ' structures...'
+                ),
+            )
 
     def send_calc_or_remove_structures(self):
         """Decide which structures to keep and send to DFT or remove from DB."""
@@ -1491,6 +1503,16 @@ class SimpleActiveLearningWorkChain(WorkChain):
         # If no structure is well represented, nothing will be deleted.
         else:
             self.report('Nothing removed from DB.')
+
+        # Notify about DFT and deletions if enabled
+        if hasattr(self.inputs, 'enable_ntfysh'):
+            requests.post(
+                f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
+                data=(
+                    f'Committee decision: {len(calcs_to_submit)} get DFT info / '
+                    f'{len(delete_indices)} delete.'
+                ),
+            )
 
     def return_seed_dft_and_model(self):
         """
@@ -1774,6 +1796,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 '[ ✔ ]',
                 '[ ! ]',
                 '[ X ]',
+                '[...]',
             ]
         )
 
@@ -3127,7 +3150,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if len(seed_gen_db_small) != 0:
                 seed_gen_db = seed_gen_db_small
             else:
-                self.logger.warn(
+                self.logger.warning(
                     f'There are no structures with less than '
                     f'{max_size} atoms in the given database. '
                     "Please, remove the 'small_first' seed selection mode. "
