@@ -2633,7 +2633,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 settings_file=self.ctx.inputs.toml_file.value
             )
         else:
-            current_settings = None
+            current_settings = {}
 
         # # Loading computer and removing it from the input dictionary
         if current_settings:
