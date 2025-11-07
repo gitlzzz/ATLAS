@@ -592,15 +592,53 @@ def generate_descriptors_mace(
     device = descriptor_settings.get('device', 'cpu')
     dtype = descriptor_settings.get('dtype', 'float32')
 
+    is_mp_foundation = False
+    is_off_foundation = False
+
     try:
         # Use torch.load with map_location to ensure model loads on the correct device
         model_loaded = torch.load(model_path, map_location=torch.device(device))
     except RuntimeError:
         model_loaded = torch.load(model_path, map_location=torch.device('cpu'))
+    except FileNotFoundError as e:
+        # Check if the model path indicates a MACE foundation model
+        if 'mace:mp-' in model_path:
+            model_variant = model_path.split('mace:mp-')[-1]
+            if model_variant in ['small', 'medium', 'large', 'medium-mpa-0']:
+                is_mp_foundation = True
+                model_loaded = model_variant
+        elif 'mace:off-' in model_path:
+            model_variant = model_path.split('mace:off-')[-1]
+            if model_variant in ['small', 'medium', 'large']:
+                is_off_foundation = True
+                model_loaded = model_variant
+        else:
+            raise FileNotFoundError(
+                'Model file not found. Please provide a valid model path'
+                'or a mace foundation model name, using the following syntax:'
+                ' "mace:mp-small", "mace:off-medium", etc.'
+            ) from e
 
-    calculator = MACECalculator(
-        models=[model_loaded], device=device, default_dtype=dtype
-    )
+    if is_mp_foundation:
+        from mace.calculators import mace_mp
+
+        calculator = mace_mp(
+            model=model_loaded,
+            device=device,
+            default_dtype=dtype,
+        )
+    elif is_off_foundation:
+        from mace.calculators import mace_off
+
+        calculator = mace_off(
+            model=model_loaded,
+            device=device,
+            default_dtype=dtype,
+        )
+    else:
+        calculator = MACECalculator(
+            models=[model_loaded], device=device, default_dtype=dtype
+        )
 
     descriptor_dict = {}
     descriptor_list = []
