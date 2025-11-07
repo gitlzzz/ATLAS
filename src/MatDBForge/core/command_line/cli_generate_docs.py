@@ -37,7 +37,7 @@ def format_parameter_line(key, details, level=0):
     type_str = f'(optional, {param_type})' if not is_mandatory else f'({param_type})'
 
     # Start building the line
-    line = f'{indent}- `{key}`: {type_str} {description}'
+    line = f'{indent}- :alt:`{key}`: {type_str} {description}'
 
     # Add default value if present
     if default_value is not None:

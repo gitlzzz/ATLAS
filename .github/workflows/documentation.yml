@@ -58,6 +58,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: _build/html/
           force_orphan: true # Recommended by sphinx-multiversion for a clean deployment
-
-      - name: Clean up build artifacts
-        run: rm -rf _build

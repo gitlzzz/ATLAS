@@ -10,7 +10,6 @@ import pathlib as pl
 import subprocess
 import sys
 
-doctreedir = './.doctrees'
 
 def get_git_commit_hash():
     try:
@@ -60,6 +59,13 @@ extensions = [
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+
+# This defines a new role named "alt"
+# When used, it will add the CSS class "code-alt" to the element
+myst_prolog = """
+.. role:: alt
+   :class: code-alt
+"""
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
