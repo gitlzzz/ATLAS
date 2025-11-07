@@ -585,6 +585,7 @@ def generate_descriptors_mace(
     model_path: str,
     database,
     descriptor_settings: dict,
+    outer_average: bool = False,
 ):
     from mace.calculators import MACECalculator
 
@@ -620,6 +621,14 @@ def generate_descriptors_mace(
 
         # Getting the descriptors for the current structure
         curr_struct_descriptors = calculator.get_descriptors(struct)
+
+        # By averaging all vectors we get a single vector for the whole structure
+        # Similar to SOAP's "outer average"
+        if outer_average:
+            curr_struct_descriptors = np.mean(
+                curr_struct_descriptors, axis=0, keepdims=True
+            )
+
         descriptor_list.append(curr_struct_descriptors)
 
         # Appending the descriptors to the dictionary
