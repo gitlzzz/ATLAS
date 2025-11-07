@@ -1740,7 +1740,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     cls.add_dft_results_to_db,
                     cls.get_al_loop_break_conditions,
                 ),
-                if_(cls.safeguard_not_attempted)(
+                if_(cls.should_run_safeguard)(
                     # Run safeguard check
                     cls.run_safeguard_check,
                     cls.parse_safeguard_check_results,
@@ -2489,11 +2489,33 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         return continue_cond
 
-    def safeguard_not_attempted(self) -> bool:
-        self.logger.debug('Checking if safeguard has not been attempted yet...')
-        self.logger.debug(f'Safeguard attempted: {self.ctx.safeguard_attempted}')
+    def should_run_safeguard(self) -> bool:
+        self.logger.debug('Checking if safeguard is enabled...')
 
-        return not self.ctx.safeguard_attempted
+        # Loading the settings file again to get updated settings
+        settings_path = Path(self.ctx.inputs.toml_file.value)
+        if settings_path.exists:
+            current_settings = mdb_al_ut.read_toml_settings(
+                settings_file=self.ctx.inputs.toml_file.value
+            )
+        else:
+            current_settings = {}
+
+        # # Loading computer and removing it from the input dictionary
+        if current_settings:
+            safeguard_settings = current_settings.get('safeguard', {})
+
+        # Get 'enable' setting from safeguard settings
+        self.ctx.safeguard_enabled = safeguard_settings.get('enable', False)
+        self.report(f'Is safeguard enabled: {self.ctx.safeguard_enabled}')
+
+        # Checking if safeguard has not been attempted yet
+        self.logger.debug('Checking if safeguard has not been attempted yet...')
+        self.report(f'Safeguard attempted: {self.ctx.safeguard_attempted}')
+        condition = self.ctx.safeguard_enabled and not self.ctx.safeguard_attempted
+        self.report(f'Should run safeguard check: {condition}')
+
+        return condition
 
     def should_run_according_to_safeguard_check(self) -> bool:
         """
