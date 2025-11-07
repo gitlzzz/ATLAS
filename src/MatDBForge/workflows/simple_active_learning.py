@@ -793,7 +793,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
     def gen_descriptors_and_concave_hull(self):
         self.report('Preparing descriptors calculation...')
 
-        # Stop the calculation if initial models must be loaded
+        # Stop the calculation if descriptor calc must be loaded
         if (
             self.inputs.load_descriptor_calc
             and self.inputs.al_loop_iteration.value == 0
@@ -1224,11 +1224,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 future.base.extras.set('unique_id', curr_structure.info['mdb_id'])
 
             future.base.extras.set('mdb_db_index', curr_structure.info['mdb_db_index'])
-            # future.base.extras.set("md_temperature", temp_val)
+
             self.to_context(process_committee_results=append_(future))
 
+            self.report(f'Submission done for MD calculation: {future.pk}')
+
         self.report(
-            f'Submission done. Running MD for {len(self.ctx.process_committee_results)}'
+            f'All calculation submissions done.'
+            f'Running MD for {len(self.ctx.process_committee_results)}'
             ' structures...'
         )
 
@@ -2681,7 +2684,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Load target structures based on the selected mode
         if target_structure_mode == 'base':
-            self.report('Using base structures for safeguard processing.')
+            self.report("Using 'base' structures for safeguard processing.")
 
             database_training = ase_read(
                 filename=self.inputs.active_learning.init_db_path.value,
@@ -2697,7 +2700,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         elif target_structure_mode == 'target':
             # Get target structures from the user settings, which can either contain
             # a path to a database file or a list of structure UUIDs.
-            self.report('Using target structures for safeguard processing.')
+            self.report("Using 'target' structures for safeguard processing.")
             struct_target_list: list = safeguard_settings.get('struct_target_list', [])
 
             target_md_structs: list[Atoms] = []
