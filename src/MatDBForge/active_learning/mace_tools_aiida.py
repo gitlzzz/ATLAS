@@ -116,10 +116,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         spec.input(
             'concave_hull',
             valid_type=orm.ArrayData,
-            help=(
-                'Array containing the concave hull to be used for the '
-                'extrapolation check.'
-            ),
+            help=("Array containing the concave hull of the database's latent space"),
             required=False,
             # non_db=True,
             default=None,
@@ -128,7 +125,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         spec.input(
             'desc_max_arr',
             valid_type=orm.ArrayData,
-            help=('Array containing the maximum values for the descriptors,'),
+            help=('Array containing the maximum values for the descriptors'),
             required=True,
             # non_db=True,
             serializer=orm.to_aiida_type,
