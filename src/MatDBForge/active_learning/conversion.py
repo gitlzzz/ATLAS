@@ -1,4 +1,5 @@
 """Utility functions for unit conversion and to convert data to MACE and N2P2."""
+from __future__ import annotations
 
 import pathlib
 import time
@@ -32,7 +33,7 @@ class Units(Enum):
 
 
 def mdb_database_to_mace_train(
-    mdb_database: 'mdb_indb.InitialDatabase',
+    mdb_database: mdb_indb.InitialDatabase,
     path: str | pathlib.Path,
     skip_dipole=True,
     skip_stress=True,
@@ -69,11 +70,11 @@ def mdb_database_to_mace_train(
     )
 
 
-def _vasprun_to_extended_xyz(structure: 'mdb_strc.Structure'):
+def _vasprun_to_extended_xyz(structure: mdb_strc.Structure):
     raise NotImplementedError
 
 
-def _structure_to_extended_xyz(structure: 'mdb_strc.Structure'):
+def _structure_to_extended_xyz(structure: mdb_strc.Structure):
     raise NotImplementedError
 
 

@@ -96,6 +96,13 @@ hr {
 .rst-content tt.literal {
     color: var(--orange-light);
     white-space: normal;
+    background: var(--bg);
+}
+
+.rst-content code.literal.code-alt {
+    color: var(--green-light);
+    font-weight: bold;
+    border: 1px solid #555;
     background: var(--bg_h);
 }
 

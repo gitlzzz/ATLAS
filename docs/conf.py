@@ -6,7 +6,6 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-
 import pathlib as pl
 import subprocess
 import sys
@@ -22,6 +21,8 @@ def get_git_commit_hash():
     except subprocess.CalledProcessError:
         commit_hash = "unknown"
     return commit_hash
+
+autodoc_mock_imports = ["aiida"]
 
 
 # -- Path setup --------------------------------------------------------------
@@ -61,6 +62,13 @@ extensions = [
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
+# This defines a new role named "alt"
+# When used, it will add the CSS class "code-alt" to the element
+myst_prolog = """
+.. role:: alt
+   :class: code-alt
+"""
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
@@ -73,8 +81,8 @@ exclude_patterns = [
     "devel/*",
     "display_db/*",
     "*sync-conflict*",
+    "active_learning.py"
 ]
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -115,3 +123,10 @@ html_context = {
 }
 
 html_context["commit_hash"] = get_git_commit_hash()
+
+# --- sphinx-multiversion configuration ---
+#
+# This will build the 'master' branch AND all tags that
+# start with 'v', while ignoring all other branches.
+
+smv_branch_whitelist = r'^master$'

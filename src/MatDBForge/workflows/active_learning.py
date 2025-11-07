@@ -764,6 +764,7 @@ class ActiveLearningWorkChain(WorkChain):
         the function's inputs and the structure's composition.
         - Future versions may include more dynamic options based on LAMMPS's extensive
         configurability.
+
         """
         with open(f'{MDB_DATA_DIR}/input_files/input.lammps') as f:
             lammps_template = f.read()

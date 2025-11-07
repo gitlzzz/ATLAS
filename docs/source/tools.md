@@ -5,7 +5,7 @@ This section describes the command line arguments for various scripts provided b
 ## Run Active Learning - `mdb_active_learning`
 
 Handles MatDBForge active learning loop runs. Running the `mdb_active_learning` command without any subcommand or the gui subcommand will start a new run.
-In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](input.md#active-learning-loop).
+In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](inpiut_active_learning.md).
 
 Other available subcommands allow to generate reports or resume loops using files generated from previous runs.
 
@@ -222,7 +222,7 @@ Generates default configuration files for MatDBForge in the TOML format. The gen
 
 ## Generate Initial Database - `mdb_gen_init_db`
 
-Generates an initial database for MatDBForge. A `.toml` configuration is required, which is described in the [corresponding inputs section](input.md#database-generation)
+Generates an initial database for MatDBForge. A `.toml` configuration is required, which is described in the [corresponding inputs section](input_database_generation.md)
 
 **Usage:** `mdb_gen_init_db [-h] [-c PATH]`
 
@@ -233,7 +233,7 @@ Generates an initial database for MatDBForge. A `.toml` configuration is require
 
 ## Run DFT Database - `mdb_run_dft_database`
 
-Runs VASP DFT calculations for a database of structures using AiiDA-VASP. A .toml configuration file is required to specify the input settings for HPC and VASP. Refer to the [corresponding inputs section](input.md#database-batch-dft-execution) for more details about the available configuration options.
+Runs VASP DFT calculations for a database of structures using AiiDA-VASP. A .toml configuration file is required to specify the input settings for HPC and VASP. Refer to the [corresponding inputs section](input_dft.md) for more details about the available configuration options.
 
 **Usage**: `mdb_run_dft_database [-h] --db_file FILE --config FILE`
 

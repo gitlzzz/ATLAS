@@ -20,6 +20,8 @@ generate_type = ['bulk', 'surface', 'cluster']
 
 ```
 
+## Input Formats
+
 Please, check the tool's corresponding section below to learn more about all the available options:
 
 <!-- - [Database Generation](./input_database_generation.md)
