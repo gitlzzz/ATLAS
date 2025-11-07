@@ -63,6 +63,7 @@ def create_active_learning_builder(
     builder.active_learning.run_name = al_conf['run_name']
     builder.active_learning.load_init_models = al_conf.get('load_init_models')
     builder.active_learning.load_descriptor_calc = al_conf.get('load_descriptor_calc')
+    builder.active_learning.load_md_calcs = al_conf.get('load_md_calcs')
     builder.active_learning.init_db_path = str(
         pl.Path(al_conf['init_db_path']).resolve()
     )

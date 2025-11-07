@@ -78,6 +78,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
             serializer=orm.to_aiida_type,
             default=None,
         )
+        spec.input(
+            'load_md_calcs',
+            valid_type=(orm.List, type(None)),
+            serializer=orm.to_aiida_type,
+            default=None,
+        )
         spec.input('results_dir', valid_type=orm.Str, serializer=orm.to_aiida_type)
         spec.input(
             'current_seed_size', valid_type=orm.Int, serializer=orm.to_aiida_type
@@ -240,6 +246,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
         )
         spec.output('dft_calcs_path', valid_type=orm.Str, required=False)
         spec.output('m0_model_file', valid_type=orm.SinglefileData)
+        spec.output('m0_rmse_e', valid_type=orm.Float)
+        spec.output('m0_rmse_f', valid_type=orm.Float)
         spec.output('stop_md_seed_no_disagreement', valid_type=orm.Bool)
 
         spec.exit_code(
@@ -737,6 +745,8 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     f'RMSE F: {self.ctx.m0_rmse_f.value:.3f} meV/Å'
                 )
                 self.out('m0_model_file', model_file)
+                self.out('m0_rmse_e', self.ctx.m0_rmse_e)
+                self.out('m0_rmse_f', self.ctx.m0_rmse_f)
             else:
                 self.report(
                     f"Trained committee model '{model_name}' ({calc.pk}) - "
@@ -970,6 +980,18 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
 
     def run_md_seed(self):
+        # Don't proceed with submission if MD calculations must be loaded
+        if (self.inputs.load_md_calcs and self.inputs.al_loop_iteration.value == 0) or (
+            self.inputs.load_md_calcs
+            and self.ctx.resume_mode
+            and not hasattr(self.ctx, 'loaded_md_calcs')
+        ):
+            self.report(
+                'Loading MD calculations from node(s): '
+                f"'{self.inputs.load_md_calcs.get_list()}'."
+            )
+            return
+
         with open(self.inputs.current_md_seed_structs_path.value, 'rb') as f:
             current_md_seed_structs = pickle.load(f)
 
@@ -1216,10 +1238,26 @@ class SimpleActiveLearningWorkChain(WorkChain):
             'Selecting which structures need performing DFT or removing from DB...'
         )
 
-        self.ctx.curr_md_all_structures_in_domain = False
+        # Get the current iteration and resume mode
+        curr_iter = self.inputs.al_loop_iteration.value
 
-        # Get all of the processed structures
-        processed_structures = self.ctx.process_committee_results
+        # Ensure that models are loaded only for the first resumed step
+        if self.inputs.load_md_calcs:
+            if curr_iter == 0 or (
+                self.ctx.resume_mode and not hasattr(self.ctx, 'loaded_md_calcs')
+            ):
+                processed_structures = [
+                    orm.load_node(node) for node in self.inputs.load_md_calcs
+                ]
+                # Mark that models have been loaded
+                self.ctx.loaded_md_calcs = True
+            else:
+                processed_structures = self.ctx.process_committee_results
+        else:
+            # Get all of the processed structures
+            processed_structures = self.ctx.process_committee_results
+
+        self.ctx.curr_md_all_structures_in_domain = False
 
         if hasattr(self.inputs, 'enable_ntfysh'):
             requests.post(
@@ -2527,9 +2565,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Get training errors from last workchain. Since workchains can be resumed
         # there might not be any training calculations in the last workchain,
         # so we read the values from the MD calculations instead
-        md_calc = last_wk.called[called_types.index('ProcessMDSeedStructCalculation')]
-        m_rmse_e: orm.Float = md_calc.inputs['m_rmse_e']
-        m_rmse_f: orm.Float = md_calc.inputs['m_rmse_f']
+        # md_calc = last_wk.called[called_types.index('ProcessMDSeedStructCalculation')]
+        m_rmse_e: orm.Float = last_wk.outputs['m0_rmse_e']
+        m_rmse_f: orm.Float = last_wk.outputs['m0_rmse_f']
 
         # Load extrapolation files if available in last workchain
         try:

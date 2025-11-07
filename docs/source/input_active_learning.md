@@ -31,11 +31,14 @@ General active learning settings.
 - `max_iterations`: (int) Maximum number of AL loop iterations.
   - Default is `3`.
 
-- `load_init_models`: (optional, list[int]) Load initial models from a list of AiiDA UUIDs/PKs.
+- `load_init_models`: (optional, list[int]) Load initial models from a list of AiiDA UUIDs/PKs. The format is `[UUID1/PK1, UUID2/PK2, ...]`.
   - Default is `[]`.
 
-- `load_descriptor_calc`: (optional, str) Load a descriptor calculation from a AiiDA UUID/PK.
+- `load_descriptor_calc`: (optional, str) Load a single descriptor calculation from a AiiDA UUID/PK.
   - Default is `''`.
+
+- `load_md_calcs`: (optional, list[int]) Load MD calculations from a list of AiiDA UUIDs/PKs.
+  - Default is `[]`.
 
 - `al_mode`: (optional, str) Active learning mode.
   - Default is `'data_acquisition'`.
