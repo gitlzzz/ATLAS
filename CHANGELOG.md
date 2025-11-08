@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.44.2 (2025-11-08)
+
+### Docs
+
+- **core**: change docs to improve key visibility ([#1a27742](https://github.com/pol-sb/MatDBForge/commit/1a27742ef859417f976d09d74d9163ab0dbb6958))
+- **core**: test new docs formatting for keys ([#dff7f44](https://github.com/pol-sb/MatDBForge/commit/dff7f44ce4b9e55fffc4270d1e2c7a29d3395680))
+- **core**: improve docs generation ([#7a27abf](https://github.com/pol-sb/MatDBForge/commit/7a27abfef0c4668ea6be5869b90aff155288a2f8))
+- **core**: add custom color for keys in documentation ([#accb882](https://github.com/pol-sb/MatDBForge/commit/accb8825a7b5b9a03c7fb374e2691287f52881ff))
+
+### Misc
+
+- **core**: Add cleanup step to save space ([#1db3151](https://github.com/pol-sb/MatDBForge/commit/1db31513416670861f3fd7e6e682b99e811832d9))
+
 ## 0.44.1 (2025-11-07)
 
 ### Fix
