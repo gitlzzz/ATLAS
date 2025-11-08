@@ -67,6 +67,9 @@ templates_path = ["_templates"]
 myst_prolog = """
 .. role:: alt
    :class: code-alt
+
+.. role:: codeheader
+   :class: code-header
 """
 
 # List of patterns, relative to source directory, that match files and

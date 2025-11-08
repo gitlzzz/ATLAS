@@ -102,8 +102,30 @@ hr {
 .rst-content code.literal.code-alt {
     color: var(--green-light);
     font-weight: bold;
-    border: 1px solid #555;
-    background: var(--bg_h);
+    font-family: monospace;
+    background: var(--bg);
+    /* border-color: var(--fg); */
+    /* border: var(--fg); */
+    /* border: 1px solid #e1e4e5; */
+
+}
+
+.code-alt {
+    color: var(--green-light);
+    font-weight: bold;
+    font-family: monospace;
+    background: var(--bg);
+    /* border: 0.5px solid var(--fg); */
+    /* padding: 1px; */
+}
+
+.code-header {
+    color: var(--green-light);
+    font-weight: bold;
+    font-family: monospace;
+    background: var(--bg);
+    /* border: 0.5px solid var(--fg); */
+    /* padding: 1px; */
 }
 
 .rst-content .admonition-todo .admonition-title,
@@ -133,7 +155,7 @@ hr {
 .rst-content .wy-alert.wy-alert-warning .admonition-title,
 .wy-alert.wy-alert-warning .rst-content .admonition-title,
 .wy-alert.wy-alert-warning .wy-alert-title {
-    background: var(--yellow);
+    background: var(--green);
 }
 
 .rst-content .admonition-todo,
@@ -149,7 +171,7 @@ hr {
 .rst-content .wy-alert-warning.seealso,
 .rst-content .wy-alert-warning.tip,
 .wy-alert.wy-alert-warning {
-    background: var(--yellow-light);
+    background: var(--green-lighter);
 }
 
 .rst-content .admonition-todo p:last-child,
@@ -200,6 +222,7 @@ li.toctree-l3 current {
 .wy-menu-vertical li.toctree-l3.current li.toctree-l4>a {
     background: var(--light-blue);
 }
+
 /* li.toctree-l3 {
     background: var(--bg2);
 } */

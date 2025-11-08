@@ -37,24 +37,26 @@ def format_parameter_line(key, details, level=0):
     type_str = f'(optional, {param_type})' if not is_mandatory else f'({param_type})'
 
     # Start building the line
-    line = f'{indent}- :alt:`{key}`: {type_str} {description}'
+    line = f'{indent}- ' + '{alt}' + f'`{key}`:'
+    line += f'\n  - **Description**: {description}'
+    line += f'\n  - **Type**: `{type_str}`'
 
     # Add default value if present
     if default_value is not None:
         if isinstance(default_value, str):
-            line += f"\n  - Default is `'{default_value}'`."
+            line += f"\n  - **Default**: `'{default_value}'`."
         else:
-            line += f'\n  - Default is `{default_value}`.'
+            line += f'\n  - **Default**: `{default_value}`.'
 
     # Add example if present and no default
     elif example_value is not None:
         if isinstance(example_value, str):
-            line += f"\n  - Example: `'{example_value}'`."
+            line += f"\n  - **Example**: `'{example_value}'`."
         elif isinstance(example_value, (dict, list)):
             example_str = pprint.pformat(example_value, indent=4)
-            line += f'\n  - Example:\n\n```python\n{example_str}\n```'
+            line += f'\n  - **Example**:\n\n```python\n{example_str}\n```'
         else:
-            line += f'\n  - Example: `{example_value}`.'
+            line += f'\n  - **Example**: `{example_value}`.'
 
     # Add choices if present
     if choices:
@@ -143,14 +145,13 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
             # Select title based on presence of 'name_pretty' key
             if 'name_pretty' in content:
                 lines.append(
-                    f'{header_level} {content["name_pretty"]} - `[{section_path}]`'
+                    f'{header_level} {content["name_pretty"]} - '
+                    + f'`[{section_path}]`'
                 )
             else:
-                lines.append(f'{header_level} {name.title()} - `[{section_path}]`')
-
-            # lines.append(
-            #     f'{header_level} {content["description"]} - `[{section_path}]`'
-            # )
+                lines.append(
+                    f'{header_level} {name.title()} - ' + f'`[{section_path}]`'
+                )
 
             # Add section description
             if 'description' in content:
@@ -202,6 +203,15 @@ def generate_tool_section(schema, tool_name, tool_config):
 
     header = tool_headers.get(tool_name, tool_name.replace('_', ' ').title())
     command = tool_commands.get(tool_name, tool_name)
+
+    lines.append("""
+```{role} alt
+:class: code-alt
+```
+```{role} codeheader
+:class: code-header
+```
+""")
 
     lines.append(f'## {header}')
     lines.append('')
