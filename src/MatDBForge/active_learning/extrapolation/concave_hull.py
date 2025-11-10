@@ -330,7 +330,7 @@ def get_concave_hull_python(
 
             if alpha <= alpha_lower_bound:
                 mdb_cut.custom_print(
-                    f'Alpha has reached the minimum threshold of {alpha_lower_bound}.'
+                    f'Alpha has reached the minimum threshold of {alpha_lower_bound}. '
                     'Stopping adjustments.',
                     'warn',
                 )
@@ -340,11 +340,12 @@ def get_concave_hull_python(
                 mdb_cut.custom_print(
                     (
                         f'Current fraction of points outside hull is'
-                        f' {frac_outside:.4f}, above the allowed'
-                        f' {frac_points_allowed_out:.4f} threshold.'
+                        f' {frac_outside:.4e}, above the allowed'
+                        f' {frac_points_allowed_out:.4e} threshold.'
                     ),
                     'warn',
                 )
+                mdb_cut.custom_print(f'Area of concave hull: {shape.area:.4e}', 'info')
                 mdb_cut.custom_print(f'Decreasing alpha to: {alpha:.4f}', 'info')
                 last_alpha = alpha
                 num_attempts += 1
@@ -352,8 +353,8 @@ def get_concave_hull_python(
                 mdb_cut.custom_print(
                     (
                         f'Current fraction of points outside hull'
-                        f' is {frac_outside:.4f}, '
-                        f' below the allowed {frac_points_allowed_out:.4f} threshold.'
+                        f' is {frac_outside:.4e}, '
+                        f' below the allowed {frac_points_allowed_out:.4e} threshold.'
                     ),
                     'info',
                 )
