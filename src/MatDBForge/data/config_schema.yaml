@@ -1048,11 +1048,43 @@ active_learning:
         type: float
         mandatory: true
         default: 0.003
+      md_thermostat:
+        description: "Ensemble used in the MD simulation. The ensemble parameter changes the selection of the ASE integrator and thermostat and barostat. `langevin` and `nvt` ensembles use the ASE Langevin thermostat. `npt` and `npt-mtk` uses ASE's implementation of the Full Martyna-Tobias-Klein (MTK) method [^1], similar to the one used for NPT in LAMMPS. The `npt-melchionna` ensemble uses a combined Nose-Hoover and Parrinello-Rahman  method, as proposed by Melchionna et al. and provided in ASE as the default NPT class. However, this implementation is not recommended for use by ASE due stability issues!  \n[^1] MTKNPT: https://ase-lib.org/ase/md.html#full-martyna-tobias-klein-mtk-dynamics"
+        type: str
+        mandatory: false
+        default: "langevin"
+        choices:
+          [
+            "langevin",
+            "nvt",
+            "npt",
+            "npt-mtk",
+            "npt-melchionna",
+          ]
       langevin_friction_ps-1:
-        description: "Friction coefficient for the Langevin thermostat in ps⁻¹."
+        description: "Friction coefficient for the Langevin thermostat in picoseconds."
         type: float
         mandatory: true
         default: 10.0
+        depends_on:
+          key: active_learning.safeguard.md_parameters.md_thermostat
+          value: ["nvt", "langevin"]
+      npt_ttime_fs:
+        description: "Time constant for temperature coupling in NPT thermostat in femtoseconds."
+        type: float
+        mandatory: true
+        default: 100.0
+        depends_on:
+          key: active_learning.safeguard.md_parameters.md_thermostat
+          value: "npt"
+      npt_ptime_fs:
+        description: "Time constant for pressure coupling in NPT thermostat in femtoseconds."
+        type: float
+        mandatory: true
+        default: 25.0
+        depends_on:
+          key: active_learning.safeguard.md_parameters.md_thermostat
+          value: ["npt", nose-hoover]
       gather_traj_cnt_lattice:
         description: "Consider constant lattice when gathering trajectories."
         type: bool
@@ -1100,12 +1132,6 @@ active_learning:
         type: int
         mandatory: false
         default: 16
-      md_thermostat:
-        description: "Thermostat used in the MD simulation."
-        type: str
-        mandatory: false
-        default: "langevin"
-        choices: ["langevin", "nvt", "npt", "nose-hoover"]
 
   md:
     name: "md"
@@ -1148,6 +1174,34 @@ active_learning:
         type: float
         mandatory: true
         default: 0.003
+      md_thermostat:
+        description: "Thermostat used in the MD simulation."
+        type: str
+        mandatory: false
+        default: "langevin"
+        choices: ["langevin", "nvt", "npt", "nose-hoover"]
+      npt_ttime_fs:
+        description: "Time constant for temperature coupling in NPT thermostat in femtoseconds."
+        type: float
+        mandatory: true
+        default: 100.0
+        depends_on:
+          key: active_learning.safeguard.md_parameters.md_thermostat
+          value: "npt"
+      npt_ptime_fs:
+        description: "Time constant for pressure coupling in NPT thermostat in femtoseconds."
+        type: float
+        mandatory: true
+        default: 25.0
+        depends_on:
+          key: active_learning.safeguard.md_parameters.md_thermostat
+          value: ["npt", nose-hoover]
+      md_stage_order:
+        description: "List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`."
+        type: list[str]
+        mandatory: false
+        default: []
+        example: ["stage1", "nvt_1", "stage_2", "npt_1", ...]
       langevin_friction_ps-1:
         description: "Friction coefficient for the Langevin thermostat in ps⁻¹."
         type: float
@@ -1200,12 +1254,28 @@ active_learning:
         type: int
         mandatory: false
         default: 16
-      md_thermostat:
-        description: "Thermostat used in the MD simulation."
-        type: str
-        mandatory: false
-        default: "langevin"
-        choices: ["langevin", "nvt", "npt", "nose-hoover"]
+      stages:
+        # depends_on:
+        #   key: md.parameters.md_stage_order
+        #   value: "*"
+        description: "Collection of named keys representing a particular stage of an MD simulation. These stages will be chained together and applied to single MD calculation job following the order defined in `md.parameters.md_stage_order`, resulting in a continuous MD calculation with different settings for every stage. Each stage key will contain contain settings to be applied during each stage, overriding the default MD settings specified under `md.parameters`. Each dictionary must contain a mandatory `use_during_al_steps` key, which is a string n integer representing the number of AL steps that the given stage will be run for. If not present, the stage will be ignored."
+        type: list[dict]
+        mandatory: true
+        dynamic_keys: true
+        flatten: true
+        schema:
+          use_during_al_steps:
+            description: "String representing a number of AL steps or interval of AL steps in which the stage will be used. For example, `1` means that the stage will be used during step 1, while `3-6` means that the stage will be used from AL step 3 to AL step 6 (inclusive). The example `'1, 3, 4, 5-9, 11' would execute the current stage for steps 1, 3, 4, 5, 6, 7, 8, 9, and 11."
+            type: str
+            mandatory: true
+            example: "1, 3, 4, 5-9, 11"
+          md_parameters:
+            wildcard_entry: true
+            wildcard_path: "md.parameters.*"
+            wildcard_level: 1
+        #   description: "Symbol of the element defining the cluster."
+        #   type: str
+        #   mandatory: false
     filters:
       name: "filters"
       name_pretty: "MD Trajectory Filters"
