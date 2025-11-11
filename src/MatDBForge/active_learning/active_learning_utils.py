@@ -1,4 +1,5 @@
 """General utility functions for the active learning workflows."""
+
 from __future__ import annotations
 
 import io
@@ -28,6 +29,7 @@ from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryWriter
 from ase.md.langevin import Langevin
+from ase.md.nose_hoover_chain import MTKNPT
 from ase.md.npt import NPT
 from ase.md.velocitydistribution import (
     MaxwellBoltzmannDistribution,
@@ -136,6 +138,8 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
     # Adding current T value to the list
     if dyn.todict().get('temperature_K') is not None:
         T_list.append(dyn.todict().get('temperature_K'))
+    elif dyn._temperature_K is not None:
+        T_list.append(dyn._temperature_K)
     else:
         # convert eV to K
         T_list.append(dyn.temperature * 11604.5250061657)
@@ -144,7 +148,10 @@ def md_apply_temperature_ramp(dyn, total_steps, T_start, T_end, T_list):
     current_temperature = T_start + (T_end - T_start) * dyn.nsteps / total_steps
 
     # Set the temperature in units of energy
-    dyn.set_temperature(temperature_K=current_temperature)
+    if hasattr(dyn, 'set_temperature'):
+        dyn.set_temperature(temperature_K=current_temperature)
+    else:
+        dyn._temperature_K = current_temperature
 
     # Adding T value to info dict
     dyn.atoms.info['md_temperature'] = current_temperature
@@ -815,6 +822,12 @@ def run_mace_md_ase(
     else:
         friction = md_params['timestep_duration_ps'] * 100
 
+    if md_params.get('npt_ttime_fs'):
+        npt_ttime_fs = md_params.get('npt_ttime_fs', 100.0)
+
+    if md_params.get('npt_ptime_fs'):
+        npt_ptime_fs = md_params.get('npt_ptime_fs', 25.0)
+
     num_steps = md_params['num_steps']
     write_interval = md_params.get('md_write_interval', 1)
     thermostat = md_params.get('md_thermostat', 'langevin')
@@ -906,25 +919,54 @@ def run_mace_md_ase(
                 logfile=log_folder / f'md_info-{T_start}K.log',
                 loginterval=log_interval,
             )
-        case 'nose-hoover' | 'npt':
-            # Change the simulation box to remove any small numbers not in the diagonal
+        case  'npt-melchionna':
+            # Change the simulation box to remove any small numbers in the diagonal
             # of the box matrix
-            box = init_conf.get_cell()
-            box[np.abs(box) < 1e-2] = 0
-            init_conf.set_cell(box)
+            from ase.geometry import cellpar_to_cell
+
+            cellpar = init_conf.get_cell().cellpar()
+            new_cell_matrix = cellpar_to_cell(cellpar)
+            init_conf.set_cell(new_cell_matrix, scale_atoms=True)
 
             dyn = NPT(
                 atoms=init_conf,
                 timestep=(timestep_ps * 1000) * units.fs,
                 temperature_K=T_start,
                 externalstress=0,
-                ttime=100 * units.fs,
-                pfactor=None,
+                ttime=npt_ttime_fs * units.fs,
+                pfactor=npt_ptime_fs * units.fs,
                 logfile=log_folder / f'md_info-{T_start}K.log',
                 loginterval=log_interval,
             )
-    mdb_cut.custom_print('Running MD simulation using settings:', 'info')
-    rprint(md_params)
+        case 'npt' | 'npt-mtk':
+            timestep = (timestep_ps * 1000) * units.fs
+            dyn = MTKNPT(
+                atoms=init_conf,
+                timestep=timestep,
+                temperature_K=T_start,
+                pressure_au=0,
+                tdamp=100 * timestep,
+                pdamp=1000 * timestep,
+                tchain=3,
+                pchain=3,
+                tloop=1,
+                ploop=1,
+            )
+
+    # Handling logging of the MD parameters
+    curr_logger = mdb_cut.custom_print('Running MD simulation using settings:', 'info')
+    rich_handler = [
+        handl for handl in curr_logger.handlers if handl.name == 'mdb_rich_handler'
+    ]
+    rich_handler = rich_handler[0] if len(rich_handler) > 0 else None
+    file_handler = [
+        handl for handl in curr_logger.handlers if handl.name == 'mdb_file_handler'
+    ]
+    file_handler = file_handler[0] if len(file_handler) > 0 else None
+    if rich_handler:
+        rprint(md_params)
+    if file_handler:
+        mdb_cut.custom_print(f'{md_params}', 'none', extras={'block': 'console'})
 
     # Attach the thermostat function to increase the temperature
     # linearly from T_start to T_end
