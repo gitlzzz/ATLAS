@@ -280,32 +280,42 @@ class SimpleActiveLearningWorkChain(WorkChain):
             ]
         )
 
-        # Create a file handle
-        file_handler = logging.FileHandler(log_path)
-        file_handler.setLevel(1)
-        file_handler.addFilter(log_filter)
+        curr_logger_handlers = aiida_logger.handlers
 
-        # Create a formatter and set it for the file handler
-        file_formatter = logging.Formatter(
-            '[%(asctime)s] [%(levelname)s] - %(message)s',
-            datefmt='%m/%d/%y %H:%M:%S',
-        )
-        file_handler.setFormatter(file_formatter)
-        aiida_logger.addHandler(file_handler)
+        if not any(
+            [handl.name == 'mdb_file_handler' for handl in curr_logger_handlers]
+        ):
+            # Create a file handler
+            file_handler = logging.FileHandler(log_path)
+            file_handler.setLevel(1)
+            file_handler.set_name('mdb_file_handler')
+            file_handler.addFilter(log_filter)
 
-        # Adding console logger
-        console = Console(color_system='truecolor')
-        ch = RichHandler(
-            markup=True,
-            show_path=False,
-            log_time_format='[%d/%m/%y %H:%M:%S]',
-            omit_repeated_times=False,
-            console=console,
-        )
-        ch.setLevel(23)
-        formatter_con = logging.Formatter('%(message)s')
-        ch.setFormatter(formatter_con)
-        aiida_logger.addHandler(ch)
+            # Create a formatter and set it for the file handler
+            file_formatter = logging.Formatter(
+                '[%(asctime)s] [%(levelname)s] - %(message)s',
+                datefmt='%m/%d/%y %H:%M:%S',
+            )
+            file_handler.setFormatter(file_formatter)
+            aiida_logger.addHandler(file_handler)
+
+        if not any(
+            [handl.name == 'mdb_rich_handler' for handl in curr_logger_handlers]
+        ):
+            # Adding console logger
+            console = Console(color_system='truecolor')
+            ch = RichHandler(
+                markup=True,
+                show_path=False,
+                log_time_format='[%d/%m/%y %H:%M:%S]',
+                omit_repeated_times=False,
+                console=console,
+            )
+            ch.set_name('mdb_rich_handler')
+            ch.setLevel(23)
+            formatter_con = logging.Formatter('%(message)s')
+            ch.setFormatter(formatter_con)
+            aiida_logger.addHandler(ch)
 
     def step_setup(self):
         self.node.base.extras.set(
@@ -1258,7 +1268,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             self.report(f'Submission done for MD calculation: {future.pk}')
 
         self.report(
-            'All calculation submissions done.'
+            'All calculation submissions done. '
             f'Running MD for {len(self.ctx.process_committee_results)}'
             ' structures...'
         )
@@ -1267,7 +1277,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             requests.post(
                 f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
                 data=(
-                    f'All calculation submissions done.'
+                    f'All calculation submissions done. '
                     f'Running MD for {len(self.ctx.process_committee_results)}'
                     ' structures...'
                 ),

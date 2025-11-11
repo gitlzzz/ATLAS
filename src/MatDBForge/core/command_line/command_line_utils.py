@@ -325,7 +325,7 @@ def evaluate_dependency(depends_on, config_data, root_config_data):
                 return False
 
         # Check if the actual value matches the expected value
-        return current_data == expected_value
+        return current_data in expected_value
 
     except (KeyError, TypeError, AttributeError):
         # If we can't find the dependency path, assume dependency is not met

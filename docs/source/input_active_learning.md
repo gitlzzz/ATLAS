@@ -376,10 +376,27 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Type**: `(float)`
   - **Default**: `0.003`.
 
+- {alt}`md_thermostat`:
+  - **Description**: Ensemble used in the MD simulation. The ensemble parameter changes the selection of the ASE integrator and thermostat and barostat. `langevin` and `nvt` ensembles use the ASE Langevin thermostat. `npt` and `npt-mtk` uses ASE's implementation of the Full Martyna-Tobias-Klein (MTK) method [^1], similar to the one used for NPT in LAMMPS. The `npt-melchionna` ensemble uses a combined Nose-Hoover and Parrinello-Rahman  method, as proposed by Melchionna et al. and provided in ASE as the default NPT class. However, this implementation is not recommended for use by ASE due stability issues!  
+[^1] MTKNPT: https://ase-lib.org/ase/md.html#full-martyna-tobias-klein-mtk-dynamics
+  - **Type**: `(optional, str)`
+  - **Default**: `'langevin'`.
+  - Possible values are: `langevin`, `nvt`, `npt`, `npt-mtk`, `npt-melchionna`.
+
 - {alt}`langevin_friction_ps-1`:
-  - **Description**: Friction coefficient for the Langevin thermostat in ps⁻¹.
+  - **Description**: Friction coefficient for the Langevin thermostat in picoseconds.
   - **Type**: `(float)`
   - **Default**: `10.0`.
+
+- {alt}`npt_ttime_fs`:
+  - **Description**: Time constant for temperature coupling in NPT thermostat in femtoseconds.
+  - **Type**: `(float)`
+  - **Default**: `100.0`.
+
+- {alt}`npt_ptime_fs`:
+  - **Description**: Time constant for pressure coupling in NPT thermostat in femtoseconds.
+  - **Type**: `(float)`
+  - **Default**: `25.0`.
 
 - {alt}`gather_traj_cnt_lattice`:
   - **Description**: Consider constant lattice when gathering trajectories.
@@ -427,12 +444,6 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Description**: Number of CPUs to use for structures larger than `large_struct_size`.
   - **Type**: `(optional, int)`
   - **Default**: `16`.
-
-- {alt}`md_thermostat`:
-  - **Description**: Thermostat used in the MD simulation.
-  - **Type**: `(optional, str)`
-  - **Default**: `'langevin'`.
-  - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
 
 ### Molecular Dynamics Settings - `[md]`
 
@@ -479,6 +490,27 @@ MD simulation parameters.
   - **Type**: `(float)`
   - **Default**: `0.003`.
 
+- {alt}`md_thermostat`:
+  - **Description**: Thermostat used in the MD simulation.
+  - **Type**: `(optional, str)`
+  - **Default**: `'langevin'`.
+  - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
+
+- {alt}`npt_ttime_fs`:
+  - **Description**: Time constant for temperature coupling in NPT thermostat in femtoseconds.
+  - **Type**: `(float)`
+  - **Default**: `100.0`.
+
+- {alt}`npt_ptime_fs`:
+  - **Description**: Time constant for pressure coupling in NPT thermostat in femtoseconds.
+  - **Type**: `(float)`
+  - **Default**: `25.0`.
+
+- {alt}`md_stage_order`:
+  - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
+  - **Type**: `(optional, list[str])`
+  - **Default**: `[]`.
+
 - {alt}`langevin_friction_ps-1`:
   - **Description**: Friction coefficient for the Langevin thermostat in ps⁻¹.
   - **Type**: `(float)`
@@ -531,11 +563,9 @@ MD simulation parameters.
   - **Type**: `(optional, int)`
   - **Default**: `16`.
 
-- {alt}`md_thermostat`:
-  - **Description**: Thermostat used in the MD simulation.
-  - **Type**: `(optional, str)`
-  - **Default**: `'langevin'`.
-  - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
+- {alt}`stages`:
+  - **Description**: Collection of named keys representing a particular stage of an MD simulation. These stages will be chained together and applied to single MD calculation job following the order defined in `md.parameters.md_stage_order`, resulting in a continuous MD calculation with different settings for every stage. Each stage key will contain contain settings to be applied during each stage, overriding the default MD settings specified under `md.parameters`. Each dictionary must contain a mandatory `use_during_al_steps` key, which is a string n integer representing the number of AL steps that the given stage will be run for. If not present, the stage will be ignored.
+  - **Type**: `(list[dict])`
 
 #### MD Trajectory Filters - `[md.filters]`
 
