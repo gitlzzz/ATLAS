@@ -7,6 +7,7 @@ import pathlib
 import subprocess as sb
 import tempfile
 import warnings
+from logging import LogRecord
 
 import qrcode
 from packaging.version import Version
@@ -67,6 +68,8 @@ def get_console_handler():
     )
     formatter_con = logging.Formatter('%(message)s')
     ch.setFormatter(formatter_con)
+    ch.set_name('mdb_rich_handler')
+    ch.addFilter(create_handler_filters('console'))
     return ch, console
 
 
@@ -78,6 +81,13 @@ def logging_set_levels():
     logging.addLevelName(25, '[ ✔ ]')
     logging.addLevelName(30, '[ ! ]')
     logging.addLevelName(40, '[ X ]')
+
+
+def create_handler_filters(handler: str):
+    def handler_filter(record: LogRecord):
+        return not (hasattr(record, 'block') and record.block == handler)
+
+    return handler_filter
 
 
 def init_logger(source, log_path=None, show_log_path=True):
@@ -99,6 +109,8 @@ def init_logger(source, log_path=None, show_log_path=True):
         )
 
     fh = logging.FileHandler(filename=filename, mode='a+')
+    fh.set_name('mdb_file_handler')
+    fh.addFilter(create_handler_filters('file'))
     fh.setLevel(logging.DEBUG)
     formatter_fil = logging.Formatter('%(asctime)s - %(levelname)s - %(shortmsg)s')
     fh.setFormatter(formatter_fil)
@@ -124,9 +136,14 @@ class LevelNameFilter(logging.Filter):
 
 
 def custom_print(
-    string: str, print_type: str = 'default', end='\n', extra_tab=False, logger=None
+    string: str,
+    print_type: str = 'default',
+    end='\n',
+    extra_tab=False,
+    logger=None,
+    extras: dict = None,
 ):
-    """Prints a string using different formatting styles for easier debugging.
+    r"""Prints a string using different formatting styles for easier debugging.
 
     Parameters
     ----------
@@ -140,6 +157,17 @@ def custom_print(
             - `done/ok`: prefixes [ ✔ ] before the string.
             - `error/problem`: prefixes [ X ] before the string.
             - `none/clean/clear/empty`: leaves an empty space before the string.
+    end : str, optional, `default=\n`
+        String appended after the last value, default a newline.
+    extra_tab : bool, optional, `default=False`
+        If True, adds an extra tab before the string.
+    logger : logging.Logger, optional, `default=None`
+        Logger to use for printing. If None, a new logger named 'mdb' is created
+
+    Returns
+    -------
+    logging.Logger
+        Logger used for printing the string
     """
     # normal = "\u001b[0m"
 
@@ -163,21 +191,21 @@ def custom_print(
         logger.log(
             level=20,
             msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string},
+            extra={'shortmsg': string, **(extras if extras else {})},
         )
     elif print_type in ['warn', 'warning', 'warn-soft', 'warning-soft']:
         # prefix = "\u001b[38;5;220m [ ! ]"
         logger.log(
             level=30,
             msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string},
+            extra={'shortmsg': string, **(extras if extras else {})},
         )
     elif print_type in ['extra', 'debug']:
         # prefix = "\u001b[38;5;8m [···]"
         logger.log(
             level=10,
             msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string},
+            extra={'shortmsg': string, **(extras if extras else {})},
         )
     if print_type in ['none', 'clean', 'clear', 'empty']:
         prefix = ''
@@ -186,7 +214,7 @@ def custom_print(
         logger.log(
             level=15,
             msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string},
+            extra={'shortmsg': string, **(extras if extras else {})},
         )
     elif print_type in ['done', 'ok']:
         # prefix = "\u001b[38;5;46m [ ✔ ]"
@@ -196,15 +224,16 @@ def custom_print(
         logger.log(
             level=25,
             msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string},
+            extra={'shortmsg': string, **(extras if extras else {})},
         )
     if print_type in ['error', 'problem']:
         # prefix = "\u001b[38;5;1m [ X ]"
         logger.log(
             level=40,
             msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string},
+            extra={'shortmsg': string, **(extras if extras else {})},
         )
+    return logger
 
 
 def deprecated(reason, since_ver=None):
