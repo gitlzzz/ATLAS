@@ -353,7 +353,7 @@ export PATH=$PATH:.'`.
 
 #### Safeguard MD Parameters - `[safeguard.md_parameters]`
 
-MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations.
+MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section.
 
 
 - {alt}`temperature_list_K`:
@@ -361,20 +361,36 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Type**: `(list[float])`
   - **Default**: `[300.0, 500.0, 900.0]`.
 
+
+- {alt}`sample_frames_during_md`:
+  - **Description**: Whether to sample frames during MD simulations for AL.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+
+- {alt}`num_at_large_struct`:
+  - **Description**: Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
+  - **Type**: `(optional, int)`
+  - **Default**: `'None'`.
+
+
 - {alt}`max_temp_multiplier`:
   - **Description**: Multiplier for MD temperature to determine the upper bound of the temperature.
   - **Type**: `(float)`
   - **Default**: `1.3`.
+
 
 - {alt}`num_steps`:
   - **Description**: Total number of timesteps for each MD simulation.
   - **Type**: `(int)`
   - **Default**: `1000`.
 
+
 - {alt}`timestep_duration_ps`:
   - **Description**: Duration of each timestep in picoseconds.
   - **Type**: `(float)`
   - **Default**: `0.003`.
+
 
 - {alt}`md_thermostat`:
   - **Description**: Ensemble used in the MD simulation. The ensemble parameter changes the selection of the ASE integrator and thermostat and barostat. `langevin` and `nvt` ensembles use the ASE Langevin thermostat. `npt` and `npt-mtk` uses ASE's implementation of the Full Martyna-Tobias-Klein (MTK) method [^1], similar to the one used for NPT in LAMMPS. The `npt-melchionna` ensemble uses a combined Nose-Hoover and Parrinello-Rahman  method, as proposed by Melchionna et al. and provided in ASE as the default NPT class. However, this implementation is not recommended for use by ASE due stability issues!  
@@ -383,30 +399,42 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Default**: `'langevin'`.
   - Possible values are: `langevin`, `nvt`, `npt`, `npt-mtk`, `npt-melchionna`.
 
+
 - {alt}`langevin_friction_ps-1`:
   - **Description**: Friction coefficient for the Langevin thermostat in picoseconds.
   - **Type**: `(float)`
   - **Default**: `10.0`.
+
 
 - {alt}`npt_ttime_fs`:
   - **Description**: Time constant for temperature coupling in NPT thermostat in femtoseconds.
   - **Type**: `(float)`
   - **Default**: `100.0`.
 
+
 - {alt}`npt_ptime_fs`:
   - **Description**: Time constant for pressure coupling in NPT thermostat in femtoseconds.
   - **Type**: `(float)`
   - **Default**: `25.0`.
+
+
+- {alt}`md_stage_order`:
+  - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
+  - **Type**: `(optional, list[str])`
+  - **Default**: `[]`.
+
 
 - {alt}`gather_traj_cnt_lattice`:
   - **Description**: Consider constant lattice when gathering trajectories.
   - **Type**: `(bool)`
   - **Default**: `True`.
 
+
 - {alt}`use_kokkos`:
   - **Description**: Whether to use Kokkos to run the MD.
   - **Type**: `(bool)`
   - **Default**: `True`.
+
 
 - {alt}`device`:
   - **Description**: Device for the MACE model in MD simulations.
@@ -414,10 +442,12 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Default**: `'cuda'`.
   - Possible values are: `cpu`, `cuda`.
 
+
 - {alt}`enable_cueq`:
   - **Description**: Enable CUEQ for MACE.
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
+
 
 - {alt}`default_dtype`:
   - **Description**: Default data type for the MACE model in MD simulations.
@@ -425,25 +455,30 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Default**: `'float32'`.
   - Possible values are: `float32`, `float64`.
 
+
 - {alt}`al_keep_struct_every_n_ps`:
   - **Description**: Keep a structure every N picoseconds of MD simulation.
   - **Type**: `(float)`
   - **Default**: `0.5`.
+
 
 - {alt}`log_save_interval`:
   - **Description**: Log energy and force information every N MD steps.
   - **Type**: `(optional, int)`
   - **Default**: `1`.
 
+
 - {alt}`max_energy_threshold_per_atom`:
   - **Description**: Maximum energy threshold per atom in eV.
   - **Type**: `(optional, float)`
   - **Default**: `1000.0`.
 
+
 - {alt}`num_cpus_large_struct`:
   - **Description**: Number of CPUs to use for structures larger than `large_struct_size`.
   - **Type**: `(optional, int)`
   - **Default**: `16`.
+
 
 ### Molecular Dynamics Settings - `[md]`
 
@@ -491,10 +526,16 @@ MD simulation parameters.
   - **Default**: `0.003`.
 
 - {alt}`md_thermostat`:
-  - **Description**: Thermostat used in the MD simulation.
+  - **Description**: Ensemble used in the MD simulation. The ensemble parameter changes the selection of the ASE integrator and thermostat and barostat. `langevin` and `nvt` ensembles use the ASE Langevin thermostat. `npt` and `npt-mtk` uses ASE's implementation of the Full Martyna-Tobias-Klein (MTK) method [^1], similar to the one used for NPT in LAMMPS. The `npt-melchionna` ensemble uses a combined Nose-Hoover and Parrinello-Rahman  method, as proposed by Melchionna et al. and provided in ASE as the default NPT class. However, this implementation is not recommended for use by ASE due stability issues!  
+[^1] MTKNPT: https://ase-lib.org/ase/md.html#full-martyna-tobias-klein-mtk-dynamics
   - **Type**: `(optional, str)`
   - **Default**: `'langevin'`.
-  - Possible values are: `langevin`, `nvt`, `npt`, `nose-hoover`.
+  - Possible values are: `langevin`, `nvt`, `npt`, `npt-mtk`, `npt-melchionna`.
+
+- {alt}`langevin_friction_ps-1`:
+  - **Description**: Friction coefficient for the Langevin thermostat in picoseconds.
+  - **Type**: `(float)`
+  - **Default**: `10.0`.
 
 - {alt}`npt_ttime_fs`:
   - **Description**: Time constant for temperature coupling in NPT thermostat in femtoseconds.
@@ -510,11 +551,6 @@ MD simulation parameters.
   - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
   - **Type**: `(optional, list[str])`
   - **Default**: `[]`.
-
-- {alt}`langevin_friction_ps-1`:
-  - **Description**: Friction coefficient for the Langevin thermostat in ps⁻¹.
-  - **Type**: `(float)`
-  - **Default**: `10.0`.
 
 - {alt}`gather_traj_cnt_lattice`:
   - **Description**: Consider constant lattice when gathering trajectories.
@@ -563,9 +599,143 @@ MD simulation parameters.
   - **Type**: `(optional, int)`
   - **Default**: `16`.
 
-- {alt}`stages`:
-  - **Description**: Collection of named keys representing a particular stage of an MD simulation. These stages will be chained together and applied to single MD calculation job following the order defined in `md.parameters.md_stage_order`, resulting in a continuous MD calculation with different settings for every stage. Each stage key will contain contain settings to be applied during each stage, overriding the default MD settings specified under `md.parameters`. Each dictionary must contain a mandatory `use_during_al_steps` key, which is a string n integer representing the number of AL steps that the given stage will be run for. If not present, the stage will be ignored.
-  - **Type**: `(list[dict])`
+##### MD Simulation Stages - `[md.parameters.stages.XXXXX]`
+
+This key describes settings for dynamic entries. Several entries can be added by using different key names.
+
+The key name (`XXXXX`) is used as the reference name. **Replace XXXXX with a name of your choice.**
+
+Accepted parameters for each entry:
+
+
+- {alt}`use_during_al_steps`:
+  - **Description**: String representing a number of AL steps or interval of AL steps in which the stage will be used. For example, `1` means that the stage will be used during step 1, while `3-6` means that the stage will be used from AL step 3 to AL step 6 (inclusive). The example `'1, 3, 4, 5-9, 11' would execute the current stage for steps 1, 3, 4, 5, 6, 7, 8, 9, and 11.
+  - **Type**: `(str)`
+  - **Example**: `'1, 3, 4, 5-9, 11'`.
+
+- {alt}`temperature_list_K`:
+  - **Description**: List of different temperatures (in K) for MD simulations.
+  - **Type**: `(list[float])`
+  - **Default**: `[300.0, 500.0, 900.0]`.
+
+
+- {alt}`sample_frames_during_md`:
+  - **Description**: Whether to sample frames during MD simulations for AL.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+
+- {alt}`num_at_large_struct`:
+  - **Description**: Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
+  - **Type**: `(optional, int)`
+  - **Default**: `'None'`.
+
+
+- {alt}`max_temp_multiplier`:
+  - **Description**: Multiplier for MD temperature to determine the upper bound of the temperature.
+  - **Type**: `(float)`
+  - **Default**: `1.3`.
+
+
+- {alt}`num_steps`:
+  - **Description**: Total number of timesteps for each MD simulation.
+  - **Type**: `(int)`
+  - **Default**: `1000`.
+
+
+- {alt}`timestep_duration_ps`:
+  - **Description**: Duration of each timestep in picoseconds.
+  - **Type**: `(float)`
+  - **Default**: `0.003`.
+
+
+- {alt}`md_thermostat`:
+  - **Description**: Ensemble used in the MD simulation. The ensemble parameter changes the selection of the ASE integrator and thermostat and barostat. `langevin` and `nvt` ensembles use the ASE Langevin thermostat. `npt` and `npt-mtk` uses ASE's implementation of the Full Martyna-Tobias-Klein (MTK) method [^1], similar to the one used for NPT in LAMMPS. The `npt-melchionna` ensemble uses a combined Nose-Hoover and Parrinello-Rahman  method, as proposed by Melchionna et al. and provided in ASE as the default NPT class. However, this implementation is not recommended for use by ASE due stability issues!  
+[^1] MTKNPT: https://ase-lib.org/ase/md.html#full-martyna-tobias-klein-mtk-dynamics
+  - **Type**: `(optional, str)`
+  - **Default**: `'langevin'`.
+  - Possible values are: `langevin`, `nvt`, `npt`, `npt-mtk`, `npt-melchionna`.
+
+
+- {alt}`langevin_friction_ps-1`:
+  - **Description**: Friction coefficient for the Langevin thermostat in picoseconds.
+  - **Type**: `(float)`
+  - **Default**: `10.0`.
+
+
+- {alt}`npt_ttime_fs`:
+  - **Description**: Time constant for temperature coupling in NPT thermostat in femtoseconds.
+  - **Type**: `(float)`
+  - **Default**: `100.0`.
+
+
+- {alt}`npt_ptime_fs`:
+  - **Description**: Time constant for pressure coupling in NPT thermostat in femtoseconds.
+  - **Type**: `(float)`
+  - **Default**: `25.0`.
+
+
+- {alt}`md_stage_order`:
+  - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
+  - **Type**: `(optional, list[str])`
+  - **Default**: `[]`.
+
+
+- {alt}`gather_traj_cnt_lattice`:
+  - **Description**: Consider constant lattice when gathering trajectories.
+  - **Type**: `(bool)`
+  - **Default**: `True`.
+
+
+- {alt}`use_kokkos`:
+  - **Description**: Whether to use Kokkos to run the MD.
+  - **Type**: `(bool)`
+  - **Default**: `True`.
+
+
+- {alt}`device`:
+  - **Description**: Device for the MACE model in MD simulations.
+  - **Type**: `(str)`
+  - **Default**: `'cuda'`.
+  - Possible values are: `cpu`, `cuda`.
+
+
+- {alt}`enable_cueq`:
+  - **Description**: Enable CUEQ for MACE.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+
+- {alt}`default_dtype`:
+  - **Description**: Default data type for the MACE model in MD simulations.
+  - **Type**: `(str)`
+  - **Default**: `'float32'`.
+  - Possible values are: `float32`, `float64`.
+
+
+- {alt}`al_keep_struct_every_n_ps`:
+  - **Description**: Keep a structure every N picoseconds of MD simulation.
+  - **Type**: `(float)`
+  - **Default**: `0.5`.
+
+
+- {alt}`log_save_interval`:
+  - **Description**: Log energy and force information every N MD steps.
+  - **Type**: `(optional, int)`
+  - **Default**: `1`.
+
+
+- {alt}`max_energy_threshold_per_atom`:
+  - **Description**: Maximum energy threshold per atom in eV.
+  - **Type**: `(optional, float)`
+  - **Default**: `1000.0`.
+
+
+- {alt}`num_cpus_large_struct`:
+  - **Description**: Number of CPUs to use for structures larger than `large_struct_size`.
+  - **Type**: `(optional, int)`
+  - **Default**: `16`.
+
 
 #### MD Trajectory Filters - `[md.filters]`
 

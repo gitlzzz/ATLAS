@@ -66,7 +66,9 @@ def format_parameter_line(key, details, level=0):
     return line
 
 
-def generate_section_docs(schema_dict, path_parts, lines, level=3):
+def generate_section_docs(
+    schema_dict, path_parts, lines, level=3, original_schema=None
+):
     """
     Recursively generate documentation for a schema section.
 
@@ -83,6 +85,8 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
     sections = {
         k: v for k, v in schema_dict.items() if isinstance(v, dict) and 'type' not in v
     }
+
+    original_schema = original_schema or schema_dict
 
     # Generate documentation for parameters at current level
     if params:
@@ -104,14 +108,33 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
                     lines.append(format_parameter_line(flattened_key, sub_details))
             continue
 
+        if content.get('wildcard_entry') and content.get('wildcard_path'):
+            # For wildcard entries, traverse the schema at the specified path
+            # and add documentation for each parameter found.
+            wildcard_path = content['wildcard_path'].split('.')
+            schema_content = original_schema
+            for part in wildcard_path:
+                schema_content = schema_content.get(part, {})
+            for sub_key, sub_details in schema_content.items():
+                if isinstance(sub_details, dict) and 'type' in sub_details:
+                    # wildcard_key = '.'.join(wildcard_path + [sub_key])
+                    wildcard_key = sub_key
+                    lines.append('')
+                    lines.append(format_parameter_line(wildcard_key, sub_details))
+                    lines.append('')
+
+            continue
+
         if content.get('dynamic_keys'):
             # Handle dynamic key sections specially
             header_level = '#' * level
             section_path = '.'.join(path_parts + [name])
 
             lines.append('')
+
             description = content.get('description', f'{name.title()} Settings')
-            lines.append(f'{header_level} {description} - `[{section_path}.XXXXX]`')
+            title = content.get('name_pretty', description)
+            lines.append(f'{header_level} {title} - `[{section_path}.XXXXX]`')
             lines.append('')
 
             lines.append(
@@ -128,10 +151,14 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
             # Add example if available
             schema_content = content.get('schema', {})
             if schema_content:
-                lines.append('Example parameters for each entry:')
+                lines.append('Accepted parameters for each entry:')
                 lines.append('')
                 generate_section_docs(
-                    schema_content, path_parts + [name, 'XXXXX'], lines, level + 1
+                    schema_dict=schema_content,
+                    path_parts=path_parts + [name, 'XXXXX'],
+                    lines=lines,
+                    level=level + 1,
+                    original_schema=original_schema,
                 )
             continue
 
@@ -167,7 +194,13 @@ def generate_section_docs(schema_dict, path_parts, lines, level=3):
                 lines.append(':::')
                 lines.append('')
 
-            generate_section_docs(content, path_parts + [name], lines, level + 1)
+            generate_section_docs(
+                content,
+                path_parts + [name],
+                lines,
+                level + 1,
+                original_schema=original_schema,
+            )
 
 
 def generate_tool_section(schema, tool_name, tool_config):
