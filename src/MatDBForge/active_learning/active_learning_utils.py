@@ -219,6 +219,7 @@ def generate_descriptors(
     descriptor_type: str,
     descriptor_settings: dict,
     model_path: str = None,
+    outer_average_mace: bool = False,
 ):
     """
     Wrapper function to generate descriptors for a given database.
@@ -256,6 +257,7 @@ def generate_descriptors(
             model_path=model_path,
             database=database,
             descriptor_settings=descriptor_settings,
+            outer_average=outer_average_mace,
         )
 
 
@@ -1772,12 +1774,6 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
                 a=np.array(calc_info_dict['forces']),
             )
 
-        # if "stress" not in vasprun.arrays.keys():
-        #     vasprun.new_array(
-        #         name="stress",
-        #         a=np.array(calc_info_dict["stress"]),
-        #     )
-
         # Adding the type of structure to the atoms.info dict
         struct_type = mdb_conv.get_struct_type(
             vasprun=vasprun, dft_calc_node=finished_dft_calc
@@ -1803,6 +1799,11 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
             vasprun.arrays['REF_forces'] = vasprun.arrays.pop('forces')
         elif vasprun.calc:
             vasprun.arrays['REF_forces'] = vasprun.calc.get_forces()
+
+        if 'stress' in vasprun.arrays:
+            vasprun.arrays['REF_stress'] = vasprun.arrays.pop('stress')
+        elif vasprun.calc:
+            vasprun.arrays['REF_stress'] = vasprun.calc.get_stress(voigt=False)
 
         vasprun: dict = serialize_ase(vasprun)
 

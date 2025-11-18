@@ -190,7 +190,7 @@ This key describes settings for dynamic entries. Several entries can be added by
 
 The key name (`XXXXX`) is used as the reference name. **Replace XXXXX with a name of your choice.**
 
-Example parameters for each entry:
+Accepted parameters for each entry:
 
 
 - {alt}`name`:
