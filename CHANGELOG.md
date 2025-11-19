@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.45.1 (2025-11-19)
+
+### Fix
+
+- **core**: bump ase version to `3.26.0` or higher ([#d552771](https://github.com/pol-sb/MatDBForge/commit/d5527718eef5d9c3b7dc052b6f290253f310f5c5))
+
+### Misc
+
+- **core**: remove cache from docs workflow and limit pages to build to last 10 versions ([#68dccce](https://github.com/pol-sb/MatDBForge/commit/68dccce806388540cfbea07f7852586c04d6465e))
+
 ## 0.45.0 (2025-11-19)
 
 ### Docs
