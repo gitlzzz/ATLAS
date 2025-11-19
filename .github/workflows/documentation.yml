@@ -5,7 +5,7 @@ on:
     branches:
       - master
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      # 1. Free up disk space by removing pre-installed bloat
+      # Free up disk space by removing pre-installed tools
       - name: Free Disk Space (Ubuntu)
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -33,21 +33,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          # Removed cache: "pip" since you requested removing cache usage
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
           pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
           pip install .
 
-      # Removed "Cache the Sphinx build environment" step
-
       - name: Generate API documentation
         run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
 
       - name: Build all documentation versions
-        # Assuming you have configured conf.py to limit versions as you mentioned
         run: sphinx-multiversion docs _build/html
 
       - name: Create index.html redirect

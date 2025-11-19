@@ -174,7 +174,7 @@ html_context["commit_hash"] = get_git_commit_hash()
 # This will build the 'master' branch AND all tags that
 # start with 'v', while ignoring all other branches.
 
-newest_tag, git_hash = mdb_cud.get_last_tagged_version()
+newest_tag, git_hash = mdb_cud.get_last_tagged_version_local()
 tags = mdb_cud.get_list_of_tags()
 
 last_10_versions = tags[:10]
