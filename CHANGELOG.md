@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.45.2 (2025-11-19)
+
+### Misc
+
+- **core**: fix docs conf and github workflow ([#d543dbd](https://github.com/pol-sb/MatDBForge/commit/d543dbd115d916cb4743536aa83caa4c3f998b03))
+
 ## 0.45.1 (2025-11-19)
 
 ### Fix
