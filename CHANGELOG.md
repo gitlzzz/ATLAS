@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.45.3 (2025-11-19)
+
+### Docs
+
+- **schema**: update schema ([#4633817](https://github.com/pol-sb/MatDBForge/commit/463381731e78ac175127b7e694f9106bcfbd1e1e))
+
+### Fix
+
+- **core**: fix for docs workflow ([#4aab4ce](https://github.com/pol-sb/MatDBForge/commit/4aab4ce3118eb41bd8b19a9272d27c0bbbcbe682))
+
+### Misc
+
+- **core**: fix workflow ([#980adbf](https://github.com/pol-sb/MatDBForge/commit/980adbfda56ca2357a98599f628c6c35663a700f))
+
 ## 0.45.2 (2025-11-19)
 
 ### Misc
