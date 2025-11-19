@@ -13,7 +13,7 @@ from MatDBForge.core import MDB_DATA_DIR
 from MatDBForge.core import exceptions as mdb_exc
 from MatDBForge.core.code_utils import custom_print
 
-warnings.filterwarnings('ignore', module='paramiko')
+warnings.filterwarnings("ignore", module="paramiko")
 
 
 MDB_LOGO = """
@@ -41,16 +41,16 @@ def parse_input_toml(toml_dict: dict, type: str):
     MissingMandatoryParameterError
         If any mandatory keys are missing from the input TOML dictionary.
     """
-    if type == 'active_learning':
-        mandatory_keys_list = ['active_learning', 'md', 'committee_eval', 'dft']
+    if type == "active_learning":
+        mandatory_keys_list = ["active_learning", "md", "committee_eval", "dft"]
 
-    elif type == 'generate_database':
-        mandatory_keys_list = ['database', 'phase_diagram', 'generation']
+    elif type == "generate_database":
+        mandatory_keys_list = ["database", "phase_diagram", "generation"]
 
     for key in mandatory_keys_list:
         if key not in list(toml_dict.keys()):
             raise mdb_exc.MissingMandatoryParameterError(
-                f'Input toml file missing mandatory key: {key}.'
+                f"Input toml file missing mandatory key: {key}."
             )
 
 
@@ -59,7 +59,7 @@ def validate_config_file(
     config_dict=None,
     config_path=None,
     allow_deprecated=False,
-    run_mode='workflow',
+    run_mode="workflow",
 ):
     """
     Validate a TOML configuration file against the schema.
@@ -88,18 +88,18 @@ def validate_config_file(
             where is_valid is bool and errors is list of strings
     """
     if config_dict is None and config_path is None:
-        return False, ['Either config_dict or config_path must be provided']
+        return False, ["Either config_dict or config_path must be provided"]
 
     if config_path is not None:
         try:
             # Load the TOML file
             config_path = pl.Path(config_path)
-            with open(config_path, 'rb') as f:
+            with open(config_path, "rb") as f:
                 config_data = tomllib.load(f)
         except FileNotFoundError:
-            return False, [f'Configuration file not found: {config_path}']
+            return False, [f"Configuration file not found: {config_path}"]
         except Exception as e:
-            return False, [f'Error reading TOML file: {e}']
+            return False, [f"Error reading TOML file: {e}"]
     elif config_dict is not None:
         config_data = config_dict
 
@@ -107,9 +107,9 @@ def validate_config_file(
     schema = get_schema()
     config_schema = schema.get(config_type)
     if not config_schema:
-        return False, [f'Unknown configuration type: {config_type}']
+        return False, [f"Unknown configuration type: {config_type}"]
 
-    custom_print('Validating TOML input file...', print_type='info')
+    custom_print("Validating TOML input file...", print_type="info")
 
     # Check for deprecated keys and migrate them
     migrated_config, deprecation_warnings = check_deprecated_keys(
@@ -119,7 +119,7 @@ def validate_config_file(
     # Show deprecation warnings
     if deprecation_warnings:
         for warning in deprecation_warnings:
-            custom_print(warning, print_type='warning')
+            custom_print(warning, print_type="warning")
 
     # Validate the configuration
     errors = validate_section_recursive(
@@ -133,27 +133,27 @@ def validate_config_file(
     if deprecation_warnings and not allow_deprecated:
         errors.extend(
             [
-                'Configuration contains deprecated keys. '
-                'Please update your file to use the new key names.'
+                "Configuration contains deprecated keys. "
+                "Please update your file to use the new key names."
             ]
         )
 
     if len(errors) == 0:
-        custom_print('TOML input file is valid!', print_type='done')
+        custom_print("TOML input file is valid!", print_type="done")
         return len(errors) == 0, errors
     else:
-        custom_print('TOML input file validation failed:', print_type='error')
+        custom_print("TOML input file validation failed:", print_type="error")
         for error in errors:
-            custom_print(f'  • {error}', print_type='error')
+            custom_print(f"  • {error}", print_type="error")
 
-        if run_mode == 'workflow':
+        if run_mode == "workflow":
             custom_print(
-                'Process terminated due to validation errors.', print_type='error'
+                "Process terminated due to validation errors.", print_type="error"
             )
             sys.exit(1)
 
 
-def check_deprecated_keys(config_data, schema_dict, path='', warnings=None):
+def check_deprecated_keys(config_data, schema_dict, path="", warnings=None):
     """
     Check for deprecated keys in configuration and provide migration suggestions.
 
@@ -180,15 +180,15 @@ def check_deprecated_keys(config_data, schema_dict, path='', warnings=None):
     deprecated_section_map = {}
     for section_name, section_schema in schema_dict.items():
         if isinstance(section_schema, dict):
-            aliases = section_schema.get('deprecated_aliases', [])
+            aliases = section_schema.get("deprecated_aliases", [])
             for alias in aliases:
                 deprecated_section_map[alias] = section_name
 
     # Check for deprecated section names
     for old_key, new_key in deprecated_section_map.items():
         if old_key in migrated_data:
-            full_old_path = f'{path}.{old_key}' if path else old_key
-            full_new_path = f'{path}.{new_key}' if path else new_key
+            full_old_path = f"{path}.{old_key}" if path else old_key
+            full_new_path = f"{path}.{new_key}" if path else new_key
 
             warnings.append(
                 f"Deprecated section '{full_old_path}' found. "
@@ -204,9 +204,9 @@ def check_deprecated_keys(config_data, schema_dict, path='', warnings=None):
     for section_name, section_data in migrated_data.items():
         if isinstance(section_data, dict) and section_name in schema_dict:
             section_schema = schema_dict[section_name]
-            if isinstance(section_schema, dict) and 'type' not in section_schema:
+            if isinstance(section_schema, dict) and "type" not in section_schema:
                 # This is a section, check its parameters
-                section_path = f'{path}.{section_name}' if path else section_name
+                section_path = f"{path}.{section_name}" if path else section_name
                 migrated_section, section_warnings = check_deprecated_parameters(
                     section_data, section_schema, section_path
                 )
@@ -223,7 +223,7 @@ def check_deprecated_keys(config_data, schema_dict, path='', warnings=None):
     return migrated_data, warnings
 
 
-def check_deprecated_parameters(config_data, schema_dict, path=''):
+def check_deprecated_parameters(config_data, schema_dict, path=""):
     """
     Check for deprecated parameter names within a section.
 
@@ -243,16 +243,16 @@ def check_deprecated_parameters(config_data, schema_dict, path=''):
     # Create reverse lookup for deprecated parameter aliases
     deprecated_param_map = {}
     for param_name, param_schema in schema_dict.items():
-        if isinstance(param_schema, dict) and 'type' in param_schema:
-            aliases = param_schema.get('deprecated_aliases', [])
+        if isinstance(param_schema, dict) and "type" in param_schema:
+            aliases = param_schema.get("deprecated_aliases", [])
             for alias in aliases:
                 deprecated_param_map[alias] = param_name
 
     # Check for deprecated parameter names
     for old_param, new_param in deprecated_param_map.items():
         if old_param in migrated_data:
-            full_old_path = f'{path}.{old_param}'
-            full_new_path = f'{path}.{new_param}'
+            full_old_path = f"{path}.{old_param}"
+            full_new_path = f"{path}.{new_param}"
 
             warnings.append(
                 f"Deprecated parameter '{full_old_path}' found. "
@@ -267,37 +267,35 @@ def check_deprecated_parameters(config_data, schema_dict, path=''):
     return migrated_data, warnings
 
 
-def should_validate_mandatory(schema_item, config_data, root_config_data):
+def should_validate_mandatory(schema_item, root_config_data):
     """
     Determine if a schema item should be validated as mandatory based on dependencies.
 
     Args:
         schema_item (dict): Schema definition for parameter or section
-        config_data (dict): Current section's config data
         root_config_data (dict): Complete configuration data
 
     Returns
     -------
         bool: True if item should be validated as mandatory
     """
-    if not schema_item.get('mandatory', True):
+    if not schema_item.get("mandatory", True):
         return False
 
-    depends_on = schema_item.get('depends_on')
+    depends_on = schema_item.get("depends_on")
 
     if depends_on:
-        return evaluate_dependency(depends_on, config_data, root_config_data)
+        return evaluate_dependency(depends_on, root_config_data)
 
     return True
 
 
-def evaluate_dependency(depends_on, config_data, root_config_data):
+def evaluate_dependency(depends_on, root_config_data):
     """
     Evaluate whether a dependency condition is met.
 
     Args:
         depends_on (dict): The dependency specification from schema
-        config_data (dict): Current section's config data
         root_config_data (dict): Complete configuration data for resolving paths
 
     Returns
@@ -307,14 +305,14 @@ def evaluate_dependency(depends_on, config_data, root_config_data):
     if not depends_on:
         return True
 
-    key_path = depends_on.get('key', '')
-    expected_value = depends_on.get('value')
+    key_path = depends_on.get("key", "")
+    expected_value = depends_on.get("value")
 
     if not key_path:
         return True
 
     # Navigate to the dependency value in config
-    path_parts = key_path.split('.')
+    path_parts = key_path.split(".")
     current_data = root_config_data
 
     try:
@@ -348,45 +346,45 @@ def validate_parameter(value, param_key, param_schema, path, root_config_data=No
         list: List of validation error messages (empty if valid)
     """
     errors = []
-    full_path = f'{path}.{param_key}' if path else param_key
+    full_path = f"{path}.{param_key}" if path else param_key
 
     # Check if parameter is mandatory but missing
     if value is None:
         # Check if parameter is actually mandatory considering dependencies
-        if should_validate_mandatory(param_schema, {}, root_config_data or {}):
-            errors.append(f'Missing mandatory parameter: {full_path}')
+        if should_validate_mandatory(param_schema, root_config_data or {}):
+            errors.append(f"Missing mandatory parameter: {full_path}")
         return errors
 
     # Type validation
-    expected_type = param_schema.get('type')
+    expected_type = param_schema.get("type")
     if expected_type:
-        if expected_type == 'str' and not isinstance(value, str):
+        if expected_type == "str" and not isinstance(value, str):
             errors.append(
-                f'Parameter {full_path}: expected string, got {type(value).__name__}'
+                f"Parameter {full_path}: expected string, got {type(value).__name__}"
             )
-        elif expected_type == 'int' and not isinstance(value, int):
+        elif expected_type == "int" and not isinstance(value, int):
             errors.append(
-                f'Parameter {full_path}: expected integer, got {type(value).__name__}'
+                f"Parameter {full_path}: expected integer, got {type(value).__name__}"
             )
-        elif expected_type == 'float' and not isinstance(value, (int, float)):
+        elif expected_type == "float" and not isinstance(value, (int, float)):
             errors.append(
-                f'Parameter {full_path}: expected float, got {type(value).__name__}'
+                f"Parameter {full_path}: expected float, got {type(value).__name__}"
             )
-        elif expected_type == 'bool' and not isinstance(value, bool):
+        elif expected_type == "bool" and not isinstance(value, bool):
             errors.append(
-                f'Parameter {full_path}: expected boolean, got {type(value).__name__}'
+                f"Parameter {full_path}: expected boolean, got {type(value).__name__}"
             )
-        elif expected_type.startswith('list[') and not isinstance(value, list):
+        elif expected_type.startswith("list[") and not isinstance(value, list):
             errors.append(
-                f'Parameter {full_path}: expected list, got {type(value).__name__}'
+                f"Parameter {full_path}: expected list, got {type(value).__name__}"
             )
-        elif expected_type == 'dict' and not isinstance(value, dict):
+        elif expected_type == "dict" and not isinstance(value, dict):
             errors.append(
-                f'Parameter {full_path}: expected dict, got {type(value).__name__}'
+                f"Parameter {full_path}: expected dict, got {type(value).__name__}"
             )
 
     # Choice validation
-    choices = param_schema.get('choices')
+    choices = param_schema.get("choices")
     if choices:
         if isinstance(value, list):
             # For lists, validate each element against choices
@@ -394,14 +392,14 @@ def validate_parameter(value, param_key, param_schema, path, root_config_data=No
                 if item not in choices:
                     errors.append(
                         f"Parameter {full_path}: list item '{item}' not in "
-                        f'allowed choices {choices}'
+                        f"allowed choices {choices}"
                     )
         else:
             # For non-list values, validate the value directly
             if value not in choices:
                 errors.append(
                     f"Parameter {full_path}: value '{value}' not in "
-                    f'allowed choices {choices}'
+                    f"allowed choices {choices}"
                 )
 
     return errors
@@ -410,7 +408,7 @@ def validate_parameter(value, param_key, param_schema, path, root_config_data=No
 def validate_section_recursive(
     config_data,
     schema_dict,
-    path='',
+    path="",
     errors=None,
     section_mandatory=True,
     root_config_data=None,
@@ -444,21 +442,21 @@ def validate_section_recursive(
 
     if config_data is None:
         if section_mandatory:
-            errors.append(f'Missing mandatory section: {path}')
+            errors.append(f"Missing mandatory section: {path}")
         return errors
 
     # Separate parameters from nested sections
     params = {
-        k: v for k, v in schema_dict.items() if isinstance(v, dict) and 'type' in v
+        k: v for k, v in schema_dict.items() if isinstance(v, dict) and "type" in v
     }
     sections = {
-        k: v for k, v in schema_dict.items() if isinstance(v, dict) and 'type' not in v
+        k: v for k, v in schema_dict.items() if isinstance(v, dict) and "type" not in v
     }
 
     # Validate parameters
     for param_key, param_schema in params.items():
         # Handle flattened parameters (dotted notation)
-        if '.' in param_key:
+        if "." in param_key:
             # This should be handled by the flattened section logic
             continue
 
@@ -471,7 +469,7 @@ def validate_section_recursive(
             config_data_removal.pop(param_key, None)
 
         # Check for mandatory parameters for job submission
-        if param_key == 'computer':
+        if param_key == "computer":
             try:
                 from aiida import load_profile, orm
                 from aiida.schedulers.plugins.sge import SgeScheduler
@@ -482,28 +480,28 @@ def validate_section_recursive(
                 scheduler = loaded_comp.get_scheduler()
 
                 # Default arrangement for scheduler options in config
-                scheduler_options_to_check = config_data.get('options')
+                scheduler_options_to_check = config_data.get("options")
 
                 # Alternative arrangement under metadata section
                 if scheduler_options_to_check is None:
-                    scheduler_options_to_check = config_data.get('metadata', {}).get(
-                        'options'
+                    scheduler_options_to_check = config_data.get("metadata", {}).get(
+                        "options"
                     )
                 if scheduler_options_to_check is None:
-                    scheduler_options_to_check = config_data.get('options_resources')
+                    scheduler_options_to_check = config_data.get("options_resources")
 
                 mandatory_keys_for_scheduler = []
                 if isinstance(scheduler, SgeScheduler):
                     mandatory_keys_for_scheduler = [
-                        'resources.parallel_env',
-                        'resources.tot_num_mpiprocs',
+                        "resources.parallel_env",
+                        "resources.tot_num_mpiprocs",
                     ]
 
                     # Flatten dict to ease key checking
                     # Nested keys will use '.' as separator
                     [scheduler_options_to_check] = pd.json_normalize(
-                        scheduler_options_to_check, sep='.'
-                    ).to_dict(orient='records')
+                        scheduler_options_to_check, sep="."
+                    ).to_dict(orient="records")
 
                 elif isinstance(scheduler, SlurmScheduler):
                     # TODO: add slurm mandatory keys
@@ -531,12 +529,12 @@ def validate_section_recursive(
 
     # Handle flattened sections
     for section_name, section_schema in sections.items():
-        if section_schema.get('flatten'):
+        if section_schema.get("flatten"):
             # For flattened sections, look for dotted keys in config_data
-            schema_content = section_schema.get('schema', {})
+            schema_content = section_schema.get("schema", {})
             for sub_key, sub_schema in schema_content.items():
-                if isinstance(sub_schema, dict) and 'type' in sub_schema:
-                    flattened_key = f'{section_name}.{sub_key}'
+                if isinstance(sub_schema, dict) and "type" in sub_schema:
+                    flattened_key = f"{section_name}.{sub_key}"
                     value = config_data.get(flattened_key)
                     param_errors = validate_parameter(
                         value, flattened_key, sub_schema, path, root_config_data
@@ -546,22 +544,101 @@ def validate_section_recursive(
                         config_data_removal.pop(param_key, None)
             continue
 
+        if section_schema.get("wildcard_entry") and section_schema.get("wildcard_path"):
+            # For wildcard entries, traverse the schema at the specified path
+            # and add documentation for each parameter found.
+            wildcard_path = section_schema["wildcard_path"].split(".")
+
+            orig_wildcard_section = original_schema_dict
+            for part in wildcard_path:
+                orig_wildcard_section = orig_wildcard_section.get(part, {})
+            if not orig_wildcard_section:
+                errors.append(
+                    f"Wildcard path in {section_name} not found: "
+                    f"[yellow italic]{wildcard_path}"
+                )
+            # breakpoint()
+
+            # schema_content = original_schema_dict
+            # for part in wildcard_path:
+            #     schema_content = schema_content.get(part, {})
+
+            for sub_key, sub_details in orig_wildcard_section.items():
+
+                if sub_key in [
+                    "description",
+                    "mandatory",
+                    "default",
+                    "wildcard_path",
+                    "wildcard_entry",
+                    "flatten",
+                    "dynamic_keys",
+                    "choices",
+                    "type",
+                    "depends_on",
+                ]:
+                    continue
+                section_data = config_data.get(section_name, {})
+                wildcard_key = ".".join(wildcard_path + [sub_key])
+                if isinstance(sub_details, dict) and "type" not in sub_details:
+
+                    new_path = f"{path}.{section_name}" if path else section_name
+
+                    # Check if this section should be mandatory considering dependencies
+                    is_section_mandatory = (
+                        should_validate_mandatory(sub_details, root_config_data)
+                        and section_mandatory
+                    )
+
+                    validate_section_recursive(
+                        config_data=section_data,
+                        schema_dict=sub_details,
+                        path=new_path,
+                        errors=errors,
+                        section_mandatory=is_section_mandatory,
+                        root_config_data=root_config_data,
+                        original_schema_dict=original_schema_dict,
+                    )
+                else:
+                    is_section_mandatory = sub_details.get("mandatory", True)
+
+                    if not is_section_mandatory:
+                        default_value = sub_details.get("default")
+                    else:
+                        default_value = None
+
+                    value = section_data.get(sub_key, default_value)
+
+                    param_errors = validate_parameter(
+                        value=value,
+                        param_key=wildcard_key,
+                        param_schema=sub_details,
+                        path=path,
+                        root_config_data=root_config_data,
+                    )
+                    errors.extend(param_errors)
+                    if len(param_errors) == 0:
+                        # config_data_removal.pop(sub_key, None)
+                        config_data_removal[section_name].pop(sub_key, None)
+            # breakpoint()
+            continue
+
         # Handle dynamic key sections
-        if section_schema.get('dynamic_keys'):
+        if section_schema.get("dynamic_keys"):
             # Look for keys that match the pattern
-            section_prefix = f'{section_name}.'
+            section_prefix = f"{section_name}."
             for config_key, config_value in config_data.items():
                 if config_key.startswith(section_prefix) and isinstance(
                     config_value, dict
                 ):
                     # This is a dynamic key entry
-                    new_path = f'{path}.{config_key}' if path else config_key
+                    new_path = f"{path}.{config_key}" if path else config_key
                     is_section_mandatory = (
-                        section_schema.get('mandatory', True) and section_mandatory
+                        section_schema.get("mandatory", True) and section_mandatory
                     )
                     validate_section_recursive(
                         config_data=config_value,
-                        schema_dict=section_schema.get('schema', {}),
+                        schema_dict=section_schema.get("schema", {}),
                         path=new_path,
                         errors=errors,
                         section_mandatory=is_section_mandatory,
@@ -572,11 +649,11 @@ def validate_section_recursive(
 
         # Regular nested section
         section_data = config_data.get(section_name)
-        new_path = f'{path}.{section_name}' if path else section_name
+        new_path = f"{path}.{section_name}" if path else section_name
 
         # Check if this section should be mandatory considering dependencies
         is_section_mandatory = (
-            should_validate_mandatory(section_schema, config_data, root_config_data)
+            should_validate_mandatory(section_schema, root_config_data)
             and section_mandatory
         )
 
@@ -594,9 +671,9 @@ def validate_section_recursive(
     unexpected_keys = set(config_data_removal.keys()) - set(params.keys())
     if unexpected_keys and len(set(config_data_removal.keys())) > 0:
         for key in unexpected_keys:
-            full_key_path = f'{path}.{key}' if path else key
+            full_key_path = f"{path}.{key}" if path else key
             if not key_path_in_schema(full_key_path, original_schema_dict):
-                errors.append(f'Unexpected key found: [yellow italic]{full_key_path}')
+                errors.append(f"Unexpected key found: [yellow italic]{full_key_path}")
     return errors
 
 
@@ -612,7 +689,7 @@ def key_path_in_schema(full_path, schema_dict):
     -------
         bool: False if the key is not present in the schema, True otherwise.
     """
-    keys = full_path.split('.')
+    keys = full_path.split(".")
     current_dict = schema_dict
     for key in keys:
         if key not in current_dict:
@@ -623,16 +700,16 @@ def key_path_in_schema(full_path, schema_dict):
 
 def get_schema():
     # Load the master schema file
-    schema_path = pl.Path(MDB_DATA_DIR) / 'config_schema.yaml'
+    schema_path = pl.Path(MDB_DATA_DIR) / "config_schema.yaml"
     try:
         with open(schema_path) as f:
             schema = yaml.safe_load(f)
     except FileNotFoundError:
-        custom_print(f'Schema file not found at {schema_path}', print_type='error')
+        custom_print(f"Schema file not found at {schema_path}", print_type="error")
         sys.exit(1)
     except yaml.YAMLError as e:
         custom_print(
-            f'Failed to parse schema file {schema_path}: {e}', print_type='error'
+            f"Failed to parse schema file {schema_path}: {e}", print_type="error"
         )
         sys.exit(1)
 

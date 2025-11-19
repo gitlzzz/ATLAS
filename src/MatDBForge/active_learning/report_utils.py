@@ -43,31 +43,31 @@ from MatDBForge.core.code_utils import custom_print, init_logger
 
 # Define colors from the gruvbox palette
 COLORS = [
-    '#6aa1f4',
-    '#ffa6c8',
-    '#3ed04e',
-    '#e50e3f',
-    '#fed65b',
-    '#7532c8',
-    '#ff8834',
+    "#6aa1f4",
+    "#ffa6c8",
+    "#3ed04e",
+    "#e50e3f",
+    "#fed65b",
+    "#7532c8",
+    "#ff8834",
 ]
-LINE_COLOR = '#28282855'
+LINE_COLOR = "#28282855"
 
 # Define the process labels for the different calculation types
-TRAINING_LABEL = 'TrainMACEModelCalculation'
-DESCRIPTORS_LABEL = 'GetDescriptorsCombinedCalculation'
-MD_LABEL = 'ProcessMDSeedStructCalculation'
-DFT_LABELS = ['EvaluateMACEConfigsCalculation', 'VaspCalculation']
+TRAINING_LABEL = "TrainMACEModelCalculation"
+DESCRIPTORS_LABEL = "GetDescriptorsCombinedCalculation"
+MD_LABEL = "ProcessMDSeedStructCalculation"
+DFT_LABELS = ["EvaluateMACEConfigsCalculation", "VaspCalculation"]
 AL_STEP_WORKCHAIN_LABEL = (
-    'SimpleActiveLearningWorkChain'  # Ensure this matches your WorkChain label
+    "SimpleActiveLearningWorkChain"  # Ensure this matches your WorkChain label
 )
 
 # Define stage keys for iteration
 STAGE_KEYS: list[str] = [
-    'training',
-    'descriptors',
-    'md',
-    'dft',
+    "training",
+    "descriptors",
+    "md",
+    "dft",
 ]
 
 
@@ -91,26 +91,26 @@ def output_al_stats_dict(stats_dict: dict, title: str = None):
     from rich.table import Table
 
     if not stats_dict:
-        print('The dictionary is empty.')
+        print("The dictionary is empty.")
         return
 
     print()
 
-    title = f'AL Loop Report: {title}' if title else 'AL Loop Report'
+    title = f"AL Loop Report: {title}" if title else "AL Loop Report"
     caption = (
         "Values gathered from the run's log file. Iteration 0 is the initial database."
     )
 
     console = Console()
     table = Table(
-        show_header=True, header_style='bold magenta', title=title, caption=caption
+        show_header=True, header_style="bold magenta", title=title, caption=caption
     )
 
     # Define columns
     # Use the keys from the first valid inner dictionary as column headers
     first_item_key = next(iter(stats_dict))
     if stats_dict[first_item_key] is None:
-        print('The first item in the dictionary is None, cannot determine columns.')
+        print("The first item in the dictionary is None, cannot determine columns.")
         # Attempt to find a valid inner dictionary for column names
         inner_keys = None
         for key in stats_dict:
@@ -118,12 +118,12 @@ def output_al_stats_dict(stats_dict: dict, title: str = None):
                 inner_keys = list(stats_dict[key].keys())
                 break
         if inner_keys is None:
-            print('Could not determine column headers from the dictionary.')
+            print("Could not determine column headers from the dictionary.")
             return
     else:
         inner_keys = list(stats_dict[first_item_key].keys())
 
-    table.add_column('Iteration', style='dim', width=12)  # For the outer dictionary key
+    table.add_column("Iteration", style="dim", width=12)  # For the outer dictionary key
     for key in inner_keys:
         table.add_column(str(key))
 
@@ -133,10 +133,10 @@ def output_al_stats_dict(stats_dict: dict, title: str = None):
         if inner_dict is not None:
             for col_key in inner_keys:
                 value = inner_dict.get(col_key)
-                row_values.append(str(value) if value is not None else 'N/A')
+                row_values.append(str(value) if value is not None else "N/A")
         else:
             # If the inner_dict itself is None
-            row_values.extend(['N/A'] * len(inner_keys))
+            row_values.extend(["N/A"] * len(inner_keys))
         table.add_row(*row_values)
 
     console.print(table)
@@ -146,7 +146,7 @@ def gen_al_loop_report(
     loop_id: int | str = None,
     log_path: str = None,
     get_error_plot: bool = False,
-    device='cpu',
+    device="cpu",
     model_path: str | Path = None,
     database_path: str | Path = None,
     threshold_E_meV: float = None,
@@ -173,11 +173,11 @@ def gen_al_loop_report(
     print()
 
     # Parse report dict
-    it_idx = [stats_dict[i]['it_idx'] for i in stats_dict]
-    seed_gen_db_sizes = [stats_dict[i]['seed_gen_db_size'] for i in stats_dict]
-    train_db_sizes = [stats_dict[i]['train_db_size'] for i in stats_dict]
-    mace_e = [stats_dict[i]['mace_e'] for i in stats_dict]
-    mace_f = [stats_dict[i]['mace_f'] for i in stats_dict]
+    it_idx = [stats_dict[i]["it_idx"] for i in stats_dict]
+    seed_gen_db_sizes = [stats_dict[i]["seed_gen_db_size"] for i in stats_dict]
+    train_db_sizes = [stats_dict[i]["train_db_size"] for i in stats_dict]
+    mace_e = [stats_dict[i]["mace_e"] for i in stats_dict]
+    mace_f = [stats_dict[i]["mace_f"] for i in stats_dict]
 
     # Adjust number of panels according to options
     num_rows = 2
@@ -192,7 +192,7 @@ def gen_al_loop_report(
     fig_width = num_cols * 5
     fig_height = num_rows * 5
 
-    fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
+    fig = plt.figure(layout="tight", figsize=(fig_width, fig_height))
     gs = gridspec.GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
 
     # Get report
@@ -208,15 +208,15 @@ def gen_al_loop_report(
     )
 
     # bold title
-    fig.suptitle(f"Results for run: '{title}'", fontsize=14, fontweight='bold')
+    fig.suptitle(f"Results for run: '{title}'", fontsize=14, fontweight="bold")
 
     if get_error_plot:
         custom_print(
             (
-                'Generating database error plot. '
-                f'Remove outliers: {bool(remove_outliers)}'
+                "Generating database error plot. "
+                f"Remove outliers: {bool(remove_outliers)}"
             ),
-            'info',
+            "info",
         )
 
         if not database_path:
@@ -225,16 +225,16 @@ def gen_al_loop_report(
                     0
                 ].inputs.active_learning.init_db_path.value
                 custom_print(
-                    'Database path not provided. Using the one from the first AL loop.',
-                    'warn',
+                    "Database path not provided. Using the one from the first AL loop.",
+                    "warn",
                 )
             except Exception:
                 custom_print(
                     (
-                        'Database path not provided and unable to gather initial db '
-                        'from AL workchain. Skipping error plot.'
+                        "Database path not provided and unable to gather initial db "
+                        "from AL workchain. Skipping error plot."
                     ),
-                    'error',
+                    "error",
                 )
 
         if database_path:
@@ -254,21 +254,21 @@ def gen_al_loop_report(
     if get_latent_space:
         # raise NotImplementedError("Latent space evolution plot not implemented yet.")
         custom_print(
-            'Plotting latent space evolution...',
-            'info',
+            "Plotting latent space evolution...",
+            "info",
         )
 
         if not model_path:
             try:
                 if isinstance(al_loop_node, list):
-                    al_loop_node = al_loop_node[0]
-                first_al_step = al_loop_node.called[0]
+                    al_loop_node_first = al_loop_node[0]
+                first_al_step = al_loop_node_first.called[0]
                 model_path = first_al_step.outputs.m0_model_file
             except Exception:
                 custom_print(
-                    'Error getting model path from first AL step. '
-                    'Using the provided model path if available.',
-                    'error',
+                    "Error getting model path from first AL step. "
+                    "Using the provided model path if available.",
+                    "error",
                 )
                 model_path = None
 
@@ -286,12 +286,12 @@ def gen_al_loop_report(
             descr_calc = [
                 calc
                 for calc in descr_calc_ini
-                if hasattr(calc.outputs, 'autoencoder_model')
+                if hasattr(calc.outputs, "autoencoder_model")
             ]
 
             # If no descriptors calculation is found, we don't do anything.
             if len(descr_calc) == 0 and len(descr_calc_ini) == 0:
-                descr_calc = 'missing_descriptor_calc'
+                descr_calc = "missing_descriptor_calc"
 
             # If there is a descriptors calculation but no autoencoder model,
             # we assume that the run was performed without dimensionality reduction.
@@ -299,22 +299,22 @@ def gen_al_loop_report(
             # first iteration and use it to generate the latent space evolution plot.
             elif len(descr_calc) == 0 and len(descr_calc_ini) > 0:
                 custom_print(
-                    'No autoencoder model found in the first iteration. '
-                    'Training a new autoencoder model using the descriptors from the '
-                    'first iteration.',
-                    'warn',
+                    "No autoencoder model found in the first iteration. "
+                    "Training a new autoencoder model using the descriptors from the "
+                    "first iteration.",
+                    "warn",
                 )
-                descr_calc = 'missing_autoencoder'
+                descr_calc = "missing_autoencoder"
 
                 # Get initial database from the first iteration
                 db_path = descr_calc_ini[0].inputs.training_database_path.value
-                db = ase_read(db_path, format='extxyz', index=':')
-                init_db = [st for st in db if st.info.get('mdb_al_step') == 0]
+                db = ase_read(db_path, format="extxyz", index=":")
+                init_db = [st for st in db if st.info.get("mdb_al_step") == 0]
 
-                if not Path('all_descriptors.npz').exists():
+                if not Path("all_descriptors.npz").exists():
                     custom_print(
-                        'Getting descriptors from the first iteration database...',
-                        'info',
+                        "Getting descriptors from the first iteration database...",
+                        "info",
                     )
                     # Getting model path
                     with model_path.as_path() as model_path_load:
@@ -324,26 +324,26 @@ def gen_al_loop_report(
                             database=init_db,
                             device=device,
                         )
-                        np.savez_compressed('./all_descriptors.npz', desc_array)
+                        np.savez_compressed("./all_descriptors.npz", desc_array)
                 else:
                     custom_print(
                         "Loading descriptors from file: 'all_descriptors.npz'",
-                        'info',
+                        "info",
                     )
-                    with np.load('all_descriptors.npz') as data:
-                        desc_array = data['arr_0']
+                    with np.load("all_descriptors.npz") as data:
+                        desc_array = data["arr_0"]
 
-                if not Path('autoencoder_model.pth').exists():
+                if not Path("autoencoder_model.pth").exists():
                     # Train autoencoder model
                     custom_print(
-                        'Training autoencoder model with descriptors from the first '
-                        'iteration.',
-                        'info',
+                        "Training autoencoder model with descriptors from the first "
+                        "iteration.",
+                        "info",
                     )
 
                     autoencoder_args = SimpleNamespace(
                         device=device,
-                        dtype='float32',
+                        dtype="float32",
                         dataset=desc_array,
                         test_frac=0.1,
                         valid_frac=0.1,
@@ -352,23 +352,23 @@ def gen_al_loop_report(
                         l1_hidden_dim=256,
                         l2_hidden_dim=32,
                         bias_flag=True,
-                        loss='mse',
+                        loss="mse",
                         patience=5,
                         lr=1e-3,
                         batch_size=4096,
                         num_epochs=250,
-                        model_path='./autoencoder_model.pth',
+                        model_path="./autoencoder_model.pth",
                         weight_decay=1e-5,
                         verbose=True,
                     )
                     autoencoder_model = run_training(autoencoder_args)
                 else:
                     custom_print(
-                        'Autoencoder model already trained. Loading from file.',
-                        'info',
+                        "Autoencoder model already trained. Loading from file.",
+                        "info",
                     )
                     autoencoder_model = load_autoencoder_model(
-                        model_path='./autoencoder_model.pth', data_arr=desc_array
+                        model_path="./autoencoder_model.pth", data_arr=desc_array
                     )
 
                 # Setting to None so the database files are read from the workchain.
@@ -380,11 +380,12 @@ def gen_al_loop_report(
                 autoencoder_model = descr_calc.outputs.autoencoder_model
 
                 # If the al_loop is a collection of nodes, get the last one
+                al_loop_node_last = al_loop_node
                 if isinstance(al_loop_node, list):
-                    al_loop_node = al_loop_node[-1]
+                    al_loop_node_last = al_loop_node[-1]
 
                 try:
-                    last_iter = al_loop_node.called[-1]
+                    last_iter = al_loop_node_last.called[-1]
                     train_calc = [
                         calc
                         for calc in last_iter.called
@@ -401,18 +402,18 @@ def gen_al_loop_report(
                 # Get last iteration database
                 if not database_path:
                     custom_print(
-                        'No database path provided. Using the one from the last '
-                        'iteration.',
-                        'warn',
+                        "No database path provided. Using the one from the last "
+                        "iteration.",
+                        "warn",
                     )
                     database_path = train_calc.inputs.mace_train_file_path.value
 
                 # Get model path from last iteration
                 if not model_path:
                     custom_print(
-                        'No model path provided. Using the one from the last '
-                        'iteration.',
-                        'warn',
+                        "No model path provided. Using the one from the last "
+                        "iteration.",
+                        "warn",
                     )
                     model_path: orm.SinglefileData = train_calc.outputs.model_file
 
@@ -426,10 +427,10 @@ def gen_al_loop_report(
 
         database_files = None
 
-        if descr_calc == 'missing_descriptor_calc':
+        if descr_calc == "missing_descriptor_calc":
             custom_print(
-                'No descriptors calculation found in the first iteration.',
-                'warning',
+                "No descriptors calculation found in the first iteration.",
+                "warning",
             )
 
         else:
@@ -449,13 +450,13 @@ def gen_al_loop_report(
     fig.subplots_adjust(top=0.925, bottom=0.0725, right=0.95, left=0.075)
 
     # Saving both png and svg
-    plt.savefig(filename.with_suffix('.png'), dpi=300)
-    plt.savefig(filename.with_suffix('.svg'), dpi=300)
-    custom_print(f"Saved report to '{filename.with_suffix('.png')}'.", 'info')
+    plt.savefig(filename.with_suffix(".png"), dpi=300)
+    plt.savefig(filename.with_suffix(".svg"), dpi=300)
+    custom_print(f"Saved report to '{filename.with_suffix('.png')}'.", "info")
 
     plt.clf()
 
-    custom_print('Report generation complete.', 'done')
+    custom_print("Report generation complete.", "done")
 
 
 def get_loop_report(
@@ -490,17 +491,17 @@ def get_loop_report(
     """
     if loop_id:
         al_loop_node = orm.load_node(loop_id)
-        report = get_workchain_report(al_loop_node, levelname='REPORT')
+        report = get_workchain_report(al_loop_node, levelname="REPORT")
     if log_path:
         with open(log_path) as f:
             report = f.read()
-        loop_id = re.compile(r'.*ActiveLearningBaseWorkChain\|setup].*').findall(report)
+        loop_id = re.compile(r".*ActiveLearningBaseWorkChain\|setup].*").findall(report)
 
         try:
             # compatible with old logs
             loop_id: list[int] = np.unique(
                 np.array(
-                    [int(i.replace('[', '').split('|')[0].strip()) for i in loop_id]
+                    [int(i.replace("[", "").split("|")[0].strip()) for i in loop_id]
                 )
             )
         except ValueError:
@@ -508,7 +509,7 @@ def get_loop_report(
             loop_id: list[int] = np.unique(
                 np.array(
                     [
-                        int(i.split('|')[0].split('-')[1].strip().replace('[', ''))
+                        int(i.split("|")[0].split("-")[1].strip().replace("[", ""))
                         for i in loop_id
                     ]
                 )
@@ -519,8 +520,8 @@ def get_loop_report(
             al_loop_node = loop_id
 
     try:
-        ini_db_line = re.compile(r'initial database containing.*').findall(report)
-        ini_db_size = int(ini_db_line[0].split()[3].replace("'", ''))
+        ini_db_line = re.compile(r"initial database containing.*").findall(report)
+        ini_db_size = int(ini_db_line[0].split()[3].replace("'", ""))
     except IndexError:
         ini_db_size = 0
 
@@ -538,18 +539,18 @@ def get_loop_report(
 
     stats_dict = {
         0: {
-            'it_idx': 0,
-            'mace_e': None,
-            'mace_f': None,
-            'train_db_size': ini_db_size,
-            'seed_gen_db_size': ini_db_size,
-            'finished': True,
+            "it_idx": 0,
+            "mace_e": None,
+            "mace_f": None,
+            "train_db_size": ini_db_size,
+            "seed_gen_db_size": ini_db_size,
+            "finished": True,
         }
     }
 
     # Extract iteration indices from "Starting AL Loop iteration X/Y..."
     it_idx_list = []
-    start_loop_matches = re.finditer(r'Starting AL Loop iteration (\d+)/\d+', report)
+    start_loop_matches = re.finditer(r"Starting AL Loop iteration (\d+)/\d+", report)
     for match in start_loop_matches:
         it_idx_list.append(int(match.group(1)))
 
@@ -557,13 +558,13 @@ def get_loop_report(
     # Store these in a dictionary keyed by iteration number for easy lookup.
     db_data_by_iter = {}
     db_lines_matches = re.finditer(
-        r'Iteration (\d+): seed_gen_db (\S+), training_db: (\S+) entries', report
+        r"Iteration (\d+): seed_gen_db (\S+), training_db: (\S+) entries", report
     )
     for match in db_lines_matches:
         iter_num_db = int(match.group(1))
         db_data_by_iter[iter_num_db] = {
-            'seed_gen_db_size': int(match.group(2).replace(',', '')),
-            'train_db_size': int(match.group(3).replace(',', '')),
+            "seed_gen_db_size": int(match.group(2).replace(",", "")),
+            "train_db_size": int(match.group(3).replace(",", "")),
         }
 
     # Extract MACE performance from "Best model of current step..."
@@ -571,46 +572,46 @@ def get_loop_report(
     # the sequence of started iterations.
     mace_data_list = []
     best_model_matches = re.finditer(
-        r'Best model of current step .* RMSE E: (\S+) meV/at, RMSE F: (\S+) meV/Å',
+        r"Best model of current step .* RMSE E: (\S+) meV/at, RMSE F: (\S+) meV/Å",
         report,
     )
     for match in best_model_matches:
         mace_data_list.append(
             {
-                'mace_e': float(match.group(1)),
-                'mace_f': float(match.group(2)),
+                "mace_e": float(match.group(1)),
+                "mace_f": float(match.group(2)),
             }
         )
 
     # Populate stats_dict for iterations 1 through N
     for i, current_iter_num in enumerate(it_idx_list):
         stats_dict[current_iter_num] = {
-            'it_idx': current_iter_num,
-            'mace_e': None,
-            'mace_f': None,
-            'train_db_size': None,
-            'seed_gen_db_size': None,
+            "it_idx": current_iter_num,
+            "mace_e": None,
+            "mace_f": None,
+            "train_db_size": None,
+            "seed_gen_db_size": None,
             # Default, updated based on db_data_by_iter
-            'finished': False,
+            "finished": False,
         }
 
         # Assign MACE data if available for this sequential position
         if i < len(mace_data_list):
-            stats_dict[current_iter_num]['mace_e'] = mace_data_list[i]['mace_e']
-            stats_dict[current_iter_num]['mace_f'] = mace_data_list[i]['mace_f']
+            stats_dict[current_iter_num]["mace_e"] = mace_data_list[i]["mace_e"]
+            stats_dict[current_iter_num]["mace_f"] = mace_data_list[i]["mace_f"]
 
         # Check for the "Iteration X: seed_gen_db..." line for this current_iter_num
         # If found, the step is considered "finished" and DB sizes are populated.
         # The "Starting AL Loop iteration X..." condition is met by iterating
         # it_idx_list.
         if current_iter_num in db_data_by_iter:
-            stats_dict[current_iter_num]['train_db_size'] = db_data_by_iter[
+            stats_dict[current_iter_num]["train_db_size"] = db_data_by_iter[
                 current_iter_num
-            ]['train_db_size']
-            stats_dict[current_iter_num]['seed_gen_db_size'] = db_data_by_iter[
+            ]["train_db_size"]
+            stats_dict[current_iter_num]["seed_gen_db_size"] = db_data_by_iter[
                 current_iter_num
-            ]['seed_gen_db_size']
-            stats_dict[current_iter_num]['finished'] = True
+            ]["seed_gen_db_size"]
+            stats_dict[current_iter_num]["finished"] = True
 
     # Get run name
     # If title wasn't passed in or set in the omitted part
@@ -618,30 +619,30 @@ def get_loop_report(
         try:
             title = al_loop_node.inputs.active_learning.run_name.value
         except Exception:
-            title_regex = r'Active Learning Inputs:\s*\n({.*?})\n'
+            title_regex = r"Active Learning Inputs:\s*\n({.*?})\n"
             match_obj = re.search(title_regex, report, re.DOTALL)
             if match_obj:
                 settings_dict_string = match_obj.group(1)
                 # Convert Python dict-like string to valid JSON string
                 settings_dict_string = (
                     settings_dict_string.replace("'", '"')
-                    .replace('True', 'true')
-                    .replace('False', 'false')
-                    .replace('None', 'null')
+                    .replace("True", "true")
+                    .replace("False", "false")
+                    .replace("None", "null")
                 )
                 settings_dict = json.loads(settings_dict_string)
-                title = settings_dict.get('run_name')
+                title = settings_dict.get("run_name")
 
     if not title:
         if isinstance(al_loop_node, str):
-            title = f'AL Loop: {al_loop_node}'
+            title = f"AL Loop: {al_loop_node}"
         elif isinstance(al_loop_node, orm.Node):
-            title = f'AL Loop: {al_loop_node.uuid}'
+            title = f"AL Loop: {al_loop_node.uuid}"
         elif isinstance(al_loop_node, list):
             al_loop_nodes_pk = [str(node.pk) for node in al_loop_node]
-            title = f' {al_loop_nodes_pk}'
+            title = f" {al_loop_nodes_pk}"
         else:
-            title = f'{al_loop_node}'
+            title = f"{al_loop_node}"
 
     return (
         title,
@@ -655,7 +656,7 @@ def get_loop_report(
 def get_mace_eval_results(
     al_loop_node: list[orm.Node],
     database_path: str | Path,
-    device_str: str = 'cpu',
+    device_str: str = "cpu",
     model_path: str | Path = None,
     folder_path: str | Path = None,
     enable_cueq: bool = False,
@@ -664,7 +665,7 @@ def get_mace_eval_results(
     from mace.tools import torch_tools
     from rich.progress import track
 
-    torch_tools.set_default_dtype('float32')
+    torch_tools.set_default_dtype("float32")
 
     # Getting children if not done yet
     if isinstance(al_loop_node, orm.Node):
@@ -678,7 +679,7 @@ def get_mace_eval_results(
             try:
                 al_loop_node_list.append(orm.load_node(int(node_pk)))
             except Exception:
-                custom_print(f'Unable to load node: {node_pk}', 'error')
+                custom_print(f"Unable to load node: {node_pk}", "error")
         al_loop_node = al_loop_node_list
 
     # Workaround for single node case when loading from log
@@ -687,13 +688,13 @@ def get_mace_eval_results(
             curr_node = orm.load_node(al_loop_node[0])
         else:
             curr_node = al_loop_node[0]
-        if curr_node.process_type == 'aiida.workflows:mdb-simple-active-learning-base':
+        if curr_node.process_type == "aiida.workflows:mdb-simple-active-learning-base":
             al_loop_node = al_loop_node[0].called
     # Cases with multiple resumes in a single node
     elif (
         len(al_loop_node) > 1
         and al_loop_node[-1].process_type
-        == 'aiida.workflows:mdb-simple-active-learning-base'
+        == "aiida.workflows:mdb-simple-active-learning-base"
     ):
         al_loop_node = al_loop_node[-1].called
 
@@ -704,15 +705,15 @@ def get_mace_eval_results(
             all_iters = [
                 stp
                 for stp in al_loop_node
-                if stp.process_type == 'aiida.workflows:mdb-active-learning'
-                or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
+                if stp.process_type == "aiida.workflows:mdb-active-learning"
+                or stp.process_type == "aiida.workflows:mdb-simple-active-learning"
             ]
             last_iter = all_iters[-1]
         except AttributeError:
             last_iter = al_loop_node
             custom_print(
-                'No nodes found for the AL loop. Is it stored in this machine?',
-                'warning',
+                "No nodes found for the AL loop. Is it stored in this machine?",
+                "warning",
             )
 
         # Copy the training database to the tmp folder
@@ -723,7 +724,7 @@ def get_mace_eval_results(
 
         training_db_cp_path = shutil.copy(training_db_path, tmp_dir)
         if not model_path:
-            custom_print('Using best model from last workchain iteration...', 'info')
+            custom_print("Using best model from last workchain iteration...", "info")
             if not last_iter.is_finished and len(all_iters) > 1:
                 model_file: orm.SinglefileData = all_iters[-2].outputs.m0_model_file
             else:
@@ -731,23 +732,23 @@ def get_mace_eval_results(
             with model_file.as_path() as f:
                 model_path = shutil.copy(f, tmp_dir)
         else:
-            custom_print(f'Using model from: {model_path}', 'info')
+            custom_print(f"Using model from: {model_path}", "info")
 
         # Load the training database
-        train_db = ase_read(training_db_cp_path, format='extxyz', index=':')
+        train_db = ase_read(training_db_cp_path, format="extxyz", index=":")
 
         # Load model
         mace_model = MACECalculator(
             model_paths=model_path,
             device=device_str,
-            default_dtype='float32',
+            default_dtype="float32",
             enable_cueq=enable_cueq,
         )
 
         if not folder_path:
-            folder_path = Path('.')
+            folder_path = Path(".")
 
-        files = (folder_path / 'E_nn_list.npy', folder_path / 'F_nn_list.npy')
+        files = (folder_path / "E_nn_list.npy", folder_path / "F_nn_list.npy")
         file_names = (files[0].name, files[1].name)
 
         E_nn_list = []
@@ -758,7 +759,7 @@ def get_mace_eval_results(
         if len(set(file_names) - set(os.listdir(folder_path))) != 0:
             for struct in track(
                 train_db,
-                description='Evaluating structures...',
+                description="Evaluating structures...",
             ):
                 struct.calc = mace_model
                 energy_output = struct.get_potential_energy()
@@ -771,7 +772,7 @@ def get_mace_eval_results(
                 F_nn_list.append(forces_max)
 
         else:
-            custom_print('Loading energies and forces from file...', 'info')
+            custom_print("Loading energies and forces from file...", "info")
             E_nn_list = np.load(files[0])
             F_nn_list = np.load(files[1])
 
@@ -809,8 +810,8 @@ def mark_and_remove_outliers(
             or abs(F_diff_list_meV[F_val]) > threshold_F_meV
         ):
             struct = train_db[int(E_val)]
-            struct.info['E_dft_nn_diff_meV'] = E_diff_list_meV[E_val]
-            struct.info['F_dft_nn_diff_meV'] = F_diff_list_meV[F_val]
+            struct.info["E_dft_nn_diff_meV"] = E_diff_list_meV[E_val]
+            struct.info["F_dft_nn_diff_meV"] = F_diff_list_meV[F_val]
             outlier_list.append(struct)
 
             # Add outler indices to list for removal
@@ -836,14 +837,14 @@ def mark_and_remove_outliers(
 
         # Save the outliers to a file,
         if len(outlier_list) > 0:
-            ase_write('outliers.xyz', outlier_list, format='extxyz')
+            ase_write("outliers.xyz", outlier_list, format="extxyz")
             custom_print(
                 (
                     f"Saved {len(outlier_list)} outliers to 'outliers.xyz'. "
-                    f'Used E: {threshold_E_meV} meV and F: {threshold_F_meV} meV'
-                    ' as threshold.'
+                    f"Used E: {threshold_E_meV} meV and F: {threshold_F_meV} meV"
+                    " as threshold."
                 ),
-                'info',
+                "info",
             )
 
     return (
@@ -860,7 +861,7 @@ def mark_and_remove_outliers(
 
 def generate_error_plot(
     al_loop_node: list[orm.Node],
-    device_str: str = 'cpu',
+    device_str: str = "cpu",
     ax=None,
     database_path: str = None,
     model_path: str = None,
@@ -878,11 +879,11 @@ def generate_error_plot(
         enable_cueq=enable_cueq,
     )
 
-    train_db = ase_read(database_path, format='extxyz', index=':')
+    train_db = ase_read(database_path, format="extxyz", index=":")
 
-    E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
+    E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
     F_dft_list = np.array(
-        [simplify_forces_struct(atoms.arrays['REF_forces'])[0] for atoms in train_db]
+        [simplify_forces_struct(atoms.arrays["REF_forces"])[0] for atoms in train_db]
     )
 
     # Getting atom count
@@ -932,7 +933,7 @@ def generate_error_plot(
     for idx in range(len(E_dft_list_per_at)):
         export_list.append(
             [
-                train_db[idx].info.get('mdb_id'),
+                train_db[idx].info.get("mdb_id"),
                 E_dft_list_per_at[idx],
                 E_nn_list_per_at[idx],
                 F_dft_list_per_at[idx],
@@ -943,12 +944,12 @@ def generate_error_plot(
         )
     export_array = np.array(export_list, dtype=object)
     np.savetxt(
-        'stats.out',
+        "stats.out",
         export_array,
-        fmt='%s %.8f %.8f %.8f %.8f %.8f %.8f',
-        header='mdb_id E_dft_per_at E_nn_per_at F_dft_per_at F_nn_per_at'
-        ' E_diff_meV F_diff_meV',
-        comments='# ',
+        fmt="%s %.8f %.8f %.8f %.8f %.8f %.8f",
+        header="mdb_id E_dft_per_at E_nn_per_at F_dft_per_at F_nn_per_at"
+        " E_diff_meV F_diff_meV",
+        comments="# ",
     )
 
     # Get RMSD
@@ -994,76 +995,76 @@ def generate_error_plot(
     ax1_top.text(
         x=tex_x_pos,
         y=tex_y_pos,
-        s=f'MAE: {E_mae:.3f} meV/atom\nRMSD: {E_rmsd:.3f} meV/atom',
+        s=f"MAE: {E_mae:.3f} meV/atom\nRMSD: {E_rmsd:.3f} meV/atom",
         transform=ax1_top.transAxes,
     )
 
     ax1_top.plot(
         E_dft_list_per_at,
         E_nn_list_per_at,
-        'o',
-        color='#83a598',
+        "o",
+        color="#83a598",
         alpha=0.5,
         markeredgewidth=0.5,
-        markeredgecolor='#282828',
+        markeredgecolor="#282828",
         markersize=3,
     )
     ax1_top.plot(
         E_dft_list_per_at,
         E_dft_list_per_at,
-        color='#b16286',
-        linestyle='--',
+        color="#b16286",
+        linestyle="--",
     )
-    ax1_top.set_xlabel('DFT Energy [eV/atom]')
-    ax1_top.set_ylabel('NN Energy [eV/atom]')
-    ax1_top.set_title('Energy comparison')
+    ax1_top.set_xlabel("DFT Energy [eV/atom]")
+    ax1_top.set_ylabel("NN Energy [eV/atom]")
+    ax1_top.set_title("Energy comparison")
 
     ax1_top.annotate(
-        'e)',
+        "e)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        fontfamily='sans-serif',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        fontfamily="sans-serif",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
     )
 
     ax1_bottom = ax.figure.add_subplot(inner_grid[1, 0])
     ax1_bottom.annotate(
-        'f)',
+        "f)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
     )
     ax1_bottom.text(
         x=tex_x_pos,
         y=tex_y_pos,
-        s=f'MAE: {F_mae:.3f} meV/A\nRMSD: {F_rmsd:.3f} meV/A',
+        s=f"MAE: {F_mae:.3f} meV/A\nRMSD: {F_rmsd:.3f} meV/A",
         transform=ax1_bottom.transAxes,
     )
 
     ax1_bottom.plot(
         F_dft_list_per_at,
         F_nn_list_per_at,
-        'o',
-        color='#83a598',
+        "o",
+        color="#83a598",
         alpha=0.5,
         markeredgewidth=0.5,
-        markeredgecolor='#282828',
+        markeredgecolor="#282828",
         markersize=3,
     )
     ax1_bottom.plot(
-        F_dft_list_per_at, F_dft_list_per_at, color='#b16286', linestyle='--'
+        F_dft_list_per_at, F_dft_list_per_at, color="#b16286", linestyle="--"
     )
-    ax1_bottom.set_xlabel('DFT Forces [eV/A]')
-    ax1_bottom.set_ylabel('NN Forces [eV/A]')
-    ax1_bottom.set_title('Forces comparison')
+    ax1_bottom.set_xlabel("DFT Forces [eV/A]")
+    ax1_bottom.set_ylabel("NN Forces [eV/A]")
+    ax1_bottom.set_title("Forces comparison")
 
     inner_grid_diff = gridspec.GridSpecFromSubplotSpec(
         2, 1, subplot_spec=ax[1, 2], hspace=0.5
@@ -1073,48 +1074,48 @@ def generate_error_plot(
 
     # Plotting the EDFT, ENN and their difference in a line plot, using the
     # structure index as the x-axis.
-    ax2_top.plot(E_dft_list, color='#83a598', label='DFT Energy', alpha=0.5)
-    ax2_top.plot(E_nn_list, color='#b16286', label='NN Energy', alpha=0.5)
+    ax2_top.plot(E_dft_list, color="#83a598", label="DFT Energy", alpha=0.5)
+    ax2_top.plot(E_nn_list, color="#b16286", label="NN Energy", alpha=0.5)
 
-    ax2_bottom.plot(F_dft_list, color='#83a598', label='DFT Forces', alpha=0.5)
-    ax2_bottom.plot(F_nn_list, color='#b16286', label='NN Forces', alpha=0.5)
+    ax2_bottom.plot(F_dft_list, color="#83a598", label="DFT Forces", alpha=0.5)
+    ax2_bottom.plot(F_nn_list, color="#b16286", label="NN Forces", alpha=0.5)
 
     # Use secondary y-axis for the difference
     ax_twin = ax2_top.twinx()
     ax_twin_b = ax2_bottom.twinx()
     ax_twin.plot(
         np.abs(E_diff_list_meV),
-        color='#fb4934',
-        label='Difference',
+        color="#fb4934",
+        label="Difference",
         linewidth=0.75,
         alpha=0.75,
     )
     ax_twin_b.plot(
         np.abs(F_diff_list_meV),
-        color='#fb4934',
-        label='Difference',
+        color="#fb4934",
+        label="Difference",
         linewidth=0.75,
         alpha=0.75,
     )
-    ax_twin.set_ylabel('Abs. E diff [meV/atom]')
-    ax_twin_b.set_ylabel('Abs. F diff [meV/A]')
+    ax_twin.set_ylabel("Abs. E diff [meV/atom]")
+    ax_twin_b.set_ylabel("Abs. F diff [meV/A]")
 
-    ax_twin.spines['right'].set_color('#fb4934')
-    ax_twin.tick_params(axis='y', colors='#fb4934')
-    ax_twin.yaxis.label.set_color('#fb4934')
-    ax_twin.title.set_color('#fb4934')
-    ax_twin_b.spines['right'].set_color('#fb4934')
-    ax_twin_b.tick_params(axis='y', colors='#fb4934')
-    ax_twin_b.yaxis.label.set_color('#fb4934')
-    ax_twin_b.title.set_color('#fb4934')
+    ax_twin.spines["right"].set_color("#fb4934")
+    ax_twin.tick_params(axis="y", colors="#fb4934")
+    ax_twin.yaxis.label.set_color("#fb4934")
+    ax_twin.title.set_color("#fb4934")
+    ax_twin_b.spines["right"].set_color("#fb4934")
+    ax_twin_b.tick_params(axis="y", colors="#fb4934")
+    ax_twin_b.yaxis.label.set_color("#fb4934")
+    ax_twin_b.title.set_color("#fb4934")
 
     # Set labels and title
-    ax2_top.set_xlabel('Structure index')
-    ax2_top.set_ylabel('Energy [eV]')
-    ax2_top.set_title('Energy comparison')
-    ax2_bottom.set_xlabel('Structure index')
-    ax2_bottom.set_ylabel('Forces [eV/A]')
-    ax2_bottom.set_title('Forces comparison')
+    ax2_top.set_xlabel("Structure index")
+    ax2_top.set_ylabel("Energy [eV]")
+    ax2_top.set_title("Energy comparison")
+    ax2_bottom.set_xlabel("Structure index")
+    ax2_bottom.set_ylabel("Forces [eV/A]")
+    ax2_bottom.set_title("Forces comparison")
 
     lines, labels = ax2_top.get_legend_handles_labels()
     lines2, labels2 = ax_twin.get_legend_handles_labels()
@@ -1124,51 +1125,51 @@ def generate_error_plot(
     ax_twin_b.legend(lines_b + lines2_b, labels_b + labels2_b)
 
     ax2_top.annotate(
-        'g)',
+        "g)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
         zorder=102,
     )
     ax2_bottom.annotate(
-        'h)',
+        "h)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
         zorder=102,
     )
 
     if save_fig_now:
         plt.tight_layout()
-        filename = Path('./energy_difference.png').resolve()
+        filename = Path("./energy_difference.png").resolve()
         plt.savefig(filename, dpi=300)
-        custom_print(f"Saved report to '{filename}'.", 'info')
+        custom_print(f"Saved report to '{filename}'.", "info")
 
 
 def gen_batch_report(
     training_db_path: str,
     threshold_meV: float = 100,
     remove_outliers: bool = False,
-    root_path: str | Path = '.',
-    device_str='cuda',
+    root_path: str | Path = ".",
+    device_str="cuda",
 ):
-    init_logger(source='gen_batch_report')
-    custom_print('Generating al_loop batch report...', 'info')
+    init_logger(source="gen_batch_report")
+    custom_print("Generating al_loop batch report...", "info")
 
     # Plot seed and train db sizes as a stacked bar chart over every iteration
     width = 0.25
 
     # Get unix timestamp for filename
     timestamp = int(time.time())
-    filename = Path(f'al_loop_batch_report_{timestamp}').resolve()
+    filename = Path(f"al_loop_batch_report_{timestamp}").resolve()
 
     # Adjust number of panels according to options
     num_rows = 2
@@ -1178,18 +1179,18 @@ def gen_batch_report(
     fig_width = num_cols * 5
     fig_height = num_rows * 5
 
-    fig = plt.figure(layout='tight', figsize=(fig_width, fig_height))
+    fig = plt.figure(layout="tight", figsize=(fig_width, fig_height))
     ax = gridspec.GridSpec(nrows=num_rows, ncols=num_cols, figure=fig)
 
     root_path = Path(root_path).absolute()
 
     # Load the initial training database
-    train_db = ase_read(training_db_path, format='extxyz', index=':')
+    train_db = ase_read(training_db_path, format="extxyz", index=":")
 
     # Getting DFT energy and forces
-    E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
+    E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
     F_dft_list = np.array(
-        [simplify_forces_struct(atoms.arrays['REF_forces'])[0] for atoms in train_db]
+        [simplify_forces_struct(atoms.arrays["REF_forces"])[0] for atoms in train_db]
     )
 
     # Get all directories in the root path
@@ -1203,17 +1204,17 @@ def gen_batch_report(
 
     # Iterate over all directories to gather data
     for dir_path in dirs:
-        model_file = list(dir_path.glob('*.model'))
-        db_file = list(dir_path.glob('*.xyz'))
+        model_file = list(dir_path.glob("*.model"))
+        db_file = list(dir_path.glob("*.xyz"))
 
         # Check if the directories contain the necessary .log files
-        log_file = list(dir_path.glob('*.log'))
+        log_file = list(dir_path.glob("*.log"))
 
         if len(log_file) == 0 or len(model_file) == 0 or len(db_file) == 0:
-            custom_print(f'Missing an output file in {dir_path}.', 'error')
+            custom_print(f"Missing an output file in {dir_path}.", "error")
             continue
         if len(list(log_file)) > 1:
-            custom_print(f'Repeated output files in {dir_path}.', 'error')
+            custom_print(f"Repeated output files in {dir_path}.", "error")
             continue
 
         (
@@ -1228,14 +1229,14 @@ def gen_batch_report(
 
         # Parse dict
         # it_idx = [stats_dict[i]['it_idx'] for i in stats_dict]
-        seed_gen_db_sizes = [stats_dict[i]['seed_gen_db_size'] for i in stats_dict]
-        train_db_sizes = [stats_dict[i]['train_db_size'] for i in stats_dict]
-        mace_e = [stats_dict[i]['mace_e'] for i in stats_dict]
-        mace_f = [stats_dict[i]['mace_f'] for i in stats_dict]
+        seed_gen_db_sizes = [stats_dict[i]["seed_gen_db_size"] for i in stats_dict]
+        train_db_sizes = [stats_dict[i]["train_db_size"] for i in stats_dict]
+        mace_e = [stats_dict[i]["mace_e"] for i in stats_dict]
+        mace_f = [stats_dict[i]["mace_f"] for i in stats_dict]
 
         raise NotImplementedError(
-            'This report type must be updated for its use with the'
-            'new `get_loop_report` function.'
+            "This report type must be updated for its use with the"
+            "new `get_loop_report` function."
         )
 
         train_db_sizes_plot.append(train_db_sizes[-1])
@@ -1253,10 +1254,10 @@ def gen_batch_report(
             model_path=model_file[0],
             database_path=training_db_path,
         )
-        E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
+        E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
         F_dft_list = np.array(
             [
-                simplify_forces_struct(atoms.arrays['REF_forces'])[0]
+                simplify_forces_struct(atoms.arrays["REF_forces"])[0]
                 for atoms in train_db
             ]
         )
@@ -1327,14 +1328,14 @@ def gen_batch_report(
         ind,
         train_db_sizes_plot,
         width=width,
-        label=title + '_train',
+        label=title + "_train",
         color=COLORS,
     )
     ax1.bar(
         ind + width,
         seed_gen_db_sizes_plot,
         width=width,
-        label=title + '_seed',
+        label=title + "_seed",
         color=run_color_seed,
     )
 
@@ -1349,8 +1350,8 @@ def gen_batch_report(
     ax2_top.set_xticks(ind, labels=[d.name for d in dirs])
     ax2_bottom.set_xticks(ind, labels=[d.name for d in dirs])
 
-    ax2_top.bar(ind, mace_e_plot, width=width, label=title + '_E', color=clr_short)
-    ax2_bottom.bar(ind, mace_f_plot, width=width, label=title + '_F', color=clr_short)
+    ax2_top.bar(ind, mace_e_plot, width=width, label=title + "_E", color=clr_short)
+    ax2_bottom.bar(ind, mace_f_plot, width=width, label=title + "_F", color=clr_short)
 
     # MAE and RMSD
     inner_grid_2 = gridspec.GridSpecFromSubplotSpec(
@@ -1364,46 +1365,46 @@ def gen_batch_report(
     ax3_top_twin = ax3_top.twinx()
     ax3_bottom_twin = ax3_bottom.twinx()
     ax3_top.scatter(
-        ind, E_rmsd_plot, label='E RMSD', marker='o', c=clr_short, alpha=0.5
+        ind, E_rmsd_plot, label="E RMSD", marker="o", c=clr_short, alpha=0.5
     )
-    ax3_top_twin.scatter(ind, E_mae_plot, label='E MAE', marker='x', c=clr_short)
+    ax3_top_twin.scatter(ind, E_mae_plot, label="E MAE", marker="x", c=clr_short)
     ax3_bottom.scatter(
-        ind, F_rmsd_plot, label='F RMSD', marker='o', c=clr_short, alpha=0.5
+        ind, F_rmsd_plot, label="F RMSD", marker="o", c=clr_short, alpha=0.5
     )
-    ax3_bottom_twin.scatter(ind, F_mae_plot, label='F MAE', marker='x', c=clr_short)
+    ax3_bottom_twin.scatter(ind, F_mae_plot, label="F MAE", marker="x", c=clr_short)
 
     # TODO: Prepare panel 4 with autoencoder
     # ax4 = ax.figure.add_subplot(ax[1, 1])
 
-    ax1.set_xlabel('AL Loop Run')
-    ax1.set_ylabel('Number of structures')
-    ax1.set_title('Seed and Train Database per Run')
+    ax1.set_xlabel("AL Loop Run")
+    ax1.set_ylabel("Number of structures")
+    ax1.set_title("Seed and Train Database per Run")
     # ax1.legend()
 
     # ax2_top.set_xlabel('AL Loop Run')
-    ax2_top.set_ylabel('RMSE Energy [meV/atom]')
-    ax2_top.set_title('Model Performance')
-    ax2_bottom.set_xlabel('AL Loop Run')
-    ax2_bottom.set_ylabel('RMSE Forces [meV/A]')
-    ax2_bottom.set_title('Model Performance')
+    ax2_top.set_ylabel("RMSE Energy [meV/atom]")
+    ax2_top.set_title("Model Performance")
+    ax2_bottom.set_xlabel("AL Loop Run")
+    ax2_bottom.set_ylabel("RMSE Forces [meV/A]")
+    ax2_bottom.set_title("Model Performance")
 
     # ax3_top.set_xlabel('AL Loop Run')
-    ax3_top.set_ylabel('RMSE E [meV/atom]')
-    ax3_top.set_title('Energy Metrics per Run')
-    ax3_bottom.set_xlabel('AL Loop Run')
-    ax3_bottom.set_ylabel('RMSE F [meV/A]')
-    ax3_bottom.set_title('Force Metrics per Run')
-    ax3_top_twin.set_ylabel('MAE E [meV/atom]')
-    ax3_bottom_twin.set_ylabel('MAE F [meV/A]')
+    ax3_top.set_ylabel("RMSE E [meV/atom]")
+    ax3_top.set_title("Energy Metrics per Run")
+    ax3_bottom.set_xlabel("AL Loop Run")
+    ax3_bottom.set_ylabel("RMSE F [meV/A]")
+    ax3_bottom.set_title("Force Metrics per Run")
+    ax3_top_twin.set_ylabel("MAE E [meV/atom]")
+    ax3_bottom_twin.set_ylabel("MAE F [meV/A]")
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.925, bottom=0.0725, right=0.95, left=0.075)
 
     # Saving both png and svg
-    plt.savefig(filename.with_suffix('.png'), dpi=300)
-    plt.savefig(filename.with_suffix('.svg'), dpi=300)
-    custom_print(f"Saved report to '{filename.with_suffix('.png')}'.", 'info')
-    custom_print('Report generation complete.', 'done')
+    plt.savefig(filename.with_suffix(".png"), dpi=300)
+    plt.savefig(filename.with_suffix(".svg"), dpi=300)
+    custom_print(f"Saved report to '{filename.with_suffix('.png')}'.", "info")
+    custom_print("Report generation complete.", "done")
 
 
 def gen_init_db_report(
@@ -1414,21 +1415,21 @@ def gen_init_db_report(
     color_type: str = None,
     per_atom: bool = False,
 ):
-    init_logger(source='gen_init_db_report')
-    custom_print('Generating initial database report...', 'info')
-    train_db = ase_read(train_db_path, format='extxyz', index=':')
+    init_logger(source="gen_init_db_report")
+    custom_print("Generating initial database report...", "info")
+    train_db = ase_read(train_db_path, format="extxyz", index=":")
 
-    E_dft_list = np.array([atoms.info['REF_energy'] for atoms in train_db])
+    E_dft_list = np.array([atoms.info["REF_energy"] for atoms in train_db])
     F_dft_list_max = np.array(
-        [simplify_forces_struct(atoms.arrays['REF_forces'])[0] for atoms in train_db]
+        [simplify_forces_struct(atoms.arrays["REF_forces"])[0] for atoms in train_db]
     )
     F_dft_list_avg = np.array(
-        [simplify_forces_struct(atoms.arrays['REF_forces'])[1] for atoms in train_db]
+        [simplify_forces_struct(atoms.arrays["REF_forces"])[1] for atoms in train_db]
     )
 
     # Set standard units
-    E_unit = 'eV'
-    F_unit = 'eV/A'
+    E_unit = "eV"
+    F_unit = "eV/A"
 
     # Apply per atom scaling
     if per_atom:
@@ -1438,8 +1439,8 @@ def gen_init_db_report(
             F_dft_list_avg[idx] /= len(train_db[idx])
 
         # Update units
-        E_unit = 'eV/atom'
-        F_unit = 'eV/atom'
+        E_unit = "eV/atom"
+        F_unit = "eV/atom"
 
     # Create masks (True for values that should be removed)
     E_mask = np.full(len(E_dft_list), False)
@@ -1463,37 +1464,37 @@ def gen_init_db_report(
         structs = [train_db[struct_idx] for struct_idx in valid_idxs[~combined_mask]]
 
         custom_print(
-            f'Filtered {len(train_db) - len(structs)} structures based on thresholds.',
-            'warn',
+            f"Filtered {len(train_db) - len(structs)} structures based on thresholds.",
+            "warn",
         )
-        ase_write('filtered_structs.xyz', structs, format='extxyz')
+        ase_write("filtered_structs.xyz", structs, format="extxyz")
         custom_print(
             f'Saved {len(structs)} filtered structures to "filtered_structs.xyz".',
-            'info',
+            "info",
         )
     else:
         indices = list(range(len(E_dft_list)))
 
-    color_dict = {'bulk': '#cc241d', 'surface': '#158588', 'cluster': '#28cc10'}
+    color_dict = {"bulk": "#cc241d", "surface": "#158588", "cluster": "#28cc10"}
 
     formulas = [struct.get_chemical_formula() for struct in train_db]
-    phases = [struct.info.get('phase', 'unknown') for struct in train_db]
-    struct_type = [struct.info.get('mdb_struct_type', 'unknown') for struct in train_db]
-    uuids = [struct.info.get('mdb_id', 'unknown') for struct in train_db]
+    phases = [struct.info.get("phase", "unknown") for struct in train_db]
+    struct_type = [struct.info.get("mdb_struct_type", "unknown") for struct in train_db]
+    uuids = [struct.info.get("mdb_id", "unknown") for struct in train_db]
 
-    energy_line_color = 'rgba(177,98,134, 0.25)'
-    forces_max_line_color = 'rgba(25, 95, 180, 0.50)'
-    forces_avg_line_color = 'rgba(80, 180, 100, 0.50)'
+    energy_line_color = "rgba(177,98,134, 0.25)"
+    forces_max_line_color = "rgba(25, 95, 180, 0.50)"
+    forces_avg_line_color = "rgba(80, 180, 100, 0.50)"
 
-    if color_type == 'struct_type':
-        type_color = [color_dict.get(struct, '#282828') for struct in struct_type]
+    if color_type == "struct_type":
+        type_color = [color_dict.get(struct, "#282828") for struct in struct_type]
         E_type_color, F_max_type_color, F_avg_type_color = (
             type_color,
             type_color,
             type_color,
         )
-    elif color_type == 'phase':
-        type_color = [color_dict.get(struct, '#282828') for struct in phases]
+    elif color_type == "phase":
+        type_color = [color_dict.get(struct, "#282828") for struct in phases]
         E_type_color, F_max_type_color, F_avg_type_color = (
             type_color,
             type_color,
@@ -1511,7 +1512,7 @@ def gen_init_db_report(
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.1,
-        subplot_titles=('DFT Energy', 'DFT Forces'),
+        subplot_titles=("DFT Energy", "DFT Forces"),
     )
 
     # Energy chart
@@ -1519,9 +1520,9 @@ def gen_init_db_report(
         go.Scatter(
             x=indices,
             y=E_dft_list,
-            name='DFT Energy',
-            hoverinfo='x+y',
-            mode='lines+markers',
+            name="DFT Energy",
+            hoverinfo="x+y",
+            mode="lines+markers",
             marker=dict(size=3, color=E_type_color),
             line=dict(
                 width=0.85,
@@ -1537,7 +1538,9 @@ def gen_init_db_report(
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-            """.replace('eV', E_unit),
+            """.replace(
+                "eV", E_unit
+            ),
         ),
         row=1,
         col=1,
@@ -1553,39 +1556,41 @@ def gen_init_db_report(
             <b>Phase:</b> %{customdata[1]}<br>
             <b>Struct type:</b> %{customdata[2]}<br>
             <extra></extra>
-        """.replace('eV', F_unit)
-    curr_trace: str = 'DFT Forces Max'
+        """.replace(
+        "eV", F_unit
+    )
+    curr_trace: str = "DFT Forces Max"
     fig.add_trace(
         go.Scatter(
             x=indices,
             y=F_dft_list_max,
             name=curr_trace,
             # marker_color='#83a598',
-            hoverinfo='x+y',
-            mode='lines+markers',
+            hoverinfo="x+y",
+            mode="lines+markers",
             marker=dict(size=2, color=F_max_type_color),
             line=dict(width=0.85, color=forces_max_line_color),
             customdata=np.stack((formulas, phases, struct_type, uuids), axis=-1),
-            hovertemplate=forces_hovertemplate.replace('NAME', curr_trace),
+            hovertemplate=forces_hovertemplate.replace("NAME", curr_trace),
         ),
         row=2,
         col=1,
     )
-    curr_trace: str = 'DFT Forces Average'
+    curr_trace: str = "DFT Forces Average"
     fig.add_trace(
         go.Scatter(
             x=indices,
             y=F_dft_list_avg,
             name=curr_trace,
-            hoverinfo='x+y',
-            mode='lines+markers',
+            hoverinfo="x+y",
+            mode="lines+markers",
             marker=dict(size=2, color=F_avg_type_color),
             line=dict(
                 width=0.85,
                 color=forces_avg_line_color,
             ),
             customdata=np.stack((formulas, phases, struct_type, uuids), axis=-1),
-            hovertemplate=forces_hovertemplate.replace('NAME', curr_trace),
+            hovertemplate=forces_hovertemplate.replace("NAME", curr_trace),
         ),
         row=2,
         col=1,
@@ -1593,46 +1598,46 @@ def gen_init_db_report(
 
     if threshold_E:
         fig.add_shape(
-            type='line',
+            type="line",
             x0=0,
             x1=max(indices),
             y0=threshold_E,
             y1=threshold_E,
-            line=dict(color='#282828', width=2, dash='dash'),
-            yref='y1',
+            line=dict(color="#282828", width=2, dash="dash"),
+            yref="y1",
         )
-        fig.add_annotation(text='E threshold', x=0, y=threshold_E, yref='y1')
+        fig.add_annotation(text="E threshold", x=0, y=threshold_E, yref="y1")
     if threshold_F:
         fig.add_shape(
-            type='line',
+            type="line",
             x0=0,
             x1=max(indices),
             y0=threshold_F,
             y1=threshold_F,
-            line=dict(color='#282828', width=2, dash='dash'),
-            yref='y2',
+            line=dict(color="#282828", width=2, dash="dash"),
+            yref="y2",
         )
-        fig.add_annotation(text='F threshold', x=0, y=threshold_F, yref='y2')
+        fig.add_annotation(text="F threshold", x=0, y=threshold_F, yref="y2")
 
-    yaxis_label = f'Energy [{E_unit}]'
-    yaxis2_label = f'Forces [{F_unit}]'
+    yaxis_label = f"Energy [{E_unit}]"
+    yaxis2_label = f"Forces [{F_unit}]"
 
     # Customize layout
     fig.update_layout(
-        title='DFT Energy and Forces per Structure',
-        yaxis=dict(autorange='reversed', title=yaxis_label),
+        title="DFT Energy and Forces per Structure",
+        yaxis=dict(autorange="reversed", title=yaxis_label),
         yaxis2=dict(title=yaxis2_label),
-        xaxis2=dict(title='Structure Index'),
-        template='simple_white',
+        xaxis2=dict(title="Structure Index"),
+        template="simple_white",
     )
 
     plt.tight_layout()
     timestamp = int(time.time())
-    filename = Path(f'al_loop_report_{timestamp}.html').resolve()
+    filename = Path(f"al_loop_report_{timestamp}.html").resolve()
     fig.write_html(filename)
 
     print()
-    custom_print(f"Saved interactive report to '{filename}'.", 'info')
+    custom_print(f"Saved interactive report to '{filename}'.", "info")
 
     plt.clf()
 
@@ -1647,11 +1652,11 @@ def plot_al_loop_report(
     ax,
     model_acc_multiplier: float = None,
 ):
-    bar_line_color = '#282828'
+    bar_line_color = "#282828"
     bar_line_width = 1.5
     # Get unix timestamp for filename
     timestamp = int(time.time())
-    filename = Path(f'al_loop_report_{timestamp}').resolve()
+    filename = Path(f"al_loop_report_{timestamp}").resolve()
 
     # Iterate in reverse over train_db_sizes and seed_gen_db_sizes,
     # if there are None valiues, delete that index and the corresponding
@@ -1688,7 +1693,7 @@ def plot_al_loop_report(
         top_xaxis,
         train_db_sizes,
         width=width,
-        label='train_db',
+        label="train_db",
         color=COLORS[0],
         edgecolor=bar_line_color,
         linewidth=bar_line_width,
@@ -1697,26 +1702,26 @@ def plot_al_loop_report(
         top_xaxis + width,
         seed_gen_db_sizes,
         width=width,
-        label='seed_gen_db',
+        label="seed_gen_db",
         color=COLORS[1],
         edgecolor=bar_line_color,
         linewidth=bar_line_width,
     )
     ax1.set_xticks(top_xaxis + width / 2, labels=ind)
-    ax1.set_xlabel('AL Loop Step')
-    ax1.set_ylabel('Number of structures')
+    ax1.set_xlabel("AL Loop Step")
+    ax1.set_ylabel("Number of structures")
     ax1.legend()
-    ax1.set_title('Seed and Train Database Evolution')
+    ax1.set_title("Seed and Train Database Evolution")
 
     ax1.annotate(
-        'a)',
+        "a)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
     )
 
     # Add text labels to top left figure bars
@@ -1727,8 +1732,8 @@ def plot_al_loop_report(
             idx,
             train / 2,
             train,
-            ha='center',
-            va='bottom',
+            ha="center",
+            va="bottom",
             rotation=90,
             fontweight=700,
         )
@@ -1736,8 +1741,8 @@ def plot_al_loop_report(
             idx + width,
             seed / 2,
             seed,
-            ha='center',
-            va='bottom',
+            ha="center",
+            va="bottom",
             rotation=90,
             fontweight=700,
         )
@@ -1745,14 +1750,14 @@ def plot_al_loop_report(
     ax2 = ax.figure.add_subplot(ax[0, 1])
 
     ax2.annotate(
-        'b)',
+        "b)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
     )
 
     # Plot seed size delta as a bar chart over every iteration
@@ -1777,15 +1782,15 @@ def plot_al_loop_report(
             continue
 
         # Add sign
-        seed_txt = f'{seed}' if seed < 0 else f'+{seed}'
-        train_txt = f'{train}' if train < 0 else f'+{train}'
+        seed_txt = f"{seed}" if seed < 0 else f"+{seed}"
+        train_txt = f"{train}" if train < 0 else f"+{train}"
 
         ax2.text(
             idx,
             train / 2,
             train_txt,
-            ha='center',
-            va='bottom',
+            ha="center",
+            va="bottom",
             rotation=90,
             fontweight=700,
         )
@@ -1793,8 +1798,8 @@ def plot_al_loop_report(
             idx + width,
             seed / 2,
             seed_txt,
-            ha='center',
-            va='bottom',
+            ha="center",
+            va="bottom",
             rotation=90,
             fontweight=700,
         )
@@ -1803,7 +1808,7 @@ def plot_al_loop_report(
         top_xaxis,
         train_db_diff,
         width=width,
-        label='train_db',
+        label="train_db",
         color=COLORS[0],
         edgecolor=bar_line_color,
         linewidth=bar_line_width,
@@ -1812,16 +1817,16 @@ def plot_al_loop_report(
         top_xaxis + width,
         seed_gen_db_diff,
         width=width,
-        label='seed_gen_db',
+        label="seed_gen_db",
         color=COLORS[1],
         edgecolor=bar_line_color,
         linewidth=bar_line_width,
     )
-    ax2.axhline(y=0, color=LINE_COLOR, linestyle='--')
+    ax2.axhline(y=0, color=LINE_COLOR, linestyle="--")
     ax2.set_xticks(top_xaxis + width / 2, ind)
-    ax2.set_xlabel('AL Loop Step')
-    ax2.set_ylabel(r'$\Delta$ Number of structures')
-    ax2.set_title('Structure count change over iteration (accumul.)')
+    ax2.set_xlabel("AL Loop Step")
+    ax2.set_ylabel(r"$\Delta$ Number of structures")
+    ax2.set_title("Structure count change over iteration (accumul.)")
     ax2.legend()
 
     # Plot MACE model energy performance
@@ -1864,70 +1869,70 @@ def plot_al_loop_report(
     # iteration index later.
     bottom_xaxis = np.arange(start=1, stop=len(ind_short) + 1)
 
-    ax3.plot(bottom_xaxis, mace_e, label='MACE Energy', color=COLORS[2], marker='o')
+    ax3.plot(bottom_xaxis, mace_e, label="MACE Energy", color=COLORS[2], marker="o")
 
     if model_acc_multiplier:
         thresh_color = COLORS[-1]
         ax3.plot(
             bottom_xaxis,
             mace_e * model_acc_multiplier,
-            label='Energy threshold',
+            label="Energy threshold",
             color=COLORS[-1],
-            marker='^',
+            marker="^",
         )
-        ax3.set_ylabel('Energy threshold [meV]')
+        ax3.set_ylabel("Energy threshold [meV]")
 
     ax3.set_xticks(bottom_xaxis, labels=ind_short)
-    ax3.set_xlabel('AL Loop Step')
-    ax3.set_ylabel('RMSE E per atom [meV]')
-    ax3.set_title('Evolution of best MACE Model Energy RMSE')
+    ax3.set_xlabel("AL Loop Step")
+    ax3.set_ylabel("RMSE E per atom [meV]")
+    ax3.set_title("Evolution of best MACE Model Energy RMSE")
     ax3.legend()
 
     ax3.annotate(
-        'c)',
+        "c)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
     )
 
     # Add a horizontal line to mark chemical accuracy for energy and forces
     chem_acc = 43.37  # meV
-    ax3.axhline(y=chem_acc, color=LINE_COLOR, linestyle='--')
-    ax3.text(x=1.5, y=chem_acc + 0.5, s='Chem. Acc.', color=LINE_COLOR)
+    ax3.axhline(y=chem_acc, color=LINE_COLOR, linestyle="--")
+    ax3.text(x=1.5, y=chem_acc + 0.5, s="Chem. Acc.", color=LINE_COLOR)
 
     # Plot MACE model force performance
     ax4 = ax.figure.add_subplot(ax[1, 1])
-    ax4.plot(bottom_xaxis, mace_f, label='MACE Forces', color=COLORS[3], marker='o')
+    ax4.plot(bottom_xaxis, mace_f, label="MACE Forces", color=COLORS[3], marker="o")
 
     if model_acc_multiplier:
         thresh_color = COLORS[-1]
         ax4.plot(
             bottom_xaxis,
             mace_f * model_acc_multiplier,
-            label='Forces threshold',
+            label="Forces threshold",
             color=thresh_color,
-            marker='^',
+            marker="^",
         )
 
     ax4.set_xticks(bottom_xaxis, labels=ind_short)
-    ax4.set_xlabel('AL Loop Step')
-    ax4.set_ylabel('RMSE F [meV / A]')
-    ax4.set_title('Evolution of best MACE Model Force RMSE')
+    ax4.set_xlabel("AL Loop Step")
+    ax4.set_ylabel("RMSE F [meV / A]")
+    ax4.set_title("Evolution of best MACE Model Force RMSE")
     ax4.legend()
 
     ax4.annotate(
-        'd)',
+        "d)",
         xy=(0, 1),
-        xycoords='axes fraction',
+        xycoords="axes fraction",
         xytext=(+0.5, -0.5),
-        textcoords='offset fontsize',
-        fontsize='medium',
-        verticalalignment='top',
-        bbox=dict(facecolor='1', edgecolor='none', pad=3.0),
+        textcoords="offset fontsize",
+        fontsize="medium",
+        verticalalignment="top",
+        bbox=dict(facecolor="1", edgecolor="none", pad=3.0),
     )
 
     return filename
@@ -1941,8 +1946,8 @@ def get_latent_spaces_workchain(
     autoencoder_model: str | Path | Autoencoder = None,
     latent_spaces_list: list = None,
 ):
-    curr_db = ase_read(database_path, format='extxyz', index=':')
-    tot_num_steps = max([int(at.info.get('mdb_al_step', 0)) for at in curr_db])
+    curr_db = ase_read(database_path, format="extxyz", index=":")
+    tot_num_steps = max([int(at.info.get("mdb_al_step", 0)) for at in curr_db])
 
     # Loading autoencoder model if not loaded
     if isinstance(autoencoder_model, (str, Path)):
@@ -1962,7 +1967,7 @@ def get_latent_spaces_workchain(
     for step_idx in range(tot_num_steps):
         custom_print(
             f"Getting latent space for the database at step '{step_idx}'...",
-            'info',
+            "info",
         )
 
         # steps_to_consider = range(0, step_idx+1)
@@ -1970,18 +1975,18 @@ def get_latent_spaces_workchain(
         curr_step_db = [
             struct
             for struct in curr_db
-            if int(struct.info.get('mdb_al_step', 0)) in steps_to_consider
+            if int(struct.info.get("mdb_al_step", 0)) in steps_to_consider
         ]
         if len(curr_step_db) == 0:
             custom_print(
-                f'No structures found for step {step_idx}. Skipping...',
-                'warning',
+                f"No structures found for step {step_idx}. Skipping...",
+                "warning",
             )
             continue
         else:
             custom_print(
-                'Getting descriptors...',
-                'info',
+                "Getting descriptors...",
+                "info",
             )
             if isinstance(model_path, (str, Path)):
                 descr_dict, arr = generate_descriptors(
@@ -2055,21 +2060,21 @@ def generate_latent_space_evol(
         Whether to ignore latent spaces, by default False
     """
     # Try loading pickle file before doing anything else
-    if Path('./latent_spaces.pkl').exists():
-        with open('latent_spaces.pkl', 'rb') as f:
+    if Path("./latent_spaces.pkl").exists():
+        with open("latent_spaces.pkl", "rb") as f:
             latent_spaces = pickle.load(f)
     else:
         latent_spaces = []
 
-    if Path('./concave_hulls.json').exists():
-        with open('concave_hulls.json') as f:
+    if Path("./concave_hulls.json").exists():
+        with open("concave_hulls.json") as f:
             concave_hulls = json.load(f)
-            concave_hulls = concave_hulls['concave_hulls']
+            concave_hulls = concave_hulls["concave_hulls"]
             num_steps_saved = len(concave_hulls)
         custom_print(
-            f'Loaded concave hulls for {num_steps_saved} steps from '
+            f"Loaded concave hulls for {num_steps_saved} steps from "
             "'concave_hulls.json'.",
-            'info',
+            "info",
         )
 
     # If we have the concave hulls, we don't need to compute the latent spaces
@@ -2091,9 +2096,9 @@ def generate_latent_space_evol(
                     [
                         stp
                         for stp in node.called
-                        if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                        if stp.process_type == "aiida.workflows:mdb-active-learning"
                         or stp.process_type
-                        == 'aiida.workflows:mdb-simple-active-learning'
+                        == "aiida.workflows:mdb-simple-active-learning"
                     ]
                 )
 
@@ -2103,7 +2108,7 @@ def generate_latent_space_evol(
                 for substep in node.called:
                     if (
                         substep.process_type
-                        == 'aiida.calculations:mdb-descriptors-combined'
+                        == "aiida.calculations:mdb-descriptors-combined"
                     ):
                         auto_steps.append(substep)
 
@@ -2112,20 +2117,22 @@ def generate_latent_space_evol(
 
             for step in auto_steps:
                 try:
-                    curr_latent_space = step.outputs.latent_space.get_array('default')
+                    curr_latent_space = step.outputs.latent_space.get_array("default")
                     latent_spaces.append(curr_latent_space)
                 except Exception:
                     missing_step = step.caller.inputs.al_loop_iteration.value
                     custom_print(
-                        'Could not get latent '
-                        f'space from step {missing_step} ({step.pk}). '
-                        'Computing latent space on the fly...',
-                        'warning',
+                        "Could not get latent "
+                        f"space from step {missing_step} ({step.pk}). "
+                        "Computing latent space on the fly...",
+                        "warning",
                     )
-                    break
+                    latent_spaces.append(None)
+                    # break
 
         # Get number of steps saved
         num_steps_saved = len(latent_spaces)
+        breakpoint()
         # Computing latent space for all structures
         if num_steps_saved == 0:
             if databases:
@@ -2170,22 +2177,22 @@ def generate_latent_space_evol(
                         )
                 else:
                     custom_print(
-                        'Model path is missing or is not a valid type. '
-                        'Expected str, Path or SinglefileData. '
+                        "Model path is missing or is not a valid type. "
+                        "Expected str, Path or SinglefileData. "
                         f"Got '{model_path}'.",
-                        'error',
+                        "error",
                     )
 
             # Saving latent spaces to pickle file
             if len(latent_spaces) > 0:
-                with open('latent_spaces.pkl', 'wb') as f:
+                with open("latent_spaces.pkl", "wb") as f:
                     pickle.dump(latent_spaces, file=f)
 
         # Update number of steps saved
         num_steps_saved = len(latent_spaces)
 
     # Getting colormap for step number
-    cmap = colormaps.get_cmap('viridis')
+    cmap = colormaps.get_cmap("viridis")
 
     mappable = mpl.cm.ScalarMappable(
         norm=mpl.colors.Normalize(1, num_steps_saved),
@@ -2210,21 +2217,26 @@ def generate_latent_space_evol(
 
     # Get concave hulls if missing
     if concave_hulls == {}:
+        last_alpha = None
         for idx, latent_space in enumerate(latent_spaces):
+            custom_print(f"Computing concave hull for step {idx}...", "info")
             latent_space_vals = []
 
             # Different structures for latent_space list when coming from
             # workchain or from on the fly generation.
             if isinstance(latent_space, dict):
                 for structure in latent_space:
-                    curr_struct_latent = latent_space[structure]['latent_space'][0]
+                    curr_struct_latent = latent_space[structure]["latent_space"][0]
                     latent_space_vals.append(curr_struct_latent)
                 latent_space_vals = np.vstack(latent_space_vals)
             else:
                 latent_space_vals = latent_space
 
             # Get concave hull if step is 0
-            concave_hull, alpha = get_concave_hull_python(latent_space_vals)
+            # Use previous obtained alpha to speed up process.
+            concave_hull, last_alpha = get_concave_hull_python(
+                latent_space_vals, use_alpha=last_alpha
+            )
 
             # Save concave hulls
             concave_hulls[idx] = concave_hull.tolist()
@@ -2240,22 +2252,22 @@ def generate_latent_space_evol(
             ax1.plot(
                 concave_hull[:, 0],
                 concave_hull[:, 1],
-                color='#fb4934',
-                linestyle='solid',
+                color="#fb4934",
+                linestyle="solid",
                 # zorder=5,
-                label='Initial Concave Hull',
+                label="Initial Concave Hull",
                 linewidth=1,
             )
             ax1.scatter(
                 concave_hull[:, 0],
                 concave_hull[:, 1],
                 s=12,
-                color='#fb4934',
+                color="#fb4934",
                 alpha=1,
                 linewidth=0.33,
-                edgecolors='#282828',
+                edgecolors="#282828",
             )
-            ax1.fill(concave_hull[:, 0], concave_hull[:, 1], '#fb4934', alpha=0.15)
+            ax1.fill(concave_hull[:, 0], concave_hull[:, 1], "#fb4934", alpha=0.15)
 
         # Other steps plotted as scatter points
         else:
@@ -2270,14 +2282,14 @@ def generate_latent_space_evol(
                 color=color,
                 alpha=1,
                 linewidth=0.25,
-                edgecolors='#282828',
+                edgecolors="#282828",
             )
             ax1.fill(concave_hull[:, 0], concave_hull[:, 1], color=color, alpha=0.15)
 
-        ax1.set_title('Latent Space Evolution')
-        ax1.set_xlabel('Reduced dimension 1')
-        ax1.set_ylabel('Reduced dimension 2')
-        ax1.set_title('Latent Space Evolution')
+        ax1.set_title("Latent Space Evolution")
+        ax1.set_xlabel("Reduced dimension 1")
+        ax1.set_ylabel("Reduced dimension 2")
+        ax1.set_title("Latent Space Evolution")
         # ax1.scatter(
         #     x=latent_space_vals[:, 0],
         #     y=latent_space_vals[:, 1],
@@ -2293,15 +2305,15 @@ def generate_latent_space_evol(
         ax1.legend()
 
     # Save concave hulls to json file
-    with open('concave_hulls.json', 'w') as f:
-        json.dump({'concave_hulls': concave_hulls}, f)
+    with open("concave_hulls.json", "w") as f:
+        json.dump({"concave_hulls": concave_hulls}, f)
 
     # Adding colorbar once all iterations are plotted
     # cax = ax1.inset_axes([1.0, 0.2, 0.5, 1])
     cax = ax.figure.add_subplot(gs_bottom[0, 1])
     plt.colorbar(
         mappable=mappable,
-        label='AL Loop Step',
+        label="AL Loop Step",
         # pad=0.01,
         cax=cax,
     )
@@ -2325,11 +2337,11 @@ def get_latent_spaces_database_files(
     for step_idx, database in enumerate(databases):
         custom_print(
             f"Getting latent space for the database at step '{step_idx}'...",
-            'info',
+            "info",
         )
 
         curr_db = ase_read(
-            Path(autoencoder_path) / database, format='extxyz', index=':'
+            Path(autoencoder_path) / database, format="extxyz", index=":"
         )
         descr_dict, arr = generate_descriptors(
             model_path=model_path,
@@ -2359,7 +2371,7 @@ def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
 
     for pk in al_loop_pk:
         base_node = orm.load_node(pk)
-        custom_print(f'Loaded base node: {base_node.process_label}<{base_node.pk}>')
+        custom_print(f"Loaded base node: {base_node.process_label}<{base_node.pk}>")
         curr_loop_al_steps = [
             node
             for node in base_node.called
@@ -2375,7 +2387,7 @@ def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
         # Maybe the structure is different, try descendants?
         custom_print(
             f"No direct children matched '{AL_STEP_WORKCHAIN_LABEL}'."
-            ' Checking descendants...'
+            " Checking descendants..."
         )
         al_steps = [
             node
@@ -2384,13 +2396,13 @@ def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
             and node.process_label == AL_STEP_WORKCHAIN_LABEL
             and node.is_finished_ok
         ]
-        custom_print(f'Found {len(al_steps)} matching descendant steps.')
+        custom_print(f"Found {len(al_steps)} matching descendant steps.")
 
     if not al_steps:
         custom_print(
             f"Error: Could not find any AL steps ('{AL_STEP_WORKCHAIN_LABEL}') called"
-            f' by {base_node.pk}.',
-            'error',
+            f" by {base_node.pk}.",
+            "error",
         )
         exit()
 
@@ -2398,13 +2410,13 @@ def get_al_loop_performance(al_loop_pk: int | list[int]) -> dict:
     all_performance_data = []
     for i, al_step in enumerate(al_steps):
         custom_print(
-            f'Analyzing AL Step {i + 1}/{len(al_steps)} (PK={al_step.pk})', 'debug'
+            f"Analyzing AL Step {i + 1}/{len(al_steps)} (PK={al_step.pk})", "debug"
         )
         performance_dict = get_al_step_performance(al_step)
         if performance_dict:
             all_performance_data.append(performance_dict)
         else:
-            custom_print(f'Could not analyze step {al_step.pk}.')
+            custom_print(f"Could not analyze step {al_step.pk}.")
 
     return all_performance_data
 
@@ -2428,20 +2440,20 @@ def get_ncores_from_calcjob(calcjob: orm.CalcJobNode) -> int:
     if stdout is None or scheduler is None:
         return 0
 
-    if 'slurm' in scheduler:
-        header: list[str] = stdout.splitlines()[0].split('|')
-        n_cpu_posc: int = header.index('ReqTRES')
-        content: list[str] = stdout.splitlines()[1].split('|')
+    if "slurm" in scheduler:
+        header: list[str] = stdout.splitlines()[0].split("|")
+        n_cpu_posc: int = header.index("ReqTRES")
+        content: list[str] = stdout.splitlines()[1].split("|")
         req_cpu_data = content[n_cpu_posc]
-        n_cpus = int(req_cpu_data.split(',')[1].split('=')[1])
-    elif 'sge' in scheduler:
+        n_cpus = int(req_cpu_data.split(",")[1].split("=")[1])
+    elif "sge" in scheduler:
         for entry in stdout.splitlines():
-            if 'slots ' in entry:
+            if "slots " in entry:
                 n_cpus = int(entry.split()[1])
                 break
     else:
         custom_print(
-            f'Unrecognized scheduler for CalcJob {calcjob.pk}: {scheduler}', 'error'
+            f"Unrecognized scheduler for CalcJob {calcjob.pk}: {scheduler}", "error"
         )
         n_cpus = 0
     return n_cpus
@@ -2452,10 +2464,10 @@ def gather_stdout_and_scheduler(calcjob: orm.CalcJobNode) -> tuple[str, str]:
         scheduler = str(calcjob.computer.get_scheduler()).lower()
 
         # Get job information
-        stdout = calcjob.get_detailed_job_info().get('stdout')
+        stdout = calcjob.get_detailed_job_info().get("stdout")
 
     except Exception as e:
-        custom_print(f'Error getting scheduler for CalcJob {calcjob.pk}: {e}', 'error')
+        custom_print(f"Error getting scheduler for CalcJob {calcjob.pk}: {e}", "error")
         stdout = None
         scheduler = None
 
@@ -2485,20 +2497,20 @@ def get_runtime_from_calcjob(calcjob: orm.CalcJobNode) -> datetime.timedelta:
     if stdout is None or scheduler is None:
         return 0
 
-    if 'slurm' in scheduler:
-        header: list[str] = stdout.splitlines()[0].split('|')
+    if "slurm" in scheduler:
+        header: list[str] = stdout.splitlines()[0].split("|")
         # n_cpu_posc: int = header.index('CPUTimeRAW')
-        n_cpu_posc: int = header.index('ElapsedRaw')
-        content: list[str] = stdout.splitlines()[1].split('|')
+        n_cpu_posc: int = header.index("ElapsedRaw")
+        content: list[str] = stdout.splitlines()[1].split("|")
         cpu_time = datetime.timedelta(seconds=int(content[n_cpu_posc]))
-    elif 'sge' in scheduler:
+    elif "sge" in scheduler:
         for entry in stdout.splitlines():
-            if 'wallclock ' in entry:
+            if "wallclock " in entry:
                 cpu_time = datetime.timedelta(seconds=int(entry.split()[1]))
                 break
     else:
         custom_print(
-            f'Unrecognized scheduler for CalcJob {calcjob.pk}: {scheduler}', 'error'
+            f"Unrecognized scheduler for CalcJob {calcjob.pk}: {scheduler}", "error"
         )
         cpu_time = 0
     return cpu_time
@@ -2518,7 +2530,7 @@ def get_al_step_performance(al_step: orm.WorkChainNode) -> dict:
     :return: A dictionary with performance information.
     """
     if not isinstance(al_step, orm.WorkChainNode):
-        custom_print(f'Warning: Node {al_step.pk} is not a WorkChainNode. Skipping.')
+        custom_print(f"Warning: Node {al_step.pk} is not a WorkChainNode. Skipping.")
         return None
     if al_step.process_label != AL_STEP_WORKCHAIN_LABEL:
         custom_print(
@@ -2533,10 +2545,10 @@ def get_al_step_performance(al_step: orm.WorkChainNode) -> dict:
 
     # Initialize dictionaries to store times for each stage
     stage_stats = {
-        'training': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
-        'descriptors': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
-        'md': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
-        'dft': {'ctimes': [], 'mtimes': [], 'durations': [], 'cores': []},
+        "training": {"ctimes": [], "mtimes": [], "durations": [], "cores": []},
+        "descriptors": {"ctimes": [], "mtimes": [], "durations": [], "cores": []},
+        "md": {"ctimes": [], "mtimes": [], "durations": [], "cores": []},
+        "dft": {"ctimes": [], "mtimes": [], "durations": [], "cores": []},
     }
 
     # Get all descendant CalcJob nodes
@@ -2556,81 +2568,81 @@ def get_al_step_performance(al_step: orm.WorkChainNode) -> dict:
         n_cores = get_ncores_from_calcjob(job)
 
         if label == TRAINING_LABEL:
-            stage_stats['training']['ctimes'].append(job_ctime)
-            stage_stats['training']['mtimes'].append(job_mtime)
-            stage_stats['training']['durations'].append(job_duration)
-            stage_stats['training']['cores'] = n_cores
+            stage_stats["training"]["ctimes"].append(job_ctime)
+            stage_stats["training"]["mtimes"].append(job_mtime)
+            stage_stats["training"]["durations"].append(job_duration)
+            stage_stats["training"]["cores"] = n_cores
         elif label == DESCRIPTORS_LABEL:
-            stage_stats['descriptors']['ctimes'].append(job_ctime)
-            stage_stats['descriptors']['mtimes'].append(job_mtime)
-            stage_stats['descriptors']['durations'].append(job_duration)
-            stage_stats['descriptors']['cores'] = n_cores
+            stage_stats["descriptors"]["ctimes"].append(job_ctime)
+            stage_stats["descriptors"]["mtimes"].append(job_mtime)
+            stage_stats["descriptors"]["durations"].append(job_duration)
+            stage_stats["descriptors"]["cores"] = n_cores
         elif label == MD_LABEL:
-            stage_stats['md']['ctimes'].append(job_ctime)
-            stage_stats['md']['mtimes'].append(job_mtime)
-            stage_stats['md']['durations'].append(job_duration)
-            stage_stats['md']['cores'] = n_cores
+            stage_stats["md"]["ctimes"].append(job_ctime)
+            stage_stats["md"]["mtimes"].append(job_mtime)
+            stage_stats["md"]["durations"].append(job_duration)
+            stage_stats["md"]["cores"] = n_cores
         elif label in DFT_LABELS:
-            stage_stats['dft']['ctimes'].append(job_ctime)
-            stage_stats['dft']['mtimes'].append(job_mtime)
-            stage_stats['dft']['durations'].append(job_duration)
-            stage_stats['dft']['cores'] = n_cores
+            stage_stats["dft"]["ctimes"].append(job_ctime)
+            stage_stats["dft"]["mtimes"].append(job_mtime)
+            stage_stats["dft"]["durations"].append(job_duration)
+            stage_stats["dft"]["cores"] = n_cores
 
     # Calculate total elapsed time for each stage
     performance_info = {
-        'step': {
-            'pk': al_step.pk,
-            'ctime': ctime,
-            'mtime': mtime,
-            'step_duration': step_duration,
-            'state': al_step.process_state.value,
-            'exit_status': al_step.exit_status,
+        "step": {
+            "pk": al_step.pk,
+            "ctime": ctime,
+            "mtime": mtime,
+            "step_duration": step_duration,
+            "state": al_step.process_state.value,
+            "exit_status": al_step.exit_status,
         },
-        'stages': {
-            'training': {
-                'duration_list': [],
-                'total_elapsed_time': datetime.timedelta(0),
+        "stages": {
+            "training": {
+                "duration_list": [],
+                "total_elapsed_time": datetime.timedelta(0),
             },
-            'descriptors': {
-                'duration_list': [],
-                'total_elapsed_time': datetime.timedelta(0),
+            "descriptors": {
+                "duration_list": [],
+                "total_elapsed_time": datetime.timedelta(0),
             },
-            'md': {'duration_list': [], 'total_elapsed_time': datetime.timedelta(0)},
-            'dft': {'duration_list': [], 'total_elapsed_time': datetime.timedelta(0)},
+            "md": {"duration_list": [], "total_elapsed_time": datetime.timedelta(0)},
+            "dft": {"duration_list": [], "total_elapsed_time": datetime.timedelta(0)},
         },
-        'counts': {  # Add counts for clarity
-            'training': 0,
-            'descriptors': 0,
-            'md': 0,
-            'dft': 0,
+        "counts": {  # Add counts for clarity
+            "training": 0,
+            "descriptors": 0,
+            "md": 0,
+            "dft": 0,
         },
     }
 
     for stage_name, stats in stage_stats.items():
         # Check if any calculations of this type were run
-        if stats['ctimes']:
-            min_ctime = min(stats['ctimes'])
-            max_mtime = max(stats['mtimes'])
+        if stats["ctimes"]:
+            min_ctime = min(stats["ctimes"])
+            max_mtime = max(stats["mtimes"])
             total_elapsed_time = max_mtime - min_ctime
-            performance_info['stages'][stage_name]['total_elapsed_time'] = (
-                total_elapsed_time
-            )
-            performance_info['stages'][stage_name]['duration_list'] = stats['durations']
-            performance_info['stages'][stage_name]['cores'] = stats['cores']
-            performance_info['counts'][stage_name] = len(stats['durations'])
+            performance_info["stages"][stage_name][
+                "total_elapsed_time"
+            ] = total_elapsed_time
+            performance_info["stages"][stage_name]["duration_list"] = stats["durations"]
+            performance_info["stages"][stage_name]["cores"] = stats["cores"]
+            performance_info["counts"][stage_name] = len(stats["durations"])
         else:
-            performance_info['counts'][stage_name] = 0
-            performance_info['stages'][stage_name] = {}
-            performance_info['stages'][stage_name]['duration_list'] = []
-            performance_info['stages'][stage_name]['cores'] = 0
-            performance_info['stages'][stage_name]['total_elapsed_time'] = (
+            performance_info["counts"][stage_name] = 0
+            performance_info["stages"][stage_name] = {}
+            performance_info["stages"][stage_name]["duration_list"] = []
+            performance_info["stages"][stage_name]["cores"] = 0
+            performance_info["stages"][stage_name]["total_elapsed_time"] = (
                 datetime.timedelta(0)
             )
     return performance_info
 
 
 def plot_performance_stacked_bar(
-    all_performance_data: list[dict], output_filename: str = 'al_loop_performance.png'
+    all_performance_data: list[dict], output_filename: str = "al_loop_performance.png"
 ):
     """
     Generates a stacked bar chart of stage elapsed times per AL step.
@@ -2644,13 +2656,13 @@ def plot_performance_stacked_bar(
         instead of being saved. Defaults to "al_loop_performance.png".
     """
     if not all_performance_data:
-        custom_print('No performance data available to plot.', 'warning')
+        custom_print("No performance data available to plot.", "warning")
         return
 
     num_steps = len(all_performance_data)
     step_indices = np.arange(num_steps) + 1
     step_pks = [
-        step['step']['pk'] for step in all_performance_data
+        step["step"]["pk"] for step in all_performance_data
     ]  # For x-axis labels
 
     # Prepare data for stacking (convert timedelta to seconds)
@@ -2658,17 +2670,17 @@ def plot_performance_stacked_bar(
     stage_data_core_h = {key: np.zeros(num_steps) for key in STAGE_KEYS}
     for i, step_data in enumerate(all_performance_data):
         for key in STAGE_KEYS:
-            n_cores = step_data['stages'][key]['cores']
-            elapsed_time = step_data['stages'][key]['total_elapsed_time']
+            n_cores = step_data["stages"][key]["cores"]
+            elapsed_time = step_data["stages"][key]["total_elapsed_time"]
             stage_data_seconds[key][i] = elapsed_time.total_seconds()
             stage_data_core_h[key][i] = (elapsed_time.total_seconds() / 3600) * n_cores
 
     # Define colors for stages (adjust as needed)
     colors = {
-        'training': '#ffa6c8',
-        'descriptors': '#ff8834',
-        'md': '#6aa1f4',
-        'dft': '#3ed04e',
+        "training": "#ffa6c8",
+        "descriptors": "#ff8834",
+        "md": "#6aa1f4",
+        "dft": "#3ed04e",
     }
     fig, ax = plt.subplots(
         nrows=2, figsize=(max(10, num_steps * 0.6), 6)
@@ -2683,7 +2695,7 @@ def plot_performance_stacked_bar(
             bottom=bottoms,
             label=key,
             color=colors.get(key),  # Use defined color or default
-            edgecolor='#282828',
+            edgecolor="#282828",
             linewidth=1,
         )
         bottoms += (
@@ -2695,39 +2707,39 @@ def plot_performance_stacked_bar(
             bottom=bottoms_core,
             label=key,
             color=colors.get(key),  # Use defined color or default
-            edgecolor='#282828',
+            edgecolor="#282828",
             linewidth=1,
         )
         bottoms_core += stage_data_core_h[key]
 
-    ax[0].set_ylabel('Elapsed Time (hours)')
-    ax[0].set_xlabel('AL Step Index')
-    ax[0].set_title('AL Loop Performance: Elapsed Time per Stage')
+    ax[0].set_ylabel("Elapsed Time (hours)")
+    ax[0].set_xlabel("AL Step Index")
+    ax[0].set_title("AL Loop Performance: Elapsed Time per Stage")
     ax[0].set_xticks(step_indices)
 
     # Use PKs as labels, rotate if many steps
     ax[0].set_xticklabels(
-        [f'{i + 1}' for i, pk in enumerate(step_pks)],
+        [f"{i + 1}" for i, pk in enumerate(step_pks)],
         rotation=45 if num_steps > 15 else 0,
-        ha='center',
+        ha="center",
     )
-    ax[0].legend(title='Stages')
-    ax[0].grid(axis='y', linestyle='--', alpha=0.3)
+    ax[0].legend(title="Stages")
+    ax[0].grid(axis="y", linestyle="--", alpha=0.3)
 
     # Set y-limit for better visibility
     ax[0].set_ylim(0, max(bottoms) * 1.1)
 
-    ax[1].set_ylabel(r'Resource consumption ($\mathrm{core} \cdot \mathrm{h}$)')
-    ax[1].set_xlabel('AL Step Index')
-    ax[1].set_title('AL Loop Performance: Resource consumption per Stage')
+    ax[1].set_ylabel(r"Resource consumption ($\mathrm{core} \cdot \mathrm{h}$)")
+    ax[1].set_xlabel("AL Step Index")
+    ax[1].set_title("AL Loop Performance: Resource consumption per Stage")
     ax[1].set_xticks(step_indices)
     ax[1].set_xticklabels(
-        [f'{i + 1}' for i, pk in enumerate(step_pks)],
+        [f"{i + 1}" for i, pk in enumerate(step_pks)],
         rotation=45 if num_steps > 15 else 0,
-        ha='center',
+        ha="center",
     )
-    ax[1].legend(title='Stages')
-    ax[1].grid(axis='y', linestyle='--', alpha=0.3)
+    ax[1].legend(title="Stages")
+    ax[1].grid(axis="y", linestyle="--", alpha=0.3)
 
     # Set y-limit for better visibility
     ax[1].set_ylim(0, max(bottoms_core) * 1.1)
@@ -2739,13 +2751,13 @@ def plot_performance_stacked_bar(
         output_path = Path(output_filename)
         try:
             plt.savefig(output_path, dpi=300)
-            svg_path = Path(output_path.stem).with_suffix('.svg')
-            plt.savefig(svg_path, dpi=300, format='svg')
+            svg_path = Path(output_path.stem).with_suffix(".svg")
+            plt.savefig(svg_path, dpi=300, format="svg")
             custom_print(f"Performance plot saved to '{output_path.resolve()}'")
         except Exception as e:
-            custom_print(f'Error saving plot to {output_path.resolve()}: {e}', 'error')
+            custom_print(f"Error saving plot to {output_path.resolve()}: {e}", "error")
     else:
-        custom_print('Displaying performance plot...')
+        custom_print("Displaying performance plot...")
         plt.show()
 
 
@@ -2766,7 +2778,7 @@ def simplify_timedelta_str(tdelta: datetime.timedelta) -> str:
         A simplified string representation of the timedelta in the format'
         ``"X day, %HH:%MM:%SS"``.
     """
-    return str(tdelta).split('.')[0]
+    return str(tdelta).split(".")[0]
 
 
 def print_performance_report(all_performance_data: list):
@@ -2812,38 +2824,38 @@ def print_performance_report(all_performance_data: list):
     console = Console()
 
     if not all_performance_data:
-        console.print('[bold red]No performance data provided.[/bold red]')
+        console.print("[bold red]No performance data provided.[/bold red]")
         return
 
     console.print(
-        '[bold green]Performance data for all AL steps:[/bold green]', justify='left'
+        "[bold green]Performance data for all AL steps:[/bold green]", justify="left"
     )
 
     caption = (
-        'Performance data for all AL steps. '
+        "Performance data for all AL steps. "
         "Runtimes are as reported by each Computer's queue manager. "
-        'Core hours depend only on the number of CPU cores used.'
+        "Core hours depend only on the number of CPU cores used."
     )
 
     # Table for individual step performance
     steps_table = Table(
         caption=caption,
         show_header=True,
-        header_style='bold magenta',
+        header_style="bold magenta",
         show_lines=True,
         padding=(0, 0, 0, 0),
     )
-    steps_table.add_column('Step', style='bold', width=5, justify='right')
-    steps_table.add_column('PK', width=10, justify='center')
-    steps_table.add_column('Duration', width=18, justify='center')
-    steps_table.add_column('Train Time', style='magenta', width=15, justify='center')
-    steps_table.add_column('Train Core*h', style='magenta', width=8, justify='center')
-    steps_table.add_column('Desc. Time', style='blue', width=15, justify='center')
-    steps_table.add_column('Desc. Core*h', style='blue', width=8, justify='center')
-    steps_table.add_column('MD Time', style='yellow', width=15, justify='center')
-    steps_table.add_column('MD Core*h', style='yellow', width=8, justify='center')
-    steps_table.add_column('DFT Time', style='green', width=15, justify='center')
-    steps_table.add_column('DFT Core*h', style='green', width=8, justify='center')
+    steps_table.add_column("Step", style="bold", width=5, justify="right")
+    steps_table.add_column("PK", width=10, justify="center")
+    steps_table.add_column("Duration", width=18, justify="center")
+    steps_table.add_column("Train Time", style="magenta", width=15, justify="center")
+    steps_table.add_column("Train Core*h", style="magenta", width=8, justify="center")
+    steps_table.add_column("Desc. Time", style="blue", width=15, justify="center")
+    steps_table.add_column("Desc. Core*h", style="blue", width=8, justify="center")
+    steps_table.add_column("MD Time", style="yellow", width=15, justify="center")
+    steps_table.add_column("MD Core*h", style="yellow", width=8, justify="center")
+    steps_table.add_column("DFT Time", style="green", width=15, justify="center")
+    steps_table.add_column("DFT Core*h", style="green", width=8, justify="center")
 
     total_md_time = datetime.timedelta(0)
     total_md_core_h = 0.0
@@ -2856,36 +2868,36 @@ def print_performance_report(all_performance_data: list):
     final_loop_time = datetime.timedelta(0)
 
     for step_idx, step_data in enumerate(all_performance_data):
-        step_info = step_data.get('step', {})
-        stages_info = step_data.get('stages', {})
+        step_info = step_data.get("step", {})
+        stages_info = step_data.get("stages", {})
 
-        step_pk = str(step_info.get('pk', 'N/A'))
-        step_duration = step_info.get('step_duration', datetime.timedelta(0))
+        step_pk = str(step_info.get("pk", "N/A"))
+        step_duration = step_info.get("step_duration", datetime.timedelta(0))
 
         # Add Step, PK, Duration
         row_data = [str(step_idx + 1), step_pk, simplify_timedelta_str(step_duration)]
 
-        for stage_name in ['training', 'descriptors', 'md', 'dft']:
+        for stage_name in ["training", "descriptors", "md", "dft"]:
             stage = stages_info.get(stage_name, {})
             all_durations_s = [
-                td.total_seconds() for td in stage.get('duration_list', [0])
+                td.total_seconds() for td in stage.get("duration_list", [0])
             ]
-            time_val = stage.get('total_elapsed_time', datetime.timedelta(0))
-            cores = stage.get('cores', 0)
+            time_val = stage.get("total_elapsed_time", datetime.timedelta(0))
+            cores = stage.get("cores", 0)
             core_h = np.sum(np.array(all_durations_s)) / 3600 * cores
 
-            row_data.extend([simplify_timedelta_str(time_val), f'{core_h:.1f}'])
+            row_data.extend([simplify_timedelta_str(time_val), f"{core_h:.1f}"])
 
-            if stage_name == 'training':
+            if stage_name == "training":
                 total_training_time += time_val
                 total_training_core_h += core_h
-            elif stage_name == 'descriptors':
+            elif stage_name == "descriptors":
                 total_descriptors_time += time_val
                 total_descriptors_core_h += core_h
-            elif stage_name == 'md':
+            elif stage_name == "md":
                 total_md_time += time_val
                 total_md_core_h += core_h
-            elif stage_name == 'dft':
+            elif stage_name == "dft":
                 total_dft_time += time_val
                 total_dft_core_h += core_h
 
@@ -2899,40 +2911,40 @@ def print_performance_report(all_performance_data: list):
 
     # Table for totals
     console.print(
-        '[bold green]Timings for the entire AL Loop:[/bold green]', justify='left'
+        "[bold green]Timings for the entire AL Loop:[/bold green]", justify="left"
     )
     totals_table = Table(
         show_header=True,
-        header_style='bold cyan',
+        header_style="bold cyan",
         # expand=True,
     )
-    totals_table.add_column('Stage', style='bold', width=20)
-    totals_table.add_column('Total Time', width=25, justify='center')
-    totals_table.add_column('Total Core*h', width=15, justify='right')
+    totals_table.add_column("Stage", style="bold", width=20)
+    totals_table.add_column("Total Time", width=25, justify="center")
+    totals_table.add_column("Total Core*h", width=15, justify="right")
 
     totals_table.add_row(
-        'Training',
+        "Training",
         simplify_timedelta_str(total_training_time),
-        f'{total_training_core_h:.1f}',
-        style='magenta',
+        f"{total_training_core_h:.1f}",
+        style="magenta",
     )
     totals_table.add_row(
-        'Descriptors',
+        "Descriptors",
         simplify_timedelta_str(total_descriptors_time),
-        f'{total_descriptors_core_h:.1f}',
-        style='blue',
+        f"{total_descriptors_core_h:.1f}",
+        style="blue",
     )
     totals_table.add_row(
-        'MD',
+        "MD",
         simplify_timedelta_str(total_md_time),
-        f'{total_md_core_h:.1f}',
-        style='yellow',
+        f"{total_md_core_h:.1f}",
+        style="yellow",
     )
     totals_table.add_row(
-        'DFT',
+        "DFT",
         simplify_timedelta_str(total_dft_time),
-        f'{total_dft_core_h:.1f}',
-        style='green',
+        f"{total_dft_core_h:.1f}",
+        style="green",
     )
 
     total_core_h = (
@@ -2942,7 +2954,7 @@ def print_performance_report(all_performance_data: list):
         + total_descriptors_core_h
     )
     totals_table.add_row(
-        'Total', str(final_loop_time), f'{total_core_h:.1f}', style='white bold'
+        "Total", str(final_loop_time), f"{total_core_h:.1f}", style="white bold"
     )
 
     console.print(totals_table)
@@ -2954,7 +2966,7 @@ def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = N
         load_profile()
         custom_print(f"AiiDA profile '{load_profile().name}' loaded.")
     except Exception as e:
-        custom_print(f'Error loading AiiDA profile: {e}')
+        custom_print(f"Error loading AiiDA profile: {e}")
         exit()
 
     try:
@@ -2962,10 +2974,10 @@ def gen_performance_report(al_loop_pk: int | list[int], output_filename: str = N
         all_performance_data: list[dict] = get_al_loop_performance(al_loop_pk)
 
     except NotExistent as e:
-        custom_print(f'Node with PK={al_loop_pk} does not exist.', 'error')
+        custom_print(f"Node with PK={al_loop_pk} does not exist.", "error")
         custom_print(e)
     except Exception as e:
-        custom_print(f'An unexpected error occurred: {e}', 'error')
+        custom_print(f"An unexpected error occurred: {e}", "error")
         import traceback
 
         traceback.print_exc()

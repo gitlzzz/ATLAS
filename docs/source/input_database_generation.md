@@ -184,7 +184,7 @@ Description of the phase diagram.
   - **Type**: `(str)`
   - **Example**: `'Cu'`.
 
-#### Defines a specific phase within the phase diagram. Multiple phases can be added. - `[phase_diagram.phase.XXXXX]`
+#### Phase Definition - `[phase_diagram.phase.XXXXX]`
 
 This key describes settings for dynamic entries. Several entries can be added by using different key names.
 
