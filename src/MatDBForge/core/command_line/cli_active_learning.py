@@ -531,7 +531,7 @@ def run_active_learning():
     )
     report_group.add_argument(
         '--log_path',
-        '-log',
+        '-l',
         help=('MatDBForge log of the active learning loop.'),
         metavar='<PATH>',
     )
@@ -800,6 +800,9 @@ def run_active_learning():
 
     from MatDBForge.core.command_line.command_line_utils import validate_config_file
 
+    # Initialize ntfysh variable
+    ntfysh_topic = None
+
     # Check if all required sections are present
     if args.command == 'run' or args.command == 'resume':
         from aiida.engine import run, submit
@@ -831,6 +834,7 @@ def run_active_learning():
                 limit_num_steps=args.limit_num_steps,
                 enable_cueq=args.mace_enable_cueq,
             )
+            return
         elif args.subcommand == 'init_db':
             # Generating a report for an initial database
             mdb_report.gen_init_db_report(
@@ -841,6 +845,7 @@ def run_active_learning():
                 color_type=args.color_type,
                 per_atom=args.per_atom,
             )
+            return
         elif args.subcommand == 'al_loop_batch':
             # Generating a report for an initial database
             mdb_report.gen_batch_report(training_db_path=args.db_path)
@@ -895,7 +900,6 @@ def run_active_learning():
         )
 
     # Start a new al loop
-    ntfysh_topic = None
     if (
         args.command in ['run', 'resume']
         and builder.active_learning.get('enable_ntfysh', Bool(False)).value
@@ -925,7 +929,8 @@ def run_active_learning():
             display_qr_in_cli(f'ntfy.sh/{ntfysh_topic}')
         print()
 
-    builder.active_learning.ntfysh_topic = Str(ntfysh_topic)
+    if ntfysh_topic:
+        builder.active_learning.ntfysh_topic = Str(ntfysh_topic)
 
     # Check if dashboard is enabled
     if hasattr(args, 'dashboard'):
@@ -934,7 +939,7 @@ def run_active_learning():
         dashboard_enabled = False
 
     # Launch dashboard
-    if dashboard_enabled:
+    if dashboard_enabled and args.command in ['run', 'resume']:
         from MatDBForge.core.command_line.cli_dashboard import run_dashboard_app
 
         node = submit(builder)
@@ -949,7 +954,7 @@ def run_active_learning():
         )
 
     # Launch normal CLI or resume run, without dashboard
-    else:
+    elif not dashboard_enabled and args.command in ['run', 'resume']:
         if not args.debug:
             builder.active_learning.debug_mode = Bool(False)
 
