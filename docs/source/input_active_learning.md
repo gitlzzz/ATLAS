@@ -331,26 +331,6 @@ This section is optional.
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
 
-#### Metadata - `[safeguard.metadata]`
-
-AiiDA metadata and scheduler options for the safeguard.
-
-
-- {alt}`computer`:
-  - **Description**: AiiDA computer name for safeguard calculations.
-  - **Type**: `(str)`
-  - **Example**: `'my_cluster'`.
-
-- {alt}`prepend_text`:
-  - **Description**: Text to prepend to job scripts for AiiDA.
-  - **Type**: `(optional, str)`
-  - **Example**: `'module load singularity
-export PATH=$PATH:.'`.
-
-- {alt}`options`:
-  - **Description**: AiiDA scheduler options for safeguard calculations.
-  - **Type**: `(dict)`
-
 - {alt}`temperature_list_K`:
   - **Description**: List of different temperatures (in K) for MD simulations.
   - **Type**: `(list[float])`
@@ -474,6 +454,26 @@ export PATH=$PATH:.'`.
   - **Type**: `(optional, int)`
   - **Default**: `16`.
 
+
+#### Metadata - `[safeguard.metadata]`
+
+AiiDA metadata and scheduler options for the safeguard.
+
+
+- {alt}`computer`:
+  - **Description**: AiiDA computer name for safeguard calculations.
+  - **Type**: `(str)`
+  - **Example**: `'my_cluster'`.
+
+- {alt}`prepend_text`:
+  - **Description**: Text to prepend to job scripts for AiiDA.
+  - **Type**: `(optional, str)`
+  - **Example**: `'module load singularity
+export PATH=$PATH:.'`.
+
+- {alt}`options`:
+  - **Description**: AiiDA scheduler options for safeguard calculations.
+  - **Type**: `(dict)`
 
 ### Molecular Dynamics Settings - `[md]`
 

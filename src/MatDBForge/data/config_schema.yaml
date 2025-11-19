@@ -1001,6 +1001,17 @@ active_learning:
       type: bool
       mandatory: false
       default: false
+    md_parameters:
+      name: "md_parameters"
+      name_pretty: "Safeguard MD Parameters"
+      description: "MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section."
+      mandatory: true
+      depends_on:
+        key: active_learning.safeguard.enable
+        value: true
+      wildcard_entry: true
+      wildcard_path: "md.parameters"
+      wildcard_level: 1
     metadata:
       description: "AiiDA metadata and scheduler options for the safeguard."
       computer:
@@ -1017,17 +1028,6 @@ active_learning:
         description: "AiiDA scheduler options for safeguard calculations."
         type: dict
         mandatory: true
-    md_parameters:
-      name: "md_parameters"
-      name_pretty: "Safeguard MD Parameters"
-      description: "MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section."
-      mandatory: true
-      depends_on:
-        key: active_learning.safeguard.enable
-        value: true
-      wildcard_entry: true
-      wildcard_path: "md.parameters"
-      wildcard_level: 1
 
   md:
     name: "md"
