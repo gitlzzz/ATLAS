@@ -7,8 +7,11 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import pathlib as pl
+import re
 import subprocess
 import sys
+
+import MatDBForge.core.code_utils as mdb_cud
 
 
 def get_git_commit_hash():
@@ -22,7 +25,46 @@ def get_git_commit_hash():
         commit_hash = "unknown"
     return commit_hash
 
+
 autodoc_mock_imports = ["aiida"]
+
+
+def get_whitelist_pattern(version_list: list) -> str:
+    """
+    Generates a regex pattern for sphinx-multiversion based on a list of versions.
+
+    Parameters
+    ----------
+    version_list : list
+        A list of version objects or strings.
+        ```
+        versions = [<Version('0.45.0')>, <Version('0.44.2')>, ...]
+        ```
+
+    Returns
+    -------
+    str
+        A regex string combining all versions with OR operators.
+    """
+    cleaned_versions = []
+    for v in version_list:
+        # Convert objects to strings
+        v_str = str(v)
+
+        # IMPORTANT: If my Git tags are 'v0.45.0' but the Version object is '0.45.0',
+        # I must prepend the 'v' here.
+        # Reenable if I end up switching to 'v' tags.
+        # if not v_str.startswith("v"):
+        #     v_str = f"v{v_str}"
+
+        # Escape special regex characters (like '.')
+        cleaned_versions.append(re.escape(v_str))
+
+    # Join them with the OR operator '|'
+    combined_pattern = "|".join(cleaned_versions)
+
+    # Wrap in start (^) and end ($) anchors to ensure exact matches
+    return f"^({combined_pattern})$"
 
 
 # -- Path setup --------------------------------------------------------------
@@ -84,7 +126,7 @@ exclude_patterns = [
     "devel/*",
     "display_db/*",
     "*sync-conflict*",
-    "active_learning.py"
+    "active_learning.py",
 ]
 
 # -- Options for HTML output -------------------------------------------------
@@ -113,7 +155,7 @@ html_theme_options = {
     "logo_only": True,
     "version_selector": True,
     "display_version": True,
-    "github_url": "https://github.com/pol-sb/MatDBForge"
+    "github_url": "https://github.com/pol-sb/MatDBForge",
 }
 
 html_context = {
@@ -132,4 +174,10 @@ html_context["commit_hash"] = get_git_commit_hash()
 # This will build the 'master' branch AND all tags that
 # start with 'v', while ignoring all other branches.
 
-smv_branch_whitelist = r'^master$'
+newest_tag, git_hash = mdb_cud.get_last_tagged_version()
+tags = mdb_cud.get_list_of_tags()
+
+last_10_versions = tags[:10]
+
+smv_tag_whitelist = rf"{get_whitelist_pattern(last_10_versions)}"
+smv_branch_whitelist = r"^master$"
