@@ -393,10 +393,12 @@ def get_last_tagged_version_local():
 
     try:
         # Change to the MatDBForge root directory
+        print('#@# MDB_ROOT_DIR: ', MDB_ROOT_DIR)
         os.chdir(MDB_ROOT_DIR)
 
         # Split the output into a list of tags
         tags = get_list_of_tags()
+        print('#@# tags: ', tags)
 
         # Sort tags in descending order
         tags = sorted(tags, reverse=True)
