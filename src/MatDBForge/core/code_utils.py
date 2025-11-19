@@ -377,7 +377,7 @@ def get_last_tagged_version():
     return newest_tag, hash_str
 
 
-def get_last_tagged_version_local():
+def get_last_tagged_version_local(repo_dir_path: str = None):
     """
     Get the last tagged version from the local Git repository.
 
@@ -391,14 +391,18 @@ def get_last_tagged_version_local():
     # Save the current directory path
     cwd = os.getcwd()
 
+    # Use the default MatDBForge root directory if no path is provided
+    if not repo_dir_path or not pathlib.Path(repo_dir_path).exists():
+        repo_dir_path = MDB_ROOT_DIR
+
     try:
         # Change to the MatDBForge root directory
-        print('#@# MDB_ROOT_DIR: ', MDB_ROOT_DIR)
-        os.chdir(MDB_ROOT_DIR)
+        print("#@# repo_dir_path: ", repo_dir_path)
+        os.chdir(repo_dir_path)
 
         # Split the output into a list of tags
         tags = get_list_of_tags()
-        print('#@# tags: ', tags)
+        print("#@# tags: ", tags)
 
         # Sort tags in descending order
         tags = sorted(tags, reverse=True)
@@ -416,15 +420,24 @@ def get_last_tagged_version_local():
     return newest_tag, current_hash
 
 
-def get_list_of_tags():
+def get_list_of_tags(repo_path: str = None) -> list[Version]:
     """
     Get a list of tags from the git repository in the CWD.
+
+    Parameters
+    ----------
+    repo_path : str, optional
+        Path to the git repository. If None, uses the current working directory.
 
     Returns
     -------
     list[str]
         List of tags in the repository.
     """
+    # Use the given repository path if provided
+    if repo_path:
+        os.chdir(repo_path)
+
     # Run the git fetch to get the last tagged version
     try:
         _ = sb.check_output(["git", "fetch", "--tags", "--quiet"])
