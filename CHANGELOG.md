@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.45.0 (2025-11-19)
+
+### Docs
+
+- **core**: allow usage of wildcard entries in input file schema for documentation generation ([#4828d82](https://github.com/pol-sb/MatDBForge/commit/4828d82a83a2c71e86c57a62754d478b85d40eaf))
+- update schema and improve tools.md ([#efab748](https://github.com/pol-sb/MatDBForge/commit/efab74847132a84c805fd21a87b965dfa2b8463b))
+- **core**: fix md schema and allow use of wildcards in schema ([#a048d61](https://github.com/pol-sb/MatDBForge/commit/a048d61f538519d5d81869535058060048cae856))
+- **md**: add inputs and docs for npt ensembles ([#0f3c5a8](https://github.com/pol-sb/MatDBForge/commit/0f3c5a8db8a107bb6b0e0dc660358444e3912068))
+
+### Feature
+
+- **md**: allow usage of stages during md simulations ([#685b5e7](https://github.com/pol-sb/MatDBForge/commit/685b5e7396098fd0ae5949f09be634101fb8a5e9))
+
+### Fix
+
+- **al_loop**: avoid missing ntfysh parameters during AL launch ([#77f9320](https://github.com/pol-sb/MatDBForge/commit/77f93200f386f6a675f43206ea47d0609011bc09))
+- **report**: improve report reliability ([#bc9c71d](https://github.com/pol-sb/MatDBForge/commit/bc9c71dce16c335ac0a7cc3ce0a4c62bde1dda83))
+- **al_loop**: fix stress key gathering, with voigt added ([#9593498](https://github.com/pol-sb/MatDBForge/commit/9593498fde4d85cbf94bb3202fe9d85c3dff69f8))
+- **al_loop**: add names to loggers so they are not initialized repeatedly, causing duplicated log messages ([#968faa0](https://github.com/pol-sb/MatDBForge/commit/968faa0fe837fac0c58b9cb52d354bbd507ddae8))
+- **md**: replace default melchionna-npt calculator with MTKNPT calculator ([#dba18e2](https://github.com/pol-sb/MatDBForge/commit/dba18e2469d10c467953a0ac5cbb6b0c86e0e14f))
+
+### Refactor
+
+- **domain_validity**: add title parameter and extend documentation for `plot_concave_hull()` function ([#efba2f3](https://github.com/pol-sb/MatDBForge/commit/efba2f30541a95e8adea6a5bc2fd4014689ced66))
+
+### Style
+
+- **domain_validity**: change alpha and area values to scientific notation ([#94646a7](https://github.com/pol-sb/MatDBForge/commit/94646a727a6a59098ce591152d1b445c6387f002))
+
 ## 0.44.2 (2025-11-08)
 
 ### Docs
