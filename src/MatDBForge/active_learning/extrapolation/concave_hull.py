@@ -69,7 +69,7 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     area = np.sqrt(np.clip(s * (s - a) * (s - b) * (s - c), 0.0, None))
 
     # Ignore division by zero and invalid operations
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         # R = abc / 4A
         circum_r = a * b * c / (4.0 * area)
 
@@ -130,6 +130,9 @@ def get_concave_hull_python(
         alpha reaches zero. Defaults to 0.002 (0.2%).
     n_attempts : int, optional
         Number of attempts to compute the concave hull by adjusting alpha.
+    use_alpha : float, optional
+        If provided, this alpha value will be used directly to compute
+        the concave hull without optimization. Defaults to None.
 
     Returns
     -------
@@ -142,7 +145,7 @@ def get_concave_hull_python(
     total_num_points = latent_space.shape[0]
 
     if use_alpha is not None:
-        mdb_cut.custom_print(f'Using user-defined alpha: {use_alpha}', 'info')
+        mdb_cut.custom_print(f"Using user-defined alpha: {use_alpha}", "info")
         # Get alpha shape using the user-defined alpha
         shape = alpha_shape(latent_space, alpha=use_alpha, only_outer=True)
 
@@ -159,8 +162,8 @@ def get_concave_hull_python(
         frac_outside = points_to_check / total_num_points
 
         mdb_cut.custom_print(
-            f'Current fraction of points outside hull is {frac_outside:.4f}.',
-            'info',
+            f"Current fraction of points outside hull is {frac_outside:.4f}.",
+            "info",
         )
 
         return alpha_shape_arr, use_alpha
@@ -182,9 +185,9 @@ def get_concave_hull_python(
             # If all points are coincident or extremely close
             if valid_nn_distances.size == 0:
                 mdb_cut.custom_print(
-                    'All points are likely duplicates or extremely close. '
-                    'Using max alpha from target range.',
-                    'warn',
+                    "All points are likely duplicates or extremely close. "
+                    "Using max alpha from target range.",
+                    "warn",
                 )
                 # Use max alpha, tends to shrink
                 alpha = target_alpha_range[1]
@@ -198,18 +201,18 @@ def get_concave_hull_python(
                     # A very large alpha candidate will be clipped to max of range.
                     alpha_candidate = np.inf
                     mdb_cut.custom_print(
-                        'Mean nearest neighbor distance is very small '
-                        f'({mean_nn_dist:.2e}). Alpha candidate set to infinity'
-                        ' before clipping.',
-                        'debug',
+                        "Mean nearest neighbor distance is very small "
+                        f"({mean_nn_dist:.2e}). Alpha candidate set to infinity"
+                        " before clipping.",
+                        "debug",
                     )
                 else:
                     alpha_candidate = nn_dist_scale_factor / mean_nn_dist
                     mdb_cut.custom_print(
-                        f'Mean NN dist: {mean_nn_dist:.4f}, '
-                        f'NN Distance Scale Factor: {nn_dist_scale_factor:.1f}, '
-                        f'Alpha candidate (factor/mean_nn_dist): {alpha_candidate:.4f}',
-                        'debug',
+                        f"Mean NN dist: {mean_nn_dist:.4f}, "
+                        f"NN Distance Scale Factor: {nn_dist_scale_factor:.1f}, "
+                        f"Alpha candidate (factor/mean_nn_dist): {alpha_candidate:.4f}",
+                        "debug",
                     )
 
                 # Limiting alpha to the target range
@@ -217,16 +220,16 @@ def get_concave_hull_python(
                     alpha_candidate, target_alpha_range[0], target_alpha_range[1]
                 )
                 mdb_cut.custom_print(
-                    f'Calculated alpha: {alpha:.4f}'
-                    f' (clipped to range {target_alpha_range})',
-                    'info',
+                    f"Calculated alpha: {alpha:.4f}"
+                    f" (clipped to range {target_alpha_range})",
+                    "info",
                 )
 
         except Exception as e:
             mdb_cut.custom_print(
-                f'Error during KDTree query or mean_nn_dist calculation: {e}. '
-                f'Using default alpha: {default_alpha_if_issues}',
-                'warn',
+                f"Error during KDTree query or mean_nn_dist calculation: {e}. "
+                f"Using default alpha: {default_alpha_if_issues}",
+                "warn",
             )
             alpha = default_alpha_if_issues
 
@@ -239,7 +242,7 @@ def get_concave_hull_python(
         while num_attempts <= n_attempts:
             print()
             mdb_cut.custom_print(
-                f'Computing alpha shape with alpha: {alpha:.4f}', 'info'
+                f"Computing alpha shape with alpha: {alpha:.4f}", "info"
             )
 
             # Get alpha shape using the determined alpha
@@ -247,11 +250,11 @@ def get_concave_hull_python(
 
             if shape.is_empty:
                 mdb_cut.custom_print(
-                    f'Alpha shape with alpha={alpha:.4f} resulted in an empty geometry.'
-                    ' This can happen if alpha is too large (too restrictive)'
-                    ' for the point set. Attempting to return convex hull'
-                    ' as a fallback.',
-                    'warn',
+                    f"Alpha shape with alpha={alpha:.4f} resulted in an empty geometry."
+                    " This can happen if alpha is too large (too restrictive)"
+                    " for the point set. Attempting to return convex hull"
+                    " as a fallback.",
+                    "warn",
                 )
                 # Fallback to convex hull if alpha shape is empty
                 if total_num_points >= 3:
@@ -260,7 +263,7 @@ def get_concave_hull_python(
                         return latent_space[hull.vertices]
                     except Exception as e_cvx:  # pragma: no cover
                         mdb_cut.custom_print(
-                            f'Convex hull fallback also failed: {e_cvx}', 'error'
+                            f"Convex hull fallback also failed: {e_cvx}", "error"
                         )
                         return np.empty((0, 2))
                 else:
@@ -271,17 +274,17 @@ def get_concave_hull_python(
                         else np.empty((0, 2))
                     )
 
-            if hasattr(shape.exterior, 'coords'):
+            if hasattr(shape.exterior, "coords"):
                 exterior_xy = shape.exterior.coords.xy
                 alpha_shape_arr = np.stack((exterior_xy[0], exterior_xy[1]), axis=1)
             else:
                 mdb_cut.custom_print(
-                    f'Alpha shape (alpha={alpha:.4f}) did not return a simple polygon '
-                    'with an exterior. '
-                    f'Shape type: {type(shape)}. This is unexpected '
-                    'with only_outer=True.  Attempting to return convex'
-                    ' hull as a fallback.',
-                    'error',
+                    f"Alpha shape (alpha={alpha:.4f}) did not return a simple polygon "
+                    "with an exterior. "
+                    f"Shape type: {type(shape)}. This is unexpected "
+                    "with only_outer=True.  Attempting to return convex"
+                    " hull as a fallback.",
+                    "error",
                 )
                 if total_num_points >= 3:
                     try:
@@ -289,7 +292,7 @@ def get_concave_hull_python(
                         return latent_space[hull.vertices]
                     except Exception as e_cvx2:  # pragma: no cover
                         mdb_cut.custom_print(
-                            f'Convex hull fallback also failed: {e_cvx2}', 'error'
+                            f"Convex hull fallback also failed: {e_cvx2}", "error"
                         )
                         return np.empty((0, 2))
                 else:
@@ -330,33 +333,33 @@ def get_concave_hull_python(
 
             if alpha <= alpha_lower_bound:
                 mdb_cut.custom_print(
-                    f'Alpha has reached the minimum threshold of {alpha_lower_bound}. '
-                    'Stopping adjustments.',
-                    'warn',
+                    f"Alpha has reached the minimum threshold of {alpha_lower_bound}. "
+                    "Stopping adjustments.",
+                    "warn",
                 )
                 break
 
             if frac_outside >= frac_points_allowed_out:
                 mdb_cut.custom_print(
                     (
-                        f'Current fraction of points outside hull is'
-                        f' {frac_outside:.4e}, above the allowed'
-                        f' {frac_points_allowed_out:.4e} threshold.'
+                        f"Current fraction of points outside hull is"
+                        f" {frac_outside:.4e}, above the allowed"
+                        f" {frac_points_allowed_out:.4e} threshold."
                     ),
-                    'warn',
+                    "warn",
                 )
-                mdb_cut.custom_print(f'Area of concave hull: {shape.area:.4e}', 'info')
-                mdb_cut.custom_print(f'Decreasing alpha to: {alpha:.4f}', 'info')
+                mdb_cut.custom_print(f"Area of concave hull: {shape.area:.4e}", "info")
+                mdb_cut.custom_print(f"Decreasing alpha to: {alpha:.4f}", "info")
                 last_alpha = alpha
                 num_attempts += 1
             else:
                 mdb_cut.custom_print(
                     (
-                        f'Current fraction of points outside hull'
-                        f' is {frac_outside:.4e}, '
-                        f' below the allowed {frac_points_allowed_out:.4e} threshold.'
+                        f"Current fraction of points outside hull"
+                        f" is {frac_outside:.4e}, "
+                        f" below the allowed {frac_points_allowed_out:.4e} threshold."
                     ),
-                    'info',
+                    "info",
                 )
                 break
 
@@ -364,12 +367,12 @@ def get_concave_hull_python(
         print()
         mdb_cut.custom_print(
             (
-                f'Current fraction of points outside hull is {frac_outside:.4f}, '
-                f'after {num_attempts} attempts.'
+                f"Current fraction of points outside hull is {frac_outside:.4f}, "
+                f"after {num_attempts} attempts."
             ),
-            'info',
+            "info",
         )
-        mdb_cut.custom_print(f'Final alpha: {last_alpha:.4f}', 'done')
+        mdb_cut.custom_print(f"Final alpha: {last_alpha:.4f}", "done")
         print()
 
     return alpha_shape_arr, last_alpha
@@ -410,17 +413,38 @@ def plot_concave_hull(
     filename: str = None,
     alpha: float = None,
     plot_density: bool = False,
+    title: str = "Concave Hull",
 ):
     """
     Generate a plot for the concave hull area in 2D space, including in and out
     of domain points if provided.
+
+    Parameters
+    ----------
+    concave_hull : np.ndarray
+        The coordinates of the concave hull vertices (N, 2).
+    latent_space : np.ndarray, optional
+        The full set of points in the latent space (N, 2).
+    point_inside : np.ndarray, optional
+        Points inside the concave hull (M, 2).
+    point_outside : np.ndarray, optional
+        Points outside the concave hull (K, 2).
+    filename : str, optional
+        The filename to save the plot. Defaults to 'concave_hull.png'.
+    alpha : float, optional
+        If provided, a single alpha value will be used used to compute the concave hull,
+        instead of attempting to optimize it.
+    plot_density : bool, optional
+        Whether to color points by density. Defaults to False.
+    title : str, optional
+        The title of the plot. Defaults to 'Concave Hull'.
     """
     if not filename:
-        filename = 'concave_hull.png'
+        filename = "concave_hull.png"
 
     fig, ax = plt.subplots()
 
-    # Concave hull plots may come from md simulations or other sources.
+    # Concave hull plots may come from MD simulations or other sources.
     # This block stacks descriptors for density coloring in all types of concave hull
     # plots
     if latent_space is None and (point_inside is not None or point_outside is not None):
@@ -440,93 +464,93 @@ def plot_concave_hull(
         xy = np.vstack((x, y))
         z = gaussian_kde(xy)(xy)
     else:
-        z = '#b16286'
+        z = "#b16286"
 
     # Plotting the concave hull in 2D space using lines
     if latent_space is not None and latent_space.size != 0:
         scatter = ax.scatter(
             x,
             y,
-            marker='o',
+            marker="o",
             s=25,
             alpha=0.5,
-            label='Descriptor in database',
+            label="Descriptor in database",
             linewidths=0,
             c=z,
         )
         if plot_density:
-            fig.colorbar(scatter, ax=ax, label='Density')
+            fig.colorbar(scatter, ax=ax, label="Density")
 
     if point_inside is not None and point_inside.size != 0:
         ax.scatter(
             x,
             y,
-            marker='s',
-            label='Structure in domain',
-            color='#8ec07c',
+            marker="s",
+            label="Structure in domain",
+            color="#8ec07c",
             s=3.5,
             linewidths=1.5,
-            edgecolors='#282828',
+            edgecolors="#282828",
         )
     if point_outside is not None and point_outside.size != 0:
         ax.scatter(
             x,
             y,
-            marker='s',
-            label='Structure out of domain',
-            color='#fb4934',
+            marker="s",
+            label="Structure out of domain",
+            color="#fb4934",
             s=3.5,
             linewidths=1.5,
-            edgecolors='#282828',
+            edgecolors="#282828",
         )
 
     ax.plot(
         concave_hull[:, 0],
         concave_hull[:, 1],
-        '-',
-        color='#cc241d',
+        "-",
+        color="#cc241d",
         lw=1,
-        label='Concave hull',
+        label="Concave hull",
     )
 
     polygon = Polygon(concave_hull)
     hull_area = polygon.area
 
     if alpha is None:
-        alpha = 'unknown'
+        alpha = "unknown"
     if isinstance(alpha, (float, int)):
-        alpha = f'{alpha:.2f}'
+        alpha = f"{alpha:.2f}"
 
     # Write area and alpha in a text box
     plt.text(
         0.05,
         0.95,
-        f'Alpha: {alpha}\nHull area: {hull_area:.2e}',
+        f"Alpha: {alpha}\nHull area: {hull_area:.2e}",
         transform=plt.gca().transAxes,
         fontsize=10,
-        verticalalignment='top',
-        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+        verticalalignment="top",
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
     )
 
-    plt.title('Concave Hull')
-    plt.xlabel('Embedded dimension 1')
-    plt.ylabel('Embedded dimension 2')
+    plt.title(title)
+    plt.xlabel("Embedded dimension 1")
+    plt.ylabel("Embedded dimension 2")
     plt.legend()
 
     # Save as PNG
     plt.savefig(filename, dpi=300)
 
     # Save as SVG
-    filename_svg = filename.with_suffix('.svg')
+    filename_svg = filename.with_suffix(".svg")
     plt.savefig(filename_svg, dpi=300)
 
     plt.clf()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     plot_hull = True
-    latent_space_file = 'latent_space.npy'
-    descriptors_file = 'descriptors.npz'
+    latent_space_file = "latent_space.npy"
+    descriptors_file = "descriptors.npz"
 
     # Set the random seed for reproducibility.
     rng = np.random.default_rng(seed=420)
@@ -545,9 +569,9 @@ if __name__ == '__main__':
         concave_hull, descriptors
     )
 
-    np.save('point_inside.npy', point_inside)
-    np.save('point_outside.npy', point_outside)
-    np.save('all_points.npy', all_points)
+    np.save("point_inside.npy", point_inside)
+    np.save("point_outside.npy", point_outside)
+    np.save("all_points.npy", all_points)
 
     if plot_hull:
         plot_concave_hull(
@@ -555,5 +579,5 @@ if __name__ == '__main__':
             point_inside=point_inside,
             point_outside=point_outside,
             latent_space=latent_space,
-            filename='/tmp/concave_hull.png',
+            filename="/tmp/concave_hull.png",
         )
