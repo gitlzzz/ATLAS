@@ -5,7 +5,7 @@ This section describes the command line arguments for various scripts provided b
 ## Run Active Learning - `mdb_active_learning`
 
 Handles MatDBForge active learning loop runs. Running the `mdb_active_learning` command without any subcommand or the gui subcommand will start a new run.
-In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](inpiut_active_learning.md).
+In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](input_active_learning.md).
 
 Other available subcommands allow to generate reports or resume loops using files generated from previous runs.
 

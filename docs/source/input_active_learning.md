@@ -351,11 +351,6 @@ export PATH=$PATH:.'`.
   - **Description**: AiiDA scheduler options for safeguard calculations.
   - **Type**: `(dict)`
 
-#### Safeguard MD Parameters - `[safeguard.md_parameters]`
-
-MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section.
-
-
 - {alt}`temperature_list_K`:
   - **Description**: List of different temperatures (in K) for MD simulations.
   - **Type**: `(list[float])`
@@ -420,7 +415,7 @@ MD simulation parameters for safeguard. These settings will override the general
 
 - {alt}`md_stage_order`:
   - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
-  - **Type**: `(optional, list[str])`
+  - **Type**: `(list[str])`
   - **Default**: `[]`.
 
 
@@ -549,7 +544,7 @@ MD simulation parameters.
 
 - {alt}`md_stage_order`:
   - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
-  - **Type**: `(optional, list[str])`
+  - **Type**: `(list[str])`
   - **Default**: `[]`.
 
 - {alt}`gather_traj_cnt_lattice`:
@@ -609,9 +604,9 @@ Accepted parameters for each entry:
 
 
 - {alt}`use_during_al_steps`:
-  - **Description**: String representing a number of AL steps or interval of AL steps in which the stage will be used. For example, `1` means that the stage will be used during step 1, while `3-6` means that the stage will be used from AL step 3 to AL step 6 (inclusive). The example `'1, 3, 4, 5-9, 11' would execute the current stage for steps 1, 3, 4, 5, 6, 7, 8, 9, and 11.
+  - **Description**: String representing a number of AL steps or interval of AL steps in which the stage will be used. For example, `0` means that the stage will be used during step 0, while `3-6` means that the stage will be used from AL step 3 to AL step 6 (inclusive). The example `'0-1, 3, 4, 5-9, 11'` would execute the current stage for steps 0, 1, 3, 4, 5, 6, 7, 8, 9, and 11.
   - **Type**: `(str)`
-  - **Example**: `'1, 3, 4, 5-9, 11'`.
+  - **Example**: `'0-1, 3, 4, 5-9, 11'`.
 
 - {alt}`temperature_list_K`:
   - **Description**: List of different temperatures (in K) for MD simulations.
@@ -677,7 +672,7 @@ Accepted parameters for each entry:
 
 - {alt}`md_stage_order`:
   - **Description**: List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`.
-  - **Type**: `(optional, list[str])`
+  - **Type**: `(list[str])`
   - **Default**: `[]`.
 
 
