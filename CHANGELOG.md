@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.45.4 (2025-11-21)
+
+### Fix
+
+- **al_loop**: remove leftover debug code ([#b88080e](https://github.com/pol-sb/MatDBForge/commit/b88080e934555e3513fe4357057ebc427f7c2141))
+
 ## 0.45.3 (2025-11-19)
 
 ### Docs
