@@ -834,7 +834,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
         settings_file_pth = self.inputs.toml_file
 
         # Loading the settings file again to get updated settings
-        breakpoint()
         settings_path = Path(self.inputs.toml_file.value)
         if settings_path.exists:
             current_settings = mdb_al_ut.read_toml_settings(
