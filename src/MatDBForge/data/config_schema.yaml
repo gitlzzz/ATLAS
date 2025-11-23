@@ -720,6 +720,11 @@ active_learning:
       description: "Path for final results. A folder named run_{uuid} will be created inside."
       type: str, PosixPath
       mandatory: true
+    reset_seed_db:
+      description: "Whether to reset the seed database when resuming a stopped AL loop."
+      type: bool
+      mandatory: false
+      default: false
     log_path:
       description: "Path for the log file. Defaults to results_dir if not specified."
       type: str, PosixPath
@@ -755,6 +760,25 @@ active_learning:
       mandatory: false
       default: "data_acquisition"
       choices: ["md", "data_reduction", "data_acquisition"]
+      test_set:
+    test_set:
+      name: "test_set"
+      name_pretty: "Test Set Settings"
+      description: "Settings for the test set used to evaluate model performance during active learning."
+      use_test_set:
+        description: "Whether to use a test set during active learning."
+        type: bool
+        mandatory: false
+        default: true
+      test_db_path:
+        description: "Path to the test set database file."
+        type: str, PosixPath
+        mandatory: false
+      test_db_frac:
+        description: "Fraction of the initial database to be used as test set if no test_db_path is provided."
+        type: float
+        mandatory: false
+        default: 0.1
   data_reduction:
     name: "data_reduction"
     name_pretty: "Data Reduction Settings"
@@ -1028,7 +1052,6 @@ active_learning:
         description: "AiiDA scheduler options for safeguard calculations."
         type: dict
         mandatory: true
-
   md:
     name: "md"
     name_pretty: "Molecular Dynamics Settings"
@@ -1250,7 +1273,6 @@ active_learning:
         description: "AiiDA scheduler options for MD calculations."
         type: dict
         mandatory: false
-
   code:
     name: "code"
     name_pretty: "Code and Containerization Settings"
@@ -1277,7 +1299,6 @@ active_learning:
         type: str
         mandatory: false
         example: "module load singularity\nexport PATH=$PATH:."
-
   mace_train:
     name: "mace_train"
     name_pretty: "MLIP Training Settings"
@@ -1320,7 +1341,6 @@ active_learning:
       description: "MACE training parameters and hyperparameters."
       type: dict
       mandatory: false
-
   committee_eval:
     name: "committee_eval"
     name_pretty: "Committee Evaluation Settings"
@@ -1374,7 +1394,6 @@ active_learning:
       description: "AiiDA metadata and scheduler options for committee evaluation."
       type: dict
       mandatory: false
-
   descriptors:
     name: "descriptors"
     name_pretty: "Descriptor Computation Settings"

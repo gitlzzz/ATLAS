@@ -272,7 +272,22 @@ def resume_al_loop_builder(
 
         # Getting train_db and seed_db paths
         train_db_path = toml_dict['active_learning'].get('init_db_path')
-        seed_db_path = toml_dict['active_learning'].get('init_db_path')
+
+        should_reset_seed_db = toml_dict['active_learning'].get('reset_seed_db', False)
+
+        if (
+            prev_run_dir.exists()
+            and (prev_run_dir / 'mdb_seed_db.xyz').exists()
+            and not should_reset_seed_db
+        ):
+            seed_db_path = prev_run_dir / 'mdb_seed_db.xyz'
+        else:
+            custom_print(
+                'Seed database is intialized as a copy of the training database. '
+                "This behavior can be changed using 'active_learning.reset_seed_db'.",
+                'warning',
+            )
+            seed_db_path = toml_dict['active_learning'].get('init_db_path')
 
         custom_print(f'Reading training database from: {train_db_path}', 'warning')
         custom_print(
@@ -281,9 +296,6 @@ def resume_al_loop_builder(
             f"the '{toml_dict_path}' file, in key"
             " 'active_learning.init_db_path'.",
             'warning',
-        )
-        custom_print(
-            'Seed database is intialized as a copy of the training database.', 'warning'
         )
         print()
 

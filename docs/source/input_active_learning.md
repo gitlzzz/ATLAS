@@ -41,6 +41,11 @@ General active learning settings.
   - **Description**: Path for final results. A folder named run_{uuid} will be created inside.
   - **Type**: `(str, PosixPath)`
 
+- {alt}`reset_seed_db`:
+  - **Description**: Whether to reset the seed database when resuming a stopped AL loop.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
 - {alt}`log_path`:
   - **Description**: Path for the log file. Defaults to results_dir if not specified.
   - **Type**: `(optional, str, PosixPath)`
@@ -75,6 +80,25 @@ General active learning settings.
   - **Type**: `(optional, str)`
   - **Default**: `'data_acquisition'`.
   - Possible values are: `md`, `data_reduction`, `data_acquisition`.
+
+#### Test Set Settings - `[active_learning.test_set]`
+
+Settings for the test set used to evaluate model performance during active learning.
+
+
+- {alt}`use_test_set`:
+  - **Description**: Whether to use a test set during active learning.
+  - **Type**: `(optional, bool)`
+  - **Default**: `True`.
+
+- {alt}`test_db_path`:
+  - **Description**: Path to the test set database file.
+  - **Type**: `(optional, str, PosixPath)`
+
+- {alt}`test_db_frac`:
+  - **Description**: Fraction of the initial database to be used as test set if no test_db_path is provided.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.1`.
 
 ### Data Reduction Settings - `[data_reduction]`
 
