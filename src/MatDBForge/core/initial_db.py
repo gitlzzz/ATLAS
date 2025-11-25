@@ -1558,7 +1558,7 @@ class InitialDatabase:
         """
         # Instantiating RNG
         if not rng_seed:
-            rng_seed = np.random.randint(0, 2**32 - 1)
+            rng_seed = np.random.randint(0, ((2**32) - 1))
         rng = np.random.default_rng(seed=rng_seed)
 
         # Selecting which subset of structures to use by either

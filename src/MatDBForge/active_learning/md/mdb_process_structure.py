@@ -324,6 +324,12 @@ if __name__ == "__main__":
     if md_stages:
         md_stage_order = md_params.get("md_stage_order", [])
 
+    if not md_stage_order:
+        md_stage_order = list(md_stages_allowed.keys())
+        mdb_cut.custom_print(
+            "No MD stage order defined. Using default order", "info", logger=logger
+        )
+
     ## Running MD simulations for given temperatures
     for T_start in T_list:
         traj_filename = res_folder / f"md_traj_final_temp-{T_start}.traj"
