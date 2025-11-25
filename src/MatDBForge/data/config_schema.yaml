@@ -760,25 +760,99 @@ active_learning:
       mandatory: false
       default: "data_acquisition"
       choices: ["md", "data_reduction", "data_acquisition"]
-      test_set:
-    test_set:
-      name: "test_set"
-      name_pretty: "Test Set Settings"
-      description: "Settings for the test set used to evaluate model performance during active learning."
-      use_test_set:
-        description: "Whether to use a test set during active learning."
-        type: bool
+  test_db:
+    name: "test_db"
+    name_pretty: "Test Set Settings"
+    description: "Settings for the test set used to evaluate model performance during active learning. The test set is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file."
+    use_test_db:
+      description: "Whether to use a constant test set during active learning."
+      type: bool
+      mandatory: false
+      default: false
+    ignore_container:
+      description: "Whether to ignore container settings for MACE training."
+      type: bool
+      mandatory: false
+      default: false
+    test_db_path:
+      description: "Path to the test set database file."
+      type: str, PosixPath
+      mandatory: false
+    test_db_frac:
+      description: "Fraction of the initial database to be used as test set if no test_db_path is provided."
+      type: float
+      mandatory: false
+      default: 0.1
+    metadata:
+      description: "AiiDA metadata options for the test set."
+      mandatory: false
+      computer:
+        description: "Name of the AiiDA computer where the test set calculations were run."
+        type: str
+        mandatory: true
+        depends_on:
+          key: test_db.use_test_db
+          value: true
+      prepend_text:
+        description: "Text to prepend to the AiiDA calculation label for the test set calculations."
+        type: str
         mandatory: false
-        default: true
-      test_db_path:
-        description: "Path to the test set database file."
-        type: str, PosixPath
+      options:
+        description: "AiiDA options dictionary for the test set calculations."
         mandatory: false
-      test_db_frac:
-        description: "Fraction of the initial database to be used as test set if no test_db_path is provided."
-        type: float
+        queue_name:
+          description: "Queue name."
+          type: str
+          mandatory: false
+        max_wallclock_seconds:
+          description: "Maximum wallclock time in seconds."
+          type: int
+          mandatory: false
+        max_memory_kb:
+          description: "Maximum memory in KB."
+          type: int
+          mandatory: false
+        withmpi:
+          description: "Whether to run with MPI."
+          type: bool
+          mandatory: false
+        custom_scheduler_commands:
+          description: "Custom scheduler commands."
+          type: str
+          mandatory: false
+        resources:
+          description: "Resources dictionary."
+          mandatory: false
+          parallel_env:
+            description: "Parallel environment."
+            type: str
+            mandatory: false
+          tot_num_mpiprocs:
+            description: "Total number of MPI processes."
+            type: int
+            mandatory: false
+    model_settings:
+      name: "model_settings"
+      name_pretty: "Model Settings for Test Set Evaluation"
+      description: "Settings for the model used to evaluate the test set during active learning."
+      model_type:
+        description: "Type of model to be used for test set evaluation."
+        type: str
         mandatory: false
-        default: 0.1
+        default: "mace"
+        choices: ["mace"]
+      default_dtype:
+        description: "Default data type for the model."
+        type: str
+        mandatory: false
+        default: "float32"
+        choices: ["float32", "float64"]
+      device:
+        description: "Device to be used for the model."
+        type: str
+        mandatory: false
+        default: "cpu"
+        choices: ["cpu", "cuda"]
   data_reduction:
     name: "data_reduction"
     name_pretty: "Data Reduction Settings"
@@ -895,21 +969,33 @@ active_learning:
             type: float
             mandatory: false
             default: 6.0
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "soap"
           n_max:
             description: "Maximum number of radial basis functions for SOAP."
             type: int
             mandatory: false
             default: 8
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "soap"
           l_max:
             description: "Maximum degree of spherical harmonics for SOAP."
             type: int
             mandatory: false
             default: 6
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "soap"
           periodic:
             description: "Whether to consider the system as periodic."
             type: bool
             mandatory: false
             default: true
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "soap"
           average:
             description: "Averaging mode for SOAP descriptor."
             type: str
@@ -921,23 +1007,35 @@ active_learning:
             description: "Path to the trained MACE model."
             type: str
             mandatory: false
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "mace"
           device:
             description: "What device to use for MACE."
             type: str
             mandatory: false
             default: "cpu"
             choices: ["cpu", "cuda"]
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "mace"
           dtype:
             description: "Floating point number precision for MACE."
             type: str
             mandatory: false
             default: "float32"
             choices: ["float32", "float64"]
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "mace"
           enable_cueq:
             description: "Enable CUEQ for MACE."
             type: bool
             mandatory: false
             default: false
+            depends_on:
+              key: al_seed.seed_ranking_settings.descriptor_fps.descriptor_type
+              value: "mace"
   interpolation:
     name: "interpolation"
     name_pretty: "Interpolation Check Settings"
@@ -1025,17 +1123,20 @@ active_learning:
       type: bool
       mandatory: false
       default: false
-    md_parameters:
-      name: "md_parameters"
-      name_pretty: "Safeguard MD Parameters"
-      description: "MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section."
-      mandatory: true
-      depends_on:
-        key: active_learning.safeguard.enable
-        value: true
-      wildcard_entry: true
-      wildcard_path: "md.parameters"
-      wildcard_level: 1
+    md:
+      name: "safeguard_md"
+      description: "MD simulation options for safeguard."
+      parameters:
+        name: "safeguard_md_parameters"
+        name_pretty: "Safeguard MD Parameters"
+        description: "MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section."
+        mandatory: true
+        depends_on:
+          key: active_learning.safeguard.enable
+          value: true
+        wildcard_entry: true
+        wildcard_path: "md.parameters"
+        wildcard_level: 1
     metadata:
       description: "AiiDA metadata and scheduler options for the safeguard."
       computer:

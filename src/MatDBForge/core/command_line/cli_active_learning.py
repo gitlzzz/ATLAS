@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import pathlib as pl
+import sys
 import time
 import tomllib
 import warnings
@@ -17,6 +18,7 @@ from MatDBForge.core.code_utils import (
     get_mdb_version_info,
     init_logger,
 )
+from MatDBForge.core.command_line.command_line_utils import apply_defaults
 
 warnings.filterwarnings('ignore')
 
@@ -79,6 +81,8 @@ def create_active_learning_builder(
     else:
         timestamp = time.strftime('%Y%m%d-%H%M%S')
         log_path = pl.Path(f'mdb_output_{timestamp}.log').resolve()
+
+    builder.active_learning.eval_test_db_settings = toml_dict.get('test_db', {})
 
     # Getting contents from previous log file and appending to new log file
     # to conserve the history of the previous run.
@@ -821,10 +825,12 @@ def run_active_learning():
         from aiida.orm import Bool, Str
 
         # Check if TOML file is correct
-        validate_config_file(
+        errors_found, errors, warnings = validate_config_file(
             config_path=args.config_file, config_type='active_learning'
         )
         print()
+        if errors_found:
+            sys.exit(1)
 
     if args.command == 'report':
         from MatDBForge.active_learning import report_utils as mdb_report
@@ -895,6 +901,9 @@ def run_active_learning():
     elif args.command == 'run':
         # Loading TOML config file
         toml_dict = read_toml_config(args.config_file)
+
+        # Apply default settings if necessary
+        toml_dict = apply_defaults(toml_dict, warnings)
 
         from aiida import load_profile
 
