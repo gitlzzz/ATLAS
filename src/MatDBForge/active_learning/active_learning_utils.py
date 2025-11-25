@@ -1814,6 +1814,12 @@ def aiida_serialized_ase_dict_to_atoms(struct_dict: dict) -> Atoms:
 
     if 'info' in struct_dict:
         for key, val in struct_dict['info'].items():
+            if key == 'REF_stress':
+                if isinstance(val, (list, np.ndarray)):
+                    struct_dict['info'][key] = ' '.join(
+                        str(x) for x in np.array(val).flatten()
+                    )
+                continue
             if key != 'pbc' and isinstance(val, list):
                 struct_dict['info'][key] = np.array(val)
 
@@ -1940,9 +1946,11 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
             vasprun.arrays['REF_forces'] = vasprun.calc.get_forces()
 
         if 'stress' in vasprun.arrays:
-            vasprun.arrays['REF_stress'] = vasprun.arrays.pop('stress')
+            vasprun.info['REF_stress'] = vasprun.arrays.pop('stress').tolist()
+        elif 'stress' in vasprun.info:
+            vasprun.info['REF_stress'] = vasprun.info.pop('stress')
         elif vasprun.calc:
-            vasprun.arrays['REF_stress'] = vasprun.calc.get_stress(voigt=False)
+            vasprun.info['REF_stress'] = vasprun.calc.get_stress(voigt=False).tolist()
 
         vasprun: dict = serialize_ase(vasprun)
 
