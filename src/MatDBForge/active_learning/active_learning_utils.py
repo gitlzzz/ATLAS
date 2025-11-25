@@ -571,27 +571,93 @@ def select_structures_data_reduction(
     list[Atoms]
         List of selected structures.
     """
-    if selection_method == "random":
+    if selection_method == 'random':
         return select_structures_random(database, n_structures)
-    elif selection_method == "lowest_energy":
+    elif selection_method == 'lowest_energy':
         return select_structures_lowest_energy(database, n_structures)
-    elif selection_method == "fps":
+    elif selection_method == 'fps':
         if descriptor_settings is None:
-            raise ValueError("descriptor_settings required for fps selection method")
+            raise ValueError('descriptor_settings required for fps selection method')
         initial_structure_method = kwargs.get(
-            "initial_structure_method", "lowest_energy"
+            'initial_structure_method', 'lowest_energy'
         )
         return select_structures_fps(
             database, n_structures, descriptor_settings, initial_structure_method
         )
-    elif selection_method == "uncertainty":
+    elif selection_method == 'uncertainty':
         if model_files is None:
-            raise ValueError("model_files required for uncertainty selection method")
+            raise ValueError('model_files required for uncertainty selection method')
         return select_structures_uncertainty(
             database, n_structures, model_files, descriptor_settings
         )
     else:
-        raise ValueError(f"Unknown selection method: {selection_method}")
+        raise ValueError(f'Unknown selection method: {selection_method}')
+
+
+def prepare_test_set(
+    test_db_path: str, test_db_frac: float, training_db: list[Atoms]
+) -> (orm.SinglefileData, list[Atoms]):
+    """
+    Prepare a test set from the training database based on the provided settings.
+
+    A test set is prepared either by reading a user provided file or by randomly
+    selecting structures from the training database (Dt). Structures selected from
+    Dt are then removed in order to avoid data leakage.
+
+    Parameters
+    ----------
+    test_settings : dict
+        Dictionary containing test set settings from the input TOML.
+    training_db : list[Atoms]
+        List of ASE Atoms objects representing the training database.
+
+    Returns
+    -------
+    orm.SinglefileData
+        A SinglefileData object containing the test set structures.
+    list[Atoms]
+        The obtained test database.
+    list[Atoms]
+        The updated training database with test set structures removed.
+    """
+    # Check if a test set file must be loaded
+    must_load_file = test_db_path is not None and Path(test_db_path).exists()
+
+    # Load user provided file
+    if must_load_file:
+        test_db_structures = ase_read(filename=test_db_path, format='extxyz')
+        return orm.SinglefileData(file=test_db_path), test_db_structures, training_db
+    else:
+        # Get the test set fraction and select random structures
+        n_test_structures = max(1, int(len(training_db) * test_db_frac))
+        n_test_structures = min(n_test_structures, len(training_db) - 1)
+        sel_struct_idx = np.random.choice(
+            len(training_db), size=n_test_structures, replace=False
+        )
+
+        # Get the test structures
+        test_db_structures = []
+        for i in sel_struct_idx:
+            if training_db[i].info.get('mdb_struct_type') != 'isolated_atom':
+                test_db_structures.append(training_db[i])
+
+        # Capture output and write to buffer
+        test_db_io = io.StringIO()
+        with redirect_stdout(test_db_io):
+            ase_write(filename='-', images=test_db_structures, format='extxyz')
+        test_db_string = test_db_io.getvalue()
+
+        # Create SinglefileData from the buffer
+        test_db_file = orm.SinglefileData(
+            file=io.BytesIO(str.encode(test_db_string)), filename='test_set.extxyz'
+        )
+
+        # Remove the selected test structures from the training database
+        training_db = [
+            struct for i, struct in enumerate(training_db) if i not in sel_struct_idx
+        ]
+
+    return test_db_file, test_db_structures, training_db
 
 
 def generate_descriptors_mace(
