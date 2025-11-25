@@ -1276,6 +1276,60 @@ def convert_database_to_ase_atoms(
     return upd_database
 
 
+def return_code_from_settings(
+    current_settings: dict,
+    code_settings: dict,
+    workchain: orm.Node,
+    num_threads: int,
+    executable_name: str,
+    code_path: str,
+    portable_code_label: str,
+    builder,
+) -> orm.Code:
+    # Getting container settings
+    ignore_container = code_settings.get('ignore_container', False)
+    containerized = False
+    if current_settings.get('code', {}).get('container'):
+        container_dict = current_settings['code']['container']
+    else:
+        container_dict = workchain.inputs.container_settings.get_dict()
+
+    if container_dict.get('use_container'):
+        containerized = container_dict.get('use_container', False)
+    if ignore_container is True:
+        containerized = False
+
+    if containerized:
+        image_name = container_dict.get('image_name', '')
+        engine_command = container_dict.get('engine_command', '')
+        prepend_text = (
+            code_settings['metadata'].get('prepend_text', '')
+            + '\n'
+            + container_dict.get('prepend_text', '')
+            + f'\nexport OMP_NUM_THREADS={num_threads}'
+        )
+        code = orm.ContainerizedCode(
+            computer=builder.metadata.computer,
+            image_name=image_name,
+            filepath_executable=executable_name,
+            prepend_text=prepend_text,
+            engine_command=engine_command,
+        )
+    else:
+        prepend_text = (
+            code_settings['metadata'].get('prepend_text', '')
+            + '\nexport PATH=$PATH:.'
+            + f'\nexport OMP_NUM_THREADS={num_threads}'
+        )
+        code = orm.PortableCode(
+            label=portable_code_label,
+            filepath_files=code_path,
+            filepath_executable=executable_name,
+            prepend_text=prepend_text,
+        )
+    return code
+
+
 def select_dft_structures(struct_arr, frame_interval):
     """
     Select DFT structures using the interval given as an input of the workchain.
