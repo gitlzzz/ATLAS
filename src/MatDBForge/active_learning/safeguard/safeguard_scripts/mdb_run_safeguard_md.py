@@ -172,7 +172,8 @@ if __name__ == '__main__':
     logger, log_filename = mdb_cut.init_logger(source='safeguard', log_path=log_folder)
 
     # Initialize random seed
-    rng_seed = np.random.randint(0, int(1e15))
+    rng_seed = np.random.randint(0, ((2**32) - 1))
+    np.random.seed(rng_seed)
     mdb_cut.custom_print(f"Using random seed: '{rng_seed}'", logger=logger)
 
     mdb_cut.custom_print('Starting safeguard MD script...', 'info', logger=logger)

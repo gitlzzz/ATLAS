@@ -1163,7 +1163,9 @@ def run_dataframe_vasp_aiida_queue(
                 # Get alues from the structure's info dict
                 curr_material_name = target_row.info['struct_name']
                 curr_unique_id = target_row.info['mdb_id']
-                curr_phase = target_row.info['phase']
+                curr_phase = target_row.info.get('phase')
+                if curr_phase is None:
+                    curr_phase = target_row.info.get('mdb_struct_type', 'bulk')
                 struct_type = target_row.info.get('mdb_struct_type', 'bulk')
 
             else:

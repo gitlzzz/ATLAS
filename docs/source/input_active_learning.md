@@ -41,6 +41,11 @@ General active learning settings.
   - **Description**: Path for final results. A folder named run_{uuid} will be created inside.
   - **Type**: `(str, PosixPath)`
 
+- {alt}`reset_seed_db`:
+  - **Description**: Whether to reset the seed database when resuming a stopped AL loop.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
 - {alt}`log_path`:
   - **Description**: Path for the log file. Defaults to results_dir if not specified.
   - **Type**: `(optional, str, PosixPath)`
@@ -75,6 +80,116 @@ General active learning settings.
   - **Type**: `(optional, str)`
   - **Default**: `'data_acquisition'`.
   - Possible values are: `md`, `data_reduction`, `data_acquisition`.
+
+### Test Set Settings - `[test_db]`
+
+Settings for the test set used to evaluate model performance during active learning. The test set is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file.
+
+
+- {alt}`use_test_db`:
+  - **Description**: Whether to use a constant test set during active learning.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+- {alt}`ignore_container`:
+  - **Description**: Whether to ignore container settings for MACE training.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+- {alt}`test_db_path`:
+  - **Description**: Path to the test set database file.
+  - **Type**: `(optional, str, PosixPath)`
+
+- {alt}`test_db_frac`:
+  - **Description**: Fraction of the initial database to be used as test set if no test_db_path is provided.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.1`.
+
+#### Metadata - `[test_db.metadata]`
+
+AiiDA metadata options for the test set.
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`computer`:
+  - **Description**: Name of the AiiDA computer where the test set calculations were run.
+  - **Type**: `(str)`
+
+- {alt}`prepend_text`:
+  - **Description**: Text to prepend to the AiiDA calculation label for the test set calculations.
+  - **Type**: `(optional, str)`
+
+##### Options - `[test_db.metadata.options]`
+
+AiiDA options dictionary for the test set calculations.
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`queue_name`:
+  - **Description**: Queue name.
+  - **Type**: `(optional, str)`
+
+- {alt}`max_wallclock_seconds`:
+  - **Description**: Maximum wallclock time in seconds.
+  - **Type**: `(optional, int)`
+
+- {alt}`max_memory_kb`:
+  - **Description**: Maximum memory in KB.
+  - **Type**: `(optional, int)`
+
+- {alt}`withmpi`:
+  - **Description**: Whether to run with MPI.
+  - **Type**: `(optional, bool)`
+
+- {alt}`custom_scheduler_commands`:
+  - **Description**: Custom scheduler commands.
+  - **Type**: `(optional, str)`
+
+###### Resources - `[test_db.metadata.options.resources]`
+
+Resources dictionary.
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`parallel_env`:
+  - **Description**: Parallel environment.
+  - **Type**: `(optional, str)`
+
+- {alt}`tot_num_mpiprocs`:
+  - **Description**: Total number of MPI processes.
+  - **Type**: `(optional, int)`
+
+#### Model Settings for Test Set Evaluation - `[test_db.model_settings]`
+
+Settings for the model used to evaluate the test set during active learning.
+
+
+- {alt}`model_type`:
+  - **Description**: Type of model to be used for test set evaluation.
+  - **Type**: `(optional, str)`
+  - **Default**: `'mace'`.
+  - Possible values are: `mace`.
+
+- {alt}`default_dtype`:
+  - **Description**: Default data type for the model.
+  - **Type**: `(optional, str)`
+  - **Default**: `'float32'`.
+  - Possible values are: `float32`, `float64`.
+
+- {alt}`device`:
+  - **Description**: Device to be used for the model.
+  - **Type**: `(optional, str)`
+  - **Default**: `'cpu'`.
+  - Possible values are: `cpu`, `cuda`.
 
 ### Data Reduction Settings - `[data_reduction]`
 
@@ -330,6 +445,11 @@ This section is optional.
   - **Description**: Whether to ignore the container specified in the container settings for the safeguard.
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
+
+#### Md - `[safeguard.md]`
+
+MD simulation options for safeguard.
+
 
 - {alt}`temperature_list_K`:
   - **Description**: List of different temperatures (in K) for MD simulations.

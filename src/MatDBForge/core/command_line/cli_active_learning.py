@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import pathlib as pl
+import sys
 import time
 import tomllib
 import warnings
@@ -17,6 +18,7 @@ from MatDBForge.core.code_utils import (
     get_mdb_version_info,
     init_logger,
 )
+from MatDBForge.core.command_line.command_line_utils import apply_defaults
 
 warnings.filterwarnings('ignore')
 
@@ -79,6 +81,8 @@ def create_active_learning_builder(
     else:
         timestamp = time.strftime('%Y%m%d-%H%M%S')
         log_path = pl.Path(f'mdb_output_{timestamp}.log').resolve()
+
+    builder.active_learning.eval_test_db_settings = toml_dict.get('test_db', {})
 
     # Getting contents from previous log file and appending to new log file
     # to conserve the history of the previous run.
@@ -272,7 +276,22 @@ def resume_al_loop_builder(
 
         # Getting train_db and seed_db paths
         train_db_path = toml_dict['active_learning'].get('init_db_path')
-        seed_db_path = toml_dict['active_learning'].get('init_db_path')
+
+        should_reset_seed_db = toml_dict['active_learning'].get('reset_seed_db', False)
+
+        if (
+            prev_run_dir.exists()
+            and (prev_run_dir / 'mdb_seed_db.xyz').exists()
+            and not should_reset_seed_db
+        ):
+            seed_db_path = prev_run_dir / 'mdb_seed_db.xyz'
+        else:
+            custom_print(
+                'Seed database is intialized as a copy of the training database. '
+                "This behavior can be changed using 'active_learning.reset_seed_db'.",
+                'warning',
+            )
+            seed_db_path = toml_dict['active_learning'].get('init_db_path')
 
         custom_print(f'Reading training database from: {train_db_path}', 'warning')
         custom_print(
@@ -281,9 +300,6 @@ def resume_al_loop_builder(
             f"the '{toml_dict_path}' file, in key"
             " 'active_learning.init_db_path'.",
             'warning',
-        )
-        custom_print(
-            'Seed database is intialized as a copy of the training database.', 'warning'
         )
         print()
 
@@ -809,10 +825,12 @@ def run_active_learning():
         from aiida.orm import Bool, Str
 
         # Check if TOML file is correct
-        validate_config_file(
+        errors_found, errors, warnings = validate_config_file(
             config_path=args.config_file, config_type='active_learning'
         )
         print()
+        if errors_found:
+            sys.exit(1)
 
     if args.command == 'report':
         from MatDBForge.active_learning import report_utils as mdb_report
@@ -883,6 +901,9 @@ def run_active_learning():
     elif args.command == 'run':
         # Loading TOML config file
         toml_dict = read_toml_config(args.config_file)
+
+        # Apply default settings if necessary
+        toml_dict = apply_defaults(toml_dict, warnings)
 
         from aiida import load_profile
 

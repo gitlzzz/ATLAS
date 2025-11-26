@@ -228,7 +228,8 @@ if __name__ == "__main__":
     )
 
     # Initialize random seed
-    rng_seed = np.random.randint(0, int(1e15))
+    rng_seed = np.random.randint(0, ((2**32) - 1))
+    np.random.seed(rng_seed)
     mdb_cut.custom_print(f"Using random seed: '{rng_seed}'", logger=logger)
 
     mdb_cut.custom_print("Starting process structure script...", "info", logger=logger)
@@ -323,6 +324,12 @@ if __name__ == "__main__":
 
     if md_stages:
         md_stage_order = md_params.get("md_stage_order", [])
+
+    if not md_stage_order:
+        md_stage_order = list(md_stages_allowed.keys())
+        mdb_cut.custom_print(
+            "No MD stage order defined. Using default order", "info", logger=logger
+        )
 
     ## Running MD simulations for given temperatures
     for T_start in T_list:

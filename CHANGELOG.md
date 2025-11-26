@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.46.0 (2025-11-26)
+
+### Feature
+
+- **al_loop**: add EvaluateMACEConfigsCalculation to active learning loop ([#929bfda](https://github.com/pol-sb/MatDBForge/commit/929bfda0821330c9b4752324737a71f51b6d7067))
+- **al_loop**: add toml check and warnings to al_loop start ([#3a53375](https://github.com/pol-sb/MatDBForge/commit/3a533759b93f96ab7b676933db6f7aa5353850a8))
+- **al_loop**: allow continuing with previous D_s when resuming an AL loop ([#46c6d50](https://github.com/pol-sb/MatDBForge/commit/46c6d5088ee267d3d349fde94a5508e04d198050))
+
+### Fix
+
+- **dft**: assign default phase based on struct type if missing ([#72a45cb](https://github.com/pol-sb/MatDBForge/commit/72a45cb25deef0aa4504ba08cbd06b55505cc2f6))
+- **al_loop**: fix stress gathering ([#c6731b6](https://github.com/pol-sb/MatDBForge/commit/c6731b69ebf35a7bbbe329f2d5b03714da839a15))
+- **al_loop**: use rng seed in md and safeguard ([#cf2fe73](https://github.com/pol-sb/MatDBForge/commit/cf2fe73bdf14934eb3decf4a9e44642bd87729c7))
+
+### Misc
+
+- **core**: add datashader dependency ([#884664f](https://github.com/pol-sb/MatDBForge/commit/884664fd432e23c7719fb4c89df7624859e9c2cd))
+
+### Refactor
+
+- **al_loop**: add `return_code_from_settings()` to simplify container/portablecode usage ([#60c239d](https://github.com/pol-sb/MatDBForge/commit/60c239d2914d31b0326debf767c050545a139ab9))
+- **core**: output and formatting changes ([#f502921](https://github.com/pol-sb/MatDBForge/commit/f502921cf1b85575f439a7021a03fc5561e2f031))
+
 ## 0.45.4 (2025-11-21)
 
 ### Fix
