@@ -95,12 +95,12 @@ K-point settings.
 
 
 - {alt}`kspacing`:
-  - **Description**: K-spacing in Å⁻¹ for different phases or a single value for all structures.
+  - **Description**: K-spacing in Å⁻¹ for different phases or a single value for all structures. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `MDB_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed.
   - **Type**: `(dict)`
   - **Example**:
 
 ```python
-{'alpha': 0.125, 'default': 0.15}
+{'MDB_DEFAULT': 0.15, 'alpha': 0.125}
 ```
 
 ### Queue - `[queue]`

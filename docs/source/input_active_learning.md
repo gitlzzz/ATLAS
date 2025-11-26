@@ -1359,7 +1359,7 @@ This section is optional.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
 - {alt}`kspacing`:
-  - **Description**: K-spacing settings for different phases or default value.
+  - **Description**: K-spacing settings for different phases or default value. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `MDB_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed.
   - **Type**: `(optional, dict)`
   - **Example**:
 
