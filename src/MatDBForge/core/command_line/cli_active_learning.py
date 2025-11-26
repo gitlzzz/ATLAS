@@ -207,7 +207,10 @@ def create_active_learning_builder(
 
 
 def resume_al_loop_builder(
-    prev_run_dir: pl.Path, toml_dict_path: pl.Path = None, log_file_path: pl.Path = None
+    prev_run_dir: pl.Path,
+    toml_dict_path: pl.Path = None,
+    log_file_path: pl.Path = None,
+    warnings: list[dict] = None,
 ):
     # Resume dictionary. This will be used to pass the last iteration and
     # the paths to the train_db and seed_db files to the base workchain
@@ -265,6 +268,10 @@ def resume_al_loop_builder(
                 toml_dict_path = toml
 
         toml_dict = read_toml_config(toml_dict_path)
+
+        # Apply default settings if necessary
+        if warnings:
+            toml_dict = apply_defaults(toml_dict, warnings)
 
         # Populating resume dictionary with last iteration
         run_tmp_path = prev_run_dir / 'run_tmp_data'
@@ -884,6 +891,7 @@ def run_active_learning():
             prev_run_dir=pl.Path(args.dir_resume).resolve(),
             toml_dict_path=config_file,
             log_file_path=args.old_log_path,
+            warnings=warnings,
         )
 
     elif args.command == 'dashboard':

@@ -585,10 +585,10 @@ dft:
   kpoints:
     description: "K-point settings."
     kspacing:
-      description: "K-spacing in Å⁻¹ for different phases or a single value for all structures."
+      description: "K-spacing in Å⁻¹ for different phases or a single value for all structures. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `MDB_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed."
       type: dict
       mandatory: true
-      example: { "alpha": 0.125, "default": 0.15 }
+      example: { "alpha": 0.125, "MDB_DEFAULT": 0.15 }
   queue:
     description: "Queue settings for HPC schedulers (e.g., SLURM)."
     code_string:
@@ -1839,7 +1839,7 @@ active_learning:
           type: str
           mandatory: false
       kspacing:
-        description: "K-spacing settings for different phases or default value."
+        description: "K-spacing settings for different phases or default value. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `MDB_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed."
         type: dict
         mandatory: false
         example: { "MDB_DEFAULT": 0.150, "alpha": 0.135 }
