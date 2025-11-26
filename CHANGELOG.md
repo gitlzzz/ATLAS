@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.46.1 (2025-11-26)
+
+### Docs
+
+- **dft**: add information about MDB_DEFAULT in kspacing settings ([#2a80d62](https://github.com/pol-sb/MatDBForge/commit/2a80d62564b9b1ee00f707718d68705a95d67582))
+
+### Fix
+
+- **al_loop**: enable warning usage in resume al calcs ([#e8a511a](https://github.com/pol-sb/MatDBForge/commit/e8a511a19efb07b0a1946409c2b0eb3556618026))
+
 ## 0.46.0 (2025-11-26)
 
 ### Feature
