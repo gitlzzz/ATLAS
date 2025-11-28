@@ -105,7 +105,7 @@ Settings for the test set used to evaluate model performance during active learn
   - **Type**: `(optional, float)`
   - **Default**: `0.1`.
 
-#### Metadata - `[test_db.metadata]`
+#### AiiDA Metadata for Test Set Calculations - `[test_db.metadata]`
 
 AiiDA metadata options for the test set.
 
@@ -122,7 +122,7 @@ This section is optional.
   - **Description**: Text to prepend to the AiiDA calculation label for the test set calculations.
   - **Type**: `(optional, str)`
 
-##### Options - `[test_db.metadata.options]`
+##### AiiDA Options for Test Set Calculations - `[test_db.metadata.options]`
 
 AiiDA options dictionary for the test set calculations.
 
@@ -420,10 +420,6 @@ This section is optional.
 ### Active Learning Safeguard Settings - `[safeguard]`
 
 Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point.
-
-:::{attention}
-This section is optional.
-:::
 
 
 - {alt}`enable`:
@@ -1076,6 +1072,12 @@ Settings for MACE evaluator.
 Settings for descriptor computation and dimensionality reduction.
 
 
+- {alt}`descriptor_type`:
+  - **Description**: Type of descriptor to compute.
+  - **Type**: `(str)`
+  - **Default**: `'mace'`.
+  - Possible values are: `mace`, `soap`.
+
 - {alt}`dimensionality_reduction_method`:
   - **Description**: Dimensionality reduction method for MACE descriptors.
   - **Type**: `(optional, str)`
@@ -1091,12 +1093,6 @@ Settings for descriptor computation and dimensionality reduction.
   - **Description**: AiiDA metadata and scheduler options for descriptor computation.
   - **Type**: `(optional, dict)`
 
-- {alt}`descriptor_type`:
-  - **Description**: Type of descriptor to compute.
-  - **Type**: `(optional, str)`
-  - **Default**: `'mace'`.
-  - Possible values are: `mace`, `soap`.
-
 - {alt}`dtype`:
   - **Description**: Data type of descriptor to compute.
   - **Type**: `(optional, str)`
@@ -1109,7 +1105,7 @@ Settings for descriptor computation and dimensionality reduction.
   - **Default**: `'cpu'`.
   - Possible values are: `cpu`, `cuda`.
 
-#### Autoencoder - `[descriptors.autoencoder]`
+#### Autoencoder Dimensionality Reduction Settings - `[descriptors.autoencoder]`
 
 Settings for autoencoder-based dimensionality reduction.
 

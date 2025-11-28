@@ -784,6 +784,8 @@ active_learning:
       mandatory: false
       default: 0.1
     metadata:
+      name: "test_db_metadata"
+      name_pretty: "AiiDA Metadata for Test Set Calculations"
       description: "AiiDA metadata options for the test set."
       mandatory: false
       computer:
@@ -798,6 +800,8 @@ active_learning:
         type: str
         mandatory: false
       options:
+        name: "test_db_aiida_options"
+        name_pretty: "AiiDA Options for Test Set Calculations"
         description: "AiiDA options dictionary for the test set calculations."
         mandatory: false
         queue_name:
@@ -1097,7 +1101,7 @@ active_learning:
     name: "safeguard"
     name_pretty: "Active Learning Safeguard Settings"
     description: "Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point."
-    mandatory: false
+    mandatory: true
     enable:
       description: "Whether to enable the safeguard mechanism."
       type: bool
@@ -1126,6 +1130,9 @@ active_learning:
     md:
       name: "safeguard_md"
       description: "MD simulation options for safeguard."
+      depends_on:
+        key: active_learning.safeguard.enable
+        value: true
       parameters:
         name: "safeguard_md_parameters"
         name_pretty: "Safeguard MD Parameters"
@@ -1139,6 +1146,10 @@ active_learning:
         wildcard_level: 1
     metadata:
       description: "AiiDA metadata and scheduler options for the safeguard."
+      mandatory: true
+      depends_on:
+        key: active_learning.safeguard.enable
+        value: true
       computer:
         description: "AiiDA computer name for safeguard calculations."
         type: str
@@ -1499,6 +1510,12 @@ active_learning:
     name: "descriptors"
     name_pretty: "Descriptor Computation Settings"
     description: "Settings for descriptor computation and dimensionality reduction."
+    descriptor_type:
+      description: "Type of descriptor to compute."
+      type: str
+      mandatory: true
+      default: "mace"
+      choices: ["mace", "soap"]
     dimensionality_reduction_method:
       description: "Dimensionality reduction method for MACE descriptors."
       type: str
@@ -1514,12 +1531,6 @@ active_learning:
       description: "AiiDA metadata and scheduler options for descriptor computation."
       type: dict
       mandatory: false
-    descriptor_type:
-      description: "Type of descriptor to compute."
-      type: str
-      mandatory: false
-      default: "mace"
-      choices: ["mace", "soap"]
     dtype:
       description: "Data type of descriptor to compute."
       type: str
@@ -1533,7 +1544,12 @@ active_learning:
       default: "cpu"
       choices: ["cpu", "cuda"]
     autoencoder:
+      name: "autoencoder"
+      name_pretty: "Autoencoder Dimensionality Reduction Settings"
       description: "Settings for autoencoder-based dimensionality reduction."
+      depends_on:
+        key: active_learning.descriptors.dimensionality_reduction_method
+        value: "autoencoder"
       train_settings:
         description: "Training settings for the autoencoder."
         device:
