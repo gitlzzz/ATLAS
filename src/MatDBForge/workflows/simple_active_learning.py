@@ -1935,6 +1935,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             'final_training_db',
             valid_type=orm.SinglefileData,
         )
+        spec.output('test_db_file', valid_type=orm.SinglefileData, required=False)
         spec.output('final_model_file', valid_type=orm.SinglefileData)
 
     def setup_textfile_logging(self):
@@ -2192,6 +2193,24 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 index=':',
             )
 
+        # Save a copy of the initial database
+        init_db_path = Path(self.inputs.active_learning.init_db_path.value)
+        init_db_filename = init_db_path.name
+        backup_filename = 'original_' + init_db_filename + '.bak'
+        backup_path = init_db_path.with_name(backup_filename)
+
+        if not backup_path.exists():
+            ase_write(
+                filename=backup_path,
+                format='extxyz',
+                images=database_training,
+            )
+            self.report(f"Saved backup of original database in: '{backup_path}'")
+        else:
+            self.report(
+                f"Backup of original database already exists in: '{backup_path}'"
+            )
+
         # If test database is enabled, load it or prepare it depending on settings,
         # storing it into a node, and adding it into the context
         test_settings = self.inputs.active_learning.get('eval_test_db_settings', {})
@@ -2221,6 +2240,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.report(
                 f'Prepared test set containing {len(test_db_structures)} structures.'
             )
+            self.out('test_db_file', test_db_file)
         else:
             self.report(
                 'Test database usage disabled. '
@@ -2255,6 +2275,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             database_training[idx] = struct
 
+        # Update modified training database
         ase_write(
             filename=self.inputs.active_learning.init_db_path.value,
             format='extxyz',
