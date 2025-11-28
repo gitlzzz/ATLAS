@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.46.3 (2025-11-28)
+
+### Docs
+
+- **al_loop**: improve documentation for test database check ([#92d972b](https://github.com/pol-sb/MatDBForge/commit/92d972b4d3a13e81b64f17d46f35d3c1d6a5778f))
+
 ## 0.46.2 (2025-11-28)
 
 ### Docs
