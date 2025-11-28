@@ -2814,22 +2814,47 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.report(f'Safeguard attempted: {self.ctx.safeguard_attempted}')
 
-        # This will be True if the safeguard check allows to continue the loop
-        should_run = (
-            not self.ctx.safeguard_check_done
-            and below_max_iterations
-            and not al_error_stop
-            and not self.ctx.safeguard_attempted
-            and self.ctx.loop_continue_condition
-        )
-        self.report(
-            f'Safeguard check decision on whether to continue the loop: {should_run}.'
-        )
+        # Loading the settings file again to get updated settings
+        settings_path = Path(self.ctx.inputs.toml_file.value)
+        if settings_path.exists:
+            current_settings = mdb_al_ut.read_toml_settings(
+                settings_file=self.ctx.inputs.toml_file.value
+            )
+        else:
+            current_settings = {}
+
+        # # Loading computer and removing it from the input dictionary
+        if current_settings:
+            safeguard_settings = current_settings.get('safeguard', {})
+
+        # Get 'enable' setting from safeguard settings
+        self.ctx.safeguard_enabled = safeguard_settings.get('enable', False)
+
+        # Decide whether to continue based on safeguard settings
+        # If safeguard is disabled, ignore this
+        match self.ctx.safeguard_enabled:
+            # If safeguard is disabled
+            case False:
+                self.report('Safeguard is not enabled, continuing AL loop.')
+                should_run = True
+
+            # If safeguard is enabled
+            case True:
+                # This will be True if the safeguard check allows to continue the loop
+                should_run = (
+                    not self.ctx.safeguard_check_done
+                    and below_max_iterations
+                    and not al_error_stop
+                    and not self.ctx.safeguard_attempted
+                    and self.ctx.loop_continue_condition
+                )
+                self.report(
+                    f'Safeguard check decision on whether to continue'
+                    f'the loop: {should_run}.'
+                )
 
         if should_run is False:
             self.report('Stopping AL Loop due to passed safeguard check!')
-
-            # DEBUG: Check if this will stop the safeguard check loop
             self.ctx.safeguard_check_done = True
 
         return should_run
