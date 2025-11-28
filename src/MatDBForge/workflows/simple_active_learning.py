@@ -2418,6 +2418,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.last_workchain_completed = node
         self.logger.log(15, f'Done getting results for iteration {self.ctx.iteration}.')
 
+        # Update test db eval results if available
+        if hasattr(node.outputs, 'test_db_eval_results'):
+            self.ctx.test_db_eval_results = node.outputs['test_db_eval_results']
+
         # Resetting safeguard attempted flag
         # The reasoning behind this is that the safeguard must only be attempted
         # once per AL step at most. Since here we are finishing an AL step correctly
