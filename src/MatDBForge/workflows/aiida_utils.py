@@ -940,12 +940,18 @@ def update_db_with_dft_results(sel_struct_db, queue):
         new_struct.info['calc_performed'] = True
         try:
             new_struct.info['REF_energy'] = results_dict[0]['info']['REF_energy']
-            new_struct.info['REF_stress'] = results_dict[0]['info']['stress']
+
+            # Getting stress key from results and adding it to the structure
+            parse_stress_from_structure(results_dict, new_struct)
+
             new_struct.arrays['REF_forces'] = np.array(results_dict[0]['REF_forces'])
             new_struct.arrays['positions'] = np.array(results_dict[0]['positions'])
         except IndexError:
             new_struct.info['REF_energy'] = results_dict['info']['energy']
-            new_struct.info['REF_stress'] = results_dict['info']['stress']
+
+            # Getting stress key from results and adding it to the structure
+            parse_stress_from_structure(results_dict, new_struct)
+
             new_struct.arrays['REF_forces'] = np.array(results_dict['REF_forces'])
             new_struct.info['REF_energy'] = results_dict['info']['energy']
             new_struct.arrays['REF_forces'] = np.array(results_dict['REF_forces'])
@@ -963,15 +969,33 @@ def update_db_with_dft_results(sel_struct_db, queue):
             all_descendants.extend(descendants)
 
         calcjob_ids = [
-            child.pk
-            for child in all_descendants
-            if isinstance(child, orm.CalcJobNode)
+            child.pk for child in all_descendants if isinstance(child, orm.CalcJobNode)
         ]
         mdb_cut.custom_print(
             f'Currently running {len(running_calcs)} calculations: {calcjob_ids}...',
             'info',
         )
     return num_correct, num_error
+
+
+def parse_stress_from_structure(results_dict: dict, new_struct: Atoms) -> None:
+    """
+    Parse stress from results dictionary and add it to
+    the structure info, updating it in-place.
+
+    Parameters
+    ----------
+    results_dict : dict
+        Dictionary containing the results from a VASP DFT calculation.
+    new_struct : Atoms
+        Structure to update.
+    """
+    stress = None
+    stress = results_dict[0]['info'].get('stress')
+    if not stress:
+        stress = results_dict[0]['info'].get('REF_stress')
+
+    new_struct.info['REF_stress'] = stress
 
 
 def run_dataframe_vasp_aiida_queue(

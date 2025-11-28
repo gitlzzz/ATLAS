@@ -2494,6 +2494,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 # Add information about the current AL step
                 dft_calc.info['mdb_al_step'] = self.ctx.iteration
 
+                # Add calc_performed tag
+                dft_calc.info['calc_performed'] = True
+
                 # Adding the structure to the training database
                 seed_gen_db.append(dft_calc)
                 training_db.append(dft_calc)
