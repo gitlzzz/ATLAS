@@ -1552,6 +1552,19 @@ class SimpleActiveLearningWorkChain(WorkChain):
             if self.inputs.dft_method == 'vasp':
                 row = struct.info
 
+                # TODO: Dynamically load settings
+                # Loading the settings file again to get updated settings
+                # settings_path = Path(self.inputs.toml_file.value)
+                # if settings_path.exists:
+                #     current_settings = mdb_al_ut.read_toml_settings(
+                #         settings_file=self.inputs.toml_file.value
+                #     )
+                #     self.logger.debug(
+                #         f'Reloaded settings from file: {self.inputs.toml_file.value}'
+                #     )
+                # else:
+                #     current_settings = {}
+
                 builder = mdb_al_ut.get_dft_calc_builder_vasp(
                     struct=struct,
                     row=row,
@@ -3191,7 +3204,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if len(safeguard_errored_ids) >= tot_num_safeguard_calcs:
                 self.report('All safeguard calculations errored. Stopping AL Loop.')
                 self.ctx.safeguard_check_done = True
-                self.ctx.safeguard_attempted = True 
+                self.ctx.safeguard_attempted = True
                 del self.ctx.process_safeguard_results
             elif len(safeguard_failed_ids) > 0:
                 self.report(
