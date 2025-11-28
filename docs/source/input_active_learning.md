@@ -83,7 +83,11 @@ General active learning settings.
 
 ### Test Set Settings - `[test_db]`
 
-Settings for the test set used to evaluate model performance during active learning. The test set is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file.
+Settings for the test database used to evaluate model performance during active learning. The test database is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file. The test set is only used for evaluation and is not included in the training data.
+
+The test database evaluation is performed after training the committee of models of each active learning iteration, using the sampler model. The test set and the evaluation results are logged and saved in the base workchain and in each of the active learning loop steps as outputs.
+
+Since the test database can be a subset of the training database, which is removed in place, a backup of the database is created under the same path and name as the original database, using the prefix `_original` and suffix `.bak`.
 
 
 - {alt}`use_test_db`:
