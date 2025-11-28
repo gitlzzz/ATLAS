@@ -40,6 +40,7 @@ dependencies = [
     "tomli >= 1.1.0 ; python_version < '3.11'",
     'qrcode',
     "datashader==0.18.2",
+    "tomlkit",
 ]
 
 [project.optional-dependencies]
