@@ -26,8 +26,8 @@ from MatDBForge.active_learning.extrapolation.concave_hull import plot_concave_h
 from MatDBForge.core import code_utils as mdb_cut
 from MatDBForge.core.filtering import structure_filters as mdb_str_filters
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore')
 
 
 def check_traj_in_domain(
@@ -72,7 +72,7 @@ def check_traj_in_domain(
     # polygon formed by the concave hull.
     polygon = Polygon(concave_hull)
     for c_uuid in descriptor_dict:
-        descriptors = descriptor_dict[c_uuid]["latent_space"]
+        descriptors = descriptor_dict[c_uuid]['latent_space']
 
         for _, frame_desc in enumerate(descriptors):
             c_all_p = []
@@ -113,18 +113,18 @@ def define_allowed_stages(md_stages: dict, current_al_step: int) -> list[int]:
 
     # Checking iteratively for every stage
     for stage_name, stage_settings in md_stages.items():
-        use_steps = stage_settings.get("use_during_al_steps")
+        use_steps = stage_settings.get('use_during_al_steps')
         steps_to_check_list = []
         # Only check stage if the `use_during_al_steps` key is defined
         if use_steps:
             # Parsing the string to get the steps or ranges of steps
-            use_steps_list = use_steps.strip().split(",")
+            use_steps_list = use_steps.strip().split(',')
             for step_range in use_steps_list:
                 step_range = step_range.strip()
 
                 # Checking if it's a range of steps
-                if "-" in step_range:
-                    start_str, end_str = step_range.split("-")
+                if '-' in step_range:
+                    start_str, end_str = step_range.split('-')
                     start_it = int(start_str)
                     end_it = int(end_str)
                     step_range = range(start_it, end_it + 1)
@@ -166,8 +166,8 @@ def limit_md_frames(md_traj, md_params: dict):
     # Limit total number of frames
     total_num_frames = mdb_al_ut.get_total_num_frames(
         len_traj=len(md_traj),
-        md_tstep_duration_ps=md_params["timestep_duration_ps"],
-        frame_interval=md_params["al_keep_struct_every_n_ps"],
+        md_tstep_duration_ps=md_params['timestep_duration_ps'],
+        frame_interval=md_params['al_keep_struct_every_n_ps'],
     )
     # Choose the number of frames evenly and create a mask for the arrays
     mask = np.linspace(0, len(md_traj) - 1, int(total_num_frames), dtype=int)
@@ -197,34 +197,34 @@ def simple_extrapolation_check(
     dict
         Updated descriptor dictionary with the extrapolation check applied.
     """
-    mdb_cut.custom_print("Applying basic extrapolation check...", "info")
+    mdb_cut.custom_print('Applying basic extrapolation check...', 'info')
     for curr_uuid, val in descriptor_dict.items():
         structure_uuid = curr_uuid
-        descr_list = val["descriptors"]
+        descr_list = val['descriptors']
 
     for frame_idx, frame_descriptors in enumerate(descr_list):
         below_min = frame_descriptors < curr_it_db_min
         above_max = frame_descriptors > curr_it_db_max
         is_frame_extrapolating = np.any(np.logical_or(below_min, above_max))
         if is_frame_extrapolating:
-            descriptor_dict[structure_uuid]["is_extrapolating"][frame_idx] = True
+            descriptor_dict[structure_uuid]['is_extrapolating'][frame_idx] = True
     return descriptor_dict
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # The /mdb_data directory should only exist in the containerized version
     # of the code. This conditional statement will get the correct path for
     # input and output files.
-    if pl.Path("/mdb_data").exists():
-        prepend_path = pl.Path("/mdb_data")
+    if pl.Path('/mdb_data').exists():
+        prepend_path = pl.Path('/mdb_data')
     else:
-        prepend_path = pl.Path(".")
+        prepend_path = pl.Path('.')
 
     # Initialize the logger
-    log_folder = prepend_path / pl.Path("./logs")
+    log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
     logger, log_filename = mdb_cut.init_logger(
-        source="proc_structure", log_path=log_folder
+        source='proc_structure', log_path=log_folder
     )
 
     # Initialize random seed
@@ -232,10 +232,10 @@ if __name__ == "__main__":
     np.random.seed(rng_seed)
     mdb_cut.custom_print(f"Using random seed: '{rng_seed}'", logger=logger)
 
-    mdb_cut.custom_print("Starting process structure script...", "info", logger=logger)
+    mdb_cut.custom_print('Starting process structure script...', 'info', logger=logger)
 
     # Load the rmse_arr.npy file and assign the values to the variables
-    rmse_arr = np.load(prepend_path / "rmse_arr.npy")
+    rmse_arr = np.load(prepend_path / 'rmse_arr.npy')
 
     # meV/at
     e_rmse = rmse_arr[0]
@@ -243,72 +243,72 @@ if __name__ == "__main__":
     f_rmse = rmse_arr[1]
 
     # Define results folder
-    res_folder = prepend_path / pl.Path("./results")
+    res_folder = prepend_path / pl.Path('./results')
     res_folder.mkdir(exist_ok=True)
 
     # Initialize the logger
-    log_folder = prepend_path / pl.Path("./logs")
+    log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
 
     # Read TOML file with settings
-    with open(prepend_path / "settings.toml", "rb") as f:
+    with open(prepend_path / 'settings.toml', 'rb') as f:
         settings = tomllib.load(f)
 
     # Parse settings
-    md_params = settings.get("md", {}).get("parameters")
+    md_params = settings.get('md', {}).get('parameters')
 
     # Adding key explicitly to display it in the log
-    if not md_params.get("sample_frames_during_md"):
-        md_params["sample_frames_during_md"] = False
+    if not md_params.get('sample_frames_during_md'):
+        md_params['sample_frames_during_md'] = False
 
-    md_filters = settings.get("md", {}).get("filters", {})
-    T_list = md_params["temperature_list_K"]
+    md_filters = settings.get('md', {}).get('filters', {})
+    T_list = md_params['temperature_list_K']
 
     # Logging CUDA information
     enable_cueq = False
-    if md_params.get("device") == "cuda":
+    if md_params.get('device') == 'cuda':
         mdb_cut.custom_print(
             (
-                f"CUDA INFO - available: {torch.cuda.is_available()}, "
-                f"device_count: {torch.cuda.device_count()}, "
-                f"current_device: {torch.cuda.current_device()}"
+                f'CUDA INFO - available: {torch.cuda.is_available()}, '
+                f'device_count: {torch.cuda.device_count()}, '
+                f'current_device: {torch.cuda.current_device()}'
             ),
-            "info",
+            'info',
             logger=logger,
         )
 
-        if md_params.get("enable_cueq"):
+        if md_params.get('enable_cueq'):
             mdb_cut.custom_print(
-                "Using CUEQ to accelerate MD simulations...", "info", logger=logger
+                'Using CUEQ to accelerate MD simulations...', 'info', logger=logger
             )
             enable_cueq = True
 
     # Get the EF disagreement type
-    ef_disagreement_type = settings.get("extrapolation", {}).get(
-        "disagreement_check_type", "training"
+    ef_disagreement_type = settings.get('extrapolation', {}).get(
+        'disagreement_check_type', 'training'
     )
     # Get the extrapolation type
-    extrap_type = settings.get("extrapolation", {}).get(
-        "check_extrapolation_type", "advanced"
+    extrap_type = settings.get('extrapolation', {}).get(
+        'check_extrapolation_type', 'advanced'
     )
 
     # Get the dimensionality reduction method settings
-    dim_red_method = settings.get("descriptors", {}).get(
-        "dimensionality_reduction_method", None
+    dim_red_method = settings.get('descriptors', {}).get(
+        'dimensionality_reduction_method', None
     )
-    if dim_red_method == "autoencoder":
-        dim_red_settings = settings.get("descriptors", {}).get("autoencoder", {})
-    elif dim_red_method == "pca":
-        dim_red_settings = settings.get("descriptors", {}).get("pca", {})
+    if dim_red_method == 'autoencoder':
+        dim_red_settings = settings.get('descriptors', {}).get('autoencoder', {})
+    elif dim_red_method == 'pca':
+        dim_red_settings = settings.get('descriptors', {}).get('pca', {})
 
     # Read the initial structure
-    init_conf_orig = ase_read(prepend_path / "curr_structure.xyz", format="extxyz")
+    init_conf_orig = ase_read(prepend_path / 'curr_structure.xyz', format='extxyz')
 
     # Read the settings related to MD stages
-    md_stages = md_params.get("stages", {})
+    md_stages = md_params.get('stages', {})
 
     # Read current AL step to allow or disallow stages
-    current_al_step = settings.get("active_learning", {}).get("current_iteration", 0)
+    current_al_step = settings.get('active_learning', {}).get('current_iteration', 0)
 
     # Define allowed stages based on current AL step
     allowed_stage_names = define_allowed_stages(
@@ -322,25 +322,26 @@ if __name__ == "__main__":
             md_stages_allowed[stage] = md_stages[stage]
     md_stages = md_stages_allowed
 
+    md_stage_order = None
     if md_stages:
-        md_stage_order = md_params.get("md_stage_order", [])
+        md_stage_order = md_params.get('md_stage_order', [])
 
     if not md_stage_order:
         md_stage_order = list(md_stages_allowed.keys())
         mdb_cut.custom_print(
-            "No MD stage order defined. Using default order", "info", logger=logger
+            'No MD stage order defined. Using default order', 'info', logger=logger
         )
 
     ## Running MD simulations for given temperatures
     for T_start in T_list:
-        traj_filename = res_folder / f"md_traj_final_temp-{T_start}.traj"
+        traj_filename = res_folder / f'md_traj_final_temp-{T_start}.traj'
 
         # Not repeating MD simulations if the trajectory already exists.
         # Mainly for testing, this should not happen during a normal run.
         if pl.Path(traj_filename).exists():
             mdb_cut.custom_print(
                 f"MD trajectory for 'T={T_start} K' already exists. Skipping...",
-                "warn",
+                'warn',
                 logger=logger,
             )
             continue
@@ -349,17 +350,17 @@ if __name__ == "__main__":
         init_conf = init_conf_orig.copy()
         traj_obj = TrajectoryWriter(
             filename=traj_filename,
-            mode="w",
+            mode='w',
             atoms=init_conf,
-            properties=["energy", "forces", "REF_energy", "REF_forces", "MACE_energy"],
+            properties=['energy', 'forces', 'REF_energy', 'REF_forces', 'MACE_energy'],
         )
         print()
 
         if not md_stages:
-            mdb_cut.custom_print("No MD stages found!", "info", logger=logger)
+            mdb_cut.custom_print('No MD stages found!', 'info', logger=logger)
             mdb_cut.custom_print(
                 f"Running MD simulation starting at 'T={T_start} K'",
-                "info",
+                'info',
                 logger=logger,
             )
             mdb_al_ut.run_mace_md_ase(
@@ -368,14 +369,13 @@ if __name__ == "__main__":
                 traj_obj=traj_obj,
                 init_conf=init_conf,
                 prepend_path=prepend_path,
-                explode_filter_dict=md_filters.get("exploding_structures", {}),
+                explode_filter_dict=md_filters.get('exploding_structures', {}),
                 enable_cueq=enable_cueq,
             )
-            mdb_cut.custom_print("MD simulation completed!", "done", logger=logger)
+            mdb_cut.custom_print('MD simulation completed!', 'done', logger=logger)
         else:
             orig_md_params = md_params.copy()
             for stage_name in md_stage_order:
-
                 # Update current MD parameters
                 curr_stage = md_stages_allowed.get(stage_name, {})
 
@@ -384,13 +384,12 @@ if __name__ == "__main__":
                     for key, value in curr_stage.items():
                         md_params[key] = value
 
-                    T_list_stage = md_params["temperature_list_K"]
+                    T_list_stage = md_params['temperature_list_K']
                     for T_start_stage in T_list_stage:
-
                         mdb_cut.custom_print(
                             f"Running MD stage '{stage_name}' simulation starting at "
-                            f"T={T_start_stage} K",
-                            "info",
+                            f'T={T_start_stage} K',
+                            'info',
                             logger=logger,
                         )
 
@@ -405,7 +404,7 @@ if __name__ == "__main__":
                             init_conf=init_conf,
                             prepend_path=prepend_path,
                             explode_filter_dict=md_filters.get(
-                                "exploding_structures", {}
+                                'exploding_structures', {}
                             ),
                             enable_cueq=enable_cueq,
                             stage_name=stage_name,
@@ -414,50 +413,50 @@ if __name__ == "__main__":
                 else:
                     mdb_cut.custom_print(
                         f"MD stage '{stage_name}' not found in allowed stages. "
-                        "Skipping...",
-                        "warn",
+                        'Skipping...',
+                        'warn',
                         logger=logger,
                     )
                 print()
 
     # Read MD-generated trajectories for given temperatures
-    traj_files = res_folder.glob("*final_temp-*.traj")
+    traj_files = res_folder.glob('*final_temp-*.traj')
 
     for curr_traj in traj_files:
         print()
         mdb_cut.custom_print(
-            f"Checking extrapolating frames for '{curr_traj}'", "info", logger=logger
+            f"Checking extrapolating frames for '{curr_traj}'", 'info', logger=logger
         )
         extrap_frame_idx = []
 
-        curr_temp = float(str(curr_traj).split("temp-")[1].split(".traj")[0])
+        curr_temp = float(str(curr_traj).split('temp-')[1].split('.traj')[0])
 
         # Read the trajectory
         md_traj = [frame for frame in TrajectoryReader(curr_traj)]
         orig_md_size = len(md_traj)
         mdb_cut.custom_print(
-            f"Trajectory length: {orig_md_size}", "info", logger=logger
+            f'Trajectory length: {orig_md_size}', 'info', logger=logger
         )
 
         # Add frame info and overwrite the trajectory
         for frame_idx, frame in enumerate(md_traj):
-            frame.info["frame_idx"] = frame_idx
-            frame.info["calc_type"] = "MACE_MD"
+            frame.info['frame_idx'] = frame_idx
+            frame.info['calc_type'] = 'MACE_MD'
 
         # Apply MD filters and removing these frames from the trajectory
         frames_to_remove = []
         mdb_cut.custom_print(
-            "Applying MD filters to remove outliers...", "info", logger=logger
+            'Applying MD filters to remove outliers...', 'info', logger=logger
         )
 
-        if md_filters.get("layer_distance", {}).get("enable"):
+        if md_filters.get('layer_distance', {}).get('enable'):
             mdb_cut.custom_print(
-                "Running 'layer distance' filter...", "info", logger=logger
+                "Running 'layer distance' filter...", 'info', logger=logger
             )
             later_distance_r_frames = []
 
             # Getting max distance from input
-            max_dist: float = md_filters["layer_distance"]["max_layer_distance_ang"]
+            max_dist: float = md_filters['layer_distance']['max_layer_distance_ang']
 
             for idx, frame in enumerate(md_traj):
                 is_structure_wrong = mdb_str_filters.apply_filter_layer_distance(
@@ -468,27 +467,27 @@ if __name__ == "__main__":
             frames_to_remove.extend(later_distance_r_frames)
 
             mdb_cut.custom_print(
-                f"Marked by layer distance filter: {len(later_distance_r_frames)}",
-                "debug",
+                f'Marked by layer distance filter: {len(later_distance_r_frames)}',
+                'debug',
             )
 
         exploding_structs = []
-        if md_filters.get("exploding_structures", {}).get("enable"):
+        if md_filters.get('exploding_structures', {}).get('enable'):
             mdb_cut.custom_print(
-                "Running 'exploding structures' filter...", "info", logger=logger
+                "Running 'exploding structures' filter...", 'info', logger=logger
             )
 
-            explod_filt_settings = md_filters.get("exploding_structures", {})
+            explod_filt_settings = md_filters.get('exploding_structures', {})
             # Getting multiplier from input
             cov_rad_multiplier_max: float = explod_filt_settings.get(
-                "cov_rad_multiplier_max", 10.0
+                'cov_rad_multiplier_max', 10.0
             )
             cov_rad_multiplier_min: float = explod_filt_settings.get(
-                "cov_rad_multiplier_min", 0.8
+                'cov_rad_multiplier_min', 0.8
             )
-            max_T = curr_temp * md_params.get("max_temp_multiplier", 1)
-            max_T_multiplier = explod_filt_settings.get("max_T_multiplier", 10)
-            remove_positive_E = explod_filt_settings.get("remove_positive_E", False)
+            max_T = curr_temp * md_params.get('max_temp_multiplier', 1)
+            max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
+            remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
 
             # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
@@ -498,7 +497,7 @@ if __name__ == "__main__":
                         cov_rad_multiplier_max=cov_rad_multiplier_max,
                         cov_rad_multiplier_min=cov_rad_multiplier_min,
                         max_T=max_T,
-                        T_list=[frame.info.get("md_temperature")],
+                        T_list=[frame.info.get('md_temperature')],
                         max_T_multiplier=max_T_multiplier,
                         remove_positive_E=remove_positive_E,
                     )
@@ -508,20 +507,20 @@ if __name__ == "__main__":
             frames_to_remove.extend(exploding_structs)
 
             mdb_cut.custom_print(
-                f"Marked by exploding structures filter: {len(exploding_structs)}",
-                "debug",
+                f'Marked by exploding structures filter: {len(exploding_structs)}',
+                'debug',
                 logger=logger,
             )
 
-        if md_filters.get("check_atoms_no_neighbor", {}).get("enable"):
+        if md_filters.get('check_atoms_no_neighbor', {}).get('enable'):
             neighbor_r_frames = []
             mdb_cut.custom_print(
-                "Running 'no neighbor' filter...", "info", logger=logger
+                "Running 'no neighbor' filter...", 'info', logger=logger
             )
 
             # Getting multiplier from input
-            cov_rad_mult: float = md_filters.get("check_atoms_no_neighbor", {}).get(
-                "covalent_radius_multiplier", 1.0
+            cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
+                'covalent_radius_multiplier', 1.0
             )
             # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
@@ -533,8 +532,8 @@ if __name__ == "__main__":
             frames_to_remove.extend(neighbor_r_frames)
 
             mdb_cut.custom_print(
-                f"Marked by no neighbor filter: {len(neighbor_r_frames)}",
-                "debug",
+                f'Marked by no neighbor filter: {len(neighbor_r_frames)}',
+                'debug',
                 logger=logger,
             )
 
@@ -547,26 +546,26 @@ if __name__ == "__main__":
         ]
 
         mdb_cut.custom_print(
-            f"Trajectory length after MD filters: {len(md_traj_filtered)}",
-            "info",
+            f'Trajectory length after MD filters: {len(md_traj_filtered)}',
+            'info',
             logger=logger,
         )
 
         if len(md_traj_filtered) == 0:
             mdb_cut.custom_print(
                 (
-                    "No MD frames left after filtering. "
-                    "This means that probably there are a lot of unrealistic structures"
-                    ". Check the training data and models used to run this MD."
+                    'No MD frames left after filtering. '
+                    'This means that probably there are a lot of unrealistic structures'
+                    '. Check the training data and models used to run this MD.'
                 ),
-                "warning",
+                'warning',
                 logger=logger,
             )
 
             # Returning empty frames list
             ase_write(
-                res_folder / "extrapolating_frames.xyz",
-                format="extxyz",
+                res_folder / 'extrapolating_frames.xyz',
+                format='extxyz',
                 images=[],
                 append=True,
             )
@@ -575,95 +574,95 @@ if __name__ == "__main__":
             continue
 
         # Save removed frames to a file
-        if md_filters.get("save_filtered_structures"):
+        if md_filters.get('save_filtered_structures'):
             mdb_cut.custom_print(
                 (
-                    f"Saving {len(frames_to_remove)} filtered structures"
+                    f'Saving {len(frames_to_remove)} filtered structures'
                     f" to '{res_folder / 'filtered_frames.xyz'}'"
                 ),
-                "info",
+                'info',
                 logger=logger,
             )
             filtered_frames = [md_traj[i] for i in frames_to_remove]
             ase_write(
-                res_folder / "filtered_frames.xyz",
-                format="extxyz",
+                res_folder / 'filtered_frames.xyz',
+                format='extxyz',
                 images=filtered_frames,
                 append=True,
             )
         else:
             mdb_cut.custom_print(
-                "Filtered structures not saved.", "info", logger=logger
+                'Filtered structures not saved.', 'info', logger=logger
             )
 
         # Limit total number of frames if sampling during md is disabled
-        if not md_params.get("sample_frames_during_md"):
+        if not md_params.get('sample_frames_during_md'):
             md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
             mdb_cut.custom_print(
-                f"Limited number of frames to: {len(md_traj_short)}",
-                "info",
+                f'Limited number of frames to: {len(md_traj_short)}',
+                'info',
                 logger=logger,
             )
         else:
             md_traj_short = md_traj_filtered
             short_mask = np.arange(len(md_traj_short))
             mdb_cut.custom_print(
-                "Trajectory already shortened during MD by save interval. "
-                f"Length unchanged. Current length: {len(md_traj_short)}",
-                "info",
+                'Trajectory already shortened during MD by save interval. '
+                f'Length unchanged. Current length: {len(md_traj_short)}',
+                'info',
                 logger=logger,
             )
 
         # Running evaluation of the energies and forces using each commitee model
-        mdb_cut.custom_print("Running committee evaluation...", "info", logger=logger)
-        model_file_list = list(prepend_path.glob("*.model"))
-        comm_settings = settings.get("committee_eval", {})
+        mdb_cut.custom_print('Running committee evaluation...', 'info', logger=logger)
+        model_file_list = list(prepend_path.glob('*.model'))
+        comm_settings = settings.get('committee_eval', {})
         comm_results = {}
         for model in model_file_list:
-            comm_results[model.stem] = {"REF_energy": [], "REF_forces": []}
+            comm_results[model.stem] = {'REF_energy': [], 'REF_forces': []}
 
             # Use torch.load with map_location to ensure model loads
             # on the correct device
-            device_str = comm_settings.get("mace", {}).get("device", "cpu")
+            device_str = comm_settings.get('mace', {}).get('device', 'cpu')
             model_path = prepend_path / model
             model_loaded = torch.load(model_path, map_location=torch.device(device_str))
 
             calculator = MACECalculator(
                 models=[model_loaded],
                 device=device_str,
-                default_dtype=comm_settings.get("mace", {}).get(
-                    "default_dtype", "float32"
+                default_dtype=comm_settings.get('mace', {}).get(
+                    'default_dtype', 'float32'
                 ),
-                batch_size=comm_settings.get("mace", {}).get("batch_size", 12),
+                batch_size=comm_settings.get('mace', {}).get('batch_size', 12),
             )
 
             for _, frame in enumerate(md_traj_short):
                 frame.calc = calculator
 
                 # Get the energy [meV/at] and forces [meV/A]
-                comm_results[model.stem]["REF_energy"].append(
+                comm_results[model.stem]['REF_energy'].append(
                     frame.get_potential_energy() * 1000 / len(frame)
                 )
-                comm_results[model.stem]["REF_forces"].append(frame.get_forces() * 1000)
+                comm_results[model.stem]['REF_forces'].append(frame.get_forces() * 1000)
 
         ## Apply E/F commitee extrapolation filter
-        model_acc_multiplier = settings["interpolation"].get("model_acc_multiplier", 1)
+        model_acc_multiplier = settings['interpolation'].get('model_acc_multiplier', 1)
 
         mdb_cut.custom_print(
             f"Using disagreement check type: '{ef_disagreement_type}'",
-            "info",
+            'info',
             logger=logger,
         )
         mdb_cut.custom_print(
-            "Printing extrapolation statistics for E:", "debug", logger=logger
+            'Printing extrapolation statistics for E:', 'debug', logger=logger
         )
 
-        if ef_disagreement_type == "training":
+        if ef_disagreement_type == 'training':
             e_error_threshold = model_acc_multiplier * e_rmse  # meV / at
             f_error_threshold = model_acc_multiplier * f_rmse  # meV / A
 
             mdb_cut.custom_print(
-                f"model_acc_multiplier: {model_acc_multiplier}", "none", logger=logger
+                f'model_acc_multiplier: {model_acc_multiplier}', 'none', logger=logger
             )
 
             # Prepare energies and forces dict
@@ -677,23 +676,23 @@ if __name__ == "__main__":
                     model_forces_dict[model_name] = []
 
                 model_energies_dict[model_name].append(
-                    comm_results[model_name]["REF_energy"]
+                    comm_results[model_name]['REF_energy']
                 )
                 model_forces_dict[model_name].append(
-                    comm_results[model_name]["REF_forces"]
+                    comm_results[model_name]['REF_forces']
                 )
 
             # Checking if the energies are over the error threshold
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)  # meV
             maximum_value_e = np.average(energies_stat) * 10  # meV
             mdb_cut.custom_print(
-                f"e_error_threshold: {e_error_threshold}", "none", logger=logger
+                f'e_error_threshold: {e_error_threshold}', 'none', logger=logger
             )
             mdb_cut.custom_print(
-                f"e_maximum_value: {maximum_value_e}", "none", logger=logger
+                f'e_maximum_value: {maximum_value_e}', 'none', logger=logger
             )
             mdb_cut.custom_print(
-                f"energies_stat: {energies_stat}", "none", logger=logger
+                f'energies_stat: {energies_stat}', 'none', logger=logger
             )
 
             error_e_structures_sm = np.ma.make_mask(
@@ -711,13 +710,13 @@ if __name__ == "__main__":
                 error_e_structures_sm, error_e_structures_bg
             )
             mdb_cut.custom_print(
-                f"Extrapolating structures according to E: {error_e_structures}",
-                "none",
+                f'Extrapolating structures according to E: {error_e_structures}',
+                'none',
                 logger=logger,
             )
 
             mdb_cut.custom_print(
-                "Printing extrapolation statistics for F...", "none", logger=logger
+                'Printing extrapolation statistics for F...', 'none', logger=logger
             )
 
             # model_forces_dict shape: (1, n_frames, n_atoms, 3, n_models)
@@ -734,13 +733,13 @@ if __name__ == "__main__":
 
             maximum_value_f = np.average(forces_std_norm_max) * 10  # meV
             mdb_cut.custom_print(
-                f"f_error_threshold: {f_error_threshold}", "none", logger=logger
+                f'f_error_threshold: {f_error_threshold}', 'none', logger=logger
             )
             mdb_cut.custom_print(
-                f"f_maximum_value: {maximum_value_f}", "none", logger=logger
+                f'f_maximum_value: {maximum_value_f}', 'none', logger=logger
             )
             mdb_cut.custom_print(
-                f"forces_std_norm_max: {forces_std_norm_max}", "none", logger=logger
+                f'forces_std_norm_max: {forces_std_norm_max}', 'none', logger=logger
             )
 
             # Checking if the forces are over the error threshold
@@ -758,8 +757,8 @@ if __name__ == "__main__":
             error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
 
             mdb_cut.custom_print(
-                f"Extrapolating structures according to F: {error_f_structures}",
-                "none",
+                f'Extrapolating structures according to F: {error_f_structures}',
+                'none',
                 logger=logger,
             )
 
@@ -778,42 +777,42 @@ if __name__ == "__main__":
             # be sent to calculate with DFT.
             extrap_frame_idx.extend(set(e_f_extrapol))
 
-        elif ef_disagreement_type == "md_threshold":
+        elif ef_disagreement_type == 'md_threshold':
             mdb_cut.custom_print(
-                f"model_acc_multiplier: {model_acc_multiplier}", "none", logger=logger
+                f'model_acc_multiplier: {model_acc_multiplier}', 'none', logger=logger
             )
 
             # Get the energy and forces and save into arrays
             # shape: (n_frames, n_models)
             all_energies_array = np.array(
-                [comm_results[model]["REF_energy"] for model in comm_results]
+                [comm_results[model]['REF_energy'] for model in comm_results]
             ).T
 
             # Getting the standard deviation of the energies across
             # all models for each frame.
             energies_stat = np.nanstd(all_energies_array, axis=1, ddof=1)
             mdb_cut.custom_print(
-                f"energies_stat: {energies_stat}", "none", logger=logger
+                f'energies_stat: {energies_stat}', 'none', logger=logger
             )
 
             # Average variability in energy predictions across models for all frames
             e_mean_error = np.mean(energies_stat)
-            mdb_cut.custom_print(f"e_mean_error: {e_mean_error}", "none", logger=logger)
+            mdb_cut.custom_print(f'e_mean_error: {e_mean_error}', 'none', logger=logger)
 
             # Spread of variability in the energy predictions across frames
             e_std_error = np.std(energies_stat)
-            mdb_cut.custom_print(f"e_std_error: {e_std_error}", "none", logger=logger)
+            mdb_cut.custom_print(f'e_std_error: {e_std_error}', 'none', logger=logger)
 
             # Threshold for identifying frames with unusually high variability
             e_error_threshold = e_mean_error + 3 * e_std_error  # meV
             mdb_cut.custom_print(
-                f"e_error_threshold: {e_error_threshold}", "none", logger=logger
+                f'e_error_threshold: {e_error_threshold}', 'none', logger=logger
             )
 
             # Threshold for outliers
             e_maximum_value = e_mean_error + 10 * e_std_error  # meV
             mdb_cut.custom_print(
-                f"e_maximum_value: {e_maximum_value}", "none", logger=logger
+                f'e_maximum_value: {e_maximum_value}', 'none', logger=logger
             )
 
             # Checking if the energies are over the error threshold
@@ -835,18 +834,18 @@ if __name__ == "__main__":
                 error_e_structures_sm, error_e_structures_bg
             )
             mdb_cut.custom_print(
-                f"Extrapolating structures according to E: {error_e_structures}",
-                "none",
+                f'Extrapolating structures according to E: {error_e_structures}',
+                'none',
                 logger=logger,
             )
 
             mdb_cut.custom_print(
-                "Printing extrapolation statistics for forces...", "none", logger=logger
+                'Printing extrapolation statistics for forces...', 'none', logger=logger
             )
             # Array containing the forces for each model
             # shape: (3, n_at, n_frames, n_models)
             all_forces_array = np.array(
-                [comm_results[model]["REF_forces"] for model in comm_results]
+                [comm_results[model]['REF_forces'] for model in comm_results]
             ).T
 
             # Shape: (n_at, n_frames, n_models)
@@ -858,27 +857,27 @@ if __name__ == "__main__":
             # Shape: (n_frames)
             f_std_norm_max = np.amax(f_std_devs, axis=0)
             mdb_cut.custom_print(
-                f"f_std_norm_max: {f_std_norm_max}", "none", logger=logger
+                f'f_std_norm_max: {f_std_norm_max}', 'none', logger=logger
             )
 
             # Average variability in forces predictions across models for all frames
             f_mean_error = np.mean(f_std_norm_max)
-            mdb_cut.custom_print(f"f_mean_error: {f_mean_error}", "none", logger=logger)
+            mdb_cut.custom_print(f'f_mean_error: {f_mean_error}', 'none', logger=logger)
 
             # Spread of variability in the forces predictions across frames
             f_std_error = np.std(f_std_norm_max)
-            mdb_cut.custom_print(f"f_std_error: {f_std_error}", "none", logger=logger)
+            mdb_cut.custom_print(f'f_std_error: {f_std_error}', 'none', logger=logger)
 
             # Threshold for identifying frames with unusually high variability
             f_error_threshold = f_mean_error + 3 * f_std_error  # meV
             mdb_cut.custom_print(
-                f"f_error_threshold meV: {f_error_threshold}", "none", logger=logger
+                f'f_error_threshold meV: {f_error_threshold}', 'none', logger=logger
             )
 
             # Threshold for outliers
             f_maximum_value = f_mean_error + 10 * f_std_error  # meV
             mdb_cut.custom_print(
-                f"f_maximum_value meV: {f_maximum_value}", "none", logger=logger
+                f'f_maximum_value meV: {f_maximum_value}', 'none', logger=logger
             )
 
             # Checking if the forces are over the error threshold
@@ -896,8 +895,8 @@ if __name__ == "__main__":
             # True values are the structures that are considered as extrapolation.
             error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
             mdb_cut.custom_print(
-                f"Extrapolating structures according to F: {error_f_structures}",
-                "none",
+                f'Extrapolating structures according to F: {error_f_structures}',
+                'none',
                 logger=logger,
             )
 
@@ -917,88 +916,95 @@ if __name__ == "__main__":
             extrap_frame_idx.extend(set(e_f_extrapol))
 
         mdb_cut.custom_print(
-            "Frames with committee disagreement found by committee check: "
-            f"{len(extrap_frame_idx)}",
-            "info",
+            'Frames with committee disagreement found by committee check: '
+            f'{len(extrap_frame_idx)}',
+            'info',
             logger=logger,
         )
 
         ## Get the descriptors if extrapolation enabled
-        if extrap_type != "none":
+        if extrap_type != 'none':
             # Only MACE is supported for now
-            mdb_cut.custom_print("Generating descriptors...", "info", logger=logger)
-            if settings["descriptors"].get("descriptor_type", "mace") == "soap":
+            mdb_cut.custom_print('Generating descriptors...', 'info', logger=logger)
+            if settings['descriptors'].get('descriptor_type', 'mace') == 'soap':
                 descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_soap(
                     database=md_traj_short,
-                    descriptor_settings=settings["descriptors"],
+                    descriptor_settings=settings['descriptors'],
                 )
             else:
                 descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
-                    model_path=prepend_path / "curr_model.model",
+                    model_path=prepend_path / 'curr_model.model',
                     database=md_traj_short,
-                    descriptor_settings=settings["descriptors"],
+                    descriptor_settings=settings['descriptors'],
                 )
 
             # Add is_extrapolating list which contains boolean values showing
             # if the frame is extrapolating or not
             for structure_uuid in descriptor_dict:
-                descriptor_dict[structure_uuid]["is_extrapolating"] = np.zeros(
+                descriptor_dict[structure_uuid]['is_extrapolating'] = np.zeros(
                     len(md_traj_short), dtype=bool
                 )
 
         print()
         # Advanced extrapolation (concave hull) check
-        if extrap_type in ["advanced", "alpha-shape"]:
+        if extrap_type in ['advanced', 'alpha-shape']:
             mdb_cut.custom_print(
-                "Applying advanced extrapolation check...", "info", logger=logger
+                'Applying advanced extrapolation check...', 'info', logger=logger
             )
 
             # Read the concave hull. If it fails, notify the user and proceed
             # without extrapolation check.
             try:
-                concave_hull = np.load(prepend_path / "concave_hull.npy")
+                concave_hull = np.load(prepend_path / 'concave_hull.npy')
             except FileNotFoundError:
                 mdb_cut.custom_print(
                     (
-                        "Concave hull file not found! "
-                        "Please make sure that the extrapolation check has finished "
-                        "correctly during the active learning loop. Proceeding "
-                        "without extrapolation check..."
+                        'Concave hull file not found! '
+                        'Please make sure that the extrapolation check has finished '
+                        'correctly during the active learning loop. Proceeding '
+                        'without extrapolation check...'
                     ),
-                    "error",
+                    'error',
                     logger=logger,
                 )
-                extrap_type = "none"
+                extrap_type = 'none'
                 break
 
             # Get latent space for the trajectory
-            if dim_red_method == "pca":
-                # latent_space = get_latent_space_pca(database=descriptor_dict)
-                raise NotImplementedError("PCA not implemented yet.")
-            else:
-                aut_t_params = settings["descriptors"]["autoencoder"].get(
-                    "train_settings"
-                )
-
-                if (prepend_path / "autoencoder_model.pth").exists():
-                    model_path = prepend_path / "autoencoder_model.pth"
-                    model = torch.load(model_path)
-                    mdb_cut.custom_print(
-                        f"Model loaded from:'{model_path}'", logger=logger
-                    )
-                else:
-                    model_path = prepend_path / aut_t_params.get("model_path")
-                    model = torch.load(model_path)
-                    mdb_cut.custom_print(
-                        f"Model loaded from:'{model_path}'", logger=logger
+            match dim_red_method:
+                case 'pca':
+                    # latent_space = get_latent_space_pca(database=descriptor_dict)
+                    raise NotImplementedError('PCA not implemented yet.')
+                case 'autoencoder':
+                    aut_t_params = settings['descriptors']['autoencoder'].get(
+                        'train_settings'
                     )
 
-                model.to(dtype=torch.float32)
+                    if (prepend_path / 'autoencoder_model.pth').exists():
+                        model_path = prepend_path / 'autoencoder_model.pth'
+                        model = torch.load(model_path)
+                        mdb_cut.custom_print(
+                            f"Model loaded from:'{model_path}'", logger=logger
+                        )
+                    else:
+                        model_path = prepend_path / aut_t_params.get('model_path')
+                        model = torch.load(model_path)
+                        mdb_cut.custom_print(
+                            f"Model loaded from:'{model_path}'", logger=logger
+                        )
 
-                descriptor_dict = mdb_ae.get_latent_space_autoencoder(
-                    model=model,
-                    descriptor_dict=descriptor_dict,
-                )
+                    model.to(dtype=torch.float32)
+
+                    descriptor_dict = mdb_ae.get_latent_space_autoencoder(
+                        model=model,
+                        descriptor_dict=descriptor_dict,
+                    )
+                case 'none' | _:
+                    mdb_cut.custom_print(
+                        'Dimensionality method not specified or not recognized!',
+                        'warn',
+                        logger=logger,
+                    )
 
             point_inside, point_outside, all_points_in_out = check_traj_in_domain(
                 concave_hull=concave_hull, descriptor_dict=descriptor_dict
@@ -1008,50 +1014,50 @@ if __name__ == "__main__":
                 concave_hull=concave_hull,
                 point_inside=point_inside,
                 point_outside=point_outside,
-                filename=res_folder / f"concave_hull_temp-{curr_temp}.png",
+                filename=res_folder / f'concave_hull_temp-{curr_temp}.png',
             )
 
             for idx, frame in enumerate(all_points_in_out):
                 if np.all(frame):
-                    descriptor_dict[structure_uuid]["is_extrapolating"][idx] = False
+                    descriptor_dict[structure_uuid]['is_extrapolating'][idx] = False
                 else:
-                    descriptor_dict[structure_uuid]["is_extrapolating"][idx] = True
+                    descriptor_dict[structure_uuid]['is_extrapolating'][idx] = True
 
         # Simple extrapolation check (descriptor min/max)
-        elif extrap_type in ["basic", "min-max"]:
+        elif extrap_type in ['basic', 'min-max']:
             # Read the minimum and maximum values for each descriptor
             # for the entire database
-            curr_it_db_max = np.load(prepend_path / "curr_it_db_max.npy")
-            curr_it_db_min = np.load(prepend_path / "curr_it_db_min.npy")
+            curr_it_db_max = np.load(prepend_path / 'curr_it_db_max.npy')
+            curr_it_db_min = np.load(prepend_path / 'curr_it_db_min.npy')
 
             descriptor_dict = simple_extrapolation_check(
                 curr_it_db_max, curr_it_db_min, descriptor_dict
             )
         # Dont apply any further extrapolation check. Use the EF commitee check
         # already applied.
-        elif extrap_type in ["none", "disabled", None]:
+        elif extrap_type in ['none', 'disabled', None]:
             mdb_cut.custom_print(
                 (
-                    "No extrapolation check applied. Only interpolation (EF commitee)"
-                    "check applied."
+                    'No extrapolation check applied. Only interpolation (EF commitee)'
+                    'check applied.'
                 ),
-                "warn",
+                'warn',
                 logger=logger,
             )
 
-        elif extrap_type != "none":
+        elif extrap_type != 'none':
             for idx, is_extrapolating in enumerate(
-                descriptor_dict[structure_uuid]["is_extrapolating"]
+                descriptor_dict[structure_uuid]['is_extrapolating']
             ):
                 if is_extrapolating:
-                    extrap_frame_idx.append(md_traj_short[idx].info["frame_idx"])
+                    extrap_frame_idx.append(md_traj_short[idx].info['frame_idx'])
 
         # Saving all the frames that are extrapolating to a file
         extrap_frame_idx = set(extrap_frame_idx)
         extrapol_frames_final = [md_traj[i] for i in extrap_frame_idx]
         mdb_cut.custom_print(
-            f"Total count of extrapolating frames: {len(extrapol_frames_final)}",
-            "info",
+            f'Total count of extrapolating frames: {len(extrapol_frames_final)}',
+            'info',
             logger=logger,
         )
 
@@ -1062,17 +1068,23 @@ if __name__ == "__main__":
             structure.calc = calculator
 
             # Getting the energy and forces for the structure
-            structure.info["REF_energy"] = structure.get_potential_energy()
-            structure.arrays["REF_forces"] = structure.get_forces()
-            structure.info["mdb_id"] = str(uuid.uuid4())
+            structure.info['REF_energy'] = structure.get_potential_energy()
+            structure.arrays['REF_forces'] = structure.get_forces()
+            structure.info['mdb_id'] = str(uuid.uuid4())
 
             mod_extrap_frames.append(structure)
 
         ase_write(
-            res_folder / "extrapolating_frames.xyz",
-            format="extxyz",
+            res_folder / 'extrapolating_frames.xyz',
+            format='extxyz',
             images=mod_extrap_frames,
             append=True,
         )
 
-    mdb_cut.custom_print("Structure processed!", "done", logger=logger)
+        # Creating empty concave hull plot if it does not exist
+        # to avoid gathering errors with aiida
+        plot_path = res_folder / f'concave_hull_temp-{curr_temp}.png'
+        if not plot_path.exists():
+            plot_path.touch()
+
+    mdb_cut.custom_print('Structure processed!', 'done', logger=logger)

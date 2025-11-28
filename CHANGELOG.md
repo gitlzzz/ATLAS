@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.46.3 (2025-11-28)
+
+### Docs
+
+- **al_loop**: improve documentation for test database check ([#92d972b](https://github.com/pol-sb/MatDBForge/commit/92d972b4d3a13e81b64f17d46f35d3c1d6a5778f))
+
+## 0.46.2 (2025-11-28)
+
+### Docs
+
+- **core**: Add missing dependency keys. Make `safeguard` section mandatory to force users to either enable it or disable it ([#0fbfe37](https://github.com/pol-sb/MatDBForge/commit/0fbfe37659f54e3abb697ee8cd0e415ab7292df1))
+
+### Fix
+
+- **al_loop**: ignore safeguard check if safeguard is disabled ([#9667cf2](https://github.com/pol-sb/MatDBForge/commit/9667cf2f574a11fcdd344328cd02780878bb3be9))
+- **al_loop**: create copy of initial training database and save test set to base workchain ([#f98bc39](https://github.com/pol-sb/MatDBForge/commit/f98bc39a64ad18a423b219d77ef5b68f4f2109ce))
+- **al_loop**: add "calc_performed" tag to all new DFT structures during AL run ([#d9042ec](https://github.com/pol-sb/MatDBForge/commit/d9042ec19bd3c3aefb41c8055a18e9adcb6930c9))
+- **dft**: improve "stress" parsing from VASP ([#0629f75](https://github.com/pol-sb/MatDBForge/commit/0629f756e8dd2813257b8625dc5deddd49370dc0))
+- **al_loop**: add missing update to test db eval results if available ([#db36741](https://github.com/pol-sb/MatDBForge/commit/db3674187e100edca7c8ba8fc7f5568381d4a37c))
+- **al_loop**: avoid al_loop trying to resume from default `''` empty descriptor calc ([#d3f55a3](https://github.com/pol-sb/MatDBForge/commit/d3f55a38d1bb473712b17521082578de31e61792))
+- **core**: add missing variables in all return statements in `validate_config_file()` ([#7bb368b](https://github.com/pol-sb/MatDBForge/commit/7bb368bb58d2bf372d8666394d25e342dcacd5d7))
+- **core**: use `tomlkit` to write modified toml files to avoid format changes. add `tomlkit` dependency. ([#5522710](https://github.com/pol-sb/MatDBForge/commit/552271046eac1d3d51a96ebb2f4873e5053ae7a7))
+- **domain_validity**: changed default numpy array name from `arr_0` to `descriptor` ([#5176854](https://github.com/pol-sb/MatDBForge/commit/51768542897e873d4a9fc13f92e811026866a4fc))
+
+### Refactor
+
+- **al_loop**: remove unused code ([#4ceb2ff](https://github.com/pol-sb/MatDBForge/commit/4ceb2fffba5ee1403a861a8ca282ebcc22b6e048))
+- **al_loop**: fix document and add TODO block for dynamic VASP DFT input loading ([#2987ba7](https://github.com/pol-sb/MatDBForge/commit/2987ba7821d3d9ad777815e856caedf3168a6c41))
+- **md**: changed `dim_red_method` check to switch case ([#2664d5e](https://github.com/pol-sb/MatDBForge/commit/2664d5e0a45e12223161d2401b96489192d00488))
+
 ## 0.46.1 (2025-11-26)
 
 ### Docs

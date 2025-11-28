@@ -92,8 +92,9 @@ def validate_config_file(
 
     Returns
     -------
-        tuple: (is_valid, errors)
-            where is_valid is bool and errors is list of strings
+        tuple: (any_errors_found, errors, warnings)
+            where any_errors_found is bool, errors is list of strings
+            and warnings is list of dicts
     """
     if config_dict is None and config_path is None:
         return False, ['Either config_dict or config_path must be provided']
@@ -105,9 +106,9 @@ def validate_config_file(
             with open(config_path, 'rb') as f:
                 config_data = tomllib.load(f)
         except FileNotFoundError:
-            return False, [f'Configuration file not found: {config_path}']
+            return False, [f'Configuration file not found: {config_path}'], []
         except Exception as e:
-            return False, [f'Error reading TOML file: {e}']
+            return False, [f'Error reading TOML file: {e}'], []
     elif config_dict is not None:
         config_data = config_dict
 

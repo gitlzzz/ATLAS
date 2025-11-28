@@ -9,7 +9,6 @@ import tomllib
 from pathlib import Path
 
 import numpy as np
-import tomli_w
 import yaml
 from aiida import orm
 from aiida.common.datastructures import CalcInfo, CodeInfo
@@ -19,6 +18,7 @@ from aiida.parsers.parser import Parser
 from aiida_lammps.calculations.raw import LammpsRawCalculation
 from aiida_lammps.parsers.parse_raw import parse_outputfile
 from ase.io import read as ase_read
+from tomlkit import dumps as tomlkit_dumps
 
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 
@@ -206,7 +206,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         with open(toml_settings, 'rb') as f:
             loaded_toml_settings = tomllib.load(f)
 
-        # Adding current active learning step
+        # Adding current active learning step to monitor stage
         loaded_toml_settings['active_learning']['current_iteration'] = (
             self.inputs.curr_active_learning_step.value
         )
@@ -216,7 +216,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         with tempfile.NamedTemporaryFile(
             mode='wb', delete=True, suffix='.toml', prefix='mdb_process_md-'
         ) as f_toml:
-            tomli_w.dump(loaded_toml_settings, f_toml)
+            f_toml.write(tomlkit_dumps(loaded_toml_settings).encode())
             toml_settings = f_toml.name
 
             # Copying settings file
@@ -1765,6 +1765,7 @@ class GetDescriptorsCombinedCalculation(CalcJob):
 
         # Copying database file
         train_db_path = self.inputs.training_database_path.value
+        train_db_path = str(Path(train_db_path).resolve())
         folder.insert_path(
             src=train_db_path,
             dest_name='training_db.xyz',

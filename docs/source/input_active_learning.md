@@ -83,7 +83,11 @@ General active learning settings.
 
 ### Test Set Settings - `[test_db]`
 
-Settings for the test set used to evaluate model performance during active learning. The test set is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file.
+Settings for the test database used to evaluate model performance during active learning. The test database is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file. The test set is only used for evaluation and is not included in the training data.
+
+The test database evaluation is performed after training the committee of models of each active learning iteration, using the sampler model. The test set and the evaluation results are logged and saved in the base workchain and in each of the active learning loop steps as outputs.
+
+Since the test database can be a subset of the training database, which is removed in place, a backup of the database is created under the same path and name as the original database, using the prefix `_original` and suffix `.bak`.
 
 
 - {alt}`use_test_db`:
@@ -105,7 +109,7 @@ Settings for the test set used to evaluate model performance during active learn
   - **Type**: `(optional, float)`
   - **Default**: `0.1`.
 
-#### Metadata - `[test_db.metadata]`
+#### AiiDA Metadata for Test Set Calculations - `[test_db.metadata]`
 
 AiiDA metadata options for the test set.
 
@@ -122,7 +126,7 @@ This section is optional.
   - **Description**: Text to prepend to the AiiDA calculation label for the test set calculations.
   - **Type**: `(optional, str)`
 
-##### Options - `[test_db.metadata.options]`
+##### AiiDA Options for Test Set Calculations - `[test_db.metadata.options]`
 
 AiiDA options dictionary for the test set calculations.
 
@@ -420,10 +424,6 @@ This section is optional.
 ### Active Learning Safeguard Settings - `[safeguard]`
 
 Settings for active learning safeguard mechanisms. The safeguard will run long MD simulations on selected structures and perform an uncertainty quantification check in order to determine if the active learning loop is robust enough to stop at the current point.
-
-:::{attention}
-This section is optional.
-:::
 
 
 - {alt}`enable`:
@@ -1076,6 +1076,12 @@ Settings for MACE evaluator.
 Settings for descriptor computation and dimensionality reduction.
 
 
+- {alt}`descriptor_type`:
+  - **Description**: Type of descriptor to compute.
+  - **Type**: `(str)`
+  - **Default**: `'mace'`.
+  - Possible values are: `mace`, `soap`.
+
 - {alt}`dimensionality_reduction_method`:
   - **Description**: Dimensionality reduction method for MACE descriptors.
   - **Type**: `(optional, str)`
@@ -1091,12 +1097,6 @@ Settings for descriptor computation and dimensionality reduction.
   - **Description**: AiiDA metadata and scheduler options for descriptor computation.
   - **Type**: `(optional, dict)`
 
-- {alt}`descriptor_type`:
-  - **Description**: Type of descriptor to compute.
-  - **Type**: `(optional, str)`
-  - **Default**: `'mace'`.
-  - Possible values are: `mace`, `soap`.
-
 - {alt}`dtype`:
   - **Description**: Data type of descriptor to compute.
   - **Type**: `(optional, str)`
@@ -1109,7 +1109,7 @@ Settings for descriptor computation and dimensionality reduction.
   - **Default**: `'cpu'`.
   - Possible values are: `cpu`, `cuda`.
 
-#### Autoencoder - `[descriptors.autoencoder]`
+#### Autoencoder Dimensionality Reduction Settings - `[descriptors.autoencoder]`
 
 Settings for autoencoder-based dimensionality reduction.
 

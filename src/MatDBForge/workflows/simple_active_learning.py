@@ -944,10 +944,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if (
             self.inputs.load_descriptor_calc
             and self.inputs.al_loop_iteration.value == 0
+            and self.inputs.load_descriptor_calc != ''
         ) or (
             self.inputs.load_descriptor_calc
             and self.ctx.resume_mode
             and not hasattr(self.ctx, 'loaded_descriptor_calc')
+            and self.inputs.load_descriptor_calc != ''
         ):
             self.report(
                 'Loading descriptor calculation from node: '
@@ -1031,47 +1033,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         resources_dict = descriptor_settings['metadata']['options']['resources']
         num_threads = resources_dict.get('num_cores_per_mpiproc', 2)
 
-        # # Getting container settings
-        # ignore_container = descriptor_settings.get('ignore_container', False)
-        # containerized = False
-        # if current_settings.get('code', {}).get('container'):
-        #     container_dict = current_settings['code']['container']
-        # else:
-        #     container_dict = self.inputs.container_settings.get_dict()
-
-        # if container_dict.get('use_container'):
-        #     containerized = container_dict.get('use_container', False)
-        # if ignore_container is True:
-        #     containerized = False
-
-        # if containerized:
-        #     image_name = container_dict.get('image_name', '')
-        #     engine_command = container_dict.get('engine_command', '')
-        #     prepend_text = (
-        #         descriptor_settings['metadata'].get('prepend_text', '')
-        #         + '\n'
-        #         + container_dict.get('prepend_text', '')
-        #         + f'\nexport OMP_NUM_THREADS={num_threads}'
-        #     )
-        #     code = orm.ContainerizedCode(
-        #         computer=desc_builder.metadata.computer,
-        #         image_name=image_name,
-        #         filepath_executable='mdb_check_descr_combined.py',
-        #         prepend_text=prepend_text,
-        #         engine_command=engine_command,
-        #     )
-        # else:
-        #     prepend_text = (
-        #         descriptor_settings['metadata'].get('prepend_text', '')
-        #         + '\nexport PATH=$PATH:.'
-        #         + f'\nexport OMP_NUM_THREADS={num_threads}'
-        #     )
-        #     code = orm.PortableCode(
-        #         label='mdb-descriptors-combined',
-        #         filepath_files=descriptor_code_path,
-        #         filepath_executable='mdb_check_descr_combined.py',
-        #         prepend_text=prepend_text,
-        #     )
+        # Prepare and return correct code
         code = mdb_al_ut.return_code_from_settings(
             current_settings=current_settings,
             code_settings=descriptor_settings,
@@ -1120,7 +1082,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         curr_iter = self.inputs.al_loop_iteration.value
 
         # Ensure that models are loaded only for the first resumed step
-        if self.inputs.load_descriptor_calc:
+        if self.inputs.load_descriptor_calc and self.inputs.load_descriptor_calc != '':
             if curr_iter == 0 or (
                 self.ctx.resume_mode and not hasattr(self.ctx, 'loaded_descriptor_calc')
             ):
@@ -1550,6 +1512,19 @@ class SimpleActiveLearningWorkChain(WorkChain):
             if self.inputs.dft_method == 'vasp':
                 row = struct.info
 
+                # TODO: Dynamically load settings
+                # Loading the settings file again to get updated settings
+                # settings_path = Path(self.inputs.toml_file.value)
+                # if settings_path.exists:
+                #     current_settings = mdb_al_ut.read_toml_settings(
+                #         settings_file=self.inputs.toml_file.value
+                #     )
+                #     self.logger.debug(
+                #         f'Reloaded settings from file: {self.inputs.toml_file.value}'
+                #     )
+                # else:
+                #     current_settings = {}
+
                 builder = mdb_al_ut.get_dft_calc_builder_vasp(
                     struct=struct,
                     row=row,
@@ -1960,6 +1935,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             'final_training_db',
             valid_type=orm.SinglefileData,
         )
+        spec.output('test_db_file', valid_type=orm.SinglefileData, required=False)
         spec.output('final_model_file', valid_type=orm.SinglefileData)
 
     def setup_textfile_logging(self):
@@ -2217,6 +2193,24 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 index=':',
             )
 
+        # Save a copy of the initial database
+        init_db_path = Path(self.inputs.active_learning.init_db_path.value)
+        init_db_filename = init_db_path.name
+        backup_filename = 'original_' + init_db_filename + '.bak'
+        backup_path = init_db_path.with_name(backup_filename)
+
+        if not backup_path.exists():
+            ase_write(
+                filename=backup_path,
+                format='extxyz',
+                images=database_training,
+            )
+            self.report(f"Saved backup of original database in: '{backup_path}'")
+        else:
+            self.report(
+                f"Backup of original database already exists in: '{backup_path}'"
+            )
+
         # If test database is enabled, load it or prepare it depending on settings,
         # storing it into a node, and adding it into the context
         test_settings = self.inputs.active_learning.get('eval_test_db_settings', {})
@@ -2246,6 +2240,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.report(
                 f'Prepared test set containing {len(test_db_structures)} structures.'
             )
+            self.out('test_db_file', test_db_file)
         else:
             self.report(
                 'Test database usage disabled. '
@@ -2280,6 +2275,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             database_training[idx] = struct
 
+        # Update modified training database
         ase_write(
             filename=self.inputs.active_learning.init_db_path.value,
             format='extxyz',
@@ -2416,6 +2412,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.ctx.last_workchain_completed = node
         self.logger.log(15, f'Done getting results for iteration {self.ctx.iteration}.')
 
+        # Update test db eval results if available
+        if hasattr(node.outputs, 'test_db_eval_results'):
+            self.ctx.test_db_eval_results = node.outputs['test_db_eval_results']
+
         # Resetting safeguard attempted flag
         # The reasoning behind this is that the safeguard must only be attempted
         # once per AL step at most. Since here we are finishing an AL step correctly
@@ -2474,6 +2474,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
                 # Add information about the current AL step
                 dft_calc.info['mdb_al_step'] = self.ctx.iteration
+
+                # Add calc_performed tag
+                dft_calc.info['calc_performed'] = True
 
                 # Adding the structure to the training database
                 seed_gen_db.append(dft_calc)
@@ -2811,22 +2814,47 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         self.report(f'Safeguard attempted: {self.ctx.safeguard_attempted}')
 
-        # This will be True if the safeguard check allows to continue the loop
-        should_run = (
-            not self.ctx.safeguard_check_done
-            and below_max_iterations
-            and not al_error_stop
-            and not self.ctx.safeguard_attempted
-            and self.ctx.loop_continue_condition
-        )
-        self.report(
-            f'Safeguard check decision on whether to continue the loop: {should_run}.'
-        )
+        # Loading the settings file again to get updated settings
+        settings_path = Path(self.ctx.inputs.toml_file.value)
+        if settings_path.exists:
+            current_settings = mdb_al_ut.read_toml_settings(
+                settings_file=self.ctx.inputs.toml_file.value
+            )
+        else:
+            current_settings = {}
+
+        # # Loading computer and removing it from the input dictionary
+        if current_settings:
+            safeguard_settings = current_settings.get('safeguard', {})
+
+        # Get 'enable' setting from safeguard settings
+        self.ctx.safeguard_enabled = safeguard_settings.get('enable', False)
+
+        # Decide whether to continue based on safeguard settings
+        # If safeguard is disabled, ignore this
+        match self.ctx.safeguard_enabled:
+            # If safeguard is disabled
+            case False:
+                self.report('Safeguard is not enabled, continuing AL loop.')
+                should_run = True
+
+            # If safeguard is enabled
+            case True:
+                # This will be True if the safeguard check allows to continue the loop
+                should_run = (
+                    not self.ctx.safeguard_check_done
+                    and below_max_iterations
+                    and not al_error_stop
+                    and not self.ctx.safeguard_attempted
+                    and self.ctx.loop_continue_condition
+                )
+                self.report(
+                    f'Safeguard check decision on whether to continue'
+                    f'the loop: {should_run}.'
+                )
 
         if should_run is False:
             self.report('Stopping AL Loop due to passed safeguard check!')
-
-            # DEBUG: Check if this will stop the safeguard check loop
             self.ctx.safeguard_check_done = True
 
         return should_run
@@ -3185,7 +3213,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if len(safeguard_errored_ids) >= tot_num_safeguard_calcs:
                 self.report('All safeguard calculations errored. Stopping AL Loop.')
                 self.ctx.safeguard_check_done = True
-                self.ctx.safeguard_attempted = True 
+                self.ctx.safeguard_attempted = True
                 del self.ctx.process_safeguard_results
             elif len(safeguard_failed_ids) > 0:
                 self.report(
