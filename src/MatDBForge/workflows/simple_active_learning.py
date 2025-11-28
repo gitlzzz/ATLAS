@@ -1033,47 +1033,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         resources_dict = descriptor_settings['metadata']['options']['resources']
         num_threads = resources_dict.get('num_cores_per_mpiproc', 2)
 
-        # # Getting container settings
-        # ignore_container = descriptor_settings.get('ignore_container', False)
-        # containerized = False
-        # if current_settings.get('code', {}).get('container'):
-        #     container_dict = current_settings['code']['container']
-        # else:
-        #     container_dict = self.inputs.container_settings.get_dict()
-
-        # if container_dict.get('use_container'):
-        #     containerized = container_dict.get('use_container', False)
-        # if ignore_container is True:
-        #     containerized = False
-
-        # if containerized:
-        #     image_name = container_dict.get('image_name', '')
-        #     engine_command = container_dict.get('engine_command', '')
-        #     prepend_text = (
-        #         descriptor_settings['metadata'].get('prepend_text', '')
-        #         + '\n'
-        #         + container_dict.get('prepend_text', '')
-        #         + f'\nexport OMP_NUM_THREADS={num_threads}'
-        #     )
-        #     code = orm.ContainerizedCode(
-        #         computer=desc_builder.metadata.computer,
-        #         image_name=image_name,
-        #         filepath_executable='mdb_check_descr_combined.py',
-        #         prepend_text=prepend_text,
-        #         engine_command=engine_command,
-        #     )
-        # else:
-        #     prepend_text = (
-        #         descriptor_settings['metadata'].get('prepend_text', '')
-        #         + '\nexport PATH=$PATH:.'
-        #         + f'\nexport OMP_NUM_THREADS={num_threads}'
-        #     )
-        #     code = orm.PortableCode(
-        #         label='mdb-descriptors-combined',
-        #         filepath_files=descriptor_code_path,
-        #         filepath_executable='mdb_check_descr_combined.py',
-        #         prepend_text=prepend_text,
-        #     )
+        # Prepare and return correct code
         code = mdb_al_ut.return_code_from_settings(
             current_settings=current_settings,
             code_settings=descriptor_settings,
