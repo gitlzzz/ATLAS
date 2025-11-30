@@ -221,6 +221,7 @@ li.toctree-l3 current {
 .wy-menu-vertical li.toctree-l3.current>a,
 .wy-menu-vertical li.toctree-l3.current li.toctree-l4>a {
     background: var(--light-blue);
+    color: var(--bg_h);
 }
 
 /* li.toctree-l3 {

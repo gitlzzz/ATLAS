@@ -1129,6 +1129,7 @@ active_learning:
       default: false
     md:
       name: "safeguard_md"
+      name_pretty: "Safeguard MD Settings"
       description: "MD simulation options for safeguard."
       depends_on:
         key: active_learning.safeguard.enable
