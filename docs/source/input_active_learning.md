@@ -446,9 +446,14 @@ Settings for active learning safeguard mechanisms. The safeguard will run long M
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
 
-#### Md - `[safeguard.md]`
+#### Safeguard MD Settings - `[safeguard.md]`
 
 MD simulation options for safeguard.
+
+
+##### Safeguard MD Parameters - `[safeguard.md.parameters]`
+
+MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section.
 
 
 - {alt}`temperature_list_K`:

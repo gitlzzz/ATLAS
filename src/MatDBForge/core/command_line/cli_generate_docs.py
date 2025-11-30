@@ -108,23 +108,6 @@ def generate_section_docs(
                     lines.append(format_parameter_line(flattened_key, sub_details))
             continue
 
-        if content.get('wildcard_entry') and content.get('wildcard_path'):
-            # For wildcard entries, traverse the schema at the specified path
-            # and add documentation for each parameter found.
-            wildcard_path = content['wildcard_path'].split('.')
-            schema_content = original_schema
-            for part in wildcard_path:
-                schema_content = schema_content.get(part, {})
-            for sub_key, sub_details in schema_content.items():
-                if isinstance(sub_details, dict) and 'type' in sub_details:
-                    # wildcard_key = '.'.join(wildcard_path + [sub_key])
-                    wildcard_key = sub_key
-                    lines.append('')
-                    lines.append(format_parameter_line(wildcard_key, sub_details))
-                    lines.append('')
-
-            continue
-
         if content.get('dynamic_keys'):
             # Handle dynamic key sections specially
             header_level = '#' * level
@@ -201,6 +184,25 @@ def generate_section_docs(
                 level + 1,
                 original_schema=original_schema,
             )
+
+        if content.get('wildcard_entry') and content.get('wildcard_path'):
+            # For wildcard entries, traverse the schema at the specified path
+            # and add documentation for each parameter found.
+            wildcard_path = content['wildcard_path'].split('.')
+            schema_content = original_schema
+
+            for part in wildcard_path:
+                schema_content = schema_content.get(part, {})
+
+            for sub_key, sub_details in schema_content.items():
+                if isinstance(sub_details, dict) and 'type' in sub_details:
+                    # wildcard_key = '.'.join(wildcard_path + [sub_key])
+                    wildcard_key = sub_key
+                    lines.append('')
+                    lines.append(format_parameter_line(wildcard_key, sub_details))
+                    lines.append('')
+
+            continue
 
 
 def generate_tool_section(schema, tool_name, tool_config):

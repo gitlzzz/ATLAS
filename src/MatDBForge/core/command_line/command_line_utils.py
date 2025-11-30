@@ -487,12 +487,10 @@ def validate_parameter(value, param_key, param_schema, path, root_config_data=No
         if should_validate_mandatory(param_schema, root_config_data or {}):
             errors.append(f'Missing mandatory parameter: {full_path}')
         else:
-
             # If not mandatory, check if default can be applied
             if param_schema.get('default') is not None:
-
                 # Only apply default if dependencies are met, otherwise
-                # defaults can be used in situations that lead to incompatible 
+                # defaults can be used in situations that lead to incompatible
                 # configs, e.g., MACE options being passed to SOAP, leading
                 # to a crash.
                 dependency_met = False
@@ -785,9 +783,7 @@ def validate_section_recursive(
                     errors.extend(param_errors)
                     warnings.extend(param_warnings)
                     if len(param_errors) == 0:
-                        # config_data_removal.pop(sub_key, None)
                         config_data_removal[section_name].pop(sub_key, None)
-            # breakpoint()
             continue
 
         # Handle dynamic key sections
