@@ -2248,6 +2248,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
             self.ctx.test_db_file = None
             self.ctx.use_test_db = orm.Bool(False)
+            self.ctx.test_settings = orm.Dict({})
 
         # Adding the database indexes to the info dict of the structures
         # and the current active learning loop step index (0).
