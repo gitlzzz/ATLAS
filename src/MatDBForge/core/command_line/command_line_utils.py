@@ -501,14 +501,17 @@ def validate_parameter(value, param_key, param_schema, path, root_config_data=No
                     dependency_met = True
 
                 if dependency_met:
+                    default_val = param_schema.get('default')
+                    if isinstance(default_val, str):
+                        default_val = f"'{default_val}'"
                     warnings.append(
                         {
                             'msg': f'Using default: {WI_FMT}{full_path}{WI_END} '
                             f'is missing and has been set to default value: '
-                            f'{param_schema.get("default")}',
+                            f'{default_val}',
                             'default_applied': {
                                 'type': param_schema.get('type'),
-                                'default_value': param_schema.get('default'),
+                                'default_value': default_val,
                                 'warn_type': 'default_applied',
                                 'path': full_path,
                             },
