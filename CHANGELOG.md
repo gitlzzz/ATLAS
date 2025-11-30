@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.46.4 (2025-11-30)
+
+### Docs
+
+- **core**: improve report for warnings ([#93b202c](https://github.com/pol-sb/MatDBForge/commit/93b202cee117b17f1b34eca8dcedfe8130c841bd))
+- **core**: assign wildcard entries to proper section when generating docs ([#0842655](https://github.com/pol-sb/MatDBForge/commit/08426559ca03e9ea2d62c1c6a500fa57113e49f9))
+
+### Fix
+
+- **al_loop**: add missing definition of self.ctx.test_settings when test_db is disabled to allow AL to run ([#df9c141](https://github.com/pol-sb/MatDBForge/commit/df9c14105b3e85ea9fe80c1972e9abc5d42f56fd))
+
 ## 0.46.3 (2025-11-28)
 
 ### Docs
