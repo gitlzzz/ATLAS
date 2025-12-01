@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.46.5 (2025-12-01)
+
+### Fix
+
+- **al_loop**: properly parse string-like None types in `apply_defaults()` ([#71fffba](https://github.com/pol-sb/MatDBForge/commit/71fffba6f081b9c77883177cea8c4e9474468506))
+- **al_loop**: make stop_al_loop_error an output of `SimpleActiveLearningWorkChain` to send it to Base context ([#14715be](https://github.com/pol-sb/MatDBForge/commit/14715be215c67bc8fd825e214791b70787ce38e5))
+
 ## 0.46.4 (2025-11-30)
 
 ### Docs

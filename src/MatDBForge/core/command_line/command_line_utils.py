@@ -234,9 +234,10 @@ def apply_defaults(config_data, warning_msg_list):
         # Apply the value to the reference of the parent dictionary
         if path_valid:
             # convert string representing type to actual type
-            if default_value == 'None':
+            if default_value in ['None', "'None'", '"None"']:
                 default_value = None
             elif default_type == 'int':
+                print('default_value: ', default_value)
                 default_value = int(default_value)
             elif default_type == 'float':
                 default_value = float(default_value)
