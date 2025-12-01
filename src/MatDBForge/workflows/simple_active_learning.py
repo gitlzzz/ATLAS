@@ -349,6 +349,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             aiida_logger.addHandler(ch)
 
     def step_setup(self):
+        # Initialize error tracking variable to False, since the loop hasn't had
+        # any chances to get into an error state
+        self.ctx.stop_al_loop_error = orm.Bool(False)
+
         self.node.base.extras.set(
             'mdb_working_directory', self.inputs.mdb_working_directory.value
         )
