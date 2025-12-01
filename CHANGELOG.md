@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.46.8 (2025-12-01)
+
+### Fix
+
+- **al_loop**: properly catch "empty" strings when given as default arguments for descriptor calc ([#6f4c63e](https://github.com/pol-sb/MatDBForge/commit/6f4c63ed2f72bfaf0d723bdb98a03de8fef69cd7))
+
+### Refactor
+
+- **al_loop**: remove unused prints ([#c6956cf](https://github.com/pol-sb/MatDBForge/commit/c6956cf16f165150c38d0fce2dd0a50029fe9e29))
+
+## 0.46.7 (2025-12-01)
+
+### Fix
+
+- **al_loop**: catch empty strings for the default parameters in the "descriptors" stage ([#62db350](https://github.com/pol-sb/MatDBForge/commit/62db3503d1a4f7c28c264b3ab9e7d2262612f04d))
+
 ## 0.46.6 (2025-12-01)
 
 ### Fix

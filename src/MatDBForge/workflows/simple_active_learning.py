@@ -949,12 +949,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if (
             self.inputs.load_descriptor_calc
             and self.inputs.al_loop_iteration.value == 0
-            and self.inputs.load_descriptor_calc != ''
+            and self.inputs.load_descriptor_calc not in ['', "''", '""']
         ) or (
             self.inputs.load_descriptor_calc
             and self.ctx.resume_mode
             and not hasattr(self.ctx, 'loaded_descriptor_calc')
-            and self.inputs.load_descriptor_calc != ''
+            and self.inputs.load_descriptor_calc not in ['', "''", '""']
         ):
             self.report(
                 'Loading descriptor calculation from node: '
@@ -1087,7 +1087,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
         curr_iter = self.inputs.al_loop_iteration.value
 
         # Ensure that models are loaded only for the first resumed step
-        if self.inputs.load_descriptor_calc and self.inputs.load_descriptor_calc != '':
+        if (
+            self.inputs.load_descriptor_calc
+            and self.inputs.load_descriptor_calc not in ['', "''", '""']
+        ):
             if curr_iter == 0 or (
                 self.ctx.resume_mode and not hasattr(self.ctx, 'loaded_descriptor_calc')
             ):
