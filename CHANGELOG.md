@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.46.6 (2025-12-01)
+
+### Fix
+
+- **al_loop**: initialize error tracking variable to False at the start of the ALStep ([#96b4017](https://github.com/pol-sb/MatDBForge/commit/96b4017c0e7485240167f7dd9ce26353625f9dcf))
+
+### Refactor
+
+- **al_loop**: improve clarity of log messages ([#636142d](https://github.com/pol-sb/MatDBForge/commit/636142d18c7c4432cb3b51f2464ebfb3daf3262c))
+
 ## 0.46.5 (2025-12-01)
 
 ### Fix

@@ -349,6 +349,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             aiida_logger.addHandler(ch)
 
     def step_setup(self):
+        # Initialize error tracking variable to False, since the loop hasn't had
+        # any chances to get into an error state
+        self.ctx.stop_al_loop_error = orm.Bool(False)
+
         self.node.base.extras.set(
             'mdb_working_directory', self.inputs.mdb_working_directory.value
         )
@@ -1660,6 +1664,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             mdb_al_ut.remove_structs_from_seed_gen_db(
                 self.inputs.seed_db_path, delete_indices
             )
+            self.report('Done deleting structures. Moving to data acquisition step...')
 
         # If no structure is well represented, nothing will be deleted.
         else:
