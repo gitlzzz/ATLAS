@@ -949,12 +949,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if (
             self.inputs.load_descriptor_calc
             and self.inputs.al_loop_iteration.value == 0
-            and self.inputs.load_descriptor_calc != ''
+            and self.inputs.load_descriptor_calc not in ['', "''", '""']
         ) or (
             self.inputs.load_descriptor_calc
             and self.ctx.resume_mode
             and not hasattr(self.ctx, 'loaded_descriptor_calc')
-            and self.inputs.load_descriptor_calc != ''
+            and self.inputs.load_descriptor_calc not in ['', "''", '""']
         ):
             self.report(
                 'Loading descriptor calculation from node: '
