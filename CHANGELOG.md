@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.46.7 (2025-12-01)
+
+### Fix
+
+- **al_loop**: catch empty strings for the default parameters in the "descriptors" stage ([#62db350](https://github.com/pol-sb/MatDBForge/commit/62db3503d1a4f7c28c264b3ab9e7d2262612f04d))
+
 ## 0.46.6 (2025-12-01)
 
 ### Fix
