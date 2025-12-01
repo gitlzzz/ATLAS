@@ -1713,10 +1713,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     if node.is_finished_ok
                     # if node.is_finished and node.exit_status in [0, 504, 503]
                 ]
-                if len(dft_calcs_ok) == 0:
+
+                if len(dft_calcs_ok) == 0 and dft_calcs > 0:
                     self.report('No DFT calculations finished correctly.')
                     dft_calc_list = ''
                     self.ctx.stop_al_loop_error = orm.Bool(True)
+                elif len(dft_calcs_ok) == 0 and dft_calcs == 0:
+                    self.report('No VASP DFT calculation jobs performed.')
+                    dft_calc_list = ''
                 else:
                     self.report(
                         f'Gathering {len(dft_calcs_ok)} VASP DFT calculations '
@@ -1734,15 +1738,17 @@ class SimpleActiveLearningWorkChain(WorkChain):
             else:
                 dft_calcs = []
             try:
-                self.report(
-                    f'Gathered {len(dft_calcs)} MACE evaluation calculation jobs.'
-                )
-
+                # Gather correct MACE calculations
+                dft_calcs_len = len(self.ctx.dft_struct_seed_calcs)
                 dft_calcs_ok = [node.uuid for node in dft_calcs if node.is_finished_ok]
-                if len(dft_calcs_ok) == 0:
-                    self.report('No DFT calculations finished correctly.')
+
+                if len(dft_calcs_ok) == 0 and dft_calcs_len > 0:
+                    self.report('No MACE evaluations finished correctly.')
                     dft_calc_list = ''
                     self.ctx.stop_al_loop_error = orm.Bool(True)
+                elif len(dft_calcs_ok) == 0 and dft_calcs_len == 0:
+                    self.report('No MACE evaluation jobs performed.')
+                    dft_calc_list = ''
                 else:
                     # Gather all MACE evaluations, storing results into a file,
                     # stored in `result_list_path`.
@@ -1752,6 +1758,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                         dft_calc_list=dft_calcs_ok,
                         results_dir=str(self.ctx.results_dir),
                         workchain=self.node.uuid,
+                    )
+                    self.report(
+                        f'Gathered {len(dft_calcs)} MACE evaluation calculation jobs.'
                     )
             except AttributeError:
                 dft_calc_list = ''
@@ -2853,8 +2862,21 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         match self.ctx.safeguard_enabled:
             # If safeguard is disabled
             case False:
-                self.report('Safeguard is not enabled, continuing AL loop.')
-                should_run = True
+                if al_error_stop:
+                    should_run = False
+                    self.report(
+                        'Safeguard is not enabled, and errors found: stopping AL loop.'
+                    )
+                else:
+                    should_run = (
+                        below_max_iterations
+                        and not al_error_stop
+                        and self.ctx.loop_continue_condition
+                    )
+                    self.report(
+                        'Safeguard is not enabled, and no errors found, should run:'
+                        f' {should_run}'
+                    )
 
             # If safeguard is enabled
             case True:
