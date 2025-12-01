@@ -1660,6 +1660,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             mdb_al_ut.remove_structs_from_seed_gen_db(
                 self.inputs.seed_db_path, delete_indices
             )
+            self.report('Done deleting structures. Moving to data acquisition step...')
 
         # If no structure is well represented, nothing will be deleted.
         else:
