@@ -279,6 +279,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.output('stop_md_seed_no_disagreement', valid_type=orm.Bool)
         spec.output('test_db_eval_results', valid_type=orm.Dict)
         spec.output('test_db_eval_plot', valid_type=orm.SinglefileData)
+        spec.output('stop_al_loop_error', valid_type=orm.Bool)
 
         spec.exit_code(
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
@@ -1802,6 +1803,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
             ),
         )
 
+        # Return error status as an output
+        self.out('stop_al_loop_error', self.ctx.stop_al_loop_error)
+
         if hasattr(self.inputs, 'enable_ntfysh'):
             requests.post(
                 f'https://ntfy.sh/{self.inputs.ntfysh_topic.value}',
@@ -2406,9 +2410,6 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.stop_md_seed_no_disagreement = node.outputs[
                 'stop_md_seed_no_disagreement'
             ]
-        # TODO: Does this need to be reenabled?
-        # else:
-        # self.ctx.stop_al_loop_error = orm.Bool(True)
 
         self.ctx.last_workchain_completed = node
         self.logger.log(15, f'Done getting results for iteration {self.ctx.iteration}.')
@@ -2416,6 +2417,14 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Update test db eval results if available
         if hasattr(node.outputs, 'test_db_eval_results'):
             self.ctx.test_db_eval_results = node.outputs['test_db_eval_results']
+
+        # Send previous calculation error status to context
+        # stop_al_loop_error is True if there was an error in the last step
+        # and False otherwise
+        if hasattr(node.outputs, 'stop_al_loop_error'):
+            self.ctx.stop_al_loop_error = node.outputs['stop_al_loop_error']
+        else:
+            self.ctx.stop_al_loop_error = orm.Bool(False)
 
         # Resetting safeguard attempted flag
         # The reasoning behind this is that the safeguard must only be attempted
