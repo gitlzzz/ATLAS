@@ -2454,6 +2454,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             else:
                 self.ctx.test_db_eval_results = last_eval_dict
 
+            self.ctx.inputs.test_db_eval_results = self.ctx.test_db_eval_results
+
         # Send previous calculation error status to context
         # stop_al_loop_error is True if there was an error in the last step
         # and False otherwise
