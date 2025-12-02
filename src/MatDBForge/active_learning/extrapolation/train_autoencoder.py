@@ -96,8 +96,10 @@ def load_dataset(
     # If npz file, extract the first array
     # This is a workaround for the npz file format
     # that stores the data in a dictionary-like structure
-    # with the key 'arr_0'
+    # with the key 'arr_0' or 'descriptor'
     if isinstance(descr_data, np.lib.npyio.NpzFile):
+
+        # New name
         point_arr = descr_data.get('descriptor')
 
         # Old name fallback

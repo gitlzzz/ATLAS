@@ -331,7 +331,10 @@ def gen_al_loop_report(
                         "info",
                     )
                     with np.load("all_descriptors.npz") as data:
-                        desc_array = data["arr_0"]
+                        if hasattr(data, "arr_0"):
+                            desc_array = data["arr_0"]
+                        elif hasattr(data, "descriptor"):
+                            desc_array = data["descriptor"]
 
                 if not Path("autoencoder_model.pth").exists():
                     # Train autoencoder model

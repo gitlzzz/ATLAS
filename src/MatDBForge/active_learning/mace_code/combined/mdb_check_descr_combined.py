@@ -138,7 +138,12 @@ if __name__ == '__main__':
     else:
         mdb_cut.custom_print('Reading descriptors from file...')
         try:
-            descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')['arr_0']
+            descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')
+            if hasattr(descriptor_arr, 'arr_0'):
+                descriptor_arr = descriptor_arr['arr_0']
+            elif hasattr(descriptor_arr, 'descriptor'):
+                descriptor_arr = descriptor_arr['descriptor']
+
         except FileNotFoundError:
             descriptor_arr = np.load(prepend_path / 'all_descriptors.npy')
 
