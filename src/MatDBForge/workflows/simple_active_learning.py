@@ -2433,7 +2433,13 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Update test db eval results if available
         if hasattr(node.outputs, 'test_db_eval_results'):
-            self.ctx.test_db_eval_results = node.outputs['test_db_eval_results']
+            last_eval_dict = node.outputs['test_db_eval_results'].get_dict()
+
+            # If test_db_eval_results already exists in context, update it
+            if hasattr(self.ctx, 'test_db_eval_results'):
+                self.ctx.test_db_eval_results.update(last_eval_dict)
+            else:
+                self.ctx.test_db_eval_results = last_eval_dict
 
         # Send previous calculation error status to context
         # stop_al_loop_error is True if there was an error in the last step
