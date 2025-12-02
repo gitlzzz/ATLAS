@@ -284,6 +284,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.exit_code(
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
+        spec.exit_code(
+            421,
+            'ERROR_DESCRIPTOR_CALCULATION',
+            'Descriptor calculation ({node_id}) could not finish successfully.',
+        )
 
     def set_step_logger(self):
         self.report('Performing secondary logger setup...')
@@ -1106,7 +1111,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Get combined descriptor calculation node
             curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
 
-        # curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
+        # Throw exception if calculation didn't complete successfully
+        # Descriptors are essential for the workflow to proceed if
+        # enabled.
+        # If descriptors are disabled, this part of the code is not
+        # reached.
+        if curr_calc.exit_status != 0:
+            return self.exit_codes.ERROR_DESCRIPTOR_CALCULATION.format(
+                node_id=curr_calc.pk,
+            )
 
         # Loading descriptor min and max into context as numpy arrays
         self.ctx.descriptors_max_array = curr_calc.outputs.descriptor_max
