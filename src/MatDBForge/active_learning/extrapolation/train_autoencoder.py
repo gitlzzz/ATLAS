@@ -89,20 +89,20 @@ def load_dataset(
 
     # Load the dataset
     if isinstance(data, (str, pl.Path)):
-        point_arr = np.load(data)
+        descr_data = np.load(data)
     elif isinstance(data, np.ndarray):
-        point_arr = data
+        descr_data = data
 
     # If npz file, extract the first array
     # This is a workaround for the npz file format
     # that stores the data in a dictionary-like structure
     # with the key 'arr_0'
-    if isinstance(point_arr, np.lib.npyio.NpzFile):
-        point_arr = point_arr.get('descriptor')
+    if isinstance(descr_data, np.lib.npyio.NpzFile):
+        point_arr = descr_data.get('descriptor')
 
         # Old name fallback
         if point_arr is None:
-            point_arr = point_arr.get('arr_0')
+            point_arr = descr_data.get('arr_0')
 
         if point_arr is None:
             raise ValueError("No array found in the npz file.")
