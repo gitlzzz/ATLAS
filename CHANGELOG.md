@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.46.9 (2025-12-02)
+
+### Fix
+
+- **al_loop**: add new error code for failed descriptors and use it to stop al loop when descriptors fail ([#19d28b1](https://github.com/pol-sb/MatDBForge/commit/19d28b167473d871537a4f2d25ae789bfaf26578))
+- **al_loop**: update `test_db_eval_results` dict instead of overwriting it every iteration ([#6a91ea5](https://github.com/pol-sb/MatDBForge/commit/6a91ea52397de7fa46ba79dae00378bdbbcbbb15))
+- **domain_validity**: properly gather descriptors from npz file ([#6e47981](https://github.com/pol-sb/MatDBForge/commit/6e4798114de2fb8d91576231eb857dd7c32a109d))
+- **domain_validity**: check against loaded file when defining `point_arr` in `train_autoencoder.py` ([#c27c977](https://github.com/pol-sb/MatDBForge/commit/c27c977d02c712387a031e84e08969ebdce6be28))
+- **al_loop**: FINALLY fix infinite safeguard loop ([#eef099f](https://github.com/pol-sb/MatDBForge/commit/eef099f7cc38437bf5a39b8ee51560d4a138f14c))
+
+### Refactor
+
+- **al_loop**: rearrange prints and function calls ([#694071c](https://github.com/pol-sb/MatDBForge/commit/694071c23c4c2cacb403ef83248c27d7cfa2654e))
+
 ## 0.46.8 (2025-12-01)
 
 ### Fix
