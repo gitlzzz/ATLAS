@@ -2045,9 +2045,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         else:
             self.ctx.al_mode = 'data_acquisition'
 
-        self.report(
-            f"Loading databases for active learning mode: '{self.ctx.al_mode}'."
-        )
+        self.report(f'Loading databases for active learning mode: {self.ctx.al_mode}.')
 
         if self.ctx.al_mode == 'data_reduction':
             self._setup_data_reduction_databases()
@@ -3481,13 +3479,19 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         if seed_select_type == 'small_first':
             max_size = seed_select_settings['small_first_max_size']
             seed_gen_db_small = [s for s in seed_gen_db if len(s) <= max_size]
-            if len(seed_gen_db_small) != 0:
+            if len(seed_gen_db_small) >= seed_size:
                 seed_gen_db = seed_gen_db_small
+                self.logger.warning(
+                    f'Limited seed generation database to small cells'
+                    f' (below {max_size}).'
+                )
             else:
                 self.logger.warning(
-                    f'There are no structures with less than '
+                    f'There are not enough structures with less than '
                     f'{max_size} atoms in the given database. '
-                    "Please, remove the 'small_first' seed selection mode. "
+                    f'There should be at least {seed_size} structures. '
+                    "Please, decrease 'small_first_max_size' or remove "
+                    "the 'small_first' seed selection mode. "
                     'and try again.'
                 )
 
