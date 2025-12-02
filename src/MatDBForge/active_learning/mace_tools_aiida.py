@@ -1797,25 +1797,22 @@ class GetDescriptorsCombinedCalculation(CalcJob):
 
         # Gathering files.
         calcinfo.retrieve_list = [
-            # "results.out",
-            # "./results/curr_it_db*",
-            # "./results/*.png",
-            # "./results/*.npy",
             './logs/*',
         ]
 
         # They won't be added to the repository,
         # and instead kept into a temporary folder.
         calcinfo.retrieve_temporary_list = [
-            '*_output.out',
-            'results/*.pkl',
-            'results/curr_it_db*',
-            'results/*.png',
-            'results/*.npy',
-            'results/concave_hull.npy',
-            'results/latent_space.npy',
-            'results/*.pth',
-            '*.pth',
+            # '*_output.out',
+            # 'results/*.pkl',
+            # 'results/curr_it_db*',
+            # 'results/*.png',
+            # 'results/*.npy',
+            # 'results/concave_hull.npy',
+            # 'results/latent_space.npy',
+            # 'results/*.pth',
+            'results/*',
+            # '*.pth',
         ]
 
         return calcinfo
