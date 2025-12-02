@@ -2416,7 +2416,8 @@ def remove_structs_from_seed_gen_db(
 
 @calcfunction
 def check_md_seed_agreement(
-    return_list_path: str | None, md_structs_in_domain: bool | None
+    return_list_path: str | None,
+    md_structs_in_domain: bool | None,
 ) -> orm.Bool:
     """
     Check if all predictions agree for current seed.
