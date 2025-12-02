@@ -246,10 +246,6 @@ if __name__ == '__main__':
     res_folder = prepend_path / pl.Path('./results')
     res_folder.mkdir(exist_ok=True)
 
-    # Initialize the logger
-    log_folder = prepend_path / pl.Path('./logs')
-    log_folder.mkdir(exist_ok=True)
-
     # Read TOML file with settings
     with open(prepend_path / 'settings.toml', 'rb') as f:
         settings = tomllib.load(f)
