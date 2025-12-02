@@ -113,14 +113,6 @@ if __name__ == '__main__':
     # Ensure target alpha range is a tuple
     target_alpha_range = (target_alpha_range_min, target_alpha_range_max)
 
-    mdb_cut.custom_print(
-        f'Read concave hull settings. Target alpha range: {target_alpha_range}, '
-        f'default alpha if issues: {default_alpha_if_issues}, '
-        f'NN distance scale factor: {nn_dist_scale_factor}, '
-        f'Fraction of points allowed outside: {frac_points_allowed_out}',
-        'info',
-    )
-
     # Load data
     structs_database = ase_read(
         prepend_path / 'training_db.xyz', index=':', format='extxyz'
@@ -138,7 +130,12 @@ if __name__ == '__main__':
     else:
         mdb_cut.custom_print('Reading descriptors from file...')
         try:
-            descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')['arr_0']
+            descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')
+            if hasattr(descriptor_arr, 'arr_0'):
+                descriptor_arr = descriptor_arr['arr_0']
+            elif hasattr(descriptor_arr, 'descriptor'):
+                descriptor_arr = descriptor_arr['descriptor']
+
         except FileNotFoundError:
             descriptor_arr = np.load(prepend_path / 'all_descriptors.npy')
 
@@ -246,6 +243,16 @@ if __name__ == '__main__':
         match descriptor_settings.get('dimensionality_reduction_method'):
             case 'autoencoder':
                 mdb_cut.custom_print('Computing concave hull...', 'info')
+
+                mdb_cut.custom_print(
+                    f'Read concave hull settings. '
+                    f'Target alpha range: {target_alpha_range}, '
+                    f'default alpha if issues: {default_alpha_if_issues}, '
+                    f'NN distance scale factor: {nn_dist_scale_factor}, '
+                    f'Fraction of points allowed outside: {frac_points_allowed_out}',
+                    'info',
+                )
+
                 concave_hull, final_alpha = get_concave_hull_python(
                     latent_space_all,
                     target_alpha_range=target_alpha_range,

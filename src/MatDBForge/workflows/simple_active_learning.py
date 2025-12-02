@@ -284,6 +284,11 @@ class SimpleActiveLearningWorkChain(WorkChain):
         spec.exit_code(
             420, 'ERROR_SCHEDULER_MACE', 'error when submitting a MACE calculation.'
         )
+        spec.exit_code(
+            421,
+            'ERROR_DESCRIPTOR_CALCULATION',
+            'Descriptor calculation ({node_id}) could not finish successfully.',
+        )
 
     def set_step_logger(self):
         self.report('Performing secondary logger setup...')
@@ -1106,7 +1111,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Get combined descriptor calculation node
             curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
 
-        # curr_calc: orm.CalcJobNode = self.ctx.descrptor_results[0]
+        # Throw exception if calculation didn't complete successfully
+        # Descriptors are essential for the workflow to proceed if
+        # enabled.
+        # If descriptors are disabled, this part of the code is not
+        # reached.
+        if curr_calc.exit_status != 0:
+            return self.exit_codes.ERROR_DESCRIPTOR_CALCULATION.format(
+                node_id=curr_calc.pk,
+            )
 
         # Loading descriptor min and max into context as numpy arrays
         self.ctx.descriptors_max_array = curr_calc.outputs.descriptor_max
@@ -1713,10 +1726,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     if node.is_finished_ok
                     # if node.is_finished and node.exit_status in [0, 504, 503]
                 ]
-                if len(dft_calcs_ok) == 0:
+
+                if len(dft_calcs_ok) == 0 and dft_calcs > 0:
                     self.report('No DFT calculations finished correctly.')
                     dft_calc_list = ''
                     self.ctx.stop_al_loop_error = orm.Bool(True)
+                elif len(dft_calcs_ok) == 0 and dft_calcs == 0:
+                    self.report('No VASP DFT calculation jobs performed.')
+                    dft_calc_list = ''
                 else:
                     self.report(
                         f'Gathering {len(dft_calcs_ok)} VASP DFT calculations '
@@ -1734,15 +1751,17 @@ class SimpleActiveLearningWorkChain(WorkChain):
             else:
                 dft_calcs = []
             try:
-                self.report(
-                    f'Gathered {len(dft_calcs)} MACE evaluation calculation jobs.'
-                )
-
+                # Gather correct MACE calculations
+                dft_calcs_len = len(self.ctx.dft_struct_seed_calcs)
                 dft_calcs_ok = [node.uuid for node in dft_calcs if node.is_finished_ok]
-                if len(dft_calcs_ok) == 0:
-                    self.report('No DFT calculations finished correctly.')
+
+                if len(dft_calcs_ok) == 0 and dft_calcs_len > 0:
+                    self.report('No MACE evaluations finished correctly.')
                     dft_calc_list = ''
                     self.ctx.stop_al_loop_error = orm.Bool(True)
+                elif len(dft_calcs_ok) == 0 and dft_calcs_len == 0:
+                    self.report('No MACE evaluation jobs performed.')
+                    dft_calc_list = ''
                 else:
                     # Gather all MACE evaluations, storing results into a file,
                     # stored in `result_list_path`.
@@ -1752,6 +1771,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                         dft_calc_list=dft_calcs_ok,
                         results_dir=str(self.ctx.results_dir),
                         workchain=self.node.uuid,
+                    )
+                    self.report(
+                        f'Gathered {len(dft_calcs)} MACE evaluation calculation jobs.'
                     )
             except AttributeError:
                 dft_calc_list = ''
@@ -2424,7 +2446,13 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Update test db eval results if available
         if hasattr(node.outputs, 'test_db_eval_results'):
-            self.ctx.test_db_eval_results = node.outputs['test_db_eval_results']
+            last_eval_dict = node.outputs['test_db_eval_results'].get_dict()
+
+            # If test_db_eval_results already exists in context, update it
+            if hasattr(self.ctx, 'test_db_eval_results'):
+                self.ctx.test_db_eval_results.update(last_eval_dict)
+            else:
+                self.ctx.test_db_eval_results = last_eval_dict
 
         # Send previous calculation error status to context
         # stop_al_loop_error is True if there was an error in the last step
@@ -2853,8 +2881,21 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         match self.ctx.safeguard_enabled:
             # If safeguard is disabled
             case False:
-                self.report('Safeguard is not enabled, continuing AL loop.')
-                should_run = True
+                if al_error_stop:
+                    should_run = False
+                    self.report(
+                        'Safeguard is not enabled, and errors found: stopping AL loop.'
+                    )
+                else:
+                    should_run = (
+                        below_max_iterations
+                        and not al_error_stop
+                        and self.ctx.loop_continue_condition
+                    )
+                    self.report(
+                        'Safeguard is not enabled, and no errors found, should run:'
+                        f' {should_run}'
+                    )
 
             # If safeguard is enabled
             case True:
