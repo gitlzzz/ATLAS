@@ -14,6 +14,7 @@ import warnings
 
 import numpy as np
 import torch
+from ase import Atoms
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryReader, TrajectoryWriter
@@ -93,7 +94,11 @@ def check_traj_in_domain(
     return point_inside, point_outside, all_points_in_out
 
 
-def define_allowed_stages(md_stages: dict, current_al_step: int) -> list[int]:
+def define_allowed_stages(
+    md_stages: dict,
+    current_al_step: int,
+    init_structure: Atoms,
+) -> list[int]:
     """
     Define allowed MD stages based on the current active learning step.
 
@@ -103,6 +108,9 @@ def define_allowed_stages(md_stages: dict, current_al_step: int) -> list[int]:
         Dictionary containing the MD stages settings.
     current_al_step : int
         Current active learning iteration step.
+    init_structure : Atoms
+        Initial structure object, used to determine the type
+        from its info dict, one of: 'bulk', 'surface' or 'cluster'
 
     Returns
     -------
@@ -113,12 +121,18 @@ def define_allowed_stages(md_stages: dict, current_al_step: int) -> list[int]:
 
     # Checking iteratively for every stage
     for stage_name, stage_settings in md_stages.items():
-        use_steps = stage_settings.get('use_during_al_steps')
+        # Get the two filtering types
+        use_during_al_steps: str = stage_settings.get('use_during_al_steps')
+        use_for_structure_types: list[str] = stage_settings.get(
+            'use_for_structure_types'
+        )
+
         steps_to_check_list = []
+
         # Only check stage if the `use_during_al_steps` key is defined
-        if use_steps:
+        if use_during_al_steps:
             # Parsing the string to get the steps or ranges of steps
-            use_steps_list = use_steps.strip().split(',')
+            use_steps_list = use_during_al_steps.strip().split(',')
             for step_range in use_steps_list:
                 step_range = step_range.strip()
 
@@ -136,22 +150,32 @@ def define_allowed_stages(md_stages: dict, current_al_step: int) -> list[int]:
 
                 steps_to_check_list.extend(step_range)
 
-        # Converting to set to avoid duplicates
-        steps_to_check_list = list(set(steps_to_check_list))
+            # Converting to set to avoid duplicates
+            steps_to_check_list = list(set(steps_to_check_list))
 
-        # Checking if the current AL step is in the list of steps to check
-        if current_al_step in steps_to_check_list:
-            allowed_stages_names.append(stage_name)
+            # Checking if the current AL step is in the list of steps to check
+            if current_al_step in steps_to_check_list:
+                allowed_stages_names.append(stage_name)
+
+        # Only check stage if the `use_for_structure_types` key is defined
+        elif use_for_structure_types:
+            # Check the keys corresponding to the given structure types, which will
+            # be a bool marking if the structure is of that type
+            for struct_type in use_for_structure_types:
+                current_structure_type: bool = init_structure.info.get(struct_type)
+                if current_structure_type:
+                    allowed_stages_names.append(stage_name)
+
     return allowed_stages_names
 
 
-def limit_md_frames(md_traj, md_params: dict):
+def limit_md_frames(md_traj: Atoms, md_params: dict):
     """
     Limit the number of frames in the MD trajectory.
 
     Parameters
     ----------
-    md_traj : ase.Atoms
+    md_traj : Atoms
         MD trajectory.
     md_params : dict
         Dictionary containing the MDB settings for MD.
@@ -302,14 +326,13 @@ if __name__ == '__main__':
 
     # Read the settings related to MD stages
     md_stages = md_params.get('stages', {})
-
-    # Read current AL step to allow or disallow stages
     current_al_step = settings.get('active_learning', {}).get('current_iteration', 0)
 
     # Define allowed stages based on current AL step
     allowed_stage_names = define_allowed_stages(
         md_stages=md_stages,
         current_al_step=current_al_step,
+        init_structure=init_conf_orig,
     )
 
     md_stages_allowed = {}
