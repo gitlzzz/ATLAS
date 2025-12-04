@@ -812,8 +812,8 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
     for struct in database:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
-        elif struct.info.get('aiida_uuid'):
-            struct_key = struct.info.get('aiida_uuid')
+        # elif struct.info.get('aiida_uuid'):
+        # struct_key = struct.info.get('aiida_uuid')
         else:
             struct_key = str(uuid4())
             struct.info['mdb_id'] = struct_key
@@ -2072,8 +2072,10 @@ def filter_dft_calcs_threshold(
             filtered_dft_calc_list.append(calc)
         else:
             if workchain:
+                aiida_uuid = calc.info.get('aiida_uuid', 'unknown')
                 workchain.report(
-                    f'Filtered DFT calculation {calc.info["mdb_id"]} '
+                    f"Filtered DFT calculation '{aiida_uuid}' "
+                    f"for structure '{calc.info['mdb_id']}' "
                     f'with E_diff_meV: {E_diff_meV} and F_diff_meV: {F_diff_meV}'
                 )
 
