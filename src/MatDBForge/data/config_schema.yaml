@@ -1300,7 +1300,8 @@ active_learning:
         description: "Collection of named keys representing a particular stage of an MD simulation. These stages will be chained together and applied to single MD calculation job following the order defined in `md.parameters.md_stage_order`, resulting in a continuous MD calculation with different settings for every stage. Each stage key will contain contain settings to be applied during each stage, overriding the default MD settings specified under `md.parameters`. Each dictionary must contain a mandatory `use_during_al_steps` or `use_for_structure_types` key, which specifies when given stage must be run. If none of these two keys are not present, the stage will be ignored."
         # type: list[dict]
         # mandatory: true
-        schema:
+        dynamic_keys: true
+        schema_under_dynamic_keys:
           use_during_al_steps:
             description: "String representing a number of AL steps or interval of AL steps in which the stage will be used. For example, `0` means that the stage will be used during step 0, while `3-6` means that the stage will be used from AL step 3 to AL step 6 (inclusive). The example `'0-1, 3, 4, 5-9, 11'` would execute the current stage for steps 0, 1, 3, 4, 5, 6, 7, 8, 9, and 11."
             type: str
@@ -1312,8 +1313,6 @@ active_learning:
             mandatory: false
             # default: ["bulk", "surface", "cluster"]
             choices: ["bulk", "surface", "cluster"]
-        dynamic_keys: true
-        schema_under_dynamic_keys:
           md_parameters:
             wildcard_entry: true
             wildcard_path: "md.parameters"
