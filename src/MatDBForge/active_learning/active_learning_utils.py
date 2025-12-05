@@ -1445,9 +1445,32 @@ def get_dft_calc_builder_vasp(
     return builder
 
 
+def sampler_populate_E_and_F_list(
+    structure_list: list[Atoms],
+    curr_model: orm.SinglefileData,
+):
+    from io import BytesIO
+
+    from mace.calculators import MACECalculator
+
+    # Load model from SinglefileData and pass it to MACE
+    model_file_content = curr_model.get_content(mode='rb')
+    model_file_io = BytesIO(model_file_content)
+    mace_model = torch.load(model_file_io)
+    calc = MACECalculator(models=[mace_model])
+
+    for struct in structure_list:
+        struct.calc = calc
+        E_nn = struct.get_potential_energy()
+        F_nn = struct.get_forces()
+        struct.info['curr_model_energy'] = E_nn
+        struct.arrays['curr_model_forces'] = F_nn
+
+    return structure_list
+
+
 def get_dft_calc_builder_mace_list(
     struct_list: list,
-    row,
     dft_settings: dict,
     container_settings: dict,
 ):

@@ -1622,7 +1622,6 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if self.inputs.dft_method == 'mace' and len(mace_calcs_struct_list) > 0:
             builder = mdb_al_ut.get_dft_calc_builder_mace_list(
                 struct_list=mace_calcs_struct_list,
-                row=struct.info,
                 dft_settings=self.inputs.dft_settings.get_dict(),
                 container_settings=self.inputs.container_settings.get_dict(),
             )
@@ -1785,6 +1784,15 @@ class SimpleActiveLearningWorkChain(WorkChain):
             if filter_settings.get('filter_dft_calcs', False):
                 threshold_E_meV = filter_settings.get('threshold_E_meV', 1e3)
                 threshold_F_meV = filter_settings.get('threshold_F_meV', 1e4)
+
+                # For non MLIP cases (DFT), the model predictions are not readily
+                # accessible, so they must be generated on the fly.
+                if self.inputs.dft_method != 'mace':
+                    mdb_al_ut.sampler_populate_E_and_F_list(
+                        structure_list=dft_calc_list,
+                        model_file=self.ctx.best_model_file,
+                    )
+
                 self.report(
                     'Removing DFT structures with differences higher than: '
                     f'E - {threshold_E_meV} meV, F - {threshold_F_meV} meV'
