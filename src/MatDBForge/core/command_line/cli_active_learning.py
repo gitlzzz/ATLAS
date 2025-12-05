@@ -189,6 +189,10 @@ def create_active_learning_builder(
                 f'Current path: {mace_potential_path}'
             )
         selected_settings_dict = toml_dict['dft']['mace']
+    elif not dft_method:
+        raise ValueError('No DFT method selected in the TOML settings file.')
+    else:
+        raise ValueError(f'DFT method {dft_method} not recognized.')
 
     # Adding ignore container options if available
     selected_settings_dict['ignore_container'] = toml_dict.get('dft', {}).get(

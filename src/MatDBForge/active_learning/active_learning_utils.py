@@ -1473,6 +1473,7 @@ def get_dft_calc_builder_mace_list(
         curr_model_forces = curr_struct.arrays.get('REF_forces', None)
         if curr_model_forces is not None:
             curr_struct.arrays['curr_model_forces'] = curr_model_forces
+
         curr_model_energy = curr_struct.info.get('REF_energy', None)
         if curr_model_energy is not None:
             curr_struct.info['curr_model_energy'] = curr_model_energy
