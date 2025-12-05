@@ -1063,6 +1063,16 @@ def run_dataframe_vasp_aiida_queue(
     # Starting calculation queue
     # calc_queue = queue.Queue(maxsize=max_batch)
 
+    # Check if every structure has an unique uuid
+    if isinstance(initial_db, list):
+        unique_uuids = set([struct.info.get('mdb_id') for struct in initial_db])
+        if len(unique_uuids) != len(initial_db):
+            raise ValueError(
+                'Some structures in the initial database lack unique IDs. '
+                'Please ensure all structures have a unique "mdb_id" in their info '
+                'or remove all mdb_id keys and re-run to auto-generate them.'
+            )
+
     # Getting the selected structures dataframe
     if sel_structures_type and isinstance(initial_db, mdb_indb.InitialDatabase):
         sel_struct_db = initial_db.df[initial_db.df[sel_structures_type]]
