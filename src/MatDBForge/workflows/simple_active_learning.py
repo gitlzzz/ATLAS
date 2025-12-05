@@ -2308,6 +2308,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             database_training[idx] = struct
 
+        # Check if every structure has an unique uuid
+        unique_uuids = set([struct.info.get('mdb_id') for struct in database_training])
+        if len(unique_uuids) != len(database_training):
+            raise ValueError(
+                'Some structures in the initial database lack unique IDs. '
+                'Please ensure all structures have a unique "mdb_id" in their info '
+                'or remove all mdb_id keys and re-run to auto-generate them.'
+            )
+
         # Update modified training database
         ase_write(
             filename=self.inputs.active_learning.init_db_path.value,
