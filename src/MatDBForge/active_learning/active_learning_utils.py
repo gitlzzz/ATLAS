@@ -1447,14 +1447,14 @@ def get_dft_calc_builder_vasp(
 
 def sampler_populate_E_and_F_list(
     structure_list: list[Atoms],
-    curr_model: orm.SinglefileData,
+    model_file: orm.SinglefileData,
 ):
     from io import BytesIO
 
     from mace.calculators import MACECalculator
 
     # Load model from SinglefileData and pass it to MACE
-    model_file_content = curr_model.get_content(mode='rb')
+    model_file_content = model_file.get_content(mode='rb')
     model_file_io = BytesIO(model_file_content)
     mace_model = torch.load(model_file_io)
     calc = MACECalculator(models=[mace_model])
