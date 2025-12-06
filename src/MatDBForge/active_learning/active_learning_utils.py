@@ -1459,7 +1459,19 @@ def sampler_populate_E_and_F_list(
     mace_model = torch.load(model_file_io)
     calc = MACECalculator(models=[mace_model])
 
+    # Calculating energies and forces for all structures
+    # in the structure list using the current iteration
+    # of the MLIP
     for struct in structure_list:
+        # Convert from aiida-serialized dict to ASE Atoms if needed
+        if isinstance(struct, dict):
+            try:
+                struct = Atoms.fromdict(struct)
+            except Exception as e:
+                print('Error while converting dict to Atoms: ', e)
+                struct = aiida_serialized_ase_dict_to_atoms(struct)
+
+        # Attach the calculator and compute E and F
         struct.calc = calc
         E_nn = struct.get_potential_energy()
         F_nn = struct.get_forces()
