@@ -697,15 +697,17 @@ class InitialDatabase:
         """
         Add structures containing a single atom of each species in the database.
 
-        These structures are used for their reference energies in some MLP such
-        as MACE or n2p2. Structures are centered in the cell with some vacuum
-        around them.
+        Some MLIPs such as MACE require specifically labelled structures to be used
+        for their reference energies. The structures are defined as a single atom of 
+        one of the species present in the MLIP training database. Structures are 
+        centered in the cell with some vacuum around them.
 
         Parameters
         ----------
-        database : InitialDatabase
-            _description_
+        vacuum : float, optional
+            Amount of vacuum to add around the atom in Angstroms, by default 10.
         """
+        # Get all species present in the database
         species_list = []
         for _, db_entry in self.df.iterrows():
             species_list.extend(db_entry.structure.species)
