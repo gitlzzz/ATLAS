@@ -1986,6 +1986,9 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
         elif 'stress' in vasprun.info:
             vasprun.info['REF_stress'] = vasprun.info.pop('stress')
         elif vasprun.calc:
+            # another possible way could be:
+            # vasprun.get_stress(voigt=False).reshape(9)
+            # to get a str-like representation in extxyz
             vasprun.info['REF_stress'] = vasprun.calc.get_stress(voigt=False).tolist()
 
         vasprun: dict = serialize_ase(vasprun)
@@ -2074,7 +2077,10 @@ def remove_isolated_atoms(
 
 
 def filter_dft_calcs_threshold(
-    dft_calc_list: list, threshold_E_meV: float, threshold_F_meV: float, workchain=None
+    dft_calc_list: list,
+    threshold_E_meV: float,
+    threshold_F_meV: float,
+    workchain=None,
 ) -> list:
     """
     Filter DFT calculations based on energy and force thresholds.
@@ -2098,29 +2104,36 @@ def filter_dft_calcs_threshold(
         F_dft = calc.arrays.get('REF_forces', None)
         F_nn = calc.arrays.get('curr_model_forces', None)
 
-        miss = []
+        missing_parameters = []
         if E_dft is None:
-            miss.append('REF_energy')
+            missing_parameters.append('REF_energy')
         if E_nn is None:
-            miss.append('curr_model_energy')
+            missing_parameters.append('curr_model_energy')
         if F_dft is None:
-            miss.append('REF_forces')
+            missing_parameters.append('REF_forces')
         if F_nn is None:
-            miss.append('curr_model_forces')
+            missing_parameters.append('curr_model_forces')
 
-        if miss:
-            msg = (f"Skipping DFT calculation "
-                   f"'{calc.info.get('aiida_uuid', 'unknown')}' "
-                   f"for structure '{calc.info.get('mdb_id', 'unknown')}' "
-                   f"due to missing values: {', '.join(miss)}"
+        if missing_parameters:
+            msg = (
+                f'Skipping filtering for DFT calculation: '
+                f"'{calc.info.get('aiida_uuid', 'unknown')}' "
+                f"for structure '{calc.info.get('mdb_id', 'unknown')}' "
+                f'due to missing values: {", ".join(missing_parameters)}.'
+                'Structure will not be not checked or removed.'
             )
             if workchain:
                 workchain.report(msg)
             else:
                 print(msg)
+
+            # Adding it into the filtered list despite the filter
+            # failing
+            calc = serialize_ase(calc)
+            filtered_dft_calc_list.append(calc)
             continue
 
-         # Normalize energy and forces per atom
+        # Normalize energy and forces per atom
         E_dft_at = calc.info.get('REF_energy') / n_at
         E_nn_at = calc.info.get('curr_model_energy') / n_at
         F_dft_at = simplify_forces_struct(calc.arrays.get('REF_forces'))[0] / n_at
