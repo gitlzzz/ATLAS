@@ -2092,6 +2092,35 @@ def filter_dft_calcs_threshold(
 
         # Get the energy and forces from the DFT calculation and NN
         n_at = len(calc)
+        # only check the existing values
+        E_dft = calc.info.get('REF_energy', None)
+        E_nn = calc.info.get('curr_model_energy', None)
+        F_dft = calc.arrays.get('REF_forces', None)
+        F_nn = calc.arrays.get('curr_model_forces', None)
+
+        miss = []
+        if E_dft is None:
+            miss.append('REF_energy')
+        if E_nn is None:
+            miss.append('curr_model_energy')
+        if F_dft is None:
+            miss.append('REF_forces')
+        if F_nn is None:
+            miss.append('curr_model_forces')
+
+        if miss:
+            msg = (f"Skipping DFT calculation "
+                   f"'{calc.info.get('aiida_uuid', 'unknown')}' "
+                   f"for structure '{calc.info.get('mdb_id', 'unknown')}' "
+                   f"due to missing values: {', '.join(miss)}"
+            )
+            if workchain:
+                workchain.report(msg)
+            else:
+                print(msg)
+            continue
+
+         # Normalize energy and forces per atom
         E_dft_at = calc.info.get('REF_energy') / n_at
         E_nn_at = calc.info.get('curr_model_energy') / n_at
         F_dft_at = simplify_forces_struct(calc.arrays.get('REF_forces'))[0] / n_at

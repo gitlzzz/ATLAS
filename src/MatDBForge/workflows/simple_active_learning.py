@@ -1788,7 +1788,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 # For non MLIP cases (DFT), the model predictions are not readily
                 # accessible, so they must be generated on the fly.
                 if self.inputs.dft_method != 'mace':
-                    mdb_al_ut.sampler_populate_E_and_F_list(
+                    dft_calc_list = mdb_al_ut.sampler_populate_E_and_F_list(
                         structure_list=dft_calc_list,
                         model_file=self.ctx.best_model_file,
                     )
