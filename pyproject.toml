@@ -95,6 +95,14 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb-descriptors-combined-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetDescriptorsCombinedParser"
 "mdb-safeguard-md-parser" = "MatDBForge.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculationParser"
 
+[project.entry-points."aiida.data"]
+"mdb.img-png" = "MatDBForge.workflows.datatypes.image_types:ImagePNGData"
+"mdb.mlip-model" = "MatDBForge.workflows.datatypes.mlip:MLIPModelFileData"
+
+# CLI entries
+[project.entry-points."aiida.cmdline.data"]
+"mdb.img-png" = "MatDBForge.workflows.datatypes.aiida_cli:cli"
+
 [project.scripts]
 "mdb_active_learning" = "MatDBForge.core.command_line.cli_active_learning:run_active_learning"
 "mdb_gen_configuration_file" = "MatDBForge.core.command_line.cli_generate_configuration_file:gen_default_config"
