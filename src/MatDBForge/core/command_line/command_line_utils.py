@@ -611,7 +611,10 @@ def validate_section_recursive(
         root_config_data = config_data
 
     if config_data is None:
-        if section_mandatory:
+        if section_mandatory and path.split('.')[-1] not in [
+            'depends_on',
+            'schema_under_dynamic_keys',
+        ]:
             errors.append(f'Missing mandatory section: {path}')
         return errors
 

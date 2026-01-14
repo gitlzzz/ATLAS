@@ -1136,13 +1136,13 @@ Training settings for the autoencoder.
 
 - {alt}`device`:
   - **Description**: Device for autoencoder training.
-  - **Type**: `(optional, str)`
+  - **Type**: `(str)`
   - **Default**: `'cuda'`.
   - Possible values are: `cpu`, `cuda`.
 
 - {alt}`dtype`:
   - **Description**: Data type for autoencoder training.
-  - **Type**: `(optional, str)`
+  - **Type**: `(str)`
   - **Default**: `'float32'`.
   - Possible values are: `float32`, `float64`.
 
@@ -1183,7 +1183,7 @@ Training settings for the autoencoder.
 
 - {alt}`num_epochs`:
   - **Description**: Number of epochs to train the model.
-  - **Type**: `(optional, int)`
+  - **Type**: `(int)`
   - **Default**: `50`.
 
 - {alt}`batch_size`:
