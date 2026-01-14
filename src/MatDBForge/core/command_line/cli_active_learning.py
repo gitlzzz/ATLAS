@@ -149,7 +149,9 @@ def create_active_learning_builder(
         md_params['al_keep_struct_every_n_ps']
     )
     builder.active_learning.md_temperature_list_K = md_params['temperature_list_K']
-    builder.active_learning.md_max_temp_multiplier = md_params['max_temp_multiplier']
+    builder.active_learning.md_max_temp_multiplier = float(
+        md_params['max_temp_multiplier']
+    )
     builder.active_learning.md_num_steps = int(md_params['num_steps'])
     builder.active_learning.md_timestep_duration_ps = float(
         md_params['timestep_duration_ps']
@@ -839,9 +841,13 @@ def run_active_learning():
         errors_found, errors, warnings = validate_config_file(
             config_path=args.config_file, config_type='active_learning'
         )
-        print()
+        if len(errors) > 0:
+            for error in errors:
+                custom_print(error, print_type='error')
+            sys.exit(1)
         if errors_found:
             sys.exit(1)
+        print()
 
     if args.command == 'report':
         from MatDBForge.active_learning import report_utils as mdb_report

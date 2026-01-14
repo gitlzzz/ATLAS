@@ -97,7 +97,7 @@ def validate_config_file(
             and warnings is list of dicts
     """
     if config_dict is None and config_path is None:
-        return False, ['Either config_dict or config_path must be provided']
+        return False, ['Either config_dict or config_path must be provided.'], []
 
     if config_path is not None:
         try:
@@ -116,7 +116,7 @@ def validate_config_file(
     schema = get_schema()
     config_schema = schema.get(config_type)
     if not config_schema:
-        return False, [f'Unknown configuration type: {config_type}']
+        return False, [f'Unknown configuration type: {config_type}'], []
 
     custom_print('Validating TOML input file...', print_type='info')
 
