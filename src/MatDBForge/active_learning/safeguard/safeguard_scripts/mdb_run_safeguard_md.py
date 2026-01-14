@@ -199,7 +199,10 @@ if __name__ == '__main__':
         settings = tomllib.load(f)
 
     # Parse settings
-    safe_md_params = settings.get('safeguard', {}).get('md_parameters')
+    safe_md_params = settings.get('safeguard', {}).get('md', {}).get('parameters')
+
+    if safe_md_params is None:
+        safe_md_params = settings.get('safeguard', {}).get('md_parameters')
 
     # Adding key explicitly to display it in the log
     if not safe_md_params.get('sample_frames_during_md'):
