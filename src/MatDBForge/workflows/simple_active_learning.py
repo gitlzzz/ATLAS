@@ -383,6 +383,22 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 ),
             )
 
+        try:
+            import torch
+
+            self.ctx.cuda_available = torch.cuda.is_available()
+            if self.ctx.cuda_available:
+                self.report(f'CUDA available: {self.ctx.cuda_available}')
+                self.logger.debug(
+                    f'Default device properties: '
+                    f'{torch.cuda.get_device_properties(torch.cuda.current_device())}'
+                )
+            else:
+                self.report('CUDA not available, running on CPU only.')
+        except ImportError:
+            self.logger.warning('Unable to import torch package. Assuming CPU only.')
+            self.ctx.cuda_available = False
+
     def should_select_data_reduction_structures(self):
         """Check if we should select additional structures for data reduction mode."""
         return self.inputs.al_mode.value == 'data_reduction'
@@ -789,9 +805,14 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
                 # Convert model to LAMMPS compatible format
                 # and return it to workchain context
-                self.ctx.lammps_potential_file = mdb_al_ut.create_mace_lammps_model(
-                    model_file
-                )
+                if self.ctx.cuda_available:
+                    self.ctx.lammps_potential_file = mdb_al_ut.create_mace_lammps_model(
+                        model_file
+                    )
+                else:
+                    self.logger.warning(
+                        'CUDA not available, skipping LAMMPS potential file creation.'
+                    )
 
                 self.report(
                     f"Best model of current step '{model_name}' ({calc.pk}) as M0 - "
@@ -1751,7 +1772,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 dft_calcs = []
             try:
                 # Gather correct MACE calculations
-                dft_calcs_len = len(self.ctx.dft_struct_seed_calcs)
+                dft_calcs_len = len(dft_calcs)
                 dft_calcs_ok = [node.uuid for node in dft_calcs if node.is_finished_ok]
 
                 if len(dft_calcs_ok) == 0 and dft_calcs_len > 0:
@@ -1776,6 +1797,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     )
             except AttributeError:
                 dft_calc_list = ''
+                self.report(
+                    'Exception raised when gathering MACE evaluation calculation jobs.'
+                )
 
         if len(dft_calc_list) > 0:
             # Run filtering step based on NN vs DFT difference threshold
@@ -2939,7 +2963,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.report('Running safeguard checks...')
 
         # Skipping safeguard if there was an error in the previous step
-        if hasattr(self.ctx, 'stop_al_loop_error'):
+        if (
+            hasattr(self.ctx, 'stop_al_loop_error')
+            and self.ctx.stop_al_loop_error is True
+        ):
             self.report(
                 f'Last step ({self.ctx.last_workchain_completed.pk}) '
                 'did not finish correctly. '
@@ -2974,10 +3001,17 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 called_types.index('GetDescriptorsCombinedCalculation')
             ]
         except ValueError:
-            if hasattr(self.inputs.active_learning, 'load_descriptor_calc'):
+            if (
+                hasattr(self.inputs.active_learning, 'load_descriptor_calc')
+                and self.inputs.active_learning.load_descriptor_calc != ''
+            ):
                 descriptor_calc = orm.load_node(
                     self.inputs.active_learning.load_descriptor_calc.value
                 )
+            else:
+                # This will happen if 'check_extrapolation_type' is 'none' in the
+                # user settings.
+                descriptor_calc = None
 
         # Keep default values as None if not available
         desc_max_arr = None
@@ -2985,15 +3019,20 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         autoencoder_model = None
         desc_min_arr = None
 
-        try:
-            desc_max_arr: orm.ArrayData = descriptor_calc.outputs['descriptor_max']
-            desc_min_arr: orm.ArrayData = descriptor_calc.outputs['descriptor_min']
-            autoencoder_model: orm.SinglefileData = descriptor_calc.outputs[
-                'autoencoder_model'
-            ]
-            concave_hull: orm.ArrayData = descriptor_calc.outputs['concave_hull']
-        except ValueError:
-            pass
+        if descriptor_calc:
+            try:
+                desc_max_arr: orm.ArrayData = descriptor_calc.outputs['descriptor_max']
+                desc_min_arr: orm.ArrayData = descriptor_calc.outputs['descriptor_min']
+                if hasattr(descriptor_calc.outputs, 'autoencoder_model'):
+                    autoencoder_model: orm.SinglefileData = descriptor_calc.outputs[
+                        'autoencoder_model'
+                    ]
+                if hasattr(descriptor_calc.outputs, 'concave_hull'):
+                    concave_hull: orm.ArrayData = descriptor_calc.outputs[
+                        'concave_hull'
+                    ]
+            except ValueError:
+                pass
 
         # Loading the settings file again to get updated settings
         settings_path = Path(self.ctx.inputs.toml_file.value)
@@ -3299,6 +3338,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
                 # Setting flag for continuing the AL loop
                 self.ctx.safeguard_check_done = False
+                self.ctx.safeguard_attempted = False
 
                 # Adding failed structures to the seed generation database
                 seed_gen_db: list = mdb_al_ut.load_database(self.ctx.seed_db_path)

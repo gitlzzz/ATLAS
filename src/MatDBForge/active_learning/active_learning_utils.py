@@ -623,10 +623,20 @@ def prepare_test_set(
     # Check if a test set file must be loaded
     must_load_file = test_db_path is not None and Path(test_db_path).exists()
 
+    test_db_path: Path = Path(test_db_path)
+
     # Load user provided file
     if must_load_file:
-        test_db_structures = ase_read(filename=test_db_path, format='extxyz')
-        return orm.SinglefileData(file=test_db_path), test_db_structures, training_db
+        test_db_structures = ase_read(
+            filename=test_db_path,
+            format='extxyz',
+            index=':',
+        )
+        return (
+            orm.SinglefileData(file=test_db_path.resolve()),
+            test_db_structures,
+            training_db,
+        )
     else:
         # Get the test set fraction and select random structures
         n_test_structures = max(1, int(len(training_db) * test_db_frac))
@@ -665,7 +675,7 @@ def generate_descriptors_mace(
     database,
     descriptor_settings: dict,
     outer_average: bool = False,
-):
+) -> (dict, np.ndarray):
     from mace.calculators import MACECalculator
 
     device = descriptor_settings.get('device', 'cpu')
@@ -780,7 +790,7 @@ def get_species_from_database(database: list[Atoms]) -> list[str]:
     return sorted(species)
 
 
-def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
+def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings: dict):
     # Initializing the SOAP calculator
     from dscribe.descriptors import SOAP
 
