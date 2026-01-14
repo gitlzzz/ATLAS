@@ -12,9 +12,11 @@ import pickle
 import time
 import uuid
 import warnings
+from collections import Counter
 from io import BytesIO, TextIOWrapper
 from os import cpu_count
 from types import SimpleNamespace
+from typing import Self
 
 import ase.io as aseio
 import matplotlib as mpl
@@ -25,7 +27,7 @@ import pymatgen.io.vasp as vasp
 import rich.progress as riprg
 from aiida import load_profile, orm
 from aiida_vasp.calcs.vasp import VaspCalculation
-from ase import Atoms as ase_atoms
+from ase import Atoms
 from ase import build as ase_build
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
@@ -176,7 +178,8 @@ class InitialDatabase:
     def __len__(self):
         return self.df.shape[0]
 
-    def _adapt_old_db(self, database_old):
+    @staticmethod
+    def _adapt_old_db(database_old):
         """Adapter for the old version of the database."""
         columns_to_add = {
             'bulk': bool,
@@ -191,7 +194,7 @@ class InitialDatabase:
 
         return database_old
 
-    def _load_database(self) -> pd.DataFrame:
+    def _load_database(self) -> Self | pd.DataFrame:
         """
         Load a database from a pickle file on the cwd or a specific path.
 
@@ -202,7 +205,10 @@ class InitialDatabase:
         """
         db_path = pl.Path(self.database_path) / pl.Path(self.database_name)
         mdb_cut.custom_print(f"Loading database: '{self.database_name}'", 'debug')
-        self.database_name = db_path.name.replace(db_path.suffix, '')
+        self.database_name = db_path.stem
+
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database '{db_path}' does not exist.")
 
         # If no suffixes are present, add the default one.
         if len(db_path.suffixes) == 0:
@@ -217,46 +223,54 @@ class InitialDatabase:
                 'debug',
             )
             database = pd.read_pickle(db_path)
-            database = self._adapt_old_db(database)
-
-            return database
+            database_df = self._adapt_old_db(database)
 
         # Loading the database
         elif '.xz' in db_path.suffixes or suffix == '.xz':
             suffix = '.xz'
             with lzma.open(db_path, 'rb') as f:
-                database = pickle.load(f)
+                loaded_db_obj = pickle.load(f)
 
                 # Setting parameters from InitialDatabase
-                self.database_name = database.database_name
-                self.max_num_atoms = database.max_num_atoms
-                self.db_version = database.db_version
+                self.database_name = loaded_db_obj.database_name
+                self.max_num_atoms = loaded_db_obj.max_num_atoms
+                self.db_version = loaded_db_obj.db_version
 
                 mdb_cut.custom_print(
                     f'Using database version {self.db_version}.', 'debug'
                 )
 
-            return database.df
+            database_df = loaded_db_obj.df
+
+        else:
+            raise mdb_exc.IncompatibleDataBase(
+                f"Database '{db_path}' has an unsupported format."
+            )
 
         mdb_cut.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
         mdb_cut.custom_print(f'Path: {db_path}', 'debug')
 
-    def load_database(self, database_path: pl.Path | str) -> pd.DataFrame:
+        return database_df
+
+    @classmethod
+    def load_database(cls, database_path: pl.Path | str) -> Self | pd.DataFrame:
         """
         Load a MDB database from a specific path.
 
         Returns
         -------
-        InitialDatabase
+        InitialDatabase | pd.DataFrame
             Object containing structure data for the initial database.
         """
         db_path = pl.Path(database_path)
         if not db_path.exists():
             raise FileNotFoundError(f"Database '{db_path}' does not exist.")
-        mdb_cut.custom_print(f"Loading database: '{self.database_name}'", 'info')
+
+        mdb_cut.custom_print(f"Loading database from: '{db_path.resolve()}'", 'info')
 
         # If no suffixes are present, add the default one.
-        if len(db_path.suffixes) == 0:
+        suffix = db_path.suffix
+        if not suffix:
             suffix = '.xz'
             db_path = db_path.with_suffix(suffix)
 
@@ -268,24 +282,83 @@ class InitialDatabase:
                 'warn',
             )
             database = pd.read_pickle(db_path)
-            database = self._adapt_old_db(database)
-
-            return database
+            database = cls._adapt_old_db(database)
 
         # Loading the database
-        elif '.xz' in db_path.suffixes or suffix == '.xz':
+        elif '.xz' in db_path.suffixes:
             suffix = '.xz'
             with lzma.open(db_path, 'rb') as f:
                 database = pickle.load(f)
 
                 mdb_cut.custom_print(
-                    f'Using database version {self.db_version}.', 'info'
+                    f'Using database version {database.db_version}.', 'info'
                 )
 
-            return database
+        else:
+            try:
+                db_ase_atoms = aseio.read(filename=db_path, index=':')
+                phases = []
+                species = set()
 
-        mdb_cut.custom_print(f"Loaded '{self.database_name}{suffix}'", 'info')
-        mdb_cut.custom_print(f'Path: {db_path}', 'debug')
+                # Instantiate the class (supports inheritance)
+                database = cls()
+
+                # Prepare structures
+                if isinstance(db_ase_atoms, list):
+                    mdb_struct_list = []
+                    for atoms in db_ase_atoms:
+                        mdb_struct_list.append(
+                            MDBStructure.from_ase_atoms(ase_atoms=atoms)
+                        )
+                        phases.append(atoms.info.get('phase', 'unknown'))
+                        species = species.union(atoms.symbols.species())
+                else:
+                    mdb_struct_list = [
+                        MDBStructure.from_ase_atoms(ase_atoms=db_ase_atoms)
+                    ]
+                    phases.append(db_ase_atoms.info.get('phase', 'unknown'))
+                    species = species.union(db_ase_atoms.symbols.species())
+
+                # Populate database
+                for struct in mdb_struct_list:
+                    database = struct.save_to_db(database)
+
+                # Create phase diagram
+                base_elem = Element(Counter(phases).most_common(1)[0][0].title())
+                phases_str_list = set(phases)
+                phase_diagram = mdb_pd.PhaseDiagram(
+                    material='loaded_material',
+                    base_elem=base_elem,
+                    element_list=list(species),
+                )
+
+                # Adding placeholder phases
+                for phase_str in phases_str_list:
+                    curr_phase = mdb_pd.Phase(
+                        name=phase_str,
+                        element_list=list(species),
+                        cluster_elem=base_elem,
+                        composition={base_elem.symbol: {'min': 0.0, 'max': 1.0}},
+                        spacegroup='unknown',
+                        symbol=base_elem.symbol,
+                        prototype='unknown',
+                        offset=0,
+                        # replace_dict=None,
+                        allow_modifications=True,
+                        phase_diagram=phase_diagram,
+                        use_cache=False,
+                    )
+                    phase_diagram.add_phase(curr_phase)
+
+                database.phase_diagram = phase_diagram
+
+            except Exception as e:
+                print(f'#@# Error: {e}')
+                raise mdb_exc.IncompatibleDataBase(
+                    f"Database '{db_path}' has an unsupported format."
+                ) from None
+
+        return database
 
     def get_db_shape(self) -> tuple:
         # Getting the amount of entries in the database
@@ -417,6 +490,20 @@ class InitialDatabase:
             sorted(struct_info_dict['phases'].items(), key=lambda x: x[1])[::-1]
         )
 
+        # Add an additonal key to the 'by_modification' dictionary, containing
+        # the total number of non-modified structures. This adds context to the
+        # plot.
+        total_mod_structs: int = sum(
+            struct_info_dict['structure_count']['by_modification'].values()
+        )
+        struct_info_dict['structure_count']['by_modification']['none'] = (
+            total_mod_structs
+        )
+
+        struct_info_dict['structure_count']['by_modification']['none'] += (
+            struct_info_dict['structure_count']['by_modification'].pop(True, 0)
+        )
+
         return struct_info_dict
 
     def _check_database(self) -> bool:
@@ -466,7 +553,7 @@ class InitialDatabase:
 
     def _create_database(self) -> pd.DataFrame:
         """
-        Create an empty  dataframe in order to be used in the class.
+        Create an empty dataframe in order to be used in the class.
 
         Returns
         -------
@@ -698,8 +785,8 @@ class InitialDatabase:
         Add structures containing a single atom of each species in the database.
 
         Some MLIPs such as MACE require specifically labelled structures to be used
-        for their reference energies. The structures are defined as a single atom of 
-        one of the species present in the MLIP training database. Structures are 
+        for their reference energies. The structures are defined as a single atom of
+        one of the species present in the MLIP training database. Structures are
         centered in the cell with some vacuum around them.
 
         Parameters
@@ -746,7 +833,7 @@ class InitialDatabase:
 
             self.df = new_struct.save_to_db(self.df)
 
-    def get_structure_list(self) -> list[ase_atoms]:
+    def get_structure_list(self) -> list[Atoms]:
         """
         Retrieve all structures from the dataframe and return them as a list.
 
@@ -776,7 +863,7 @@ class InitialDatabase:
 
         return structure_list
 
-    def db_struct_to_ase(self, row) -> ase_atoms:
+    def db_struct_to_ase(self, row) -> Atoms:
         ase_curr_struct = AseAtomsAdaptor().get_atoms(row.structure)
 
         # Populate structure with information
@@ -848,7 +935,7 @@ class InitialDatabase:
         aseio.write(filename=file_path, images=struct_list, format=out_format)
         mdb_cut.custom_print(f"Database exported to '{file_path}'", 'done')
 
-    def standardize_struct_ids(self, atoms_list: list[ase_atoms]) -> list[ase_atoms]:
+    def standardize_struct_ids(self, atoms_list: list[Atoms]) -> list[Atoms]:
         """
         Ensure every ASE structure has a unique `mdb_id` field in its .info dict.
 
@@ -2829,6 +2916,7 @@ class InitialDatabase:
             'oct_perturb': {'structs': [], 'color': '#665c54', 'temperature_K': []},
             'isolated_atom': {'structs': [], 'color': '#365c54', 'temperature_K': []},
             'unknown': {'structs': [], 'color': '#ee0000', 'temperature_K': []},
+            'none': {'structs': [], 'color': '#757779', 'temperature_K': []},
         }
 
         # Get base element composition for every structure in the database
@@ -3021,7 +3109,14 @@ class InitialDatabase:
         hist_t_ax.set_title('Database composition')
         hist_t_ax.spines['top'].set_visible(False)
         hist_t_ax.spines['right'].set_visible(False)
-        main_plot_ax.set_title('')
+        if main_plot_ax:
+            main_plot_ax.set_title('')
+        else:
+            mdb_cut.custom_print(
+                'Incorrect main plot axis found! '
+                "Maybe there's something wrong with the phase diagram?",
+                'warning',
+            )
         hist_t_ax.legend()
         fig.tight_layout()
 
