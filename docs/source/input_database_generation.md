@@ -184,7 +184,12 @@ Description of the phase diagram.
   - **Type**: `(str)`
   - **Example**: `'Cu'`.
 
-#### Phase Definition - `[phase_diagram.phase.XXXXX]`
+#### Phase Definition - `[phase_diagram.phase]`
+
+Defines a specific phase within the phase diagram. Multiple phases can be added.
+
+
+##### Phase Definition - `[phase_diagram.phase.XXXXX]`
 
 This key describes settings for dynamic entries. Several entries can be added by using different key names.
 
@@ -229,14 +234,6 @@ Accepted parameters for each entry:
 
 Parameters using `composition.` prefix:
 
-- {alt}`composition.min`:
-  - **Description**: Minimum composition as a fraction of the current phase element.
-  - **Type**: `(float)`
-  - **Example**: `0.1`.
-- {alt}`composition.max`:
-  - **Description**: Maximum composition as a fraction of the current phase element.
-  - **Type**: `(float)`
-  - **Example**: `0.25`.
 
 Parameters using `replacements.` prefix:
 

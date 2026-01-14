@@ -820,7 +820,7 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             help='List of array of values for the force prediction.',
         )
         spec.exit_code(
-            420, 'ERROR_INVALID_OUTPUT', 'training calculation could not run'
+            420, 'ERROR_INVALID_OUTPUT', 'MACE training calculation could not run'
         )
         spec.exit_code(
             421,
@@ -1576,16 +1576,17 @@ class EvalTestDatabaseCalculation(CalcJob):
 
         with tempfile.NamedTemporaryFile(
             mode='w', delete=True, suffix='.json', prefix='mdb_mace_eval-test-'
-        ) as f:
-            json.dump(obj=test_db_eval_results, fp=f)
+        ) as tmp_file:
+            # Write the updated results dict to a temporary json file
+            with open(tmp_file.name, 'w') as f:
+                json_str = json.dumps(obj=test_db_eval_results)
+                f.write(json_str)
+
+            # Insert the temporary file into the folder
             folder.insert_path(
-                src=f.name,
+                src=tmp_file.name,
                 dest_name='test_db_eval_results.json',
             )
-
-            # Remove the file after insertion
-            f.close()
-            Path(f.name).unlink(missing_ok=True)
 
         codeinfo = CodeInfo()
         codeinfo.code_uuid = self.inputs.code.uuid
@@ -1796,25 +1797,22 @@ class GetDescriptorsCombinedCalculation(CalcJob):
 
         # Gathering files.
         calcinfo.retrieve_list = [
-            # "results.out",
-            # "./results/curr_it_db*",
-            # "./results/*.png",
-            # "./results/*.npy",
             './logs/*',
         ]
 
         # They won't be added to the repository,
         # and instead kept into a temporary folder.
         calcinfo.retrieve_temporary_list = [
-            '*_output.out',
-            'results/*.pkl',
-            'results/curr_it_db*',
-            'results/*.png',
-            'results/*.npy',
-            'results/concave_hull.npy',
-            'results/latent_space.npy',
-            'results/*.pth',
-            '*.pth',
+            # '*_output.out',
+            # 'results/*.pkl',
+            # 'results/curr_it_db*',
+            # 'results/*.png',
+            # 'results/*.npy',
+            # 'results/concave_hull.npy',
+            # 'results/latent_space.npy',
+            # 'results/*.pth',
+            'results/*',
+            # '*.pth',
         ]
 
         return calcinfo

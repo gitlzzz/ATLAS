@@ -117,7 +117,25 @@ def generate_section_docs(
 
             description = content.get('description', f'{name.title()} Settings')
             title = content.get('name_pretty', description)
+
+            lines.append(f'{header_level} {title} - `[{section_path}]`')
+
+            lines.append('')
+            lines.append(description)
+            lines.append('')
+
+            schema_content = content.get('schema', {})
+            for sub_key, sub_details in schema_content.items():
+                if isinstance(sub_details, dict) and 'type' in sub_details:
+                    flattened_key = f'{name}.{sub_key}'
+                    lines.append(format_parameter_line(flattened_key, sub_details))
+                    lines.append('')
+
+            lines.append('')
+
+            header_level = '#' * (level + 1)
             lines.append(f'{header_level} {title} - `[{section_path}.XXXXX]`')
+
             lines.append('')
 
             lines.append(
@@ -132,12 +150,12 @@ def generate_section_docs(
             lines.append('')
 
             # Add example if available
-            schema_content = content.get('schema', {})
-            if schema_content:
+            dyn_schema_content = content.get('schema_under_dynamic_keys', {})
+            if dyn_schema_content:
                 lines.append('Accepted parameters for each entry:')
                 lines.append('')
                 generate_section_docs(
-                    schema_dict=schema_content,
+                    schema_dict=dyn_schema_content,
                     path_parts=path_parts + [name, 'XXXXX'],
                     lines=lines,
                     level=level + 1,

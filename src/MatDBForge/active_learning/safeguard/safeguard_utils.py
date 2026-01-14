@@ -211,7 +211,7 @@ class RunMDSafeguardCalculation(CalcJob):
             Path(f.name).unlink(missing_ok=True)
 
         # Copying concave hull for extrapolation
-        if self.inputs.autoencoder_model:
+        if hasattr(self.inputs, 'autoencoder_model'):
             with self.inputs.autoencoder_model.as_path() as autoencoder_path:
                 folder.insert_path(
                     src=autoencoder_path,
@@ -219,33 +219,35 @@ class RunMDSafeguardCalculation(CalcJob):
                 )
 
         # Copying descriptors max and min
-        desc_max_arr: orm.ArrayData = self.inputs.desc_max_arr.get_array()
-        with tempfile.NamedTemporaryFile(
-            mode='w', delete=True, suffix='.npy', prefix='mdb_safeguard_md-'
-        ) as f:
-            np.save(f.name, desc_max_arr)
-            folder.insert_path(
-                src=f.name,
-                dest_name='curr_it_db_max.npy',
-            )
+        if hasattr(self.inputs, 'desc_max_arr'):
+            desc_max_arr: orm.ArrayData = self.inputs.desc_max_arr.get_array()
+            with tempfile.NamedTemporaryFile(
+                mode='w', delete=True, suffix='.npy', prefix='mdb_safeguard_md-'
+            ) as f:
+                np.save(f.name, desc_max_arr)
+                folder.insert_path(
+                    src=f.name,
+                    dest_name='curr_it_db_max.npy',
+                )
 
-            # Remove the file after insertion
-            f.close()
-            Path(f.name).unlink(missing_ok=True)
+                # Remove the file after insertion
+                f.close()
+                Path(f.name).unlink(missing_ok=True)
 
-        desc_min_arr = self.inputs.desc_min_arr.get_array()
-        with tempfile.NamedTemporaryFile(
-            mode='w', delete=True, suffix='.npy', prefix='mdb_safeguard_md-'
-        ) as f:
-            np.save(f.name, desc_min_arr)
-            folder.insert_path(
-                src=f.name,
-                dest_name='curr_it_db_min.npy',
-            )
+        if hasattr(self.inputs, 'desc_min_arr'):
+            desc_min_arr = self.inputs.desc_min_arr.get_array()
+            with tempfile.NamedTemporaryFile(
+                mode='w', delete=True, suffix='.npy', prefix='mdb_safeguard_md-'
+            ) as f:
+                np.save(f.name, desc_min_arr)
+                folder.insert_path(
+                    src=f.name,
+                    dest_name='curr_it_db_min.npy',
+                )
 
-            # Remove the file after insertion
-            f.close()
-            Path(f.name).unlink(missing_ok=True)
+                # Remove the file after insertion
+                f.close()
+                Path(f.name).unlink(missing_ok=True)
 
         # best_model_name = self.inputs.best_model_name.value.replace('-', '_')
         # for model_str, model_singlefile in self.inputs.commitee_models.items():
@@ -283,8 +285,7 @@ class RunMDSafeguardCalculation(CalcJob):
         # by accessing the temporary folder.
         calcinfo.retrieve_temporary_list = [
             # self.metadata.options.output_filename,
-            './results/*.xyz',
-            './results/*.png',
+            './results/*',
             './logs/*',
         ]
 

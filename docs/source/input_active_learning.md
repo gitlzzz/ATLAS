@@ -719,7 +719,12 @@ MD simulation parameters.
   - **Type**: `(optional, int)`
   - **Default**: `16`.
 
-##### MD Simulation Stages - `[md.parameters.stages.XXXXX]`
+##### MD Simulation Stages - `[md.parameters.stages]`
+
+Collection of named keys representing a particular stage of an MD simulation. These stages will be chained together and applied to single MD calculation job following the order defined in `md.parameters.md_stage_order`, resulting in a continuous MD calculation with different settings for every stage. Each stage key will contain contain settings to be applied during each stage, overriding the default MD settings specified under `md.parameters`. Each dictionary must contain a mandatory `use_during_al_steps` or `use_for_structure_types` key, which specifies when given stage must be run. If none of these two keys are not present, the stage will be ignored.
+
+
+###### MD Simulation Stages - `[md.parameters.stages.XXXXX]`
 
 This key describes settings for dynamic entries. Several entries can be added by using different key names.
 
@@ -730,8 +735,13 @@ Accepted parameters for each entry:
 
 - {alt}`use_during_al_steps`:
   - **Description**: String representing a number of AL steps or interval of AL steps in which the stage will be used. For example, `0` means that the stage will be used during step 0, while `3-6` means that the stage will be used from AL step 3 to AL step 6 (inclusive). The example `'0-1, 3, 4, 5-9, 11'` would execute the current stage for steps 0, 1, 3, 4, 5, 6, 7, 8, 9, and 11.
-  - **Type**: `(str)`
+  - **Type**: `(optional, str)`
   - **Example**: `'0-1, 3, 4, 5-9, 11'`.
+
+- {alt}`use_for_structure_types`:
+  - **Description**: List of structure types for which to use the current stage. Structure types must be among those defined in the initial database (e.g., `bulk`, `surface`, `cluster`), if a structure contains multiple types, the stage will be applied if at least one type matches for the initial structure in the MD simulation.
+  - **Type**: `(optional, list[str])`
+  - Possible values are: `bulk`, `surface`, `cluster`.
 
 - {alt}`temperature_list_K`:
   - **Description**: List of different temperatures (in K) for MD simulations.

@@ -14,6 +14,13 @@ class EmptyDataBase(Exception):
         return "A database could not be read from the given path."
 
 
+class IncompatibleDataBase(Exception):
+    """Raised when the database type is not understood."""
+
+    def __str__(self):
+        return "The format of the structure can't be understood."
+
+
 class FilterError(Exception):
     """Raised when the filter is not valid."""
 

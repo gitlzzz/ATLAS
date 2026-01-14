@@ -78,32 +78,34 @@ if __name__ == '__main__':
     num_at_array = np.array(num_atoms_list)
     pred_energies = np.array(pred_energies)
 
-    # Energy metrics (eV/atom)
-    # Calculate error per atom first to ensure units match eV/atom
-    energy_diff_per_atom = (pred_energies - true_energies) / num_at_array
+    # Energy metrics (meV/atom)
+    # Calculate error per atom first to ensure units match meV/atom
+    energy_diff_per_atom = ((pred_energies - true_energies) / num_at_array) * 1000.0
 
     energy_mae = np.mean(np.abs(energy_diff_per_atom))
     energy_rmse = np.sqrt(np.mean(energy_diff_per_atom**2))
 
-    # Force metrics (eV/Å)
+    # Force metrics (meV/Å)
     # Concatenate lists of ragged arrays into single flat arrays (N_total_atoms, 3)
     flat_pred_forces = np.concatenate(pred_forces)
     flat_true_forces = np.concatenate(true_forces)
 
-    forces_mae = np.mean(np.abs(flat_pred_forces - flat_true_forces))
-    forces_rmse = np.sqrt(np.mean((flat_pred_forces - flat_true_forces) ** 2))
+    forces_mae = np.mean(np.abs((flat_pred_forces - flat_true_forces) * 1000.0))
+    forces_rmse = np.sqrt(
+        np.mean(((flat_pred_forces - flat_true_forces) * 1000.0) ** 2)
+    )
 
     mdb_cut.custom_print(
-        f'Test DB Energy MAE: {energy_mae:.6f} eV/atom', 'info', logger=logger
+        f'Test DB Energy MAE: {energy_mae:.6f} meV/atom', 'info', logger=logger
     )
     mdb_cut.custom_print(
-        f'Test DB Forces MAE: {forces_mae:.6f} eV/Å', 'info', logger=logger
+        f'Test DB Forces MAE: {forces_mae:.6f} meV/Å', 'info', logger=logger
     )
     mdb_cut.custom_print(
-        f'Test DB Energy RMSE: {energy_rmse:.6f} eV/atom', 'info', logger=logger
+        f'Test DB Energy RMSE: {energy_rmse:.6f} meV/atom', 'info', logger=logger
     )
     mdb_cut.custom_print(
-        f'Test DB Forces RMSE: {forces_rmse:.6f} eV/Å', 'info', logger=logger
+        f'Test DB Forces RMSE: {forces_rmse:.6f} meV/Å', 'info', logger=logger
     )
 
     results_file = prepend_path / 'test_db_eval_results.json'
@@ -144,7 +146,7 @@ if __name__ == '__main__':
     axs[0, 0].plot(iters, rmse_e_values, marker='o', color='#458588')
     axs[0, 0].set_title('Test DB Energy RMSE over Iterations')
     axs[0, 0].set_xlabel('Iteration')
-    axs[0, 0].set_ylabel('Energy RMSE (eV/atom)')
+    axs[0, 0].set_ylabel('Energy RMSE (meV/atom)')
     axs[0, 0].grid(True)
     axs[0, 0].xaxis.set_major_locator(MultipleLocator(1))
 
@@ -156,7 +158,7 @@ if __name__ == '__main__':
     axs[0, 1].plot(iters, rmse_f_values, marker='o', color='#cc241d')
     axs[0, 1].set_title('Test DB Forces RMSE over Iterations')
     axs[0, 1].set_xlabel('Iteration')
-    axs[0, 1].set_ylabel('Forces RMSE (eV/Å)')
+    axs[0, 1].set_ylabel('Forces RMSE (meV/Å)')
     axs[0, 1].grid(True)
     axs[0, 1].xaxis.set_major_locator(MultipleLocator(1))
 
@@ -168,7 +170,7 @@ if __name__ == '__main__':
     axs[1, 0].plot(iters, mae_e_values, marker='o', color='#98971a')
     axs[1, 0].set_title('Test DB Energy MAE over Iterations')
     axs[1, 0].set_xlabel('Iteration')
-    axs[1, 0].set_ylabel('Energy MAE (eV/atom)')
+    axs[1, 0].set_ylabel('Energy MAE (meV/atom)')
     axs[1, 0].grid(True)
     axs[1, 0].xaxis.set_major_locator(MultipleLocator(1))
 
@@ -180,7 +182,7 @@ if __name__ == '__main__':
     axs[1, 1].plot(iters, mae_f_values, marker='o', color='#d65d0e')
     axs[1, 1].set_title('Test DB Forces MAE over Iterations')
     axs[1, 1].set_xlabel('Iteration')
-    axs[1, 1].set_ylabel('Forces MAE (eV/Å)')
+    axs[1, 1].set_ylabel('Forces MAE (meV/Å)')
     axs[1, 1].grid(True)
     axs[1, 1].xaxis.set_major_locator(MultipleLocator(1))
 

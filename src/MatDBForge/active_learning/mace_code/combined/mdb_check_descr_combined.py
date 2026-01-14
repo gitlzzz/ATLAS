@@ -80,6 +80,10 @@ if __name__ == '__main__':
     log_folder = prepend_path / pl.Path('./logs')
     log_folder.mkdir(exist_ok=True)
 
+    logger, log_filename = mdb_cut.init_logger(
+        source='proc_structure', log_path=log_folder
+    )
+
     mdb_cut.custom_print(
         'Initializing descriptor generation, dimensionality reduction, '
         'and concave hull computation for the structure database.'

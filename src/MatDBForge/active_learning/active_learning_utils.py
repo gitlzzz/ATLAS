@@ -623,10 +623,20 @@ def prepare_test_set(
     # Check if a test set file must be loaded
     must_load_file = test_db_path is not None and Path(test_db_path).exists()
 
+    test_db_path: Path = Path(test_db_path)
+
     # Load user provided file
     if must_load_file:
-        test_db_structures = ase_read(filename=test_db_path, format='extxyz')
-        return orm.SinglefileData(file=test_db_path), test_db_structures, training_db
+        test_db_structures = ase_read(
+            filename=test_db_path,
+            format='extxyz',
+            index=':',
+        )
+        return (
+            orm.SinglefileData(file=test_db_path.resolve()),
+            test_db_structures,
+            training_db,
+        )
     else:
         # Get the test set fraction and select random structures
         n_test_structures = max(1, int(len(training_db) * test_db_frac))
@@ -665,7 +675,7 @@ def generate_descriptors_mace(
     database,
     descriptor_settings: dict,
     outer_average: bool = False,
-):
+) -> (dict, np.ndarray):
     from mace.calculators import MACECalculator
 
     device = descriptor_settings.get('device', 'cpu')
@@ -780,7 +790,7 @@ def get_species_from_database(database: list[Atoms]) -> list[str]:
     return sorted(species)
 
 
-def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
+def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings: dict):
     # Initializing the SOAP calculator
     from dscribe.descriptors import SOAP
 
@@ -812,8 +822,8 @@ def generate_descriptors_soap(database: list[Atoms], descriptor_settings: dict):
     for struct in database:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
-        elif struct.info.get('aiida_uuid'):
-            struct_key = struct.info.get('aiida_uuid')
+        # elif struct.info.get('aiida_uuid'):
+        # struct_key = struct.info.get('aiida_uuid')
         else:
             struct_key = str(uuid4())
             struct.info['mdb_id'] = struct_key
@@ -1445,9 +1455,44 @@ def get_dft_calc_builder_vasp(
     return builder
 
 
+def sampler_populate_E_and_F_list(
+    structure_list: list[Atoms],
+    model_file: orm.SinglefileData,
+):
+    from io import BytesIO
+
+    from mace.calculators import MACECalculator
+
+    # Load model from SinglefileData and pass it to MACE
+    model_file_content = model_file.get_content(mode='rb')
+    model_file_io = BytesIO(model_file_content)
+    mace_model = torch.load(model_file_io)
+    calc = MACECalculator(models=[mace_model])
+
+    # Calculating energies and forces for all structures
+    # in the structure list using the current iteration
+    # of the MLIP
+    for struct in structure_list:
+        # Convert from aiida-serialized dict to ASE Atoms if needed
+        if isinstance(struct, dict):
+            try:
+                struct = Atoms.fromdict(struct)
+            except Exception as e:
+                print('Error while converting dict to Atoms: ', e)
+                struct = aiida_serialized_ase_dict_to_atoms(struct)
+
+        # Attach the calculator and compute E and F
+        struct.calc = calc
+        E_nn = struct.get_potential_energy()
+        F_nn = struct.get_forces()
+        struct.info['curr_model_energy'] = E_nn
+        struct.arrays['curr_model_forces'] = F_nn
+
+    return structure_list
+
+
 def get_dft_calc_builder_mace_list(
     struct_list: list,
-    row,
     dft_settings: dict,
     container_settings: dict,
 ):
@@ -1473,6 +1518,7 @@ def get_dft_calc_builder_mace_list(
         curr_model_forces = curr_struct.arrays.get('REF_forces', None)
         if curr_model_forces is not None:
             curr_struct.arrays['curr_model_forces'] = curr_model_forces
+
         curr_model_energy = curr_struct.info.get('REF_energy', None)
         if curr_model_energy is not None:
             curr_struct.info['curr_model_energy'] = curr_model_energy
@@ -1950,6 +1996,9 @@ def gather_dft_calcs_vasp(dft_calc_list: list) -> orm.List:
         elif 'stress' in vasprun.info:
             vasprun.info['REF_stress'] = vasprun.info.pop('stress')
         elif vasprun.calc:
+            # another possible way could be:
+            # vasprun.get_stress(voigt=False).reshape(9)
+            # to get a str-like representation in extxyz
             vasprun.info['REF_stress'] = vasprun.calc.get_stress(voigt=False).tolist()
 
         vasprun: dict = serialize_ase(vasprun)
@@ -2038,7 +2087,10 @@ def remove_isolated_atoms(
 
 
 def filter_dft_calcs_threshold(
-    dft_calc_list: list, threshold_E_meV: float, threshold_F_meV: float, workchain=None
+    dft_calc_list: list,
+    threshold_E_meV: float,
+    threshold_F_meV: float,
+    workchain=None,
 ) -> list:
     """
     Filter DFT calculations based on energy and force thresholds.
@@ -2056,6 +2108,42 @@ def filter_dft_calcs_threshold(
 
         # Get the energy and forces from the DFT calculation and NN
         n_at = len(calc)
+        # only check the existing values
+        E_dft = calc.info.get('REF_energy', None)
+        E_nn = calc.info.get('curr_model_energy', None)
+        F_dft = calc.arrays.get('REF_forces', None)
+        F_nn = calc.arrays.get('curr_model_forces', None)
+
+        missing_parameters = []
+        if E_dft is None:
+            missing_parameters.append('REF_energy')
+        if E_nn is None:
+            missing_parameters.append('curr_model_energy')
+        if F_dft is None:
+            missing_parameters.append('REF_forces')
+        if F_nn is None:
+            missing_parameters.append('curr_model_forces')
+
+        if missing_parameters:
+            msg = (
+                f'Skipping filtering for DFT calculation: '
+                f"'{calc.info.get('aiida_uuid', 'unknown')}' "
+                f"for structure '{calc.info.get('mdb_id', 'unknown')}' "
+                f'due to missing values: {", ".join(missing_parameters)}.'
+                'Structure will not be not checked or removed.'
+            )
+            if workchain:
+                workchain.report(msg)
+            else:
+                print(msg)
+
+            # Adding it into the filtered list despite the filter
+            # failing
+            calc = serialize_ase(calc)
+            filtered_dft_calc_list.append(calc)
+            continue
+
+        # Normalize energy and forces per atom
         E_dft_at = calc.info.get('REF_energy') / n_at
         E_nn_at = calc.info.get('curr_model_energy') / n_at
         F_dft_at = simplify_forces_struct(calc.arrays.get('REF_forces'))[0] / n_at
@@ -2072,8 +2160,10 @@ def filter_dft_calcs_threshold(
             filtered_dft_calc_list.append(calc)
         else:
             if workchain:
+                aiida_uuid = calc.info.get('aiida_uuid', 'unknown')
                 workchain.report(
-                    f'Filtered DFT calculation {calc.info["mdb_id"]} '
+                    f"Filtered DFT calculation '{aiida_uuid}' "
+                    f"for structure '{calc.info['mdb_id']}' "
                     f'with E_diff_meV: {E_diff_meV} and F_diff_meV: {F_diff_meV}'
                 )
 

@@ -1,10 +1,13 @@
 """Contains functions used to compute completeness metrics on the database."""
 
 import pathlib as pl
+import unittest
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers
+from scipy.spatial.distance import pdist, squareform
 from sklearn.preprocessing import StandardScaler, normalize
 
 from MatDBForge.active_learning.active_learning_utils import (
@@ -82,6 +85,81 @@ def get_feature_matrix_with_custom_features(dataset, feature_matrix_X):
     return scaled_feature_matrix
 
 
+def get_vendi_score_rbf(
+    dataset: list[Atoms],
+    descriptor_type: str = 'soap',
+    descriptor_settings: dict = None,
+    mace_model_path: str = None,
+    save_descriptors: bool = False,
+    load_descriptors: bool = False,
+    descriptors_path: str = 'descriptors.npy',
+    sigma=None,
+    k=1,
+):
+    """Computes the Vendi Score for a dataset of n structures using RBF kernel."""
+    custom_print(
+        f'Getting feature matrix for {len(dataset)} '
+        f'structures using {descriptor_type.upper()}...'
+    )
+
+    _, feature_matrix_X = load_and_save_descriptors(
+        dataset,
+        descriptor_type,
+        descriptor_settings,
+        mace_model_path,
+        save_descriptors,
+        load_descriptors,
+        descriptors_path,
+    )
+
+    custom_print(f'Feature matrix shape: {feature_matrix_X.shape}')
+    n = feature_matrix_X.shape[0]
+
+    # Compute Pairwise Euclidean Distances
+    # pdist returns a condensed distance matrix (efficient)
+    dists = pdist(feature_matrix_X, metric='euclidean')
+
+    # Heuristic for sigma
+    # A common default is setting sigma to the median distance in the data.
+    # However, it was found that using the mean k-NN distance works better
+    # in practice.
+    if sigma is None:
+        # sigma = np.median(dists)
+
+        # The Micro View (Average distance to k-th neighbor)
+        # We need the full matrix to sort rows
+        dist_matrix = squareform(dists)
+
+        # Sort each row to find neighbors.
+        # Column 0 is the point itself (dist=0), Column 1 is 1st NN, etc.
+        # We take the column at index k.
+        knn_distances = np.sort(dist_matrix, axis=1)[:, k]
+
+        sigma = np.mean(knn_distances)
+        custom_print(f'Heuristic (Mean {k}-NN Distance): sigma = {sigma:.4f}')
+    else:
+        custom_print(f'Using provided sigma: {sigma:.4f}')
+
+    # 3. Apply RBF Kernel
+    # Convert distances to similarity: K = exp(-d^2 / (2*sigma^2))
+    K_condensed = np.exp(-(dists**2) / (2 * sigma**2))
+
+    # Convert back to full n x n matrix for eigenvalue comp
+    K = squareform(K_condensed)
+    np.fill_diagonal(K, 1.0)  # Ensure diagonal is 1
+
+    # 4. Compute Vendi Score (Standard method)
+    K_norm = K / n
+    eigenvalues = np.linalg.eigvalsh(K_norm)
+    eigenvalues = np.clip(eigenvalues, 0, None)
+
+    # 0 log 0 convention
+    eps = 1e-20
+    entropy = -np.sum(eigenvalues * np.log(eigenvalues + eps))
+
+    return np.exp(entropy)
+
+
 def get_vendi_score_db(
     dataset: list[Atoms],
     descriptor_type: str = 'soap',
@@ -117,10 +195,10 @@ def get_vendi_score_db(
 
     # feature_matrix_X = np.vstack([desc.create(s) for s in dataset])
 
-    if use_custom_features:
-        feature_matrix_X = get_feature_matrix_with_custom_features(
-            dataset, feature_matrix_X
-        )
+    # if use_custom_features:
+    #     feature_matrix_X = get_feature_matrix_with_custom_features(
+    #         dataset, feature_matrix_X
+    #     )
 
     # Applying normalization.
     # Normalizing feature matrix before computing the covariance matrix.
@@ -134,11 +212,15 @@ def get_vendi_score_db(
 
     custom_print('Getting covariance matrix and computing eigenvalues...')
 
-    # Compute the (d, d) covariance-like matrix C = X^T * X
     # This replaces the creation of the n x n similarity matrix
     # The complexity is then O(d^2 * n), instead of O(n^3), which comes
     # from computing the eigenvalues of the n x n similarity matrix.
-    covariance_matrix_C = feature_matrix_X.T @ feature_matrix_X
+    if n < d:
+        # Compute K = X @ X.T instead to save time
+        covariance_matrix_C = feature_matrix_X @ feature_matrix_X.T
+    else:
+        # Compute the (d, d) covariance-like matrix C = X^T * X
+        covariance_matrix_C = feature_matrix_X.T @ feature_matrix_X
 
     # Normalize similarity matrix by dividing by n
     normalized_matrix = covariance_matrix_C / n
@@ -172,20 +254,33 @@ def load_and_save_descriptors(
     save_descriptors,
     load_descriptors,
     descriptors_path,
+    overwrite=False,
 ):
     if load_descriptors and pl.Path(descriptors_path).exists():
         feature_matrix_X = np.load(descriptors_path)
-        descriptor_dict = {}
         custom_print(f'Loaded descriptors from {descriptors_path}...')
+        descriptor_dict = {}
+
     else:
+        outer_average = False
+        if descriptor_settings.get('outer_average') is not None:
+            outer_average = True
         descriptor_dict, feature_matrix_X = generate_descriptors(
             database=dataset,
             descriptor_type=descriptor_type,
             descriptor_settings=descriptor_settings,
             model_path=mace_model_path,
+            outer_average_mace=outer_average,
         )
-    if save_descriptors and not load_descriptors:
-        np.save(descriptors_path, feature_matrix_X)
+    if save_descriptors:
+        custom_print(f'Saving descriptors to {descriptors_path}...')
+        if pl.Path(descriptors_path).exists() and not overwrite:
+            custom_print(
+                f'File {descriptors_path} already exists. '
+                'Use overwrite=True to overwrite.'
+            )
+        else:
+            np.save(descriptors_path, feature_matrix_X)
 
     return descriptor_dict, feature_matrix_X
 
@@ -298,3 +393,85 @@ def get_circles_metric_db(
 
     # The #Circles score is the number of molecules in our final set C
     return len(selected_indices)
+
+
+class TestVendiScore(unittest.TestCase):
+    """Unit tests for the Vendi Score computation."""
+
+    def setUp(self):
+        self.mock_loader_patcher = patch('__main__.load_and_save_descriptors')
+        self.mock_loader = self.mock_loader_patcher.start()
+        print('-' * 60)  # Separator for readability
+
+    def tearDown(self):
+        self.mock_loader_patcher.stop()
+
+    def test_orthogonal_modes(self):
+        """Test Scenario 1: Completely distinct items (Identity Matrix)."""
+        X = np.eye(4)
+
+        self.mock_loader.return_value = (None, X)
+        dataset = [MagicMock()] * 4
+
+        score = get_vendi_score_db(dataset)
+
+        print('Test: Orthogonal Modes (4 distinct items)')
+        print('Expected: 4.0000')
+        print(f'Actual:   {score:.4f}')
+
+        self.assertAlmostEqual(score, 4.0, places=4)
+
+    def test_identical_modes(self):
+        """Test Scenario 2: All items are identical."""
+        X = np.ones((4, 1))
+
+        self.mock_loader.return_value = (None, X)
+        dataset = [MagicMock()] * 4
+
+        score = get_vendi_score_db(dataset)
+
+        print('Test: Identical Modes (4 identical items)')
+        print('Expected: 1.0000')
+        print(f'Actual:   {score:.4f}')
+
+        self.assertAlmostEqual(score, 1.0, places=4)
+
+    def test_two_distinct_groups(self):
+        """Test Scenario 3: 4 items, 2 identical groups of 2."""
+        X = np.array([[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]])
+
+        self.mock_loader.return_value = (None, X)
+        dataset = [MagicMock()] * 4
+
+        score = get_vendi_score_db(dataset)
+
+        print('Test: Two Distinct Groups (2 groups of 2)')
+        print('Expected: 2.0000')
+        print(f'Actual:   {score:.4f}')
+
+        self.assertAlmostEqual(score, 2.0, places=4)
+
+    def test_shape_and_color_overlap(self):
+        """Test Scenario 4: Partial overlap (Shape & Color logic from paper)."""
+        X = np.array(
+            [[1, 0, 1, 0], [1, 0, 0, 1], [0, 1, 1, 0], [0, 1, 0, 1]], dtype=float
+        )
+
+        self.mock_loader.return_value = (None, X)
+        dataset = [MagicMock()] * 4
+
+        score = get_vendi_score_db(dataset)
+
+        print('Test: Shape & Color Overlap (Sim=0.5)')
+        print('Expected: 2.8284')
+        print(f'Actual:   {score:.4f}')
+
+        self.assertAlmostEqual(score, 2.8284, places=3)
+
+
+if __name__ == '__main__':
+    # We define a dummy load_and_save_descriptors for the mock to patch
+    def load_and_save_descriptors(*args):
+        pass
+
+    unittest.main()

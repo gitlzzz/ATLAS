@@ -353,15 +353,15 @@ class TernaryPhaseDiagram(BasePhaseDiagram):
         ax.laxis.set_minor_locator(AutoMinorLocator(2))
         ax.raxis.set_minor_locator(AutoMinorLocator(2))
 
-        ax.grid(which="both")
+        ax.grid(which='both')
 
-        ax.set_tlabel("Clay (%)")
-        ax.set_llabel("Sand (%)")
-        ax.set_rlabel("Silt (%)")
+        ax.set_tlabel('Clay (%)')
+        ax.set_llabel('Sand (%)')
+        ax.set_rlabel('Silt (%)')
 
-        ax.taxis.set_ticks_position("tick2")
-        ax.laxis.set_ticks_position("tick2")
-        ax.raxis.set_ticks_position("tick2")
+        ax.taxis.set_ticks_position('tick2')
+        ax.laxis.set_ticks_position('tick2')
+        ax.raxis.set_ticks_position('tick2')
 
 
 class Phase:

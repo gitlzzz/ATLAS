@@ -97,7 +97,7 @@ def validate_config_file(
             and warnings is list of dicts
     """
     if config_dict is None and config_path is None:
-        return False, ['Either config_dict or config_path must be provided']
+        return False, ['Either config_dict or config_path must be provided.'], []
 
     if config_path is not None:
         try:
@@ -116,7 +116,7 @@ def validate_config_file(
     schema = get_schema()
     config_schema = schema.get(config_type)
     if not config_schema:
-        return False, [f'Unknown configuration type: {config_type}']
+        return False, [f'Unknown configuration type: {config_type}'], []
 
     custom_print('Validating TOML input file...', print_type='info')
 
@@ -503,12 +503,14 @@ def validate_parameter(value, param_key, param_schema, path, root_config_data=No
                 if dependency_met:
                     default_val = param_schema.get('default')
                     if isinstance(default_val, str):
-                        default_val = f"'{default_val}'"
+                        default_val_print = f"'{default_val}'"
+                    else:
+                        default_val_print = f'{default_val}'
                     warnings.append(
                         {
                             'msg': f'Using default: {WI_FMT}{full_path}{WI_END} '
                             f'is missing and has been set to default value: '
-                            f'{default_val}',
+                            f'{default_val_print}',
                             'default_applied': {
                                 'type': param_schema.get('type'),
                                 'default_value': default_val,
