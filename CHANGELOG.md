@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.1 (2026-01-14)
+
+### Docs
+
+- **schema**: improve schema and properly check for missing keys. ([#b7449aa](https://github.com/pol-sb/MatDBForge/commit/b7449aab95bf4eae5a74eac98d72f43b4584b0f2))
+
+### Style
+
+- **report**: reformat report_utils.py ([#fcbda65](https://github.com/pol-sb/MatDBForge/commit/fcbda6546401f16be132a8476f7045279653239b))
+
 ## 0.47.0 (2026-01-14)
 
 ### Docs
