@@ -103,7 +103,7 @@ def get_concave_hull_python(
     frac_points_allowed_out: float = 0.002,
     n_attempts: int = 20,
     decrease_factor_multiplier: float = 0.95,
-    use_alpha: float = None,
+    use_alpha: float | None = None,
 ) -> (np.ndarray, float):
     """
     Compute the concave hull of a set of points using the alpha-shape algorithm.
@@ -372,7 +372,7 @@ def get_concave_hull_python(
             ),
             'info',
         )
-        mdb_cut.custom_print(f'Final alpha: {last_alpha:.4f}', 'done')
+        mdb_cut.custom_print(f'Final alpha: {last_alpha}', 'done')
         print()
 
     return alpha_shape_arr, last_alpha

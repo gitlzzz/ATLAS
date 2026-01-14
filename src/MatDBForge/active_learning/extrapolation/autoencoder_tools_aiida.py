@@ -63,7 +63,7 @@ class TrainAutoencoderCalculation(CalcJob):
     Exit Codes
     ----------
     420 : ERROR_INVALID_OUTPUT
-        Training calculation could not run.
+        Autoencoder Training calculation could not run.
     """
 
     @classmethod
@@ -93,7 +93,9 @@ class TrainAutoencoderCalculation(CalcJob):
             help='Log file containing information of the training process',
         )
         spec.exit_code(
-            420, 'ERROR_INVALID_OUTPUT', 'training calculation could not run'
+            420,
+            'ERROR_INVALID_OUTPUT',
+            'Autoencoder training calculation could not run',
         )
 
     def prepare_for_submission(self, folder):

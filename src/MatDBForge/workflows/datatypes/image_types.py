@@ -26,10 +26,7 @@ class ImagePNGData(SinglefileData):
         self.base.attributes.set('filename', filename)
 
     def display_image(self):
-        """Return the content of the single file stored for this data node.
-
-        :return: the content of the file as a string
-        """
+        """Open the image with the default image viewer."""
         filename = self.base.attributes.get('filename')
         image_data_bytes = self.get_object_content(filename, mode='rb')
 
