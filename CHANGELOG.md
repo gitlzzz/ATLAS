@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.47.1 (2026-01-14)
+
+### Docs
+
+- **schema**: improve schema and properly check for missing keys. ([#b7449aa](https://github.com/pol-sb/MatDBForge/commit/b7449aab95bf4eae5a74eac98d72f43b4584b0f2))
+
+### Style
+
+- **report**: reformat report_utils.py ([#fcbda65](https://github.com/pol-sb/MatDBForge/commit/fcbda6546401f16be132a8476f7045279653239b))
+
+## 0.47.0 (2026-01-14)
+
+### Docs
+
+- **al_loop**: fix docstring of add_single_atoms() ([#99b75a5](https://github.com/pol-sb/MatDBForge/commit/99b75a5411c814752e61cd15abf742770781706e))
+- **schema**: correctly arrange md.params options ([#cadacaa](https://github.com/pol-sb/MatDBForge/commit/cadacaa78efde7c6dd1399114d84c01b416799f0))
+- **core**: allow description in dynamic_keys sections and add `schema_under_dynamic_keys` ([#2971237](https://github.com/pol-sb/MatDBForge/commit/29712376ec3af7b2467e1ca3b6fa5e5f775fcafc))
+
+### Feature
+
+- **init_db**: implement RBF Vendi score and optimize metrics ([#d3402fa](https://github.com/pol-sb/MatDBForge/commit/d3402fabf63d47e46325c0e06fd31e8543d1d07e))
+- **init_db**: enhance InitialDatabase database loading and ASE compatibility ([#c88c2c0](https://github.com/pol-sb/MatDBForge/commit/c88c2c09ea4ffe9675107dd5ca10a4d9e26a763c))
+- **core**: add MLIPModelFileData and ImagePNGData custom datatypes ([#ba7fe44](https://github.com/pol-sb/MatDBForge/commit/ba7fe44a93d7b58a11c20b49e9c65dde632bcf11))
+
+### Fix
+
+- **core**: correct CLI config validation and parameter parsing ([#62ffbce](https://github.com/pol-sb/MatDBForge/commit/62ffbce7b81152345e4c7127b091a4e87ba61764))
+- **safeguard**: improve input parameter handling and file cleanup ([#0e5bb3f](https://github.com/pol-sb/MatDBForge/commit/0e5bb3fb28087bc39811611754b51b240b027b1c))
+- **al_loop**: add CUDA checks and fix workflow logic ([#32022a2](https://github.com/pol-sb/MatDBForge/commit/32022a22c0bc8b2c0ad8396947ea936e52411bbe))
+- **core**: add timeout to git-remote version check ([#9ac22f6](https://github.com/pol-sb/MatDBForge/commit/9ac22f6f7feaf8bb4da6ba26a5dad120e76d2809))
+- **al_loop**: properly update dft_calc_list ([#8627b4b](https://github.com/pol-sb/MatDBForge/commit/8627b4b5eedd77318410f07e62e7d21e4d067c78))
+- **al_loop**: convert dict containing serialized Atoms object to Atoms in `sampler_populate_E_and_F_list()` before predicting E and F ([#2428531](https://github.com/pol-sb/MatDBForge/commit/2428531dd97b54fed9ddb61cc5cd23c51b8375f7))
+- **al_loop**: rename function all argument for sampler_populate_E_and_F_list() ([#fce473a](https://github.com/pol-sb/MatDBForge/commit/fce473a1037b2e1bec76618f684dd2313abc4ef9))
+- **al_loop**: allow data acquisition filter to proceed when DFT calculations are used ([#5e6252a](https://github.com/pol-sb/MatDBForge/commit/5e6252a9c44a1672b2bc8b3154f5548511a2be05))
+- **dft**: prevent dft calculations from running when mdb_ids are not unique ([#256568e](https://github.com/pol-sb/MatDBForge/commit/256568ea7c50fb8be47280c771515e3c472d8bc8))
+- **al_loop**: prevent al_loop from running when repeated uuids are present ([#f2c4278](https://github.com/pol-sb/MatDBForge/commit/f2c42788d4f5253f027f94db3d4f0a687cd3a013))
+- **schema**: remove extra '' from default entries ([#2308215](https://github.com/pol-sb/MatDBForge/commit/23082150380126a892c9c3ac43d1c386f7f4024c))
+- **md**: add missing `use_for_structure_types` check for stages ([#2ae8b3c](https://github.com/pol-sb/MatDBForge/commit/2ae8b3cc1b3ecfbc2ced692b63a0456213b508c7))
+- **al_loop**: change incorrect usage of aiida_uuid ([#3ff8d1a](https://github.com/pol-sb/MatDBForge/commit/3ff8d1a478775935e69cb0ee3bccb7ab4a9d1e6c))
+- **al_loop**: replace named files with wildcard in `retrieve_temporary_list` of `GetDescriptorsCombinedCalculation` ([#1367fb3](https://github.com/pol-sb/MatDBForge/commit/1367fb32ebea6188244386e26795a162d25ee08f))
+- **al_loop**: allow running AL Loop when not enough small structures ([#6b49a80](https://github.com/pol-sb/MatDBForge/commit/6b49a8049c5e3eed9ce3ee6ad50c4126bd45ec5b))
+- **al_loop**: properly copy eval information to test db eval calcjob by using open() with tmpfile ([#94434d8](https://github.com/pol-sb/MatDBForge/commit/94434d83553df0d8834b423abda845cb827a119c))
+
+### Misc
+
+- **core**: update dependencies and fix ruff settings ([#73646f4](https://github.com/pol-sb/MatDBForge/commit/73646f44ede57cfaf8b4dacc8351a37734542c63))
+
+### Refactor
+
+- **al_loop**: update print messages for al_loop dft filter ([#5fd2f93](https://github.com/pol-sb/MatDBForge/commit/5fd2f93ca7ae5b15c40a6e5673040dfe55afa395))
+- **al_loop**: format code and make errors verbose ([#6c24530](https://github.com/pol-sb/MatDBForge/commit/6c2453043ecb99807d3c6482c75c8e9d78538608))
+- **al_loop**: change units from eV to meV under `eval_test_db.py` ([#313e82b](https://github.com/pol-sb/MatDBForge/commit/313e82be4474df9188415ee907218e50f55c2efc))
+- **al_loop**: clean unused code ([#f74291f](https://github.com/pol-sb/MatDBForge/commit/f74291f687fd28661edd89e82de9c7e563157483))
+- **domain_validity**: re-add logger to `mdb_check_descr_combined.py` ([#32a0d67](https://github.com/pol-sb/MatDBForge/commit/32a0d672afd61673b09bc59f7ca6a56c8204ef9f))
+
+### Style
+
+- **core**: update type hints and formatting ([#d4ff4c1](https://github.com/pol-sb/MatDBForge/commit/d4ff4c169f60957831e5d2a67e44fb487637fbef))
+
 ## 0.46.9 (2025-12-02)
 
 ### Fix

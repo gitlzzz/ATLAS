@@ -595,7 +595,7 @@ def select_structures_data_reduction(
 
 
 def prepare_test_set(
-    test_db_path: str, test_db_frac: float, training_db: list[Atoms]
+    test_db_path: str, test_db_frac: float, training_db: Atoms | list[Atoms]
 ) -> (orm.SinglefileData, list[Atoms]):
     """
     Prepare a test set from the training database based on the provided settings.
@@ -606,9 +606,11 @@ def prepare_test_set(
 
     Parameters
     ----------
-    test_settings : dict
-        Dictionary containing test set settings from the input TOML.
-    training_db : list[Atoms]
+    test_db_path: str
+        Path to the user provided test set file. If None, random selection is used.
+    test_db_frac : float
+        Fraction of structures to select from the training database for the test set.
+    training_db : Atoms | list[Atoms]
         List of ASE Atoms objects representing the training database.
 
     Returns
@@ -623,10 +625,9 @@ def prepare_test_set(
     # Check if a test set file must be loaded
     must_load_file = test_db_path is not None and Path(test_db_path).exists()
 
-    test_db_path: Path = Path(test_db_path)
-
     # Load user provided file
     if must_load_file:
+        test_db_path: Path = Path(test_db_path)
         test_db_structures = ase_read(
             filename=test_db_path,
             format='extxyz',

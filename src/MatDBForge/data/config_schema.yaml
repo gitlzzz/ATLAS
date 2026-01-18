@@ -1119,7 +1119,7 @@ active_learning:
       description: "List of structure IDs or paths to be used as target structures in the safeguard. Only used if `target_structure_mode` is set to `target`."
       type: list[str, int]
       depends_on:
-        key: active_learning.safeguard.target_structure_mode
+        key: safeguard.target_structure_mode
         value: "target"
       mandatory: false
     ignore_container:
@@ -1132,7 +1132,7 @@ active_learning:
       name_pretty: "Safeguard MD Settings"
       description: "MD simulation options for safeguard."
       depends_on:
-        key: active_learning.safeguard.enable
+        key: safeguard.enable
         value: true
       parameters:
         name: "safeguard_md_parameters"
@@ -1140,7 +1140,7 @@ active_learning:
         description: "MD simulation parameters for safeguard. These settings will override the general MD settings for the safeguard simulations. This section supports the same parameters as the `md.parameters` section."
         mandatory: true
         depends_on:
-          key: active_learning.safeguard.enable
+          key: safeguard.enable
           value: true
         wildcard_entry: true
         wildcard_path: "md.parameters"
@@ -1149,7 +1149,7 @@ active_learning:
       description: "AiiDA metadata and scheduler options for the safeguard."
       mandatory: true
       depends_on:
-        key: active_learning.safeguard.enable
+        key: safeguard.enable
         value: true
       computer:
         description: "AiiDA computer name for safeguard calculations."
@@ -1218,7 +1218,7 @@ active_learning:
         mandatory: true
         default: 10.0
         depends_on:
-          key: active_learning.safeguard.md_parameters.md_thermostat
+          key: safeguard.md_parameters.md_thermostat
           value: ["nvt", "langevin"]
       npt_ttime_fs:
         description: "Time constant for temperature coupling in NPT thermostat in femtoseconds."
@@ -1226,7 +1226,7 @@ active_learning:
         mandatory: true
         default: 100.0
         depends_on:
-          key: active_learning.safeguard.md_parameters.md_thermostat
+          key: safeguard.md_parameters.md_thermostat
           value: "npt"
       npt_ptime_fs:
         description: "Time constant for pressure coupling in NPT thermostat in femtoseconds."
@@ -1234,14 +1234,14 @@ active_learning:
         mandatory: true
         default: 25.0
         depends_on:
-          key: active_learning.safeguard.md_parameters.md_thermostat
+          key: safeguard.md_parameters.md_thermostat
           value: ["npt", "npt-mtk", "npt-melchionna"]
       md_stage_order:
         description: "List containing the names of the stages, written in the order in which the MD stages will be applied. Each stage must be defined under `md.parameters.stages`."
         type: list[str]
         mandatory: true
         depends_on:
-          key: active_learning.md.parameters.stages
+          key: md.parameters.stages
           value: "*"
         default: []
         example: ["stage1", "nvt_1", "stage_2", "npt_1", ...]
@@ -1555,20 +1555,24 @@ active_learning:
       name_pretty: "Autoencoder Dimensionality Reduction Settings"
       description: "Settings for autoencoder-based dimensionality reduction."
       depends_on:
-        key: active_learning.descriptors.dimensionality_reduction_method
+        key: descriptors.dimensionality_reduction_method
         value: "autoencoder"
       train_settings:
         description: "Training settings for the autoencoder."
+        mandatory: true
+        depends_on:
+          key: descriptors.dimensionality_reduction_method
+          value: "autoencoder"
         device:
           description: "Device for autoencoder training."
           type: str
-          mandatory: false
+          mandatory: true
           default: "cuda"
           choices: ["cpu", "cuda"]
         dtype:
           description: "Data type for autoencoder training."
           type: str
-          mandatory: false
+          mandatory: true
           default: "float32"
           choices: ["float32", "float64"]
         model_path:
@@ -1609,7 +1613,7 @@ active_learning:
         num_epochs:
           description: "Number of epochs to train the model."
           type: int
-          mandatory: false
+          mandatory: true
           default: 50
         batch_size:
           description: "Batch size for training."

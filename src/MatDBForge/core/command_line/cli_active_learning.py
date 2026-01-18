@@ -842,8 +842,6 @@ def run_active_learning():
             config_path=args.config_file, config_type='active_learning'
         )
         if len(errors) > 0:
-            for error in errors:
-                custom_print(error, print_type='error')
             sys.exit(1)
         if errors_found:
             sys.exit(1)
