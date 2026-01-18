@@ -41,7 +41,10 @@ jobs:
           pip install .
 
       - name: Generate API documentation
-        run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
+        # run: sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" --remove-old -f
+        run: |
+          rm -f docs/source/MatDBForge*.rst docs/source/modules.rst
+          sphinx-apidoc -o ./docs/source ./src/MatDBForge/ "*benchmarks*" "*display_db*" -f
 
       - name: Build all documentation versions
         run: sphinx-multiversion docs _build/html
