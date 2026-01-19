@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.47.2 (2026-01-19)
+
+### Fix
+
+- **core**: allow generation of mlip_benchmark toml input file using mdb_gen_configuration_file ([#f7a7781](https://github.com/pol-sb/MatDBForge/commit/f7a7781ef5ddda5582fa962d3f5c6b5293dbccc9))
+
 ## 0.47.1 (2026-01-14)
 
 ### Docs
