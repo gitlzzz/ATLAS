@@ -172,6 +172,7 @@ def generate_command(args, schema):
         'database_generation': 'database_generation_settings.toml',
         'dft': 'dft_settings.toml',
         'active_learning': 'active_learning_settings.toml',
+        'mlip_benchmarks': 'mdb_benchmark_settings.toml',
     }
     output_filename = filename_map[args.config_type]
 
@@ -231,7 +232,7 @@ def gen_default_config():
         ),
         type=str,
         required=True,
-        choices=['database_generation', 'dft', 'active_learning'],
+        choices=['database_generation', 'dft', 'active_learning', 'mlip_benchmarks'],
         metavar='TYPE',
     )
     generate_parser.add_argument(
@@ -278,7 +279,7 @@ def gen_default_config():
         ),
         type=str,
         required=True,
-        choices=['database_generation', 'dft', 'active_learning'],
+        choices=['database_generation', 'dft', 'active_learning', 'mlip_benchmarks'],
         metavar='TYPE',
     )
     validate_parser.add_argument(
