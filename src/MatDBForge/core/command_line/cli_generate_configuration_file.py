@@ -1,9 +1,12 @@
 """Generate default configuration files for MDB from a YAML schema."""
 
 import argparse
+import io
 import pathlib as pl
 import sys
 from argparse import RawTextHelpFormatter
+
+from rich.console import Console
 
 from MatDBForge.core.code_utils import custom_print, init_logger
 from MatDBForge.core.command_line.command_line_utils import (
@@ -11,6 +14,41 @@ from MatDBForge.core.command_line.command_line_utils import (
     get_schema,
     validate_config_file,
 )
+
+
+def wrap_text_with_rich(text: str, width: int = 80, comment: bool = False) -> str:
+    """
+    Wraps text using Rich's formatting engine and optionally prepends
+    comment characters.
+
+    Parameters
+    ----------
+    text : str
+        The long text string to be wrapped.
+    width : int, optional
+        The target width for the wrapped text. Default is 50.
+    comment : bool, optional
+        If True, prepends '# ' to each line of the wrapped output.
+        Default is False.
+
+    Returns
+    -------
+    str
+        The wrapped text.
+    """
+    console = Console(width=width, record=True, file=io.StringIO())
+    console.print(text, highlight=False)
+
+    # Export text and remove the single trailing newline from print()
+    wrapped_text = console.export_text(styles=False).rstrip()
+
+    if comment:
+        # Split into lines to strictly apply the prefix to every row
+        lines = wrapped_text.splitlines()
+        # Re-join with the comment prefix
+        return '\n'.join(f'# {line}' for line in lines)
+
+    return wrapped_text
 
 
 def format_value(value):
@@ -59,26 +97,34 @@ def generate_toml_recursive(
         for key, details in params.items():
             lines.append('')
             if 'description' in details:
-                comment = f'# {details["description"]}'
-                if not section_mandatory:
-                    comment = f'# {comment}'
+                comment = details['description']
+                comment = wrap_text_with_rich(comment, comment=True)
                 lines.append(comment)
             if 'type' in details:
                 comment = f'# type: {details["type"]}'
-                if not section_mandatory:
-                    comment = f'# {comment}'
                 lines.append(comment)
 
             # Prepare the value to be written
             value_to_write = details.get('default')
             if value_to_write is None:
-                value_to_write = details.get('example', '...')
+                value_to_write = details.get('example', None)
 
             line = f'{prefix}{key} = {format_value(value_to_write)}'
 
             # Comment out the line if the parameter or section is not mandatory
             if not details.get('mandatory', False) or not section_mandatory:
                 line = f'# {line}'
+
+            if value_to_write is None and details.get('dynamic_keys', False):
+                line = ''
+                for dyn_key, dyn_details in details.get(
+                    'schema_under_dynamic_keys', {}
+                ).items():
+                    line += (
+                        f'# {prefix}{key}.XXXX.{dyn_key} = '
+                        f'{format_value(dyn_details.get("example"))}\n'
+                    )
+                line = line.rstrip()
 
             lines.append(line)
 
@@ -119,10 +165,17 @@ def generate_toml_recursive(
             )
         else:
             if 'description' in content:
-                lines.append('\n' + '#' * 80)
-                desc_comment = f'# {content["description"]}'
+                lines.append('\n' + '#' * 81)
+
+                if content.get('name_pretty'):
+                    lines.append(f'# Section: {content["name_pretty"]}\n')
+
+                desc_comment = content['description']
                 if not is_section_mandatory:
-                    desc_comment = f'# {desc_comment}'
+                    desc_comment = f'{desc_comment}'
+
+                desc_comment = wrap_text_with_rich(desc_comment, comment=True)
+
                 lines.append(desc_comment)
                 lines.append('#' * 80)
             generate_toml_recursive(
