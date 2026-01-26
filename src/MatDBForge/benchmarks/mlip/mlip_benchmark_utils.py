@@ -177,8 +177,14 @@ def create_args_from_toml(toml_dict: dict) -> argparse.Namespace:
         'magic_cluster_sizes', [13, 19, 55, 147, 309, 561]
     )
 
+    # Defect formation
+    defect_conf = toml_dict.get('defect_formation_energy')
+    if defect_conf:
+        args.defect_formation_energy_config = defect_conf
+
     # Surface energy benchmark
     surf = toml_dict.get('surface_energy_benchmark', {})
+    args.surface_energy_benchmark_config = surf
     if 'dft_refs' in surf:
         args.surf_ene_benchmark_dft_refs = pl.Path(surf['dft_refs'])
     else:
@@ -1580,10 +1586,8 @@ def create_final_multi_panel_plot(args):
     base_path = args.output_dir / 'all_benchmarks_summary'
     png_path, svg_path = save_plot_dual_format(base_path, dpi=300)
 
-    custom_print(f'Multi-panel summary plot saved to {png_path}', 'success')
-    custom_print(f'Multi-panel summary plot saved to {svg_path}', 'success')
-
-    # Clear the plot to free memory
+    custom_print(f"Multi-panel summary plot saved to '{png_path}'", 'success')
+    custom_print(f"Multi-panel summary plot saved to '{svg_path}'", 'success')
     plt.close(fig)
 
 
@@ -1798,7 +1802,7 @@ class RichUIManager:
             self.live.stop()
 
 
-def _get_structure_format(structure_path: pl.Path) -> str:
+def _get_structure_format(structure_path: pl.Path) -> str | None:
     """Determines the ASE file format from a path."""
     # Handle common formats
     if '.xyz' in structure_path.suffix:
@@ -1806,4 +1810,4 @@ def _get_structure_format(structure_path: pl.Path) -> str:
     if 'CONTCAR' in structure_path.name or 'POSCAR' in structure_path.name:
         return 'vasp'
     # Default format
-    return 'extxyz'
+    return None
