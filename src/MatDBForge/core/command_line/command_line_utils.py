@@ -176,7 +176,7 @@ def validate_config_file(
 
         if run_mode == 'workflow':
             custom_print(
-                'Active learning loop has not started due to validation errors. '
+                'Process has not started due to validation errors. '
                 'All input errors must be fixed before proceeding.',
                 print_type='error',
             )

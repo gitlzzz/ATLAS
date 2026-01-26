@@ -1117,7 +1117,23 @@ def run_mace_md_ase(
 
     # Run the MD simulation
     try:
+        # Timing the MD run
+        t_init = time.time()
         dyn.run(num_steps)
+        t_end = time.time()
+        elapsed_time = t_end - t_init
+
+        # Get performance in ns/day
+        timestep_fs = dyn.dt
+        total_ns = num_steps * timestep_fs / 1e6
+        performance = total_ns / (elapsed_time / 86400)
+
+        mdb_cut.custom_print(
+            f'MD statistics: Runtime {elapsed_time:.2f} seconds. '
+            f'Total steps: {num_steps}. '
+            f'Performance {performance:.3f} ns/day. ',
+            'info',
+        )
     except Exception as e:
         mdb_cut.custom_print(f'Error in MD simulation: {e}', 'error')
 
@@ -1241,6 +1257,10 @@ def get_model_forces_std(forces_dict: dict) -> np.ndarray:
     """Get the standard deviation of the forces for each structure in the dict."""
     forces_model_list = model_res_dict_to_arr(forces_dict, dict_type='forces')
 
+    # If there is only 1 (or 0) model, the standard deviation is 0 (no disagreement)
+    if forces_model_list.shape[0] < 2:
+        return np.zeros(forces_model_list.shape[1:])
+
     # Calculate the sample standard deviation of the forces
     # for each structure
     forces_std = np.nanstd(forces_model_list, axis=0, ddof=1)
@@ -1250,13 +1270,19 @@ def get_model_forces_std(forces_dict: dict) -> np.ndarray:
 
 def get_model_energies_std(energies_dict: dict) -> np.ndarray:
     """Get the standard deviation of the energies for each structure in the dict."""
-    energies_model_list: np.ndarray = model_res_dict_to_arr(
+    # Convert the energies dict to a numpy array with the following shape:
+    # (num_models, num_structures, num_frames)
+    energies_model_arr: np.ndarray = model_res_dict_to_arr(
         energies_dict, dict_type='energy'
     )
 
+    # If there is only 1 (or 0) model, the standard deviation is 0 (no disagreement)
+    if energies_model_arr.shape[0] < 2:
+        return np.zeros(energies_model_arr.shape[1:])
+
     # Calculate the sample standard deviation of the energies
     # for each structure
-    energies_std = np.nanstd(energies_model_list, axis=0, ddof=1)
+    energies_std = np.nanstd(energies_model_arr, axis=0, ddof=1)
     return energies_std
 
 

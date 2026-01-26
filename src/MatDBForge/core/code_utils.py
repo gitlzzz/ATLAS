@@ -90,15 +90,17 @@ def create_handler_filters(handler: str):
     return handler_filter
 
 
-def init_logger(source, log_path=None, show_log_path=True):
-    logger = logging.getLogger('mdb')
-    logger.setLevel(logging.DEBUG)
+def init_logger(
+    source: str, log_path=None, show_log_path: bool = True
+) -> (logging.Logger, str):
+    logger: logging.Logger = logging.getLogger(name='mdb')
+    logger.setLevel(level=logging.DEBUG)
 
     logger.propagate = False
 
     # Console logger
     ch, console = get_console_handler()
-    logger.addHandler(ch)
+    logger.addHandler(hdlr=ch)
 
     if not log_path:
         _, filename = tempfile.mkstemp(prefix=f'mdb_{source}_', suffix='.log')
@@ -109,17 +111,17 @@ def init_logger(source, log_path=None, show_log_path=True):
         )
 
     fh = logging.FileHandler(filename=filename, mode='a+')
-    fh.set_name('mdb_file_handler')
-    fh.addFilter(create_handler_filters('file'))
-    fh.setLevel(logging.DEBUG)
-    formatter_fil = logging.Formatter('%(asctime)s - %(levelname)s - %(shortmsg)s')
-    fh.setFormatter(formatter_fil)
-    logger.addHandler(fh)
+    fh.set_name(name='mdb_file_handler')
+    fh.addFilter(filter=create_handler_filters(handler='file'))
+    fh.setLevel(level=logging.DEBUG)
+    formatter_fil = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(shortmsg)s')
+    fh.setFormatter(fmt=formatter_fil)
+    logger.addHandler(hdlr=fh)
 
     logging_set_levels()
 
     if show_log_path:
-        custom_print(f"Logging in '{filename}'", print_type='info')
+        custom_print(string=f"Logging in '{filename}'", print_type='info')
 
     return logger, filename
 

@@ -194,7 +194,7 @@ Selection of benchmarks to run.
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
 
-### Test_Set - `[test_set]`
+### Test Set Benchmark Settings - `[test_set]`
 
 Test set configuration for accuracy benchmarks.
 
@@ -208,7 +208,7 @@ This section is optional.
   - **Type**: `(optional, str)`
   - **Example**: `'/path/to/test_set.xyz'`.
 
-### Database_Evaluation - `[database_evaluation]`
+### Database Evaluation Benchmark Settings - `[database_evaluation]`
 
 Configuration for database evaluation benchmark.
 
@@ -222,7 +222,7 @@ This section is optional.
   - **Type**: `(optional, str)`
   - **Example**: `'/path/to/database.xyz'`.
 
-### Magic_Cluster - `[magic_cluster]`
+### Magic Cluster Benchmark Settings - `[magic_cluster]`
 
 Magic cluster benchmark settings.
 
@@ -241,7 +241,7 @@ This section is optional.
   - **Type**: `(optional, list[int])`
   - **Default**: `[13, 19, 55, 147, 309, 561]`.
 
-### Surface_Energy_Benchmark - `[surface_energy_benchmark]`
+### Surface Energy Benchmark Settings - `[surface_energy_benchmark]`
 
 Surface energy benchmark specific settings.
 
@@ -263,15 +263,38 @@ This section is optional.
 - {alt}`slab_structures`:
   - **Description**: Dictionary of slab structures with surface indices as keys.
   - **Type**: `(optional, dict)`
-  - **Example**:
 
-```python
-{'100': '/path/to/slab_100.xyz', '110': '/path/to/slab_110.xyz'}
-```
+#### Create_Slab_Settings - `[surface_energy_benchmark.create_slab_settings]`
 
-### Melting_Point_Benchmark - `[melting_point_benchmark]`
+Settings to create slabs for surface energy calculations.
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`slab_layers`:
+  - **Description**: Number of layers in the slab.
+  - **Type**: `(optional, int)`
+  - **Default**: `7`.
+
+- {alt}`vacuum_thickness`:
+  - **Description**: Vacuum thickness in Angstrom.
+  - **Type**: `(optional, float)`
+  - **Default**: `15.0`.
+
+- {alt}`supercell_size`:
+  - **Description**: Supercell size for the slab (x, y, z).
+  - **Type**: `(optional, list[int])`
+  - **Default**: `[3, 3, 1]`.
+
+### Melting Point Benchmark Settings - `[melting_point_benchmark]`
 
 Melting point benchmark settings.
+
+:::{attention}
+This section is optional.
+:::
 
 
 - {alt}`supercell_size`:
@@ -298,3 +321,37 @@ Melting point benchmark settings.
   - **Description**: Path to the supercell structure file for melting point calculation.
   - **Type**: `(optional, str)`
   - **Example**: `'/path/to/supercell.xyz'`.
+
+### Vacancy Formation Energy Benchmark Settings - `[defect_formation_energy]`
+
+Defect formation energy benchmark settings. This test will create a vacancy in a bulk supercell and compute its formation energy. 
+Alternatively, the user can provide a set of stochiometrically balanced structructures representing the bulk and vacancy-containing systems, along with any species that need to be removed to create the vacancy, and the benchmark will use these structures instead of generating them internally
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`generate_automatically`:
+  - **Description**: Whether to generate bulk and vacancy structures automatically. If this is set to false, the user must provide reference energies and structures.
+  - **Type**: `(bool)`
+  - **Default**: `True`.
+
+- {alt}`supercell_size`:
+  - **Description**: Supercell size for the bulk for vacancy formation energy calculation (x, y, z). Only used when generate_automatically is enabled.
+  - **Type**: `(list[int])`
+  - **Default**: `[4, 4, 4]`.
+
+- {alt}`bulk_metal_symbol`:
+  - **Description**: Symbol of the metal for the bulk structure. Only used when generate_automatically is enabled.
+  - **Type**: `(optional, str)`
+  - **Example**: `'/path/to/bulk.xyz'`.
+
+- {alt}`user_provided_structures`:
+  - **Description**: User-provided structures for vacancy formation energy calculation. The user might add however many structures as needed, each under an uniquely named key nested under 'user_provided_structures', which will contain name, path, and stoichiometry balancing factor as subkeys. Only used when generate_automatically is disabled.
+  - **Type**: `(optional, dict)`
+
+- {alt}`user_provided_dft_ref`:
+  - **Description**: Path to JSON file with DFT reference energies for user-provided structures. The DFT references should correspond to the user-provided structure names. Only used when generate_automatically is disabled.
+  - **Type**: `(optional, str)`
+  - **Example**: `'/path/to/dft_refs.json'`.

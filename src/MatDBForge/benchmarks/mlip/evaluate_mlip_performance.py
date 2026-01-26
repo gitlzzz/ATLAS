@@ -15,6 +15,7 @@ the energy evolution for comparison.
 """
 
 import pathlib as pl
+import sys
 import time
 import warnings
 
@@ -63,7 +64,7 @@ def main():
     custom_print(f'Loading configuration from: {config_path}', 'info')
 
     # Validate the config file
-    validate_config_file(
+    any_errors_found, errors, warnings = validate_config_file(
         config_path=config_path,
         config_type='mlip_benchmarks',
         run_mode='workflow',
@@ -72,7 +73,12 @@ def main():
     # Load TOML config and create args
     toml_dict = mdb_b_ut.load_toml_config(config_path)
     args = mdb_b_ut.create_args_from_toml(toml_dict)
-    custom_print('Configuration loaded and validated successfully!', 'done')
+
+    if not any_errors_found:
+        custom_print('Configuration loaded and validated successfully!', 'done')
+    else:
+        sys.exit(1)
+
     print()
 
     # Create output directory

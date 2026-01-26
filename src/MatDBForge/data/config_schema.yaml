@@ -1065,8 +1065,7 @@ active_learning:
       type: str
       mandatory: false
       default: "none"
-      choices:
-        ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
+      choices: ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
     concave_hull:
       name: "concave_hull"
       name_pretty: "Concave Hull Extrapolation Check Settings"
@@ -2114,6 +2113,7 @@ mlip_benchmarks:
   test_set:
     description: "Test set configuration for accuracy benchmarks."
     mandatory: false
+    name_pretty: "Test Set Benchmark Settings"
     test_set_path:
       description: "Path to the held-out test set for accuracy benchmarks."
       type: str
@@ -2122,6 +2122,7 @@ mlip_benchmarks:
   database_evaluation:
     description: "Configuration for database evaluation benchmark."
     mandatory: false
+    name_pretty: "Database Evaluation Benchmark Settings"
     database_path:
       description: "Path to the structure database file for evaluation."
       type: str
@@ -2129,6 +2130,8 @@ mlip_benchmarks:
       example: "/path/to/database.xyz"
   magic_cluster:
     description: "Magic cluster benchmark settings."
+    name: "magic_cluster"
+    name_pretty: "Magic Cluster Benchmark Settings"
     mandatory: false
     magic_cluster_dft_refs:
       description: "Path to JSON file with DFT reference energies for magic clusters."
@@ -2142,7 +2145,27 @@ mlip_benchmarks:
       default: [13, 19, 55, 147, 309, 561]
   surface_energy_benchmark:
     description: "Surface energy benchmark specific settings."
+    name: "surface_energy_benchmark"
+    name_pretty: "Surface Energy Benchmark Settings"
     mandatory: false
+    create_slab_settings:
+      description: "Settings to create slabs for surface energy calculations."
+      mandatory: false
+      slab_layers:
+        description: "Number of layers in the slab."
+        type: int
+        mandatory: false
+        default: 7
+      vacuum_thickness:
+        description: "Vacuum thickness in Angstrom."
+        type: float
+        mandatory: false
+        default: 15.0
+      supercell_size:
+        description: "Supercell size for the slab (x, y, z)."
+        type: list[int]
+        mandatory: false
+        default: [3, 3, 1]
     dft_refs:
       description: "Path to JSON file with DFT reference energies."
       type: str
@@ -2157,10 +2180,18 @@ mlip_benchmarks:
       description: "Dictionary of slab structures with surface indices as keys."
       type: dict
       mandatory: false
-      example:
-        { "100": "/path/to/slab_100.xyz", "110": "/path/to/slab_110.xyz" }
+      dynamic_keys: true
+      # example: { "100": "/path/to/slab_100.xyz", "110": "/path/to/slab_110.xyz" }
+      schema_under_dynamic_keys:
+        path:
+          description: "Path to slab structure file for given surface indices."
+          type: str
+          mandatory: true
+          example: "/path/to/slab_100.xyz"
   melting_point_benchmark:
     description: "Melting point benchmark settings."
+    mandatory: false
+    name_pretty: "Melting Point Benchmark Settings"
     supercell_size:
       description: "Supercell size for melting point calculation (x, y, z)."
       type: list[int]
@@ -2186,3 +2217,59 @@ mlip_benchmarks:
       type: str
       mandatory: false
       example: "/path/to/supercell.xyz"
+  defect_formation_energy:
+    description: "Defect formation energy benchmark settings. This test will create a vacancy in a bulk supercell and compute its formation energy. \nAlternatively, the user can provide a set of stochiometrically balanced structructures representing the bulk and vacancy-containing systems, along with any species that need to be removed to create the vacancy, and the benchmark will use these structures instead of generating them internally"
+    name: "defect_formation_energy"
+    name_pretty: "Vacancy Formation Energy Benchmark Settings"
+    mandatory: false
+    depends_on:
+      key: mlip_benchmarks.benchmarks.run_defect_formation_energy
+      value: true
+    generate_automatically:
+      description: "Whether to generate bulk and vacancy structures automatically. If this is set to false, the user must provide reference energies and structures."
+      type: bool
+      mandatory: true
+      default: true
+    supercell_size:
+      description: "Supercell size for the bulk for vacancy formation energy calculation (x, y, z). Only used when generate_automatically is enabled."
+      type: list[int]
+      mandatory: true
+      default: [4, 4, 4]
+      depends_on:
+        key: defect_formation_energy.generate_automatically
+        value: true
+    bulk_metal_symbol:
+      description: "Symbol of the metal for the bulk structure. Only used when generate_automatically is enabled."
+      type: str
+      mandatory: false
+      example: "/path/to/bulk.xyz"
+      depends_on:
+        key: defect_formation_energy.generate_automatically
+        value: true
+    user_provided_structures:
+      description: "User-provided structures for vacancy formation energy calculation. The user might add however many structures as needed, each under an uniquely named key nested under 'user_provided_structures', which will contain name, path, and stoichiometry balancing factor as subkeys. Only used when generate_automatically is disabled."
+      type: dict
+      mandatory: false
+      dynamic_keys: true
+      depends_on:
+        key: defect_formation_energy.generate_automatically
+        value: false
+      schema_under_dynamic_keys:
+        path:
+          description: "Path containing the structure in an ASE readable format."
+          type: str
+          mandatory: true
+          example: "/path/to/structure.xyz"
+        stoichiometry_balancing_factor:
+          description: "Balancing factor with sign indicating how the structure contributes in the balancing of stoichiometry when creating the vacancy. A negative value (e.g., -2) indicates species to be removed. A positive value (e.g., 2) indicates species to be added."
+          type: int
+          example: -2
+          mandatory: true
+    user_provided_dft_ref:
+      description: "Path to JSON file with DFT reference energies for user-provided structures. The DFT references should correspond to the user-provided structure names. Only used when generate_automatically is disabled."
+      type: str
+      mandatory: false
+      example: "/path/to/dft_refs.json"
+      depends_on:
+        key: defect_formation_energy.generate_automatically
+        value: false

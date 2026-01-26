@@ -7,6 +7,7 @@ of the descriptors followed by performing any extrapolation checks, filtering
 the MD trajectory if necessary.
 """
 
+import json
 import pathlib as pl
 import tomllib
 import uuid
@@ -444,9 +445,9 @@ if __name__ == '__main__':
     for curr_traj in traj_files:
         print()
         mdb_cut.custom_print(
-            f"Checking extrapolating frames for '{curr_traj}'", 'info', logger=logger
+            f"Checking out of domain frames for '{curr_traj}'", 'info', logger=logger
         )
-        extrap_frame_idx = []
+        out_of_domain_frame_idx = []
 
         curr_temp = float(str(curr_traj).split('temp-')[1].split('.traj')[0])
 
@@ -673,10 +674,11 @@ if __name__ == '__main__':
             logger=logger,
         )
         mdb_cut.custom_print(
-            'Printing extrapolation statistics for E:', 'debug', logger=logger
+            'Printing interpolation statistics for E:', 'debug', logger=logger
         )
 
         if ef_disagreement_type == 'training':
+            # model_acc_multiplier is equivalent to lambda in our reference
             e_error_threshold = model_acc_multiplier * e_rmse  # meV / at
             f_error_threshold = model_acc_multiplier * f_rmse  # meV / A
 
@@ -729,13 +731,13 @@ if __name__ == '__main__':
                 error_e_structures_sm, error_e_structures_bg
             )
             mdb_cut.custom_print(
-                f'Extrapolating structures according to E: {error_e_structures}',
+                f'Interpolation error structures according to E: {error_e_structures}',
                 'none',
                 logger=logger,
             )
 
             mdb_cut.custom_print(
-                'Printing extrapolation statistics for F...', 'none', logger=logger
+                'Printing interpolation statistics for F...', 'none', logger=logger
             )
 
             # model_forces_dict shape: (1, n_frames, n_atoms, 3, n_models)
@@ -776,25 +778,26 @@ if __name__ == '__main__':
             error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
 
             mdb_cut.custom_print(
-                f'Extrapolating structures according to F: {error_f_structures}',
+                f'Interpolation error structures according to F: {error_f_structures}',
                 'none',
                 logger=logger,
             )
 
             # Adding extrapolating indices to list
-            e_f_extrapol = []
+            e_f_interpolation = []
             if isinstance(error_e_structures, np.ndarray):
                 for err_idx, error in enumerate(error_e_structures[0]):
                     if error:
-                        e_f_extrapol.append(short_mask[err_idx])
+                        e_f_interpolation.append(short_mask[err_idx])
             if isinstance(error_f_structures, np.ndarray):
                 for err_idx, error in enumerate(error_f_structures[0]):
                     if error:
-                        e_f_extrapol.append(short_mask[err_idx])
+                        e_f_interpolation.append(short_mask[err_idx])
 
             # Any index in this array is extrapolating and must
             # be sent to calculate with DFT.
-            extrap_frame_idx.extend(set(e_f_extrapol))
+            num_interpolating_frames = len(set(e_f_interpolation))
+            out_of_domain_frame_idx.extend(set(e_f_interpolation))
 
         elif ef_disagreement_type == 'md_threshold':
             mdb_cut.custom_print(
@@ -853,13 +856,13 @@ if __name__ == '__main__':
                 error_e_structures_sm, error_e_structures_bg
             )
             mdb_cut.custom_print(
-                f'Extrapolating structures according to E: {error_e_structures}',
+                f'Interpolation error structures according to E: {error_e_structures}',
                 'none',
                 logger=logger,
             )
 
             mdb_cut.custom_print(
-                'Printing extrapolation statistics for forces...', 'none', logger=logger
+                'Printing interpolation statistics for forces...', 'none', logger=logger
             )
             # Array containing the forces for each model
             # shape: (3, n_at, n_frames, n_models)
@@ -914,34 +917,37 @@ if __name__ == '__main__':
             # True values are the structures that are considered as extrapolation.
             error_f_structures = np.logical_and(err_f_struct_sm, err_f_struct_bg)
             mdb_cut.custom_print(
-                f'Extrapolating structures according to F: {error_f_structures}',
+                f'Interpolation error structures according to F: {error_f_structures}',
                 'none',
                 logger=logger,
             )
 
             # Adding extrapolating indices to list
-            e_f_extrapol = []
+            e_f_interpolation = []
             if isinstance(error_e_structures, np.ndarray):
                 for err_idx, error in enumerate(error_e_structures):
                     if error:
-                        e_f_extrapol.append(short_mask[err_idx])
+                        e_f_interpolation.append(short_mask[err_idx])
             if isinstance(error_f_structures, np.ndarray):
                 for err_idx, error in enumerate(error_f_structures):
                     if error:
-                        e_f_extrapol.append(short_mask[err_idx])
+                        e_f_interpolation.append(short_mask[err_idx])
 
             # Any index in this array is extrapolating and must
             # be sent to calculate with DFT.
-            extrap_frame_idx.extend(set(e_f_extrapol))
+            num_interpolating_frames = len(set(e_f_interpolation))
+            out_of_domain_frame_idx.extend(set(e_f_interpolation))
 
         mdb_cut.custom_print(
             'Frames with committee disagreement found by committee check: '
-            f'{len(extrap_frame_idx)}',
+            f'{num_interpolating_frames}',
             'info',
             logger=logger,
         )
 
-        ## Get the descriptors if extrapolation enabled
+        # EXTRAPOLATION CHECKING #
+        ## Get the descriptors if any type of extrapolation is enabled
+        extrapolating_frames = []
         if extrap_type != 'none':
             # Only MACE is supported for now
             mdb_cut.custom_print('Generating descriptors...', 'info', logger=logger)
@@ -1057,7 +1063,7 @@ if __name__ == '__main__':
         elif extrap_type in ['none', 'disabled', None]:
             mdb_cut.custom_print(
                 (
-                    'No extrapolation check applied. Only interpolation (EF commitee)'
+                    'No extrapolation check applied. Only interpolation (EF commitee) '
                     'check applied.'
                 ),
                 'warn',
@@ -1069,20 +1075,22 @@ if __name__ == '__main__':
                 descriptor_dict[structure_uuid]['is_extrapolating']
             ):
                 if is_extrapolating:
-                    extrap_frame_idx.append(md_traj_short[idx].info['frame_idx'])
+                    curr_frame_idx = md_traj_short[idx].info['frame_idx']
+                    extrapolating_frames.append(curr_frame_idx)
+                    out_of_domain_frame_idx.append(curr_frame_idx)
 
-        # Saving all the frames that are extrapolating to a file
-        extrap_frame_idx = set(extrap_frame_idx)
-        extrapol_frames_final = [md_traj[i] for i in extrap_frame_idx]
+        # Saving all the frames that are out of domain to a file
+        out_of_domain_frame_idx = set(out_of_domain_frame_idx)
+        out_of_domain_frames_struct = [md_traj[i] for i in out_of_domain_frame_idx]
         mdb_cut.custom_print(
-            f'Total count of extrapolating frames: {len(extrapol_frames_final)}',
+            f'Total count of extrapolating frames: {len(extrapolating_frames)}',
             'info',
             logger=logger,
         )
 
         # Renaming result keys
-        mod_extrap_frames = []
-        for structure in extrapol_frames_final:
+        out_of_domain_frames_final = []
+        for structure in out_of_domain_frames_struct:
             # Setting the main model calculator for the current structure
             structure.calc = calculator
 
@@ -1091,12 +1099,12 @@ if __name__ == '__main__':
             structure.arrays['REF_forces'] = structure.get_forces()
             structure.info['mdb_id'] = str(uuid.uuid4())
 
-            mod_extrap_frames.append(structure)
+            out_of_domain_frames_final.append(structure)
 
         ase_write(
             res_folder / 'extrapolating_frames.xyz',
             format='extxyz',
-            images=mod_extrap_frames,
+            images=out_of_domain_frames_final,
             append=True,
         )
 
@@ -1105,5 +1113,22 @@ if __name__ == '__main__':
         plot_path = res_folder / f'concave_hull_temp-{curr_temp}.png'
         if not plot_path.exists():
             plot_path.touch()
+
+        uq_stats_dict: dict = {
+            'total_frames': orig_md_size,
+            'frames_after_filters': len(md_traj_filtered),
+            'extrapolation_error_frames': len(set(extrapolating_frames)),
+            'interpolation_error_frames': num_interpolating_frames,
+            'out_of_domain_frames': len(out_of_domain_frames_final),
+        }
+
+        mdb_cut.custom_print(f'UQ statistics: {uq_stats_dict}', 'info', logger=logger)
+
+        with open(res_folder / 'uq_stats.json', 'w+') as f:
+            json.dump(
+                obj=uq_stats_dict,
+                fp=f,
+                indent=4,
+            )
 
     mdb_cut.custom_print('Structure processed!', 'done', logger=logger)

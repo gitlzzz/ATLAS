@@ -560,121 +560,184 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
     benchmark_dir = args.output_dir / 'defect_formation_energy'
     benchmark_dir.mkdir(exist_ok=True)
 
+    bench_settings: dict = args.defect_formation_energy_config
+
     # Results storage
     results = {}
 
-    # Create a large perfect supercell
-    # (4x4x4 should be sufficient)
-    supercell_size = [4, 4, 4]
-    # mdb_b_ut.custom_print(
-    #     f'Creating {supercell_size} supercell for defect calculations...', 'debug'
-    # )
+    # Load reference energies
+    ref_energies_path: str = bench_settings.get('user_provided_dft_ref')
+    ref_data = {}
+    if ref_energies_path:
+        with open(ref_energies_path, 'rb+') as f:
+            ref_data: dict = json.load(f)
 
-    perfect_bulk = bulk(args.metal, cubic=True)
-    perfect_supercell = perfect_bulk.repeat(supercell_size)
+    is_automatic_mode_enabled: bool = bench_settings.get('generate_automatically', True)
+    if is_automatic_mode_enabled:
+        # Create a large perfect supercell
+        # (4x4x4 should be sufficient)
+        supercell_size = [4, 4, 4]
+        # mdb_b_ut.custom_print(
+        #     f'Creating {supercell_size} supercell for defect calculations...', 'debug'
+        # )
 
-    # Save the perfect structure
-    perfect_structure_path = benchmark_dir / 'perfect_supercell.xyz'
-    perfect_supercell.write(perfect_structure_path, format='extxyz')
+        perfect_bulk = bulk(args.metal, cubic=True)
+        perfect_supercell = perfect_bulk.repeat(supercell_size)
 
-    # Create vacancy structure by removing the central atom
-    # Remove roughly central atom
-    defect_supercell = perfect_supercell.copy()
-    central_index = len(defect_supercell) // 2
-    del defect_supercell[central_index]
+        # Save the perfect structure
+        perfect_structure_path = benchmark_dir / 'perfect_supercell.xyz'
+        perfect_supercell.write(perfect_structure_path, format='extxyz')
 
-    # Save the defect structure
-    defect_structure_path = benchmark_dir / 'vacancy_supercell.xyz'
-    defect_supercell.write(defect_structure_path, format='extxyz')
+        # Create vacancy structure by removing the central atom
+        # Remove roughly central atom
+        defect_supercell = perfect_supercell.copy()
+        central_index = len(defect_supercell) // 2
+        del defect_supercell[central_index]
 
-    n_atoms_perfect = len(perfect_supercell)
-    n_atoms_defect = len(defect_supercell)
+        # Save the defect structure
+        defect_structure_path = benchmark_dir / 'vacancy_supercell.xyz'
+        defect_supercell.write(defect_structure_path, format='extxyz')
+
+        # Preprare calculations dictionary
+        calculations = {
+            'perfect': {
+                'path': perfect_structure_path,
+                'structure': perfect_supercell,
+                'stoichiometry_balancing_factor': -(len(perfect_supercell) - 1)
+                / len(perfect_supercell),
+                'energy_dft': ref_data.get('perfect', {}).get('energy', 0.0),
+            },
+            'vacancy': {
+                'path': defect_structure_path,
+                'structure': defect_supercell,
+                'stoichiometry_balancing_factor': 1.0,
+                'energy_dft': ref_data.get('vacancy', {}).get('energy', 0.0),
+            },
+        }
+
+    else:
+        # This block runs when user provides calculation data and energies, and
+        # automatic mode is disabled.
+        calculations: dict = bench_settings.get('user_provided_structures', {})
+        for name, struct in calculations.items():
+            calc_path = pl.Path(struct.get('path')).resolve(strict=True)
+            calculations[name]['path'] = calc_path
+            calculations[name]['structure'] = ase_read(calc_path)
+            calculations[name]['energy'] = ref_data[name]['energy']
+            calculations[name]['energy_dft'] = ref_data[name]['energy']
+            calculations[name]['n_atoms'] = ref_data[name]['n_atoms']
 
     # For each model, calculate formation energies
+    #
     for _, model_path in enumerate(model_paths):
         model_name = mdb_b_ut.get_model_display_name(model_path)
 
-        # Skip if already calculated
-        results_file = benchmark_dir / f'{model_name}_vacancy_formation_energy.json'
-        if results_file.exists():
-            mdb_b_ut.custom_print(
-                f"Results for '{model_name}' already exist. Loading from file.", 'warn'
-            )
-            with open(results_file) as f:
-                results[model_name] = json.load(f)
-            continue
+        # Set up calculator
+        calculator = mdb_b_ut.create_calculator_for_model(
+            model_path, device=args.device, dtype=args.dtype
+        )
 
         try:
-            # Set up calculator
-            calculator = mdb_b_ut.create_calculator_for_model(
-                model_path, device=args.device, dtype=args.dtype
-            )
+            for calc_name, calc_data in calculations.items():
+                # Skip if already calculated
+                results_file = (
+                    benchmark_dir / f'{model_name}_vacancy_formation_energy.json'
+                )
+                if results_file.exists():
+                    with open(results_file, 'rb') as f:
+                        model_results_dict = json.load(f)
 
-            # Load and relax perfect supercell
-            perfect_atoms = ase_read(perfect_structure_path, format='extxyz')
-            perfect_atoms.set_calculator(calculator)
+                        if model_results_dict.get(calc_name):
+                            mdb_b_ut.custom_print(
+                                f"Results for '{calc_name}' already exist. "
+                                'Loading from file.',
+                                'warn',
+                            )
+                            with open(results_file) as f:
+                                # TODO
+                                results[model_name] = json.load(f)
+                            continue
 
-            # Relax the perfect structure
-            perfect_optimizer = LBFGS(
-                perfect_atoms, logfile=benchmark_dir / f'{model_name}_perfect_relax.log'
-            )
-            perfect_optimizer.run(fmax=0.01, steps=500)
-            e_perfect = perfect_atoms.get_potential_energy()
+                curr_structure = calc_data.get('structure').copy()
 
-            # Save relaxed perfect structure
-            perfect_relaxed_path = benchmark_dir / f'{model_name}_perfect_relaxed.xyz'
-            perfect_atoms.write(perfect_relaxed_path, format='extxyz')
+                # Load and relax perfect supercell
+                # perfect_atoms = ase_read(perfect_structure_path, format='extxyz')
+                curr_structure.set_calculator(calculator)
 
-            # Load and relax defect supercell
-            defect_atoms = ase_read(defect_structure_path, format='extxyz')
-            defect_atoms.set_calculator(calculator)
+                if is_automatic_mode_enabled:
+                    # Relax the perfect structure
+                    optimizer = LBFGS(
+                        curr_structure,
+                        logfile=benchmark_dir / f'{model_name}_{calc_name}_relax.log',
+                    )
+                    optimizer.run(fmax=0.01, steps=500)
 
-            # Relax the defect structure
-            defect_optimizer = LBFGS(
-                defect_atoms, logfile=benchmark_dir / f'{model_name}_defect_relax.log'
-            )
-            defect_optimizer.run(fmax=0.01, steps=500)
-            e_defect = defect_atoms.get_potential_energy()
+                    # Save relaxed perfect structure
+                    perfect_relaxed_path = (
+                        benchmark_dir / f'{model_name}_{calc_name}_relaxed.xyz'
+                    )
+                    curr_structure.write(perfect_relaxed_path, format='extxyz')
 
-            # Save relaxed defect structure
-            defect_relaxed_path = benchmark_dir / f'{model_name}_defect_relaxed.xyz'
-            defect_atoms.write(defect_relaxed_path, format='extxyz')
+                curr_E = curr_structure.get_potential_energy()
 
-            # Calculate formation energy
-            # E_formation = E_defect - (N-1)/N * E_perfect
-            # This is equivalent to: E_defect - E_perfect + E_perfect/N
-            # where E_perfect/N is the energy per atom in the perfect crystal
-            e_per_atom_perfect = e_perfect / n_atoms_perfect
-            formation_energy = e_defect - e_perfect + e_per_atom_perfect
-
-            # Store results
-            model_results = {
-                'formation_energy_eV': formation_energy,
-                'perfect_energy_eV': e_perfect,
-                'defect_energy_eV': e_defect,
-                'perfect_energy_per_atom_eV': e_per_atom_perfect,
-                'n_atoms_perfect': n_atoms_perfect,
-                'n_atoms_defect': n_atoms_defect,
-            }
-
-            results[model_name] = model_results
-
-            # Save individual results
-            with open(results_file, 'w') as f:
-                json.dump(model_results, f, indent=2)
-
-            mdb_b_ut.custom_print(
-                f"Vacancy formation energy for '{model_name}': "
-                f'{formation_energy:.3f} eV',
-                'done',
-            )
+                calculations[calc_name]['energy'] = curr_E
+                calculations[calc_name]['n_atoms'] = len(curr_structure)
 
         except Exception as e:
             mdb_b_ut.custom_print(
                 f"Failed to calculate vacancy formation energy for '{model_name}': {e}",
                 'error',
             )
+            mdb_b_ut.custom_print(' ', 'empty')
             continue
+
+        # Calculate formation energy for model
+        formation_energy_eV = 0
+        model_results = {}
+        for calc_name, calc_data in calculations.items():
+            # E_formation = E_defect - (N-1)/N * E_perfect
+            # This is equivalent to: E_defect - E_perfect + E_perfect/N
+            # where E_perfect/N is the energy per atom in the perfect crystal
+            # e_per_atom_perfect = e_perfect / n_atoms_perfect
+            # formation_energy = e_defect - e_perfect + e_per_atom_perfect
+
+            formation_energy_eV += (
+                calc_data['stoichiometry_balancing_factor'] * calc_data['energy']
+            )
+
+            model_results[calc_name] = {
+                'energy_eV': calc_data['energy'],
+                'n_atoms': calc_data['n_atoms'],
+            }
+
+        model_results['formation_energy_eV'] = formation_energy_eV
+
+        results[model_name] = model_results
+
+        # Save individual results
+        with open(results_file, 'w') as f:
+            json.dump(model_results, f, indent=2)
+
+        mdb_b_ut.custom_print(
+            f"Vacancy formation energy for '{model_name}': "
+            f'{formation_energy_eV:.3f} eV',
+            'done',
+        )
+
+        # Cosmetic empty line in output
+        mdb_b_ut.custom_print(' ', 'empty')
+
+    # Calculate formation energy for DFT
+    formation_energy_eV_dft = 0
+    results['dft'] = {}
+
+    for calc_name, calc_data in calculations.items():
+        formation_energy_eV_dft += (
+            calculations[calc_name]['stoichiometry_balancing_factor']
+            * calc_data['energy_dft']
+        )
+
+    results['dft']['formation_energy_eV'] = formation_energy_eV_dft
 
     # Save combined results and store plot data
     if results:
@@ -733,6 +796,8 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
     slab_structures_arg = getattr(args, 'surf_ene_benchmark_slab_structures', None)
     dft_refs_arg = getattr(args, 'surf_ene_benchmark_dft_refs', None)
 
+    benchmark_settings = getattr(args, 'surface_energy_benchmark_config', {})
+
     if bulk_structure_arg or slab_structures_arg or dft_refs_arg:
         mdb_b_ut.custom_print(
             'Surface Energy Benchmark - DFT Structure Options:', 'info'
@@ -747,23 +812,27 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             mdb_b_ut.custom_print(f'  DFT reference energies: {dft_refs_arg}', 'info')
 
     # Define surfaces to test (Miller indices)
-    surfaces_to_test = [(1, 0, 0), (1, 1, 0), (1, 1, 1)]
+    surfaces_to_test = benchmark_settings.get('slab_structures', {}).keys()
 
-    # Number of layers in the slab
-    slab_layers = 7
+    if benchmark_settings.get('create_slab_settings'):
+        create_slab_settings = benchmark_settings.get('create_slab_settings', {})
 
-    # Supercell size in x and y directions
-    slab_size = [3, 3]
+        # Number of layers in the slab
+        slab_layers = create_slab_settings.get('slab_layers', 7)
 
-    # Vacuum thickness in Angstroms
-    vacuum_thickness = 15.0
+        # Supercell size in x and y directions
+        slab_size = create_slab_settings.get('supercell_size', [3, 3, 1])
+
+        # Vacuum thickness in Angstroms
+        vacuum_thickness = create_slab_settings.get('vacuum_thickness', 15.0)
 
     # Results storage
     results = {}
 
     # Generate bulk primitive cell
-    bulk_structure_arg = getattr(args, 'surf_ene_benchmark_bulk_structure', None)
-    if hasattr(args, 'surf_ene_benchmark_bulk_structure') and bulk_structure_arg:
+    bulk_structure_arg = benchmark_settings.get('bulk_structure', None)
+
+    if bulk_structure_arg:
         # Use user-provided DFT-optimized bulk structure
         bulk_structure_path = args.surf_ene_benchmark_bulk_structure
         if not bulk_structure_path.exists():
@@ -774,7 +843,6 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
 
         # Handle common formats
         struct_format = mdb_b_ut._get_structure_format(bulk_structure_path)
-
         bulk_primitive = ase_read(bulk_structure_path, format=struct_format)
         mdb_b_ut.custom_print(
             f'Using user-provided DFT-optimized bulk structure: {bulk_structure_path}',
@@ -784,14 +852,17 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
         # Save the bulk structure to benchmark directory
         bulk_primitive_path = benchmark_dir / 'bulk_primitive.xyz'
         bulk_primitive.write(bulk_primitive_path, format='extxyz')
-        print('#@# bulk_atoms (from DFT): ', len(bulk_primitive))
     else:
+        mdb_b_ut.custom_print(
+            f'Generating bulk primitive cell for {args.metal} using ASE function.',
+            'warn',
+        )
+
         # Create bulk primitive cell (no supercell)
         bulk_primitive = bulk(args.metal, cubic=True)
 
         # Save the bulk primitive structure
         bulk_primitive_path = benchmark_dir / 'bulk_primitive.xyz'
-        print('#@# benchmark_dir: ', benchmark_dir)
         bulk_primitive.write(bulk_primitive_path, format='extxyz')
 
     # Handle slab structures (if user-provided DFT slabs are available)
@@ -823,7 +894,9 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             try:
                 surface_indices = tuple(int(x) for x in surface_indices_str)
                 surface_name = ''.join(map(str, surface_indices))
-                user_provided_slabs[surface_name] = slab_path
+                print('#@# surface_indices: ', surface_indices)
+                print('#@# surface_name: ', surface_name)
+                user_provided_slabs[surface_name] = slab_path.resolve()
                 mdb_b_ut.custom_print(
                     f'Using user-provided DFT-optimized slab for '
                     f'{args.metal}({surface_name}): {slab_path}',
@@ -840,79 +913,92 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
     # Load DFT reference data if provided
     dft_references = {}
     dft_surface_energies = {}
-    dft_refs_arg = getattr(args, 'surf_ene_benchmark_dft_refs', None)
-    if hasattr(args, 'surf_ene_benchmark_dft_refs') and dft_refs_arg:
-        if args.surf_ene_benchmark_dft_refs.exists():
-            try:
-                with open(args.surf_ene_benchmark_dft_refs) as f:
-                    dft_references = json.load(f)
+    dft_refs_arg = benchmark_settings.get('dft_refs', None)
+    if dft_refs_arg and pl.Path(dft_refs_arg).exists():
+        try:
+            with open(args.surf_ene_benchmark_dft_refs) as f:
+                dft_references = json.load(f)
+
+            mdb_b_ut.custom_print(
+                f'Loaded DFT reference data from {args.surf_ene_benchmark_dft_refs}',
+                'info',
+            )
+
+            # Calculate DFT surface energies if bulk energy is provided
+            if 'bulk' in dft_references:
+                # Use num_atoms from JSON if provided, otherwise use ASE bulk atoms
+                if isinstance(dft_references['bulk'], dict):
+                    # Bulk entry is a dictionary with energy and num_atoms
+                    bulk_total_energy = dft_references['bulk']['energy']
+                    bulk_num_atoms = dft_references['bulk']['num_atoms']
+                    bulk_energy_per_atom = bulk_total_energy / bulk_num_atoms
+                else:
+                    # Bulk entry is just a number (backwards compatible)
+                    bulk_total_energy = dft_references['bulk']
+                    bulk_num_atoms = len(bulk_primitive)
+                    bulk_energy_per_atom = bulk_total_energy / bulk_num_atoms
+                    mdb_b_ut.custom_print(
+                        f'Using ASE bulk primitive cell with {bulk_num_atoms} '
+                        'atoms. Consider specifying num_atoms in JSON.',
+                        'warn',
+                    )
 
                 mdb_b_ut.custom_print(
-                    f'Loaded DFT reference data from '
-                    f'{args.surf_ene_benchmark_dft_refs}',
+                    f'DFT bulk energy per atom: {bulk_energy_per_atom:.6f} eV '
+                    f'(total: {bulk_total_energy:.6f} eV, {bulk_num_atoms} atoms)',
                     'info',
                 )
 
-                # Calculate DFT surface energies if bulk energy is provided
-                if 'bulk' in dft_references:
-                    # Use num_atoms from JSON if provided, otherwise use ASE bulk atoms
-                    if isinstance(dft_references['bulk'], dict):
-                        # Bulk entry is a dictionary with energy and num_atoms
-                        bulk_total_energy = dft_references['bulk']['energy']
-                        bulk_num_atoms = dft_references['bulk']['num_atoms']
-                        bulk_energy_per_atom = bulk_total_energy / bulk_num_atoms
-                    else:
-                        # Bulk entry is just a number (backwards compatible)
-                        bulk_total_energy = dft_references['bulk']
-                        bulk_num_atoms = len(bulk_primitive)
-                        bulk_energy_per_atom = bulk_total_energy / bulk_num_atoms
-                        mdb_b_ut.custom_print(
-                            f'Using ASE bulk primitive cell with {bulk_num_atoms} '
-                            'atoms. Consider specifying num_atoms in JSON.',
-                            'warn',
-                        )
+                for surface_indices in surfaces_to_test:
+                    surface_name = ''.join(map(str, surface_indices))
 
-                    mdb_b_ut.custom_print(
-                        f'DFT bulk energy per atom: {bulk_energy_per_atom:.6f} eV '
-                        f'(total: {bulk_total_energy:.6f} eV, {bulk_num_atoms} atoms)',
-                        'info',
-                    )
+                    if surface_name in dft_references:
+                        print('#@# surface_name: ', surface_name)
 
-                    for surface_indices in surfaces_to_test:
-                        surface_name = ''.join(map(str, surface_indices))
-
-                        if surface_name in dft_references:
-                            print('#@# surface_name: ', surface_name)
-
-                            # Handle surface entry - can be number or dict
-                            if isinstance(dft_references[surface_name], dict):
-                                # Surface entry has energy and optional num_atoms
-                                surface_data = dft_references[surface_name]
-                                slab_total_energy = surface_data['energy']
-                                n_atoms = surface_data.get('num_atoms')
-                                if n_atoms is None:
-                                    mdb_b_ut.custom_print(
-                                        f'Surface {surface_name}: num_atoms not '
-                                        'specified in DFT reference. Will use actual '
-                                        'slab atom count.',
-                                        'warn',
-                                    )
-                                    continue
-                            else:
-                                # Surface entry is just a number (backward compatible)
-                                slab_total_energy = dft_references[surface_name]
+                        # Handle surface entry - can be number or dict
+                        if isinstance(dft_references[surface_name], dict):
+                            # Surface entry has energy and optional num_atoms
+                            surface_data = dft_references[surface_name]
+                            slab_total_energy = surface_data['energy']
+                            n_atoms = surface_data.get('num_atoms')
+                            if n_atoms is None:
                                 mdb_b_ut.custom_print(
-                                    f'Surface {surface_name}: using number format. '
-                                    'Consider using dict format with num_atoms.',
+                                    f'Surface {surface_name}: num_atoms not '
+                                    'specified in DFT reference. Will use actual '
+                                    'slab atom count.',
                                     'warn',
                                 )
                                 continue
+                        else:
+                            # Surface entry is just a number
+                            slab_total_energy = dft_references[surface_name]
+                            mdb_b_ut.custom_print(
+                                f'Surface {surface_name}: using number format. '
+                                'Consider using dict format with num_atoms.',
+                                'warn',
+                            )
+                            continue
 
-                            print('#@# slab_total_energy: ', slab_total_energy)
-                            print('#@# n_atoms (DFT): ', n_atoms)
+                        structure_path = dft_references[surface_name].get(
+                            'structure_path'
+                        )
+                        # Get true area
+                        if structure_path and pl.Path(structure_path).exists():
+                            temp_slab = ase_read(structure_path)
+                            cell = temp_slab.get_cell()
+                            area = cell[0, 0] * cell[1, 1]
 
-                            # Calculate approximate area for DFT reference
-                            # (will be updated with actual area when slabs are created)
+                        # Calculate approximate area for DFT reference
+                        else:
+                            if (
+                                isinstance(surface_indices, str)
+                                and len(surface_indices) == 3
+                            ):
+                                surface_indices = tuple(int(x) for x in surface_indices)
+                            mdb_b_ut.custom_print(
+                                'Using approximation for area calculation.',
+                                'warning',
+                            )
                             temp_slab = surface(
                                 args.metal,
                                 surface_indices,
@@ -923,51 +1009,45 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                             cell = temp_slab.get_cell()
                             area = cell[0, 0] * cell[1, 1]
 
-                            # Surface energy: γ = (E_slab - N * E_bulk) / (2 * A)
-                            # Factor of 2 because slab has two surfaces
-                            surface_energy_eV_per_A2 = (
-                                slab_total_energy - n_atoms * bulk_energy_per_atom
-                            ) / (2 * area)
-                            print(
-                                '#@# surface_energy_eV_per_A2: ',
-                                surface_energy_eV_per_A2,
-                            )
+                        # Surface energy: γ = (E_slab - N * E_bulk) / (2 * A)
+                        # Factor of 2 because slab has two surfaces
+                        surface_energy_eV_per_A2 = (
+                            slab_total_energy - n_atoms * bulk_energy_per_atom
+                        ) / (2 * area)
 
-                            # Convert eV/Å² to J/m²
-                            surface_energy_J_per_m2 = surface_energy_eV_per_A2 * 16.0218
-                            print(
-                                '#@# surface_energy_J_per_m2: ', surface_energy_J_per_m2
-                            )
+                        # Convert eV/Å² to J/m²
+                        surface_energy_J_per_m2 = surface_energy_eV_per_A2 * 16.0218
+                        print('#@# surface_energy_J_per_m2: ', surface_energy_J_per_m2)
 
-                            dft_surface_energies[surface_name] = surface_energy_J_per_m2
+                        dft_surface_energies[surface_name] = surface_energy_J_per_m2
 
-                            mdb_b_ut.custom_print(
-                                f'DFT {args.metal}({surface_name}) surface energy: '
-                                f'{surface_energy_J_per_m2:.3f} J/m² '
-                                f'(slab: {slab_total_energy:.3f} eV, {n_atoms} atoms)',
-                                'info',
-                            )
-                else:
-                    mdb_b_ut.custom_print(
-                        'No bulk energy found in DFT references. '
-                        'Cannot calculate surface energies.',
-                        'warn',
-                    )
-                    mdb_b_ut.custom_print(
-                        'Expected JSON format: '
-                        '{"100": {"energy": -1231.2, "num_atoms": 63}, '
-                        '"110": -1432.3, "111": -1441.1, '
-                        '"bulk": {"energy": -89.1, "num_atoms": 4}}',
-                        'info',
-                    )
+                        mdb_b_ut.custom_print(
+                            f'DFT {args.metal}({surface_name}) surface energy: '
+                            f'{surface_energy_J_per_m2:.3f} J/m² '
+                            f'(slab: {slab_total_energy:.3f} eV, {n_atoms} atoms)',
+                            'info',
+                        )
+            else:
+                mdb_b_ut.custom_print(
+                    'No bulk energy found in DFT references. '
+                    'Cannot calculate surface energies.',
+                    'warn',
+                )
+                mdb_b_ut.custom_print(
+                    'Expected JSON format: '
+                    '{"100": {"energy": -1231.2, "num_atoms": 63}, '
+                    '"110": -1432.3, "111": -1441.1, '
+                    '"bulk": {"energy": -89.1, "num_atoms": 4}}',
+                    'info',
+                )
 
-            except Exception as e:
-                mdb_b_ut.custom_print(f'Error loading DFT reference file: {e}', 'error')
-        else:
-            mdb_b_ut.custom_print(
-                f'DFT reference file not found: {args.surf_ene_benchmark_dft_refs}',
-                'warn',
-            )
+        except Exception as e:
+            mdb_b_ut.custom_print(f'Error loading DFT reference file: {e}', 'error')
+    else:
+        mdb_b_ut.custom_print(
+            f'DFT reference file not found: {args.surf_ene_benchmark_dft_refs}',
+            'warn',
+        )
 
     # For each model, calculate surface energies
     for _, model_path in enumerate(model_paths):
@@ -995,10 +1075,9 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             bulk_atoms.set_calculator(calculator)
 
             # Check if bulk structure is DFT-provided (skip relaxation) or ASE-generated
-            bulk_structure_arg = getattr(
-                args, 'surf_ene_benchmark_bulk_structure', None
-            )
-            if bulk_structure_arg and bulk_structure_arg.exists():
+            bulk_structure_arg = benchmark_settings.get('bulk_structure', None)
+
+            if bulk_structure_arg and pl.Path(bulk_structure_arg).exists():
                 # DFT-provided bulk structure - evaluate energy without relaxation
                 mdb_b_ut.custom_print(
                     f'Using DFT-optimized bulk structure for {model_name} '
@@ -1012,7 +1091,7 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                 bulk_relaxed_path = benchmark_dir / f'{model_name}_bulk_dft.xyz'
                 bulk_atoms.write(bulk_relaxed_path, format='extxyz')
             else:
-                # ASE-generated bulk structure - relax with MLIP
+                # ASE-generated bulk structure: relax with MLIP
                 mdb_b_ut.custom_print(
                     f'Relaxing bulk structure with {model_name}', 'info'
                 )

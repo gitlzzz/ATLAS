@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.47.3 (2026-01-26)
+
+### Docs
+
+- **core**: dump toml section information on each section when automatically generating input files ([#c7ab27f](https://github.com/pol-sb/MatDBForge/commit/c7ab27fda6e09a302b5dea7168df0c40de1f86c0))
+- **benchmarks**: improve documentation for benchmarks ([#3fe1617](https://github.com/pol-sb/MatDBForge/commit/3fe161781ade45346b5ea34730d7d9bb92e93caf))
+
+### Fix
+
+- **benchmarks**: fix defect energy and surface energy benchmarks ([#1ecb42e](https://github.com/pol-sb/MatDBForge/commit/1ecb42e53510bffe33bdbf3631a9dae1c61c1ef0))
+
+### Misc
+
+- **benchmarks**: add input file validation to mlip benchmark ([#a8da225](https://github.com/pol-sb/MatDBForge/commit/a8da225dd83af8d28cd4cb649fc163f79ab8c1f4))
+- **core**: limit torch version below 2.10, force plotly>=6.1.1 ([#6a1f0e2](https://github.com/pol-sb/MatDBForge/commit/6a1f0e2f9cdf4df51bcb6038f82d46b4ec143141))
+
+### Refactor
+
+- **core**: add types and keyword arguments to logging functions ([#7860b04](https://github.com/pol-sb/MatDBForge/commit/7860b045e95b2dea4aadff59ae7e058bc66991d6))
+
+### Style
+
+- **core**: correct mistake in error message during input validation ([#2ecfaf2](https://github.com/pol-sb/MatDBForge/commit/2ecfaf2caf2a022600b74effe84030a0f1bc026b))
+- **md**: add extrapolation and md performance prints, update md script with easier to understand variables ([#c438998](https://github.com/pol-sb/MatDBForge/commit/c438998a41df45d9b3f22b3e1914221da94268bf))
+
 ## 0.47.2 (2026-01-19)
 
 ### Fix
