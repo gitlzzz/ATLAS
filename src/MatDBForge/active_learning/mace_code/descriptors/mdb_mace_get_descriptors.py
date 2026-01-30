@@ -20,7 +20,9 @@ if __name__ == '__main__':
     database = ase_read(DATABASE_PATH, format='extxyz', index=':')
 
     # Generate descriptors using MACE
-    descriptor_dict, descriptor_arr = generate_descriptors(MODEL_PATH, database)
+    descriptor_dict, descriptor_arr, uuid_list = generate_descriptors(
+        MODEL_PATH, database
+    )
 
     # Minimum and maximum values for each of the descriptors from MACE
     min_val = np.min(descriptor_arr, axis=0)

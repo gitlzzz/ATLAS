@@ -2,6 +2,7 @@
 """AiiDA plugin for MACE calculations."""
 
 import json
+import pickle
 import shutil
 import tempfile
 import time
@@ -117,8 +118,8 @@ class ProcessMDSeedStructCalculation(CalcJob):
 
         spec.input(
             'concave_hull',
-            valid_type=orm.ArrayData,
-            help=("Array containing the concave hull of the database's latent space"),
+            valid_type=orm.List,
+            help=('List containing several concave hulls as lists of tuples.'),
             required=False,
             # non_db=True,
             default=None,
@@ -249,6 +250,24 @@ class ProcessMDSeedStructCalculation(CalcJob):
             # Remove the file after insertion
             f.close()
             Path(f.name).unlink(missing_ok=True)
+
+        elif hasattr(self.inputs, 'concave_hull') and isinstance(
+            self.inputs.concave_hull, (list, orm.List)
+        ):
+            with tempfile.NamedTemporaryFile(
+                mode='wb',
+                delete=True,
+                suffix='.pkl',
+                prefix='mdb_process_md-',
+            ) as f:
+                pickle.dump(self.inputs.concave_hull.get_list(), f)
+
+                # Ensure data is written to disk
+                f.flush()
+                folder.insert_path(
+                    src=f.name,
+                    dest_name='concave_hulls.pkl',
+                )
 
         # Copying concave hull for extrapolation
         if hasattr(self.inputs, 'autoencoder_model') and isinstance(
@@ -1316,6 +1335,14 @@ class GetDescriptorsCombinedParser(Parser):
                     )
                 case 'concave_hull.npy':
                     concave_hull = orm.ArrayData(arrays=np.load(child_file.absolute()))
+                case 'concave_hulls_data.pkl':
+                    with open(child_file.absolute(), 'rb') as f:
+                        concave_hull_data = orm.SinglefileData(
+                            file=child_file.absolute()
+                        )
+                case 'concave_hulls.pkl':
+                    with open(child_file.absolute(), 'rb') as f:
+                        concave_hull = orm.List(pickle.load(f))
                 case 'latent_space.npy':
                     latent_space = orm.ArrayData(arrays=np.load(child_file.absolute()))
                 case 'concave_hull.png':
@@ -1335,6 +1362,8 @@ class GetDescriptorsCombinedParser(Parser):
             self.out('latent_space', latent_space)
         if concave_hull:
             self.out('concave_hull', concave_hull)
+        if concave_hull_data:
+            self.out('detailed_concave_hull', concave_hull_data)
         if extrapolation_plot:
             self.out('extrapolation_plot', extrapolation_plot)
         if autoencoder_model:
@@ -1618,9 +1647,16 @@ class EvalTestDatabaseCalculation(CalcJob):
 
 # entry-point: mdb-descriptors-combined
 class GetDescriptorsCombinedCalculation(CalcJob):
-    """CalcJob to check the E and F of structures using a committee of MACE models.
+    """CalcJob to gather the descriptors for the training database of an AL Loop.
 
-    Define the input and output specifications for the CalcJob.
+    This calculation job computes the descriptors for all the configurations in
+    the training database. Additionally, further extrapolation metrics are computed
+    depending on the the selected extrapolation type.
+    With min-max extrapolation enabled, the the minimum and maximum range for all
+    descriptors in the training database is computed.
+    With advanced extrapolation, the ranges plus the concave hull of the latent space
+    for all configurations in the training database, are provided, along with a plot
+    showing the configuration distribution in the latent space and the concave hull.
 
     Parameters
     ----------
@@ -1708,8 +1744,14 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
         spec.output(
             'concave_hull',
-            valid_type=orm.ArrayData,
+            valid_type=orm.List,
             help='Array containing the concave hull of the latent space.',
+            required=False,
+        )
+        spec.output(
+            'detailed_concave_hull',
+            valid_type=orm.SinglefileData,
+            help='Pickled list of dicts containing quadtree and latents space info.',
             required=False,
         )
         spec.output(

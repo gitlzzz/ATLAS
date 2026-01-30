@@ -1,10 +1,13 @@
 """Utilities to compute the concave hull for a point cloud of atomic descriptors."""
 
+import datashader as ds
+import datashader.transfer_functions as tf
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from scipy.optimize import minimize_scalar
 from scipy.spatial import ConvexHull, Delaunay, KDTree
-from scipy.stats import gaussian_kde
-from shapely.geometry import LineString, MultiPolygon, Point, Polygon
+from shapely.geometry import LineString, MultiPoint, MultiPolygon, Point, Polygon
 from shapely.ops import polygonize, unary_union
 
 from MatDBForge.core import code_utils as mdb_cut
@@ -19,20 +22,55 @@ except ImportError:  # fall back gracefully
         return x if x is not None else (lambda f: f)
 
 
-@njit
-def _edges_from_triangles(tris):
+# @njit
+# def _edges_from_triangles(tris):
+#     """
+#     Return the set of boundary oriented edges from the subset of
+#     triangles that satisfy the alpha condition.
+#     """
+#     edges = set()
+#     for t0, t1, t2 in tris:
+#         for i, j in ((t0, t1), (t1, t2), (t2, t0)):
+#             if (j, i) in edges:  # internal edge -> remove
+#                 edges.remove((j, i))
+#             else:  # external edge -> add
+#                 edges.add((i, j))
+#     return edges
+
+
+def _edges_from_triangles(simplices):
     """
-    Return the set of boundary oriented edges from the subset of
-    triangles that satisfy the alpha condition.
+    Return the boundary edges from a set of triangles using vectorized NumPy operations.
+
+    Parameters
+    ----------
+    simplices : (N, 3) int array
+        Indices of points forming the triangles.
+
+    Returns
+    -------
+    (K, 2) int array
+        Array of boundary edges (indices).
     """
-    edges = set()
-    for t0, t1, t2 in tris:
-        for i, j in ((t0, t1), (t1, t2), (t2, t0)):
-            if (j, i) in edges:  # internal edge → remove
-                edges.remove((j, i))
-            else:  # external edge → add
-                edges.add((i, j))
-    return edges
+    # 1. Create all edges from the triangles (3 edges per triangle)
+    # Shape: (3 * N, 2)
+    edges = np.concatenate(
+        [simplices[:, [0, 1]], simplices[:, [1, 2]], simplices[:, [2, 0]]]
+    )
+
+    # 2. Sort indices within each edge so (i, j) and (j, i) become identical
+    # This allows us to count shared edges regardless of orientation
+    edges.sort(axis=1)
+
+    # 3. Find unique edges and how many times they appear
+    # In a valid triangulation, internal edges appear exactly twice.
+    # Boundary edges appear exactly once.
+    unique_edges, counts = np.unique(edges, return_counts=True, axis=0)
+
+    # 4. Keep only edges that appear once
+    boundary_edges = unique_edges[counts == 1]
+
+    return boundary_edges
 
 
 def alpha_shape(points, alpha: float, only_outer: bool = True):
@@ -56,6 +94,8 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     pts = np.ascontiguousarray(points, dtype=np.float64)
     if pts.shape[0] < 4:  # degenerate cases
         return Polygon(pts).convex_hull
+    elif pts.shape[0] == 4:
+        return Polygon(pts)
 
     tri = Delaunay(pts)
     simplices = tri.simplices  # (M, 3) int array
@@ -81,8 +121,14 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     boundary_edges = _edges_from_triangles(kept_simplices)
 
     # build shapely geometry
-    segments = [LineString([pts[i], pts[j]]) for (i, j) in boundary_edges]
+    # boundary_edges is now a (K, 2) numpy array, so we can iterate directly
+    segments = [LineString(pts[edge]) for edge in boundary_edges]
     mgeom = unary_union(segments)
+
+    # build shapely geometry
+    # segments = [LineString([pts[i], pts[j]]) for (i, j) in boundary_edges]
+    # mgeom = unary_union(segments)
+
     polygons = list(polygonize(mgeom))
 
     if not polygons:
@@ -237,7 +283,7 @@ def get_concave_hull_python(
         change_factor = alpha * 0.1
         min_change_factor = change_factor * 0.01
         num_attempts = 0
-        alpha_lower_bound = 0.0
+        alpha_lower_bound = 1.0
 
         while num_attempts <= n_attempts:
             print()
@@ -378,6 +424,154 @@ def get_concave_hull_python(
     return alpha_shape_arr, last_alpha
 
 
+def get_optimized_concave_hull(
+    latent_space: np.ndarray,
+    target_alpha_range: tuple[float, float] = (0.0, 10.0),
+    frac_points_allowed_out: float = 0.02,
+) -> tuple[np.ndarray, float]:
+    total_points = len(latent_space)
+
+    # Heuristic: Linearity Check (PCA)
+    # In simple and small datasets, the points may be collinear.
+    # In that case, the concave hull is ill-defined.
+    # Hence, we do a linearity check, and if not passed, we
+    # return the convex hull instead.
+
+    # Center the data
+    centered_data = latent_space - np.mean(latent_space, axis=0)
+
+    # Compute covariance matrix and eigenvalues
+    # This measures the spread of data in orthogonal directions
+    cov = np.cov(centered_data.T)
+    eigenvalues = np.linalg.eigvalsh(cov)
+
+    # Sort: [smaller_spread, larger_spread]
+    eigenvalues = np.sort(eigenvalues)
+
+    # Calculate aspect ratio
+    # If the smaller eigenvalue is near zero, or the ratio is extreme, it's a line.
+    # eps to avoid division by zero
+    val_min = max(eigenvalues[0], 1e-12)
+    val_max = eigenvalues[-1]
+    aspect_ratio = val_max / val_min
+
+    # Threshold: if the collection of descriptors is 500x longer than it is wide,
+    # treat as a line.
+    if aspect_ratio > 500.0:
+        mdb_cut.custom_print(
+            f'Linear Geometry detected (Ratio {aspect_ratio:.1f}). '
+            'Returning Convex Hull.',
+            'warning',
+        )
+        hull = MultiPoint(latent_space).convex_hull
+
+        # Handle the edge case of perfectly collinear points (area = 0)
+        if hull.area < 1e-9:
+            # Buffer it slightly so it becomes a valid polygon for your later checks
+            hull = hull.buffer(0.01 * val_max)
+
+        return np.array(hull.exterior.coords), 0.0
+
+    # Normal case: Non-linear geometry
+    # This runs an optimizer to find the best alpha value.
+
+    # Normalize data to [0, 1]
+    # This allows to use consistent alpha ranges across different datasets
+    # by removing scale effects.
+    min_vals = latent_space.min(axis=0)
+    max_vals = latent_space.max(axis=0)
+    span = max_vals - min_vals
+
+    # Avoid division by zero
+    span[span == 0] = 1.0
+    norm_latent_space = (latent_space - min_vals) / span
+
+    # Define the objective function
+    def objective(alpha):
+        # Handle edge case where alpha is too small (convexhull-ish)
+        if alpha <= 0:
+            return 1e9
+
+        # Compute the alpha shape
+        try:
+            # only_outer=True to get the polygon
+            shape = alpha_shape(norm_latent_space, alpha=alpha, only_outer=True)
+        except Exception:
+            return 1e9  # Penalty for failed shape generation
+
+        # If shape is empty or invalid geometry
+        if shape.is_empty or not hasattr(shape, 'area'):
+            return 1e9
+
+        # Constraint check
+        # Check if the random points are inside the concave hull.
+        point_inside, point_outside, all_points = check_atom_in_domain(
+            shape, norm_latent_space
+        )
+        frac_outside = point_outside.shape[0] / total_points
+
+        # Cost calculation
+        if frac_outside > frac_points_allowed_out:
+            # Penalizing going outside the allowed fraction.
+            # We add a massive penalty so the optimizer leaves this region immediately.
+            # We add frac_outside to give it a 'gradient' to follow back to safety.
+            cost = 1e6 + (frac_outside * 1000)
+        else:
+            # We want to minimize area.
+            # However, we must ensure the optimizer doesn't pick a massive alpha
+            # that results in a tiny, fragmented hull just to get low area
+            # We penalize area by alpha^2 to ensure that the optimizer doesn't pick
+            # a very small alpha every time.
+            cost = shape.area / (alpha**2)
+
+        mdb_cut.custom_print(
+            f'Alpha: {alpha:.4f}, '
+            f'Points outside: {point_outside.shape[0]}, '
+            f'Points total: {total_points}, '
+            f'Fraction outside: {frac_outside:.4f}, '
+            f'Area: {shape.area:.4e}, '
+            f'Cost: {cost:.5e}',
+            'info',
+        )
+        return cost
+
+    # Enforce bounds
+    lower_bound = max(0.001, target_alpha_range[0])
+    upper_bound = min(50.0, target_alpha_range[1])
+
+    # Run the optimizer
+    # Method 'bounded' is best when we know the min/max alpha
+    # Tolerance: stop when alpha changes by less than xatol
+    result = minimize_scalar(
+        objective,
+        bounds=(lower_bound, upper_bound),
+        method='bounded',
+        options={'xatol': 0.00125},
+    )
+    best_alpha = result.x
+    # final_shape = alpha_shape(latent_space, alpha=best_alpha, only_outer=True)
+
+    # Denormalize the result
+    final_shape_norm = alpha_shape(norm_latent_space, alpha=best_alpha, only_outer=True)
+
+    # Extract normalized coords
+    if hasattr(final_shape_norm.exterior, 'coords'):
+        exterior_norm = np.array(final_shape_norm.exterior.coords)
+    else:
+        exterior_norm = np.array(final_shape_norm.convex_hull.exterior.coords)
+
+    # Rescale back to original units
+    alpha_shape_arr = exterior_norm * span + min_vals
+
+    mdb_cut.custom_print(
+        f'Optimized alpha: {best_alpha:.4f} with area: {final_shape_norm.area:.4e}. '
+        f'Number of points inside: {total_points}.',
+        'done',
+    )
+
+    return alpha_shape_arr, best_alpha
+
+
 def check_atom_in_domain(
     concave_hull: np.ndarray,
     descriptors: np.ndarray,
@@ -410,6 +604,7 @@ def plot_concave_hull(
     latent_space: np.ndarray = None,
     point_inside: np.ndarray = None,
     point_outside: np.ndarray = None,
+    scaled_hull: np.ndarray | list[np.ndarray] = None,
     filename: str = None,
     alpha: float = None,
     plot_density: bool = False,
@@ -429,6 +624,8 @@ def plot_concave_hull(
         Points inside the concave hull (M, 2).
     point_outside : np.ndarray, optional
         Points outside the concave hull (K, 2).
+    scaled_hull : np.ndarray | list[np.ndarray], optional
+        The coordinates of the scaled concave hull vertices (N, 2).
     filename : str, optional
         The filename to save the plot. Defaults to 'concave_hull.png'.
     alpha : float, optional
@@ -442,109 +639,223 @@ def plot_concave_hull(
     if not filename:
         filename = 'concave_hull.png'
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10, 10))
 
-    # Concave hull plots may come from MD simulations or other sources.
-    # This block stacks descriptors for density coloring in all types of concave hull
-    # plots
-    if latent_space is None and (point_inside is not None or point_outside is not None):
-        if point_outside.size == 0:
-            point_outside = point_outside.reshape((0, 2))
-        if point_inside.size == 0:
-            point_inside = point_inside.reshape((0, 2))
-        latent_space_dens = np.vstack((point_inside, point_outside))
-    else:
-        latent_space_dens = latent_space
+    # Calculate limits based on all available data
+    all_points = []
+    if latent_space is not None and latent_space.size > 0:
+        all_points.append(latent_space)
+    if point_inside is not None and point_inside.size > 0:
+        all_points.append(point_inside)
+    if point_outside is not None and point_outside.size > 0:
+        all_points.append(point_outside)
+    if isinstance(concave_hull, list):
+        for hull in concave_hull:
+            all_points.append(hull)
+    elif concave_hull is not None:
+        all_points.append(concave_hull)
 
-    x = latent_space_dens[:, 0]
-    y = latent_space_dens[:, 1]
+    if all_points:
+        all_points_stacked = np.vstack(all_points)
+        x_min, y_min = np.min(all_points_stacked, axis=0)
+        x_max, y_max = np.max(all_points_stacked, axis=0)
 
-    if plot_density:
-        # Get point density for coloring
-        xy = np.vstack((x, y))
-        z = gaussian_kde(xy)(xy)
-    else:
-        z = '#b16286'
+        # Add some padding
+        padding = 0.05
+        w = x_max - x_min
+        h = y_max - y_min
+        x_min -= w * padding
+        x_max += w * padding
+        y_min -= h * padding
+        y_max += h * padding
 
-    # Plotting the concave hull in 2D space using lines
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+
+    # Plotting latent space points using Datashader
     if latent_space is not None and latent_space.size != 0:
-        scatter = ax.scatter(
-            x,
-            y,
-            marker='o',
-            s=25,
-            alpha=0.5,
-            label='Descriptor in database',
-            linewidths=0,
-            c=z,
+        df = pd.DataFrame(latent_space, columns=['x', 'y'])
+
+        # Use the plot limits for the canvas
+        x_min_lim, x_max_lim = ax.get_xlim()
+        y_min_lim, y_max_lim = ax.get_ylim()
+
+        # Create datashader canvas
+        cvs = ds.Canvas(
+            plot_width=800 * 2,
+            plot_height=800 * 2,
+            x_range=(x_min_lim, x_max_lim),
+            y_range=(y_min_lim, y_max_lim),
         )
-        if plot_density:
-            fig.colorbar(scatter, ax=ax, label='Density')
+        agg = cvs.points(df, 'x', 'y')
+
+        # Shade the points - using a blue colormap for density
+        img = tf.shade(agg, cmap=['lightblue', 'darkblue'], how='log')
+
+        # Convert to PIL image and display with imshow
+        img_pil = img.to_pil()
+        ax.imshow(
+            img_pil,
+            extent=[x_min_lim, x_max_lim, y_min_lim, y_max_lim],
+            origin='upper',
+            aspect='auto',
+            zorder=0,
+        )
+
+        # Add dummy legend entry
+        ax.scatter([], [], c='darkblue', label='Descriptor in database', s=10)
 
     if point_inside is not None and point_inside.size != 0:
         ax.scatter(
-            x,
-            y,
+            point_inside[:, 0],
+            point_inside[:, 1],
             marker='s',
             label='Structure in domain',
             color='#8ec07c',
-            s=3.5,
-            linewidths=1.5,
+            s=20,
+            linewidths=0.5,
             edgecolors='#282828',
+            zorder=3,
         )
     if point_outside is not None and point_outside.size != 0:
         ax.scatter(
-            x,
-            y,
+            point_outside[:, 0],
+            point_outside[:, 1],
             marker='s',
             label='Structure out of domain',
             color='#fb4934',
-            s=3.5,
-            linewidths=1.5,
+            s=20,
+            linewidths=0.5,
             edgecolors='#282828',
+            zorder=3,
         )
 
-    ax.plot(
-        concave_hull[:, 0],
-        concave_hull[:, 1],
-        '-',
-        color='#cc241d',
-        lw=1,
-        label='Concave hull',
-    )
+    # Plot the concave hull boundary
+    if isinstance(concave_hull, list):
+        for i, hull in enumerate(concave_hull):
+            ax.plot(
+                hull[:, 0],
+                hull[:, 1],
+                '-',
+                color='#cc241d',
+                lw=2,
+                label='Concave hull' if i == 0 else None,
+                zorder=2,
+            )
+        polygons = [Polygon(hull) for hull in concave_hull]
+        # Valid polygons need at least 3 points and must not be empty
+        polygons = [p for p in polygons if p.is_valid and not p.is_empty]
 
-    polygon = Polygon(concave_hull)
-    hull_area = polygon.area
+        if not polygons:
+            hull_area = 0.0
+        elif len(polygons) == 1:
+            hull_area = polygons[0].area
+        else:
+            hull_area = MultiPolygon(polygons).area
+    else:
+        ax.plot(
+            concave_hull[:, 0],
+            concave_hull[:, 1],
+            '-',
+            color='#cc241d',
+            lw=2,
+            label='Concave hull',
+            zorder=2,
+        )
+
+        polygon = Polygon(concave_hull)
+        hull_area = polygon.area
+
+    # Plot scaled hull if provided
+    if scaled_hull is not None:
+        if isinstance(scaled_hull, list):
+            for i, hull in enumerate(scaled_hull):
+                ax.plot(
+                    hull[:, 0],
+                    hull[:, 1],
+                    '--',
+                    color='#d65d0e',
+                    lw=2,
+                    label='Scaled hull' if i == 0 else None,
+                    zorder=2,
+                )
+        else:
+            ax.plot(
+                scaled_hull[:, 0],
+                scaled_hull[:, 1],
+                '--',
+                color='#d65d0e',
+                lw=2,
+                label='Scaled hull',
+                zorder=2,
+            )
+
+    scaled_hull_area = None
+    if scaled_hull is not None:
+        if isinstance(scaled_hull, list):
+            polygons_scaled = [Polygon(h) for h in scaled_hull]
+            # Valid polygons need at least 3 points and must not be empty
+            polygons_scaled = [
+                p for p in polygons_scaled if p.is_valid and not p.is_empty
+            ]
+
+            if not polygons_scaled:
+                scaled_hull_area = 0.0
+            elif len(polygons_scaled) == 1:
+                scaled_hull_area = polygons_scaled[0].area
+            else:
+                scaled_hull_area = MultiPolygon(polygons_scaled).area
+        else:
+            scaled_hull_area = Polygon(scaled_hull).area
 
     if alpha is None:
         alpha = 'unknown'
     if isinstance(alpha, (float, int)):
         alpha = f'{alpha:.2f}'
 
+    text_str = f'Alpha: {alpha}\nHull area: {hull_area:.2e}'
+
+    if scaled_hull_area is not None:
+        text_str += f'\nScaled area: {scaled_hull_area:.2e}'
+
+    if point_inside is not None or point_outside is not None:
+        n_in = point_inside.shape[0] if point_inside is not None else 0
+        n_out = point_outside.shape[0] if point_outside is not None else 0
+        total = n_in + n_out
+        if total > 0:
+            frac_in = n_in / total
+            frac_out = n_out / total
+            text_str += f'\nIn domain: {frac_in:.1%}'
+            text_str += f'\nOut domain: {frac_out:.1%}'
+
     # Write area and alpha in a text box
     plt.text(
         0.05,
         0.95,
-        f'Alpha: {alpha}\nHull area: {hull_area:.2e}',
+        text_str,
         transform=plt.gca().transAxes,
-        fontsize=10,
+        fontsize=12,
         verticalalignment='top',
         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+        zorder=4,
     )
 
-    plt.title(title)
-    plt.xlabel('Embedded dimension 1')
-    plt.ylabel('Embedded dimension 2')
-    plt.legend()
+    plt.title(title, fontsize=16)
+    plt.xlabel('Embedded dimension 1', fontsize=14)
+    plt.ylabel('Embedded dimension 2', fontsize=14)
+    plt.legend(fontsize=12)
 
     # Save as PNG
-    plt.savefig(filename, dpi=300)
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
 
     # Save as SVG
-    filename_svg = filename.with_suffix('.svg')
-    plt.savefig(filename_svg, dpi=300)
+    if hasattr(filename, 'with_suffix'):
+        filename_svg = filename.with_suffix('.svg')
+    else:
+        filename_svg = f'{filename}.svg'
+    plt.savefig(filename_svg, dpi=300, bbox_inches='tight')
 
-    plt.clf()
+    plt.close(fig)
 
 
 if __name__ == '__main__':

@@ -1050,16 +1050,16 @@ active_learning:
       type: float
       mandatory: true
       default: 10.0
+    disagreement_check_type:
+      description: "Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames."
+      type: str
+      mandatory: true
+      default: "training"
+      choices: ["training", "md_threshold"]
   extrapolation:
     name: "extrapolation"
     name_pretty: "Extrapolation Check Settings"
     description: "Settings for extrapolation checks."
-    disagreement_check_type:
-      description: "Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames."
-      type: str
-      mandatory: false
-      default: "training"
-      choices: ["training", "md_threshold"]
     check_extrapolation_type:
       description: "Method for extrapolation check. With `min-max` or `basic`, check for extrapolation using the range of the MACE descriptors. With `alpha-shape` or `advanced`, check for extrapolation using the concave hull of the MACE descriptors. With `disabled` or `none`, disable the extrapolation check, only leaving committee disagreement for EF for the domain."
       type: str
@@ -1073,12 +1073,12 @@ active_learning:
       mandatory: false
       target_alpha_range_min:
         type: float
-        default: 3.0
+        default: 1.0
         mandatory: false
         description: "Minimum alpha value for the concave hull."
       target_alpha_range_max:
         type: float
-        default: 8.0
+        default: 50.0
         mandatory: false
         description: "Maximum alpha value for the concave hull."
       default_alpha_if_issues:
@@ -1096,6 +1096,26 @@ active_learning:
         default: 0.002
         mandatory: false
         description: "Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%."
+      qt_offset_frac:
+        type: float
+        default: 0.1
+        mandatory: false
+        description: "Offset fraction for the boundary of the root quadtree as a fraction of the data range. This will leave an extra margin around the data to avoid edge effects."
+      qt_data_frac_capacity:
+        type: float
+        default: 0.015
+        mandatory: false
+        description: "Fraction of the total number of data points to be used as the capacity of each quadtree node. Any quadtree node that goes above the capacity will be split further."
+      qt_subdivision_factor:
+        type: int
+        default: 4
+        mandatory: false
+        description: "Subdivision factor for searching dense leaves of the quadtree. Higher values lead to more subdivisions and finer search."
+      concave_hull_scale_factor:
+        type: float
+        default: 0.0
+        mandatory: false
+        description: "Scaling factor for the concave hull to be used when checking for extrapolation. For example, 0.1 results in a 10% size increase of the hull. A value of 0.0 means no scaling."
   safeguard:
     name: "safeguard"
     name_pretty: "Active Learning Safeguard Settings"

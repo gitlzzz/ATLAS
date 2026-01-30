@@ -319,7 +319,7 @@ def gen_al_loop_report(
                     # Getting model path
                     with model_path.as_path() as model_path_load:
                         # Get descriptors from the first iteration
-                        _, desc_array = generate_descriptors(
+                        _, desc_array, uuid_list = generate_descriptors(
                             model_path=model_path_load,
                             database=init_db,
                             device=device,
@@ -1988,7 +1988,7 @@ def get_latent_spaces_workchain(
                 'info',
             )
             if isinstance(model_path, (str, Path)):
-                descr_dict, arr = generate_descriptors(
+                descr_dict, arr, uuid_list = generate_descriptors(
                     model_path=model_path,
                     database=curr_step_db,
                     device=device_str,
@@ -1996,14 +1996,14 @@ def get_latent_spaces_workchain(
                 )
             elif isinstance(model_path, orm.SinglefileData):
                 with model_path.as_path() as model_path_str:
-                    descr_dict, arr = generate_descriptors(
+                    descr_dict, arr, uuid_list = generate_descriptors(
                         model_path=model_path_str,
                         database=curr_step_db,
                         device=device_str,
                         # descriptor_dict=curr_step_db,
                     )
             elif isinstance(model_path, Autoencoder):
-                descr_dict, arr = generate_descriptors(
+                descr_dict, arr, uuid_list = generate_descriptors(
                     model_path=model_path,
                     database=curr_step_db,
                     device=device_str,
@@ -2342,7 +2342,7 @@ def get_latent_spaces_database_files(
         curr_db = ase_read(
             Path(autoencoder_path) / database, format='extxyz', index=':'
         )
-        descr_dict, arr = generate_descriptors(
+        descr_dict, arr, uuid_list = generate_descriptors(
             model_path=model_path,
             database=curr_db,
             device=device_str,

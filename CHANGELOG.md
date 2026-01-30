@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.48.0 (2026-01-30)
+
+### Feature
+
+- **al_loop**: introduced quadtree+optimizer concave hull. ([#2967664](https://github.com/pol-sb/MatDBForge/commit/2967664282128fefd52f2f8ed6abe3616ed98a02))
+
+### Fix
+
+- **core**: update usage of generate_descriptors() ([#f8a73f9](https://github.com/pol-sb/MatDBForge/commit/f8a73f952570e6ce4cf2ad0e474f903fe0a3a162))
+- **al_loop**: return uuid_list when getting soap descriptors ([#289ceb1](https://github.com/pol-sb/MatDBForge/commit/289ceb127c951798a8a38382a7ba99a390023568))
+
 ## 0.47.3 (2026-01-26)
 
 ### Docs

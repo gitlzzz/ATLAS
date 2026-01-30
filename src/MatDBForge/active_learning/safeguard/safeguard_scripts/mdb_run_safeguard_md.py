@@ -6,6 +6,7 @@ if the current iteration of the model is robust enough before early stopping.
 """
 
 import pathlib as pl
+import pickle
 import tomllib
 import uuid
 import warnings
@@ -16,7 +17,8 @@ from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryReader, TrajectoryWriter
 from mace.calculators import MACECalculator
-from shapely.geometry import Point, Polygon
+from shapely.affinity import scale
+from shapely.geometry import MultiPolygon, Point, Polygon
 
 import MatDBForge.active_learning.active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning.extrapolation import autoencoder as mdb_ae
@@ -29,8 +31,10 @@ warnings.filterwarnings('ignore')
 
 
 def check_traj_in_domain(
-    concave_hull: np.ndarray, descriptor_dict: dict
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    concave_hull: np.ndarray,
+    descriptor_dict: dict,
+    hull_scale_factor: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list | np.ndarray | None]:
     """
     Check if the generated descriptors are inside the precomputed concave hull.
 
@@ -51,6 +55,9 @@ def check_traj_in_domain(
             }
         }
         ```
+    hull_scale_factor : float, optional
+        Tolerance percentage to enlarge the concave hull.
+        For example, 0.1 adds 10% tolerance. Default is 0.0.
 
     Returns
     -------
@@ -68,7 +75,35 @@ def check_traj_in_domain(
     # Check if the random points are inside the bounds of the
     # concave hull by checking if the points are inside the
     # polygon formed by the concave hull.
-    polygon = Polygon(concave_hull)
+    # If the concave hull has multiple parts, create a MultiPolygon
+    # from all the parts.
+    if len(concave_hull) == 1:
+        polygon = Polygon(concave_hull)
+    else:
+        polygons = []
+        for part in concave_hull:
+            if len(part) >= 3:
+                polygons.append(Polygon(part))
+        polygon = MultiPolygon(polygons)
+
+    # Scale the polygon if tolerance is provided
+    scaled_hull_coords = None
+    if hull_scale_factor > 0:
+        scaling_factor = 1.0 + hull_scale_factor
+        mdb_cut.custom_print(
+            f'Scaling concave hull by a factor of {scaling_factor} '
+            'to apply tolerance...',
+            'info',
+        )
+        polygon = scale(
+            polygon, xfact=scaling_factor, yfact=scaling_factor, origin='center'
+        )
+
+        if isinstance(polygon, Polygon):
+            scaled_hull_coords = np.array(polygon.exterior.coords)
+        elif isinstance(polygon, MultiPolygon):
+            scaled_hull_coords = [np.array(p.exterior.coords) for p in polygon.geoms]
+
     for c_uuid in descriptor_dict:
         descriptors = descriptor_dict[c_uuid]['latent_space']
 
@@ -88,7 +123,7 @@ def check_traj_in_domain(
     point_inside = np.array(point_inside)
     point_outside = np.array(point_outside)
     all_points_in_out = np.array(all_points_in_out)
-    return point_inside, point_outside, all_points_in_out
+    return point_inside, point_outside, all_points_in_out, scaled_hull_coords
 
 
 def limit_md_frames(md_traj, md_params: dict):
@@ -522,10 +557,12 @@ if __name__ == '__main__':
                     descriptor_settings=settings['descriptors'],
                 )
             else:
-                descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
-                    model_path=prepend_path / 'sampler_model.model',
-                    database=md_traj_short,
-                    descriptor_settings=settings['descriptors'],
+                descriptor_dict, descriptor_arr, uuid = (
+                    mdb_al_ut.generate_descriptors_mace(
+                        model_path=prepend_path / 'sampler_model.model',
+                        database=md_traj_short,
+                        descriptor_settings=settings['descriptors'],
+                    )
                 )
 
             # Add is_extrapolating list which contains boolean values showing
@@ -544,9 +581,15 @@ if __name__ == '__main__':
 
             # Read the concave hull. If it fails, notify the user and proceed
             # without extrapolation check.
-            try:
+            if (prepend_path / 'concave_hull.npy').exists():
                 concave_hull = np.load(prepend_path / 'concave_hull.npy')
-            except FileNotFoundError:
+            elif (prepend_path / 'concave_hulls.pkl').exists():
+                with open(prepend_path / 'concave_hulls.pkl', 'rb') as f:
+                    concave_hull = []
+                    concave_hull_tuples = pickle.load(f)
+                    for hull in concave_hull_tuples:
+                        concave_hull.append(np.array(hull))
+            else:
                 mdb_cut.custom_print(
                     (
                         'Concave hull file not found! '
@@ -589,14 +632,25 @@ if __name__ == '__main__':
                     descriptor_dict=descriptor_dict,
                 )
 
-            point_inside, point_outside, all_points_in_out = check_traj_in_domain(
-                concave_hull=concave_hull, descriptor_dict=descriptor_dict
+            hull_tolerance = settings.get('extrapolation', {}).get(
+                'hull_tolerance', 0.0
+            )
+            (
+                point_inside,
+                point_outside,
+                all_points_in_out,
+                scaled_hull,
+            ) = check_traj_in_domain(
+                concave_hull=concave_hull,
+                descriptor_dict=descriptor_dict,
+                hull_scale_factor=hull_tolerance,
             )
 
             plot_concave_hull(
                 concave_hull=concave_hull,
                 point_inside=point_inside,
                 point_outside=point_outside,
+                scaled_hull=scaled_hull,
                 filename=res_folder / f'concave_hull_temp-{curr_temp}.png',
             )
 

@@ -4,6 +4,7 @@
 import pathlib as pl
 import pickle
 import tomllib
+import uuid
 
 import numpy as np
 from aiida.common.extendeddicts import AttributeDict
@@ -11,10 +12,10 @@ from ase.io import read as ase_read
 from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning.active_learning_utils import generate_descriptors
+from MatDBForge.active_learning.extrapolation import quadtree as mdb_qt
 from MatDBForge.active_learning.extrapolation import train_autoencoder as mdb_train_ae
 from MatDBForge.active_learning.extrapolation.concave_hull import (
-    get_concave_hull_python,
-    plot_concave_hull,
+    get_optimized_concave_hull,
 )
 from MatDBForge.core import code_utils as mdb_cut
 
@@ -113,31 +114,49 @@ if __name__ == '__main__':
     frac_points_allowed_out = concave_hull_settings.get(
         'frac_points_allowed_out', 0.002
     )
+    qt_offset_frac = concave_hull_settings.get('qt_offset_frac', 0.1)
+    qt_data_frac_capacity = concave_hull_settings.get('qt_data_frac_capacity', 0.015)
+    qt_subdivision_factor = concave_hull_settings.get('qt_subdivision_factor', 8)
 
     # Ensure target alpha range is a tuple
     target_alpha_range = (target_alpha_range_min, target_alpha_range_max)
 
-    # Load data
+    # Load database structures. Assuming extxyz format.
+    mdb_cut.custom_print('Reading structure database...')
     structs_database = ase_read(
         prepend_path / 'training_db.xyz', index=':', format='extxyz'
     )
 
+    # Ensure that each structure has an 'mdb_id' in its info dictionary.
+    # This shouldn't normally happen, except when debugging with custom
+    # databases. In normal operation, each structure should already have
+    # an 'mdb_id' assigned during database creation.
+    # There's an additional fallback in the descriptor generation function,
+    # which generates a UUID if 'mdb_id' is not found. However, using it
+    # would require saving a file mapping the generated UUIDs to the structures,
+    # and add code to read that file later.
+    for struct in structs_database:
+        if 'mdb_id' not in struct.info:
+            struct.info['mdb_id'] = str(uuid.uuid4())
+
     # Generate descriptors
     if not pl.Path(res_folder / 'curr_it_db_descriptors.pkl').exists():
+        mdb_cut.custom_print('Computing descriptors from database...')
         descriptor_type = descriptor_settings.get('descriptor_type', 'mace')
-        descriptor_dict, descriptor_arr = generate_descriptors(
+        descriptor_dict, descriptor_arr, _ = generate_descriptors(
             descriptor_type=descriptor_type,
             database=structs_database,
             descriptor_settings=descriptor_settings,
             model_path=prepend_path / 'curr_iter_best.model',
         )
+
     else:
         mdb_cut.custom_print('Reading descriptors from file...')
         try:
             descriptor_arr = np.load(prepend_path / 'all_descriptors.npz')
-            if hasattr(descriptor_arr, 'arr_0'):
+            if descriptor_arr.get('arr_0') is not None:
                 descriptor_arr = descriptor_arr['arr_0']
-            elif hasattr(descriptor_arr, 'descriptor'):
+            elif descriptor_arr.get('descriptor') is not None:
                 descriptor_arr = descriptor_arr['descriptor']
 
         except FileNotFoundError:
@@ -145,6 +164,11 @@ if __name__ == '__main__':
 
         with open(res_folder / 'curr_it_db_descriptors.pkl', 'rb') as f:
             descriptor_dict = pickle.load(f)
+
+    mdb_cut.custom_print(
+        f'Gathered a descriptor array with the following shape: {descriptor_arr.shape}',
+        'done',
+    )
 
     # Minimum and maximum values for each of the descriptors
     min_val = np.min(descriptor_arr, axis=0)
@@ -242,49 +266,212 @@ if __name__ == '__main__':
 
     # If latent space was successfully calculated
     # Check for the existence of the latent_space variable
-    if latent_space is not None or latent_space_all is not None:
+    if latent_space is not None and latent_space_all is not None:
         # Get concave hull
         match descriptor_settings.get('dimensionality_reduction_method'):
             case 'autoencoder':
-                mdb_cut.custom_print('Computing concave hull...', 'info')
-
                 mdb_cut.custom_print(
                     f'Read concave hull settings. '
                     f'Target alpha range: {target_alpha_range}, '
                     f'default alpha if issues: {default_alpha_if_issues}, '
                     f'NN distance scale factor: {nn_dist_scale_factor}, '
-                    f'Fraction of points allowed outside: {frac_points_allowed_out}',
+                    f'Fraction of points allowed outside: {frac_points_allowed_out}, '
+                    f'QuadTree offset fraction: {qt_offset_frac}, '
+                    f'QuadTree leaf capacity fraction: {qt_data_frac_capacity}, '
+                    f'QuadTree leaf subdivision factor: {qt_subdivision_factor}, ',
                     'info',
                 )
 
-                concave_hull, final_alpha = get_concave_hull_python(
-                    latent_space_all,
-                    target_alpha_range=target_alpha_range,
-                    default_alpha_if_issues=default_alpha_if_issues,
-                    nn_dist_scale_factor=nn_dist_scale_factor,
-                    frac_points_allowed_out=frac_points_allowed_out,
+                # Preparing quadtree
+                mdb_cut.custom_print('Preparing QuadTree...', 'info')
+                all_points = [Point(p) for p in latent_space_all]
+
+                # Setup QuadTree
+                qt = mdb_qt.setup_quadtree(
+                    all_points=all_points,
+                    offset_frac=qt_offset_frac,
+                    data_frac_capacity=qt_data_frac_capacity,
                 )
-                concave_hull_path = res_folder / 'concave_hull.npy'
-                np.save(file=concave_hull_path, arr=concave_hull)
+                mdb_cut.custom_print('QuadTree prepared.', 'done')
+
+                # Preparing clusters
+                mdb_cut.custom_print('Preparing clusters...', 'info')
+                dense_boxes = qt.find_dense_leaves(
+                    max_width_threshold=qt.data_range_x / qt_subdivision_factor
+                )
+                clusters = mdb_qt.separate_clusters(dense_boxes)
+                mdb_cut.custom_print('Clusters obtained!', 'done')
 
                 mdb_cut.custom_print(
-                    f"Concave hull computed, saved to '{concave_hull_path}'.", 'info'
+                    f'Number of distinct clusters found: {len(clusters)}'
+                )
+                print()
+
+                alpha_shapes = []
+                alpha_val = None
+                if len(clusters) > 1:
+                    for i, cluster_dense_boxes in enumerate(clusters):
+                        try:
+                            mdb_cut.custom_print(
+                                f'Cluster {i + 1} has {len(cluster_dense_boxes)} '
+                                'dense boxes.',
+                                'debug',
+                            )
+                            mdb_cut.custom_print(
+                                f'Computing concave hull for Cluster {i + 1}...', 'info'
+                            )
+
+                            # Box-aware point filtering
+                            latent_space_pts = []
+                            for box in cluster_dense_boxes:
+                                latent_space_pts.extend(
+                                    [p for p in all_points if box.contains(p)]
+                                )
+                            coords = np.array([(p.x, p.y) for p in latent_space_pts])
+
+                            if len(coords) < 3:
+                                raise ValueError(
+                                    'Not enough points after QuadTree filtering'
+                                )
+
+                            alpha_shape_arr, alpha_val = get_optimized_concave_hull(
+                                latent_space=coords,
+                                target_alpha_range=(2, 20.0),
+                                frac_points_allowed_out=0.05,
+                            )
+
+                            # Create polygon from shell
+                            alpha_shape_polygon = Polygon(alpha_shape_arr)
+
+                            points_inside_hull = [
+                                p
+                                for p in latent_space_pts
+                                if alpha_shape_polygon.intersects(p)
+                            ]
+                            frac_inside_hull = (
+                                len(points_inside_hull) / len(latent_space_pts)
+                                if latent_space_pts
+                                else 0.0
+                            )
+
+                            # Store alpha shapes into alpha_shapes list
+                            alpha_shapes.append(
+                                {
+                                    'cluster_id': i + 1,
+                                    'dense_boxes': cluster_dense_boxes,
+                                    'alpha_shape': alpha_shape_polygon,
+                                    'used_alpha': alpha_val,
+                                    'frac_inside_hull': frac_inside_hull,
+                                }
+                            )
+
+                        except Exception as e:
+                            mdb_cut.custom_print(
+                                f'Could not compute concave hull due to error: {e}. '
+                                'Skipping concave hull computation.',
+                                'error',
+                            )
+                            concave_hull = None
+                else:
+                    try:
+                        mdb_cut.custom_print(
+                            'Only one cluster found. '
+                            'Computing concave hull for the entire dataset...',
+                            'info',
+                        )
+
+                        coords = np.array([(p.x, p.y) for p in all_points])
+
+                        alpha_shape_arr, alpha_val = get_optimized_concave_hull(
+                            latent_space=coords,
+                            target_alpha_range=target_alpha_range,
+                            frac_points_allowed_out=frac_points_allowed_out,
+                        )
+
+                        # Create polygon from shell
+                        alpha_shape_polygon = Polygon(alpha_shape_arr)
+
+                        points_inside_hull = [
+                            p for p in all_points if alpha_shape_polygon.intersects(p)
+                        ]
+                        frac_inside_hull = len(points_inside_hull) / len(all_points)
+
+                        # Store alpha shapes into alpha_shapes list
+                        alpha_shapes.append(
+                            {
+                                'cluster_id': 1,
+                                'dense_boxes': None,
+                                'alpha_shape': alpha_shape_polygon,
+                                'used_alpha': alpha_val,
+                                'frac_inside_hull': frac_inside_hull,
+                            }
+                        )
+
+                    except Exception as e:
+                        mdb_cut.custom_print(
+                            f'Could not compute concave hull due to error: {e}. '
+                            'Skipping concave hull computation.',
+                            'error',
+                        )
+                        concave_hull = None
+
+                concave_hull_data_path = res_folder / 'concave_hulls_data.pkl'
+                with open(concave_hull_data_path, 'wb') as f:
+                    pickle.dump(alpha_shapes, f)
+
+                shape_coordinates = []
+                for shape in alpha_shapes:
+                    curr_shape_coord = shape['alpha_shape'].exterior.coords.xy
+                    curr_shape_coord = [
+                        coord
+                        for coord in zip(
+                            curr_shape_coord[0], curr_shape_coord[1], strict=True
+                        )
+                    ]
+                    shape_coordinates.append(curr_shape_coord)
+
+                concave_hull_path = res_folder / 'concave_hulls.pkl'
+                with open(concave_hull_path, 'wb') as f:
+                    pickle.dump(shape_coordinates, f)
+
+                mdb_cut.custom_print(
+                    f"Concave hull(s) computed, saved to '{concave_hull_path}'.",
+                    'info',
+                )
+                print()
+
+                points_inside, points_outside, frac_outside = (
+                    mdb_qt.check_if_points_in_polygons(alpha_shapes, all_points)
+                )
+
+                mdb_cut.custom_print(
+                    f'Points inside alpha shapes: {len(points_inside)} '
+                    f', outside: {len(points_outside)}',
+                    'info',
+                )
+                mdb_cut.custom_print(
+                    f'Percentage of total datapoints points outside '
+                    f'alpha shapes: {frac_outside * 100:.2f}%',
+                    'info',
                 )
 
                 plot_hull = True
 
                 if plot_hull:
                     plot_img_path = res_folder / 'concave_hull.png'
-                    plot_concave_hull(
-                        concave_hull=concave_hull,
-                        latent_space=latent_space_all,
+                    mdb_qt.visualize_quadtree(
+                        qt=qt,
+                        points=all_points,
+                        clusters=clusters,
+                        alpha_shapes=alpha_shapes,
                         filename=plot_img_path,
-                        alpha=final_alpha,
+                        frac_outside=frac_outside,
                     )
 
                     mdb_cut.custom_print(
                         f"Concave hull plotted, saved to '{plot_img_path}'.", 'info'
                     )
+
             case 'pca':
                 raise NotImplementedError('PCA not implemented yet')
             case 'none':
