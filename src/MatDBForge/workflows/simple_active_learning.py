@@ -805,7 +805,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
                 # Convert model to LAMMPS compatible format
                 # and return it to workchain context
-                if self.ctx.cuda_available:
+                if hasattr(self.ctx, 'cuda_available') and self.ctx.cuda_available:
                     self.ctx.lammps_potential_file = mdb_al_ut.create_mace_lammps_model(
                         model_file
                     )
@@ -1270,6 +1270,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             proc_seed_builder.desc_min_arr = self.ctx.descriptors_min_array
             proc_seed_builder.settings_file_pth = self.inputs.toml_file
 
+            # The MD part loads the settings dynamically during runtime.
             # Loading the settings file again to get updated settings
             settings_path = Path(self.inputs.toml_file.value)
             if settings_path.exists:
@@ -3606,7 +3607,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             if descriptor_settings_dict.get('descriptor', {}).get('average') is None:
                 descriptor_settings_dict.get('descriptor', {})['average'] = 'inner'
 
-            descr_dict, _ = mdb_al_ut.generate_descriptors(
+            descr_dict, _, _ = mdb_al_ut.generate_descriptors(
                 database=sorted_seed_db,
                 descriptor_type=descriptor_fps_settings.get('descriptor_type', 'soap'),
                 descriptor_settings=descriptor_fps_settings.get('descriptor', {}),

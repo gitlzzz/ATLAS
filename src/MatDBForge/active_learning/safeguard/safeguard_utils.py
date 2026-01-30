@@ -1,5 +1,6 @@
 """AiiDA plugin for MACE calculations."""
 
+import pickle
 import tempfile
 from pathlib import Path
 
@@ -80,7 +81,6 @@ class RunMDSafeguardCalculation(CalcJob):
             required=True,
             serializer=orm.to_aiida_type,
             # non_db=True,
-
         )
         spec.input(
             'm_rmse_e',
@@ -122,9 +122,9 @@ class RunMDSafeguardCalculation(CalcJob):
         )
         spec.input(
             'concave_hull',
-            valid_type=orm.ArrayData,
+            valid_type=orm.List,
             help=(
-                'Array containing the concave hull to be used for the '
+                'List of arrays containing the concave hull to be used for the '
                 'extrapolation check.'
             ),
             required=False,
@@ -195,7 +195,9 @@ class RunMDSafeguardCalculation(CalcJob):
         )
 
         # Copying concave hull for extrapolation
-        if self.inputs.concave_hull:
+        if hasattr(self.inputs, 'concave_hull') and isinstance(
+            self.inputs.concave_hull, (np.ndarray, orm.ArrayData)
+        ):
             concave_hull = self.inputs.concave_hull.get_array()
             with tempfile.NamedTemporaryFile(
                 mode='w', delete=True, suffix='.npy', prefix='mdb_safeguard_md-'
@@ -209,6 +211,28 @@ class RunMDSafeguardCalculation(CalcJob):
             # Remove the file after insertion
             f.close()
             Path(f.name).unlink(missing_ok=True)
+
+        elif hasattr(self.inputs, 'concave_hull') and isinstance(
+            self.inputs.concave_hull, (list, orm.List)
+        ):
+            with tempfile.NamedTemporaryFile(
+                mode='wb',
+                delete=True,
+                suffix='.pkl',
+                prefix='mdb_process_md-',
+            ) as f:
+                pickle.dump(self.inputs.concave_hull.get_list(), f)
+
+                # Ensure data is written to disk
+                f.flush()
+                folder.insert_path(
+                    src=f.name,
+                    dest_name='concave_hulls.pkl',
+                )
+
+                # Remove the file after insertion
+                f.close()
+                Path(f.name).unlink(missing_ok=True)
 
         # Copying concave hull for extrapolation
         if hasattr(self.inputs, 'autoencoder_model'):

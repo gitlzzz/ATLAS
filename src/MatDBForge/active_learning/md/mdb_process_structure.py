@@ -9,6 +9,7 @@ the MD trajectory if necessary.
 
 import json
 import pathlib as pl
+import pickle
 import tomllib
 import uuid
 import warnings
@@ -20,7 +21,8 @@ from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryReader, TrajectoryWriter
 from mace.calculators import MACECalculator
-from shapely.geometry import Point, Polygon
+from shapely.affinity import scale
+from shapely.geometry import MultiPolygon, Point, Polygon
 
 import MatDBForge.active_learning.active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning.extrapolation import autoencoder as mdb_ae
@@ -33,8 +35,10 @@ warnings.filterwarnings('ignore')
 
 
 def check_traj_in_domain(
-    concave_hull: np.ndarray, descriptor_dict: dict
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    concave_hull: np.ndarray,
+    descriptor_dict: dict,
+    hull_scale_factor: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list | np.ndarray | None]:
     """
     Check if the generated descriptors are inside the precomputed concave hull.
 
@@ -55,6 +59,9 @@ def check_traj_in_domain(
             }
         }
         ```
+    hull_scale_factor : float, optional
+        Tolerance percentage to enlarge the concave hull.
+        For example, 0.1 adds 10% tolerance. Default is 0.0.
 
     Returns
     -------
@@ -72,7 +79,37 @@ def check_traj_in_domain(
     # Check if the random points are inside the bounds of the
     # concave hull by checking if the points are inside the
     # polygon formed by the concave hull.
-    polygon = Polygon(concave_hull)
+    # If the concave hull has multiple parts, create a MultiPolygon
+    # from all the parts.
+    if len(concave_hull) == 1:
+        polygon = Polygon(concave_hull)
+    else:
+        polygons = []
+        for part in concave_hull:
+            if len(part) >= 3:
+                polygons.append(Polygon(part))
+        polygon = MultiPolygon(polygons)
+
+    # Scale the polygon if tolerance is provided
+    scaled_hull_coords = None
+    if hull_scale_factor > 0:
+        scaling_factor = 1.0 + hull_scale_factor
+        mdb_cut.custom_print(
+            f'Scaling concave hull by a factor of {scaling_factor} '
+            'to apply tolerance...',
+            'info',
+        )
+        polygon = scale(
+            polygon, xfact=scaling_factor, yfact=scaling_factor, origin='center'
+        )
+
+        if isinstance(polygon, Polygon):
+            scaled_hull_coords = np.array(polygon.exterior.coords)
+        elif isinstance(polygon, MultiPolygon):
+            scaled_hull_coords = [np.array(p.exterior.coords) for p in polygon.geoms]
+    else:
+        mdb_cut.custom_print('No tolerance applied to concave hull.', 'warn')
+
     for c_uuid in descriptor_dict:
         descriptors = descriptor_dict[c_uuid]['latent_space']
 
@@ -92,7 +129,7 @@ def check_traj_in_domain(
     point_inside = np.array(point_inside)
     point_outside = np.array(point_outside)
     all_points_in_out = np.array(all_points_in_out)
-    return point_inside, point_outside, all_points_in_out
+    return point_inside, point_outside, all_points_in_out, scaled_hull_coords
 
 
 def define_allowed_stages(
@@ -304,10 +341,15 @@ if __name__ == '__main__':
             )
             enable_cueq = True
 
-    # Get the EF disagreement type
-    ef_disagreement_type = settings.get('extrapolation', {}).get(
+    # Get the EF disagreement type for interpolation
+    ef_disagreement_type = settings.get('interpolation', {}).get(
         'disagreement_check_type', 'training'
     )
+
+    # Get measure of chemical accuracy from settings
+    target_acc_e = settings.get('interpolation', {}).get('target_accuracy_e_meV_per_at')
+    target_acc_f = settings.get('interpolation', {}).get('target_accuracy_f_meV_per_A')
+
     # Get the extrapolation type
     extrap_type = settings.get('extrapolation', {}).get(
         'check_extrapolation_type', 'advanced'
@@ -463,175 +505,204 @@ if __name__ == '__main__':
             frame.info['frame_idx'] = frame_idx
             frame.info['calc_type'] = 'MACE_MD'
 
-        # Apply MD filters and removing these frames from the trajectory
-        frames_to_remove = []
-        mdb_cut.custom_print(
-            'Applying MD filters to remove outliers...', 'info', logger=logger
-        )
+        # Check for cached short trajectory indices
+        cache_indices_file = res_folder / f'md_traj_short_indices_temp-{curr_temp}.txt'
+        md_traj_short = None
+        short_mask = None
 
-        if md_filters.get('layer_distance', {}).get('enable'):
+        if cache_indices_file.exists():
             mdb_cut.custom_print(
-                "Running 'layer distance' filter...", 'info', logger=logger
+                f"Found cached short trajectory indices at '{cache_indices_file}'. "
+                'Skipping filtering and sampling...',
+                'info',
+                logger=logger,
             )
-            later_distance_r_frames = []
+            with open(cache_indices_file) as f:
+                indices = [int(line.strip()) for line in f if line.strip()]
 
-            # Getting max distance from input
-            max_dist: float = md_filters['layer_distance']['max_layer_distance_ang']
+            md_traj_short = [md_traj[i] for i in indices]
+            # Use absolute frame indices
+            short_mask = indices
+            # Define md_traj_filtered for logging purposes
+            md_traj_filtered = md_traj_short
 
-            for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_str_filters.apply_filter_layer_distance(
-                    struct=frame, max_layer_distance_ang=max_dist
+        if md_traj_short is None:
+            # Apply MD filters and removing these frames from the trajectory
+            frames_to_remove = []
+            mdb_cut.custom_print(
+                'Applying MD filters to remove outliers...', 'info', logger=logger
+            )
+
+            if md_filters.get('layer_distance', {}).get('enable'):
+                mdb_cut.custom_print(
+                    "Running 'layer distance' filter...", 'info', logger=logger
                 )
-                if is_structure_wrong:
-                    later_distance_r_frames.append(idx)
-            frames_to_remove.extend(later_distance_r_frames)
+                later_distance_r_frames = []
 
-            mdb_cut.custom_print(
-                f'Marked by layer distance filter: {len(later_distance_r_frames)}',
-                'debug',
-            )
+                # Getting max distance from input
+                max_dist: float = md_filters['layer_distance']['max_layer_distance_ang']
 
-        exploding_structs = []
-        if md_filters.get('exploding_structures', {}).get('enable'):
-            mdb_cut.custom_print(
-                "Running 'exploding structures' filter...", 'info', logger=logger
-            )
-
-            explod_filt_settings = md_filters.get('exploding_structures', {})
-            # Getting multiplier from input
-            cov_rad_multiplier_max: float = explod_filt_settings.get(
-                'cov_rad_multiplier_max', 10.0
-            )
-            cov_rad_multiplier_min: float = explod_filt_settings.get(
-                'cov_rad_multiplier_min', 0.8
-            )
-            max_T = curr_temp * md_params.get('max_temp_multiplier', 1)
-            max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
-            remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
-
-            # Applying filter for every frame
-            for idx, frame in enumerate(md_traj):
-                is_structure_wrong: bool = (
-                    mdb_str_filters.apply_filter_exploding_structures(
-                        struct=frame,
-                        cov_rad_multiplier_max=cov_rad_multiplier_max,
-                        cov_rad_multiplier_min=cov_rad_multiplier_min,
-                        max_T=max_T,
-                        T_list=[frame.info.get('md_temperature')],
-                        max_T_multiplier=max_T_multiplier,
-                        remove_positive_E=remove_positive_E,
+                for idx, frame in enumerate(md_traj):
+                    is_structure_wrong = mdb_str_filters.apply_filter_layer_distance(
+                        struct=frame, max_layer_distance_ang=max_dist
                     )
+                    if is_structure_wrong:
+                        later_distance_r_frames.append(idx)
+                frames_to_remove.extend(later_distance_r_frames)
+
+                mdb_cut.custom_print(
+                    f'Marked by layer distance filter: {len(later_distance_r_frames)}',
+                    'debug',
                 )
-                if is_structure_wrong:
-                    exploding_structs.append(idx)
-            frames_to_remove.extend(exploding_structs)
 
-            mdb_cut.custom_print(
-                f'Marked by exploding structures filter: {len(exploding_structs)}',
-                'debug',
-                logger=logger,
-            )
-
-        if md_filters.get('check_atoms_no_neighbor', {}).get('enable'):
-            neighbor_r_frames = []
-            mdb_cut.custom_print(
-                "Running 'no neighbor' filter...", 'info', logger=logger
-            )
-
-            # Getting multiplier from input
-            cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
-                'covalent_radius_multiplier', 1.0
-            )
-            # Applying filter for every frame
-            for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_str_filters.apply_filter_no_neighbors(
-                    struct=frame, cov_rad_multiplier=cov_rad_mult
+            exploding_structs = []
+            if md_filters.get('exploding_structures', {}).get('enable'):
+                mdb_cut.custom_print(
+                    "Running 'exploding structures' filter...", 'info', logger=logger
                 )
-                if is_structure_wrong:
-                    neighbor_r_frames.append(idx)
-            frames_to_remove.extend(neighbor_r_frames)
+
+                explod_filt_settings = md_filters.get('exploding_structures', {})
+                # Getting multiplier from input
+                cov_rad_multiplier_max: float = explod_filt_settings.get(
+                    'cov_rad_multiplier_max', 10.0
+                )
+                cov_rad_multiplier_min: float = explod_filt_settings.get(
+                    'cov_rad_multiplier_min', 0.8
+                )
+                max_T = curr_temp * md_params.get('max_temp_multiplier', 1)
+                max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
+                remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
+
+                # Applying filter for every frame
+                for idx, frame in enumerate(md_traj):
+                    is_structure_wrong: bool = (
+                        mdb_str_filters.apply_filter_exploding_structures(
+                            struct=frame,
+                            cov_rad_multiplier_max=cov_rad_multiplier_max,
+                            cov_rad_multiplier_min=cov_rad_multiplier_min,
+                            max_T=max_T,
+                            T_list=[frame.info.get('md_temperature')],
+                            max_T_multiplier=max_T_multiplier,
+                            remove_positive_E=remove_positive_E,
+                        )
+                    )
+                    if is_structure_wrong:
+                        exploding_structs.append(idx)
+                frames_to_remove.extend(exploding_structs)
+
+                mdb_cut.custom_print(
+                    f'Marked by exploding structures filter: {len(exploding_structs)}',
+                    'debug',
+                    logger=logger,
+                )
+
+            if md_filters.get('check_atoms_no_neighbor', {}).get('enable'):
+                neighbor_r_frames = []
+                mdb_cut.custom_print(
+                    "Running 'no neighbor' filter...", 'info', logger=logger
+                )
+
+                # Getting multiplier from input
+                cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
+                    'covalent_radius_multiplier', 1.0
+                )
+                # Applying filter for every frame
+                for idx, frame in enumerate(md_traj):
+                    is_structure_wrong = mdb_str_filters.apply_filter_no_neighbors(
+                        struct=frame, cov_rad_multiplier=cov_rad_mult
+                    )
+                    if is_structure_wrong:
+                        neighbor_r_frames.append(idx)
+                frames_to_remove.extend(neighbor_r_frames)
+
+                mdb_cut.custom_print(
+                    f'Marked by no neighbor filter: {len(neighbor_r_frames)}',
+                    'debug',
+                    logger=logger,
+                )
+
+            # Remove duplicate frames
+            frames_to_remove = list(set(frames_to_remove))
+
+            # Create a new list excluding the frames to remove
+            md_traj_filtered = [
+                frame for i, frame in enumerate(md_traj) if i not in frames_to_remove
+            ]
 
             mdb_cut.custom_print(
-                f'Marked by no neighbor filter: {len(neighbor_r_frames)}',
-                'debug',
-                logger=logger,
-            )
-
-        # Remove duplicate frames
-        frames_to_remove = list(set(frames_to_remove))
-
-        # Create a new list excluding the frames to remove
-        md_traj_filtered = [
-            frame for i, frame in enumerate(md_traj) if i not in frames_to_remove
-        ]
-
-        mdb_cut.custom_print(
-            f'Trajectory length after MD filters: {len(md_traj_filtered)}',
-            'info',
-            logger=logger,
-        )
-
-        if len(md_traj_filtered) == 0:
-            mdb_cut.custom_print(
-                (
-                    'No MD frames left after filtering. '
-                    'This means that probably there are a lot of unrealistic structures'
-                    '. Check the training data and models used to run this MD.'
-                ),
-                'warning',
-                logger=logger,
-            )
-
-            # Returning empty frames list
-            ase_write(
-                res_folder / 'extrapolating_frames.xyz',
-                format='extxyz',
-                images=[],
-                append=True,
-            )
-
-            # Skip the rest of the process for the current T.
-            continue
-
-        # Save removed frames to a file
-        if md_filters.get('save_filtered_structures'):
-            mdb_cut.custom_print(
-                (
-                    f'Saving {len(frames_to_remove)} filtered structures'
-                    f" to '{res_folder / 'filtered_frames.xyz'}'"
-                ),
+                f'Trajectory length after MD filters: {len(md_traj_filtered)}',
                 'info',
                 logger=logger,
             )
-            filtered_frames = [md_traj[i] for i in frames_to_remove]
-            ase_write(
-                res_folder / 'filtered_frames.xyz',
-                format='extxyz',
-                images=filtered_frames,
-                append=True,
-            )
-        else:
-            mdb_cut.custom_print(
-                'Filtered structures not saved.', 'info', logger=logger
-            )
 
-        # Limit total number of frames if sampling during md is disabled
-        if not md_params.get('sample_frames_during_md'):
-            md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
-            mdb_cut.custom_print(
-                f'Limited number of frames to: {len(md_traj_short)}',
-                'info',
-                logger=logger,
-            )
-        else:
-            md_traj_short = md_traj_filtered
-            short_mask = np.arange(len(md_traj_short))
-            mdb_cut.custom_print(
-                'Trajectory already shortened during MD by save interval. '
-                f'Length unchanged. Current length: {len(md_traj_short)}',
-                'info',
-                logger=logger,
-            )
+            if len(md_traj_filtered) == 0:
+                mdb_cut.custom_print(
+                    (
+                        'No MD frames left after filtering. '
+                        'This means that probably there are a lot of '
+                        'unrealistic structures. '
+                        'Check the training data and models used to run this MD.'
+                    ),
+                    'warning',
+                    logger=logger,
+                )
+
+                # Returning empty frames list
+                ase_write(
+                    res_folder / 'extrapolating_frames.xyz',
+                    format='extxyz',
+                    images=[],
+                    append=True,
+                )
+
+                # Skip the rest of the process for the current T.
+                continue
+
+            # Save removed frames to a file
+            if md_filters.get('save_filtered_structures'):
+                mdb_cut.custom_print(
+                    (
+                        f'Saving {len(frames_to_remove)} filtered structures'
+                        f" to '{res_folder / 'filtered_frames.xyz'}'"
+                    ),
+                    'info',
+                    logger=logger,
+                )
+                filtered_frames = [md_traj[i] for i in frames_to_remove]
+                ase_write(
+                    res_folder / 'filtered_frames.xyz',
+                    format='extxyz',
+                    images=filtered_frames,
+                    append=True,
+                )
+            else:
+                mdb_cut.custom_print(
+                    'Filtered structures not saved.', 'info', logger=logger
+                )
+
+            # Limit total number of frames if sampling during md is disabled
+            if not md_params.get('sample_frames_during_md'):
+                md_traj_short, short_mask = limit_md_frames(md_traj_filtered, md_params)
+                mdb_cut.custom_print(
+                    f'Limited number of frames to: {len(md_traj_short)}',
+                    'info',
+                    logger=logger,
+                )
+            else:
+                md_traj_short = md_traj_filtered
+                short_mask = np.arange(len(md_traj_short))
+                mdb_cut.custom_print(
+                    'Trajectory already shortened during MD by save interval. '
+                    f'Length unchanged. Current length: {len(md_traj_short)}',
+                    'info',
+                    logger=logger,
+                )
+
+            # Save cache
+            short_mask = [f.info['frame_idx'] for f in md_traj_short]
+            with open(cache_indices_file, 'w') as f:
+                for idx in short_mask:
+                    f.write(f'{idx}\n')
 
         # Running evaluation of the energies and forces using each commitee model
         mdb_cut.custom_print('Running committee evaluation...', 'info', logger=logger)
@@ -677,10 +748,25 @@ if __name__ == '__main__':
             'Printing interpolation statistics for E:', 'debug', logger=logger
         )
 
+        mdb_cut.custom_print(f'E RMSE: {e_rmse}', 'debug', logger=logger)
+        mdb_cut.custom_print(f'F RMSE: {f_rmse}', 'debug', logger=logger)
+
         if ef_disagreement_type == 'training':
             # model_acc_multiplier is equivalent to lambda in our reference
+
+            # This error threshold will decide if a structure is interpolating or not.
+            # When comparing
             e_error_threshold = model_acc_multiplier * e_rmse  # meV / at
             f_error_threshold = model_acc_multiplier * f_rmse  # meV / A
+
+            # meV/at
+            # e_error_threshold = max(model_acc_multiplier * e_rmse, target_acc_e)
+
+            # meV / A
+            # f_error_threshold = max(model_acc_multiplier * f_rmse, target_acc_f)
+
+            # e_error_threshold = target_acc_e / (e_rmse * model_acc_multiplier)
+            # f_error_threshold = target_acc_f / (f_rmse * model_acc_multiplier)
 
             mdb_cut.custom_print(
                 f'model_acc_multiplier: {model_acc_multiplier}', 'none', logger=logger
@@ -705,7 +791,10 @@ if __name__ == '__main__':
 
             # Checking if the energies are over the error threshold
             energies_stat = mdb_al_ut.get_model_energies_std(model_energies_dict)  # meV
-            maximum_value_e = np.average(energies_stat) * 10  # meV
+
+            # maximum_value_e = np.average(energies_stat) * 10  # meV
+            maximum_value_e = e_error_threshold * 10  # meV
+
             mdb_cut.custom_print(
                 f'e_error_threshold: {e_error_threshold}', 'none', logger=logger
             )
@@ -752,7 +841,9 @@ if __name__ == '__main__':
             # Shape: (1, n_frames)
             forces_std_norm_max = np.amax(forces_std_norm, axis=2)
 
-            maximum_value_f = np.average(forces_std_norm_max) * 10  # meV
+            # maximum_value_f = np.average(forces_std_norm_max) * 10  # meV
+            maximum_value_f = f_error_threshold * 10  # meV
+
             mdb_cut.custom_print(
                 f'f_error_threshold: {f_error_threshold}', 'none', logger=logger
             )
@@ -957,10 +1048,12 @@ if __name__ == '__main__':
                     descriptor_settings=settings['descriptors'],
                 )
             else:
-                descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_mace(
-                    model_path=prepend_path / 'curr_model.model',
-                    database=md_traj_short,
-                    descriptor_settings=settings['descriptors'],
+                descriptor_dict, descriptor_arr, uuids = (
+                    mdb_al_ut.generate_descriptors_mace(
+                        model_path=prepend_path / 'curr_model.model',
+                        database=md_traj_short,
+                        descriptor_settings=settings['descriptors'],
+                    )
                 )
 
             # Add is_extrapolating list which contains boolean values showing
@@ -979,9 +1072,15 @@ if __name__ == '__main__':
 
             # Read the concave hull. If it fails, notify the user and proceed
             # without extrapolation check.
-            try:
+            if (prepend_path / 'concave_hull.npy').exists():
                 concave_hull = np.load(prepend_path / 'concave_hull.npy')
-            except FileNotFoundError:
+            elif (prepend_path / 'concave_hulls.pkl').exists():
+                with open(prepend_path / 'concave_hulls.pkl', 'rb') as f:
+                    concave_hull = []
+                    concave_hull_tuples = pickle.load(f)
+                    for hull in concave_hull_tuples:
+                        concave_hull.append(np.array(hull))
+            else:
                 mdb_cut.custom_print(
                     (
                         'Concave hull file not found! '
@@ -1031,14 +1130,32 @@ if __name__ == '__main__':
                         logger=logger,
                     )
 
-            point_inside, point_outside, all_points_in_out = check_traj_in_domain(
-                concave_hull=concave_hull, descriptor_dict=descriptor_dict
+            # Scale factor for the concave hull tolerance
+            concave_hull_scale_factor = settings['extrapolation'].get(
+                'concave_hull_tolerance_scale_factor', 0.0
+            )
+
+            hull_scale_factor = (
+                settings.get('extrapolation', {})
+                .get('concave_hull', {})
+                .get('concave_hull_scale_factor', 0.0)
+            )
+            (
+                point_inside,
+                point_outside,
+                all_points_in_out,
+                scaled_hull,
+            ) = check_traj_in_domain(
+                concave_hull=concave_hull,
+                descriptor_dict=descriptor_dict,
+                hull_scale_factor=hull_scale_factor,
             )
 
             plot_concave_hull(
                 concave_hull=concave_hull,
                 point_inside=point_inside,
                 point_outside=point_outside,
+                scaled_hull=scaled_hull,
                 filename=res_folder / f'concave_hull_temp-{curr_temp}.png',
             )
 

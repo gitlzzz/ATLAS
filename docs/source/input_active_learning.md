@@ -370,16 +370,16 @@ Settings for the interpolation check. The interpolation check determines whether
   - **Type**: `(float)`
   - **Default**: `10.0`.
 
+- {alt}`disagreement_check_type`:
+  - **Description**: Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames.
+  - **Type**: `(str)`
+  - **Default**: `'training'`.
+  - Possible values are: `training`, `md_threshold`.
+
 ### Extrapolation Check Settings - `[extrapolation]`
 
 Settings for extrapolation checks.
 
-
-- {alt}`disagreement_check_type`:
-  - **Description**: Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames.
-  - **Type**: `(optional, str)`
-  - **Default**: `'training'`.
-  - Possible values are: `training`, `md_threshold`.
 
 - {alt}`check_extrapolation_type`:
   - **Description**: Method for extrapolation check. With `min-max` or `basic`, check for extrapolation using the range of the MACE descriptors. With `alpha-shape` or `advanced`, check for extrapolation using the concave hull of the MACE descriptors. With `disabled` or `none`, disable the extrapolation check, only leaving committee disagreement for EF for the domain.
@@ -399,12 +399,12 @@ This section is optional.
 - {alt}`target_alpha_range_min`:
   - **Description**: Minimum alpha value for the concave hull.
   - **Type**: `(optional, float)`
-  - **Default**: `3.0`.
+  - **Default**: `1.0`.
 
 - {alt}`target_alpha_range_max`:
   - **Description**: Maximum alpha value for the concave hull.
   - **Type**: `(optional, float)`
-  - **Default**: `8.0`.
+  - **Default**: `50.0`.
 
 - {alt}`default_alpha_if_issues`:
   - **Description**: Default alpha value if there are issues with the concave hull generation.
@@ -420,6 +420,26 @@ This section is optional.
   - **Description**: Maximum fraction of points allowed to be outside the concave hull. If the fraction of points outside the hull exceeds this value, alpha will be decreased iteratively until the condition is met or alpha reaches zero. Value is expressed as a fraction, thus 0.002 means 0.2%.
   - **Type**: `(optional, float)`
   - **Default**: `0.002`.
+
+- {alt}`qt_offset_frac`:
+  - **Description**: Offset fraction for the boundary of the root quadtree as a fraction of the data range. This will leave an extra margin around the data to avoid edge effects.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.1`.
+
+- {alt}`qt_data_frac_capacity`:
+  - **Description**: Fraction of the total number of data points to be used as the capacity of each quadtree node. Any quadtree node that goes above the capacity will be split further.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.015`.
+
+- {alt}`qt_subdivision_factor`:
+  - **Description**: Subdivision factor for searching dense leaves of the quadtree. Higher values lead to more subdivisions and finer search.
+  - **Type**: `(optional, int)`
+  - **Default**: `4`.
+
+- {alt}`concave_hull_scale_factor`:
+  - **Description**: Scaling factor for the concave hull to be used when checking for extrapolation. For example, 0.1 results in a 10% size increase of the hull. A value of 0.0 means no scaling.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.0`.
 
 ### Active Learning Safeguard Settings - `[safeguard]`
 
