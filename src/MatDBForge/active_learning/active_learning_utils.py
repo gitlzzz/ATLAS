@@ -732,6 +732,7 @@ def generate_descriptors_mace(
 
     descriptor_dict = {}
     descriptor_list = []
+    uuid_list = []
 
     # Getting descriptors for every structure
     for struct in database:
@@ -741,6 +742,7 @@ def generate_descriptors_mace(
             struct_key = struct.info.get('aiida_uuid')
         else:
             struct_key = str(uuid4())
+            uuid_list.append(struct_key)
             struct.info['mdb_id'] = struct_key
 
         # Creating empty lists to store the descriptors if not already present
@@ -768,7 +770,7 @@ def generate_descriptors_mace(
     # Generating a numpy array from the list of all descriptors, stacked
     # vertically.
     descriptor_arr = np.vstack(descriptor_list)
-    return descriptor_dict, descriptor_arr
+    return descriptor_dict, descriptor_arr, uuid_list
 
 
 def get_species_from_database(database: list[Atoms]) -> list[str]:
@@ -818,6 +820,7 @@ def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings
 
     descriptor_dict = {}
     descriptor_list = []
+    uuid_list = []
 
     # Getting descriptors for every structure
     for struct in database:
@@ -827,6 +830,7 @@ def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings
         # struct_key = struct.info.get('aiida_uuid')
         else:
             struct_key = str(uuid4())
+            uuid_list.append(struct_key)
             struct.info['mdb_id'] = struct_key
 
         # Creating empty lists to store the descriptors if not already present
@@ -846,7 +850,7 @@ def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings
     # Generating a numpy array from the list of all descriptors, stacked
     # vertically.
     descriptor_arr = np.vstack(descriptor_list)
-    return descriptor_dict, descriptor_arr
+    return descriptor_dict, descriptor_arr, uuid_list
 
 
 def run_mace_md_ase(
