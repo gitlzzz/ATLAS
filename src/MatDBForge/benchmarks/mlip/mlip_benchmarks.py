@@ -637,12 +637,12 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
             model_path, device=args.device, dtype=args.dtype
         )
 
+        results_file = pl.Path(
+            benchmark_dir / f'{model_name}_vacancy_formation_energy.json'
+        )
         try:
             for calc_name, calc_data in calculations.items():
                 # Skip if already calculated
-                results_file = (
-                    benchmark_dir / f'{model_name}_vacancy_formation_energy.json'
-                )
                 if results_file.exists():
                     with open(results_file, 'rb') as f:
                         model_results_dict = json.load(f)
@@ -872,7 +872,6 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
     slab_structures_arg = getattr(args, 'surf_ene_benchmark_slab_structures', None)
     if hasattr(args, 'surf_ene_benchmark_slab_structures') and slab_structures_arg:
         for slab_spec in args.surf_ene_benchmark_slab_structures:
-            print('#@# slab_spec: ', slab_spec)
             if ':' not in slab_spec:
                 mdb_b_ut.custom_print(
                     f'Invalid slab specification format: {slab_spec}. '
@@ -894,8 +893,6 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             try:
                 surface_indices = tuple(int(x) for x in surface_indices_str)
                 surface_name = ''.join(map(str, surface_indices))
-                print('#@# surface_indices: ', surface_indices)
-                print('#@# surface_name: ', surface_name)
                 user_provided_slabs[surface_name] = slab_path.resolve()
                 mdb_b_ut.custom_print(
                     f'Using user-provided DFT-optimized slab for '
@@ -953,9 +950,6 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                     surface_name = ''.join(map(str, surface_indices))
 
                     if surface_name in dft_references:
-                        print('#@# surface_name: ', surface_name)
-
-                        # Handle surface entry - can be number or dict
                         if isinstance(dft_references[surface_name], dict):
                             # Surface entry has energy and optional num_atoms
                             surface_data = dft_references[surface_name]
@@ -1017,7 +1011,6 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
 
                         # Convert eV/Å² to J/m²
                         surface_energy_J_per_m2 = surface_energy_eV_per_A2 * 16.0218
-                        print('#@# surface_energy_J_per_m2: ', surface_energy_J_per_m2)
 
                         dft_surface_energies[surface_name] = surface_energy_J_per_m2
 
@@ -1215,7 +1208,6 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                 # Convert to more common units (J/m²)
                 # 1 eV/Å² = 16.02176 J/m²
                 surface_energy_j_m2 = surface_energy_per_area * 16.02176
-                print('#@# mlip surface_energy_j_m2: ', surface_energy_j_m2)
 
                 model_results['surfaces'][surface_name] = {
                     'surface_energy_eV_per_A2': surface_energy_per_area,
