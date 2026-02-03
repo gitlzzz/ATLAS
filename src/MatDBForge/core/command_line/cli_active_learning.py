@@ -6,6 +6,7 @@ import pathlib as pl
 import sys
 import time
 import tomllib
+import uuid
 import warnings
 from argparse import RawTextHelpFormatter
 
@@ -79,7 +80,7 @@ def create_active_learning_builder(
     if al_conf.get('log_path'):
         log_path = pl.Path(al_conf['log_path']).resolve()
     else:
-        timestamp = time.strftime('%Y%m%d-%H%M%S')
+        timestamp = time.strftime('%Y%m%d-%H%M%S') + '_' + str(uuid.uuid4())
         log_path = pl.Path(f'mdb_output_{timestamp}.log').resolve()
 
     builder.active_learning.eval_test_db_settings = toml_dict.get('test_db', {})

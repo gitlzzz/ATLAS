@@ -362,7 +362,7 @@ This section is optional.
 
 ### Interpolation Check Settings - `[interpolation]`
 
-Settings for the interpolation check. The interpolation check determines whether a structure is within the model's domain or requires a DFT calculation, by checking the committee models disagreement, considering the model accuracy threshold.
+Settings for the interpolation check. The interpolation check determines whether a structure is within the model's knowledge domain by checking the committee models disagreement, considering the model accuracy threshold.
 
 
 - {alt}`model_acc_multiplier`:
@@ -375,6 +375,16 @@ Settings for the interpolation check. The interpolation check determines whether
   - **Type**: `(str)`
   - **Default**: `'training'`.
   - Possible values are: `training`, `md_threshold`.
+
+- {alt}`target_accuracy_e_meV_per_at`:
+  - **Description**: Target accuracy for energy per atom in meV/atom. This should roughly correspond to the noise floor of your reference method, e.g., 1-2 meV/atom for DFT. By default, a relatively large value of 43 meV/atom is selected, since it correponds with a typical measure of chemical accuracy. However, this might be too high for some properties, such as long term diffusion or phase transitions.
+  - **Type**: `(optional, float)`
+  - **Default**: `43.0`.
+
+- {alt}`target_accuracy_f_meV_per_A`:
+  - **Description**: Target accuracy for force, in meV/Angstrom. This should roughly correspond to the noise floor of your reference method, e.g., 10-20 meV/atom for DFT. By default, a relatively large value of 50 meV/atom is selected, since it correponds with a typical measure of chemical accuracy.
+  - **Type**: `(optional, float)`
+  - **Default**: `50.0`.
 
 ### Extrapolation Check Settings - `[extrapolation]`
 
@@ -488,6 +498,18 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Default**: `False`.
 
 
+- {alt}`al_keep_struct_every_n_ps`:
+  - **Description**: Keep a structure every N picoseconds of MD simulation.
+  - **Type**: `(float)`
+  - **Default**: `0.5`.
+
+
+- {alt}`log_save_interval`:
+  - **Description**: Log energy and force information every N MD steps.
+  - **Type**: `(optional, int)`
+  - **Default**: `1`.
+
+
 - {alt}`num_at_large_struct`:
   - **Description**: Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
   - **Type**: `(optional, int)`
@@ -503,7 +525,7 @@ MD simulation parameters for safeguard. These settings will override the general
 - {alt}`num_steps`:
   - **Description**: Total number of timesteps for each MD simulation.
   - **Type**: `(int)`
-  - **Default**: `1000`.
+  - **Default**: `33334`.
 
 
 - {alt}`timestep_duration_ps`:
@@ -574,18 +596,6 @@ MD simulation parameters for safeguard. These settings will override the general
   - **Type**: `(str)`
   - **Default**: `'float32'`.
   - Possible values are: `float32`, `float64`.
-
-
-- {alt}`al_keep_struct_every_n_ps`:
-  - **Description**: Keep a structure every N picoseconds of MD simulation.
-  - **Type**: `(float)`
-  - **Default**: `0.5`.
-
-
-- {alt}`log_save_interval`:
-  - **Description**: Log energy and force information every N MD steps.
-  - **Type**: `(optional, int)`
-  - **Default**: `1`.
 
 
 - {alt}`max_energy_threshold_per_atom`:
@@ -645,6 +655,16 @@ MD simulation parameters.
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
 
+- {alt}`al_keep_struct_every_n_ps`:
+  - **Description**: Keep a structure every N picoseconds of MD simulation.
+  - **Type**: `(float)`
+  - **Default**: `0.5`.
+
+- {alt}`log_save_interval`:
+  - **Description**: Log energy and force information every N MD steps.
+  - **Type**: `(optional, int)`
+  - **Default**: `1`.
+
 - {alt}`num_at_large_struct`:
   - **Description**: Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
   - **Type**: `(optional, int)`
@@ -658,7 +678,7 @@ MD simulation parameters.
 - {alt}`num_steps`:
   - **Description**: Total number of timesteps for each MD simulation.
   - **Type**: `(int)`
-  - **Default**: `1000`.
+  - **Default**: `33334`.
 
 - {alt}`timestep_duration_ps`:
   - **Description**: Duration of each timestep in picoseconds.
@@ -718,16 +738,6 @@ MD simulation parameters.
   - **Type**: `(str)`
   - **Default**: `'float32'`.
   - Possible values are: `float32`, `float64`.
-
-- {alt}`al_keep_struct_every_n_ps`:
-  - **Description**: Keep a structure every N picoseconds of MD simulation.
-  - **Type**: `(float)`
-  - **Default**: `0.5`.
-
-- {alt}`log_save_interval`:
-  - **Description**: Log energy and force information every N MD steps.
-  - **Type**: `(optional, int)`
-  - **Default**: `1`.
 
 - {alt}`max_energy_threshold_per_atom`:
   - **Description**: Maximum energy threshold per atom in eV.
@@ -775,6 +785,18 @@ Accepted parameters for each entry:
   - **Default**: `False`.
 
 
+- {alt}`al_keep_struct_every_n_ps`:
+  - **Description**: Keep a structure every N picoseconds of MD simulation.
+  - **Type**: `(float)`
+  - **Default**: `0.5`.
+
+
+- {alt}`log_save_interval`:
+  - **Description**: Log energy and force information every N MD steps.
+  - **Type**: `(optional, int)`
+  - **Default**: `1`.
+
+
 - {alt}`num_at_large_struct`:
   - **Description**: Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations.
   - **Type**: `(optional, int)`
@@ -790,7 +812,7 @@ Accepted parameters for each entry:
 - {alt}`num_steps`:
   - **Description**: Total number of timesteps for each MD simulation.
   - **Type**: `(int)`
-  - **Default**: `1000`.
+  - **Default**: `33334`.
 
 
 - {alt}`timestep_duration_ps`:
@@ -861,18 +883,6 @@ Accepted parameters for each entry:
   - **Type**: `(str)`
   - **Default**: `'float32'`.
   - Possible values are: `float32`, `float64`.
-
-
-- {alt}`al_keep_struct_every_n_ps`:
-  - **Description**: Keep a structure every N picoseconds of MD simulation.
-  - **Type**: `(float)`
-  - **Default**: `0.5`.
-
-
-- {alt}`log_save_interval`:
-  - **Description**: Log energy and force information every N MD steps.
-  - **Type**: `(optional, int)`
-  - **Default**: `1`.
 
 
 - {alt}`max_energy_threshold_per_atom`:

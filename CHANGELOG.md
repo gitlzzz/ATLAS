@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.48.1 (2026-02-03)
+
+### Fix
+
+- **core**: improve log formatting and avoid logger overlap ([#83a2e4c](https://github.com/pol-sb/MatDBForge/commit/83a2e4cbbdff10ffc69a675a153b963fe47eca0e))
+- **core**: add uuid to log filename to ensure file uniqueness ([#275ab11](https://github.com/pol-sb/MatDBForge/commit/275ab110dbeb7e8b0ba608bb623a44cf5b1ac1b1))
+
+### Misc
+
+- **core**: bump aiida from 2.7.1 to 2.7.3 ([#89bc17d](https://github.com/pol-sb/MatDBForge/commit/89bc17df79d21006d45f9b49273efb5135d949b0))
+
 ## 0.48.0 (2026-01-30)
 
 ### Feature

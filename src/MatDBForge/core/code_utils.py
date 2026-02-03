@@ -13,10 +13,27 @@ import qrcode
 from packaging.version import Version
 from packaging.version import parse as parse_version
 from rich.console import Console
+from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
 from rich.theme import Theme
 
 from MatDBForge import MDB_ROOT_DIR, __repo__, __version__
+
+MDB_THEME = Theme(
+    {
+        # Level Styling (matches the rewritten names in MdbRichHandler)
+        'logging.level.[ i ]': 'blue',
+        'logging.level.[ ! ]': 'yellow',
+        'logging.level.[...]': 'white dim',
+        'logging.level.[ ✔ ]': 'green bold',
+        'logging.level.[ X ]': 'red bold',
+        # Message Highlighting
+        'mdb.path': 'magenta italic',
+        'mdb.number': 'cyan bold',
+        'mdb.success': 'green underline',
+        'mdb.failure': 'red bold underline',
+    }
+)
 
 
 def display_qr_in_cli(data: str):
@@ -42,45 +59,101 @@ def save_qr_to_file(data: str, filename: str = 'qr_code.png'):
     img.save(filename)
 
 
-def get_console_handler():
-    # Starting console
-    console = Console(
-        theme=Theme(
-            {
-                'logging.level.[ i ]': 'blue',
-                'logging.level.[ ! ]': 'yellow',
-                'logging.level.[...]': 'white',
-                'logging.level.[ ✔ ]': 'green',
-                'logging.level.[ x ]': 'red',
-            }
-        )
-    )
+class MdbHighlighter(RegexHighlighter):
+    """
+    Apply custom highlighting to log messages using Regex.
 
-    # Console logger
-    ch = RichHandler(
+    This highlights patterns in the message body, such as file paths,
+    numbers, or specific status keywords.
+    """
+
+    base_style = 'mdb.'
+    highlights = [
+        r'(?P<path>[\w.\-/]+\.(py|log|txt|json|yaml))',  # File paths
+        r'(?P<number>\b\d+\b)',  # Numbers
+        r'(?P<success>Done|Success|Completed)',  # Success words
+        r'(?P<failure>Error|Failed|Exception)',  # Failure words
+    ]
+
+
+class MdbRichHandler(RichHandler):
+    """
+    Custom RichHandler that rewrites logging level names locally.
+
+    This allows us to display '[ i ]' instead of 'INFO' on the console
+    without using logging.addLevelName() to change it globally (which
+    would affect file logs and other libraries).
+    """
+
+    # Mapping standard level names/numbers to your custom icons
+    _LEVEL_MAP = {
+        'DEBUG': '[...]',
+        'INFO': '[ i ]',
+        'WARNING': '[ ! ]',
+        'ERROR': '[ X ]',
+        'CRITICAL': '[!!!]',
+        'MDB_DEBUG': '    ',
+        'SUCCESS': '[ ✔ ]',
+        # Map AiiDA's REPORT level
+        'REPORT': '[ i ]',
+    }
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """
+        Intercept the log record to modify the levelname before rendering.
+
+        Parameters
+        ----------
+        record : logging.LogRecord
+            The log record to be processed.
+        """
+        # We must create a copy of the record. If we modify the original
+        # record, it will be modified for the FileHandler too, which
+        # we do not want.
+        record_copy = logging.makeLogRecord(record.__dict__)
+        # Rewrite the level name if it exists in our map
+        # Otherwise, keep the original (e.g., 'INFO')
+        if record_copy.levelname in self._LEVEL_MAP:
+            record_copy.levelname = self._LEVEL_MAP[record_copy.levelname]
+        elif record_copy.levelno == 25:  # Handle custom integer levels
+            record_copy.levelname = '[ ✔ ]'
+
+        # Pass the modified copy to the parent RichHandler
+        super().emit(record_copy)
+
+
+def get_console_handler() -> tuple[RichHandler, Console]:
+    """
+    Sets up the custom console and handler with the MDB theme.
+
+    Returns
+    -------
+    tuple[RichHandler, Console]
+        The configured handler and console instance.
+    """
+    # Create Console with the highlighter
+    console = Console(theme=MDB_THEME, highlighter=MdbHighlighter())
+
+    # 3. Create the custom handler
+    ch = MdbRichHandler(
         markup=True,
         show_path=False,
         log_time_format='[%m/%d/%y %H:%M:%S]',
         omit_repeated_times=False,
         console=console,
-        # 11 is one level above DEBUG (10). Allows to show custom low-priority messages
-        level=11,
+        level=11,  # Show everything above DEBUG(10)
     )
+
     formatter_con = logging.Formatter('%(message)s')
     ch.setFormatter(formatter_con)
     ch.set_name('mdb_rich_handler')
-    ch.addFilter(create_handler_filters('console'))
     return ch, console
 
 
 def logging_set_levels():
-    logging.addLevelName(10, '[...]')
-    logging.addLevelName(19, '     ')
     logging.addLevelName(15, 'MDB_DEBUG')
-    logging.addLevelName(20, '[ i ]')
-    logging.addLevelName(25, '[ ✔ ]')
-    logging.addLevelName(30, '[ ! ]')
-    logging.addLevelName(40, '[ X ]')
+    logging.addLevelName(25, 'SUCCESS')
+    logging.addLevelName(19, '     ')
 
 
 def create_handler_filters(handler: str):
@@ -171,12 +244,9 @@ def custom_print(
     logging.Logger
         Logger used for printing the string
     """
-    # normal = "\u001b[0m"
+    extra_tab_str = '\t' if extra_tab else ''
 
-    normal = ''
-    prefix = ''
-    extra_tab = '\t' if extra_tab else ''
-
+    # WARNING: Check if this is being repeated
     if not logger:
         logger = logging.getLogger('mdb')
 
@@ -188,53 +258,33 @@ def custom_print(
         logger.addHandler(ch)
         logging_set_levels()
 
-    if print_type in ['info', 'default']:
-        # prefix = "\u001b[38;5;33m [ i ]"
-        logger.log(
-            level=20,
-            msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string, **(extras if extras else {})},
-        )
-    elif print_type in ['warn', 'warning', 'warn-soft', 'warning-soft']:
-        # prefix = "\u001b[38;5;220m [ ! ]"
-        logger.log(
-            level=30,
-            msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string, **(extras if extras else {})},
-        )
-    elif print_type in ['extra', 'debug']:
-        # prefix = "\u001b[38;5;8m [···]"
-        logger.log(
-            level=10,
-            msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string, **(extras if extras else {})},
-        )
-    if print_type in ['none', 'clean', 'clear', 'empty']:
-        prefix = ''
-        # logger.info(f'{prefix}{normal}{extra_tab}{string}',
-        # extra={'shortmsg': string})
-        logger.log(
-            level=15,
-            msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string, **(extras if extras else {})},
-        )
-    elif print_type in ['done', 'ok']:
-        # prefix = "\u001b[38;5;46m [ ✔ ]"
-        # logger.info(
-        #     f"{prefix}{normal}{extra_tab}{string}", extra={"shortmsg": string}
-        # )
-        logger.log(
-            level=25,
-            msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string, **(extras if extras else {})},
-        )
-    if print_type in ['error', 'problem']:
-        # prefix = "\u001b[38;5;1m [ X ]"
-        logger.log(
-            level=40,
-            msg=f'{prefix}{normal}{extra_tab}{string}',
-            extra={'shortmsg': string, **(extras if extras else {})},
-        )
+    # Default to empty dict if None
+    extra_data = {'shortmsg': string, **(extras or {})}
+    message = f'{extra_tab_str}{string}'
+
+    match print_type:
+        case 'info' | 'default':
+            # Level 20: [ i ]
+            logger.log(level=20, msg=message, extra=extra_data)
+        case 'warn' | 'warning' | 'warn-soft' | 'warning-soft':
+            # Level 30: [ ! ]
+            logger.log(level=30, msg=message, extra=extra_data)
+        case 'extra' | 'debug':
+            # Level 10: [...]
+            logger.log(level=10, msg=message, extra=extra_data)
+        case 'none' | 'clean' | 'clear' | 'empty':
+            # Level 15: MDB_DEBUG / Empty prefix
+            logger.log(level=15, msg=message, extra=extra_data)
+        case 'done' | 'ok':
+            # Level 25: [ ✔ ]
+            logger.log(level=25, msg=message, extra=extra_data)
+        case 'error' | 'problem':
+            # Level 40: [ X ]
+            logger.log(level=40, msg=message, extra=extra_data)
+        case _:
+            # Fallback for unknown types
+            logger.log(level=20, msg=message, extra=extra_data)
+
     return logger
 
 

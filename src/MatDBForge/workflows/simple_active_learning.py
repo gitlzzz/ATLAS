@@ -25,7 +25,6 @@ from ase import Atoms
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.pretty import Pretty
 
@@ -33,7 +32,10 @@ from MatDBForge import MDB_ROOT_DIR
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core.code_utils import (
+    MDB_THEME,
     LevelNameFilter,
+    MdbHighlighter,
+    MdbRichHandler,
     get_mdb_version_info,
 )
 
@@ -298,8 +300,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Getting aiida logger
         aiida_logger = logging.getLogger('aiida')
-        cli_handler = aiida_logger.handlers[0]
-        aiida_logger.removeHandler(cli_handler)
+
+        # Remove aiida's own cli handler to avoid duplicate logs
+        # Iterate over a copy of the list to modify it safely
+        for handler in aiida_logger.handlers[:]:
+            if handler.name == 'cli':
+                aiida_logger.removeHandler(handler)
 
         # Set the PARENT logger to INFO to silence framework debug messages
         aiida_logger.setLevel(15)
@@ -309,18 +315,20 @@ class SimpleActiveLearningWorkChain(WorkChain):
             levels_to_keep=[
                 'MDB_DEBUG',
                 'REPORT',
-                '[ ✔ ]',
-                '[ ! ]',
-                '[ X ]',
-                '[...]',
+                'SUCCESS',
+                'INFO',
+                'WARNING',
+                'ERROR',
+                'DEBUG',
             ]
         )
 
         curr_logger_handlers = aiida_logger.handlers
 
         if not any(
-            [handl.name == 'mdb_file_handler' for handl in curr_logger_handlers]
+            [handl.name == 'mdb_rich_handler' for handl in curr_logger_handlers]
         ):
+            console = Console(color_system='truecolor', theme=MDB_THEME)
             # Create a file handler
             file_handler = logging.FileHandler(log_path)
             file_handler.setLevel(1)
@@ -339,8 +347,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             [handl.name == 'mdb_rich_handler' for handl in curr_logger_handlers]
         ):
             # Adding console logger
-            console = Console(color_system='truecolor')
-            ch = RichHandler(
+            console = Console(
+                color_system='truecolor', theme=MDB_THEME, highlighter=MdbHighlighter()
+            )
+            ch = MdbRichHandler(
                 markup=True,
                 show_path=False,
                 log_time_format='[%d/%m/%y %H:%M:%S]',
@@ -2043,8 +2053,11 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         aiida_logger.addHandler(file_handler)
 
         # Adding console logger
-        console = Console(color_system='truecolor')
-        ch = RichHandler(
+        console = Console(
+            color_system='truecolor', theme=MDB_THEME, highlighter=MdbHighlighter()
+        )
+
+        ch = MdbRichHandler(
             markup=True,
             show_path=False,
             log_time_format='[%d/%m/%y %H:%M:%S]',
