@@ -299,10 +299,12 @@ if __name__ == '__main__':
     # Load the rmse_arr.npy file and assign the values to the variables
     rmse_arr = np.load(prepend_path / 'rmse_arr.npy')
 
-    # meV/at
+    # Best model RMSE for the E in meV/at
     e_rmse = rmse_arr[0]
-    # meV/A
+    # Best model RMSE for the F in meV/A
     f_rmse = rmse_arr[1]
+
+    mdb_cut.custom_print(f'e_rmse: {e_rmse}, f_rmse: {f_rmse}', logger=logger)
 
     # Define results folder
     res_folder = prepend_path / pl.Path('./results')
@@ -347,8 +349,12 @@ if __name__ == '__main__':
     )
 
     # Get measure of chemical accuracy from settings
-    target_acc_e = settings.get('interpolation', {}).get('target_accuracy_e_meV_per_at')
-    target_acc_f = settings.get('interpolation', {}).get('target_accuracy_f_meV_per_A')
+    target_acc_e = settings.get('interpolation', {}).get(
+        'target_accuracy_e_meV_per_at', 43.0
+    )
+    target_acc_f = settings.get('interpolation', {}).get(
+        'target_accuracy_f_meV_per_A', 50.0
+    )
 
     # Get the extrapolation type
     extrap_type = settings.get('extrapolation', {}).get(
@@ -737,7 +743,9 @@ if __name__ == '__main__':
                 comm_results[model.stem]['REF_forces'].append(frame.get_forces() * 1000)
 
         ## Apply E/F commitee extrapolation filter
-        model_acc_multiplier = settings['interpolation'].get('model_acc_multiplier', 1)
+        model_acc_multiplier = settings.get('interpolation', {}).get(
+            'model_acc_multiplier', 1
+        )
 
         mdb_cut.custom_print(
             f"Using disagreement check type: '{ef_disagreement_type}'",
@@ -754,22 +762,30 @@ if __name__ == '__main__':
         if ef_disagreement_type == 'training':
             # model_acc_multiplier is equivalent to lambda in our reference
 
-            # This error threshold will decide if a structure is interpolating or not.
-            # When comparing
-            e_error_threshold = model_acc_multiplier * e_rmse  # meV / at
-            f_error_threshold = model_acc_multiplier * f_rmse  # meV / A
+            mdb_cut.custom_print(f'λ = {model_acc_multiplier}', 'none', logger=logger)
+            mdb_cut.custom_print(
+                f'λ · RMSE_E = {model_acc_multiplier * e_rmse}', 'none', logger=logger
+            )
+            mdb_cut.custom_print(
+                f'λ · RMSE_F = {model_acc_multiplier * f_rmse}', 'none', logger=logger
+            )
 
+            # These error thresholds will decide if a MD frame is interpolating or not.
             # meV/at
-            # e_error_threshold = max(model_acc_multiplier * e_rmse, target_acc_e)
+            e_error_threshold = max(model_acc_multiplier * e_rmse, target_acc_e)
 
             # meV / A
-            # f_error_threshold = max(model_acc_multiplier * f_rmse, target_acc_f)
-
-            # e_error_threshold = target_acc_e / (e_rmse * model_acc_multiplier)
-            # f_error_threshold = target_acc_f / (f_rmse * model_acc_multiplier)
+            f_error_threshold = max(model_acc_multiplier * f_rmse, target_acc_f)
 
             mdb_cut.custom_print(
-                f'model_acc_multiplier: {model_acc_multiplier}', 'none', logger=logger
+                f'θ_E = max(λ · RMSE_E, target_acc_e) = {e_error_threshold}',
+                'none',
+                logger=logger,
+            )
+            mdb_cut.custom_print(
+                f'θ_F = max(λ · RMSE_F, target_acc_f) = {f_error_threshold}',
+                'none',
+                logger=logger,
             )
 
             # Prepare energies and forces dict

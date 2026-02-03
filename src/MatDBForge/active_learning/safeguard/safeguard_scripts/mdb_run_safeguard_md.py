@@ -216,10 +216,11 @@ if __name__ == '__main__':
     # Load the rmse_arr.npy file and assign the values to the variables
     rmse_arr = np.load(prepend_path / 'rmse_arr.npy')
 
-    # meV/at
+    # Best model RMSE for the E in meV/at
     e_rmse = rmse_arr[0]
-    # meV/A
+    # Best model RMSE for the F in meV/A
     f_rmse = rmse_arr[1]
+    mdb_cut.custom_print(f'e_rmse: {e_rmse}, f_rmse: {f_rmse}', logger=logger)
 
     # Define results folder
     res_folder = prepend_path / pl.Path('./results')
@@ -266,9 +267,18 @@ if __name__ == '__main__':
             enable_cueq = True
 
     # Get the EF disagreement type
-    ef_disagreement_type = settings.get('extrapolation', {}).get(
+    ef_disagreement_type = settings.get('interpolation', {}).get(
         'disagreement_check_type', 'training'
     )
+
+    # Get measure of chemical accuracy from settings
+    target_acc_e = settings.get('interpolation', {}).get(
+        'target_accuracy_e_meV_per_at', 43.0
+    )
+    target_acc_f = settings.get('interpolation', {}).get(
+        'target_accuracy_f_meV_per_A', 50.0
+    )
+
     # Get the extrapolation type
     extrap_type = settings.get('extrapolation', {}).get(
         'check_extrapolation_type', 'advanced'

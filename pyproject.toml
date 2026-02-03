@@ -29,7 +29,7 @@ dependencies = [
     "scipy==1.16.2",
     "seaborn==0.13.2",
     "e3nn==0.4.4",
-    "aiida-core==2.7.1",
+    "aiida-core==2.7.3",
     "aiida-lammps==1.0.1",
     "aiida-vasp==4.1.0",
     "wonderwords==2.2.0",

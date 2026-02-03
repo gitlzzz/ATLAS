@@ -1043,7 +1043,7 @@ active_learning:
   interpolation:
     name: "interpolation"
     name_pretty: "Interpolation Check Settings"
-    description: "Settings for the interpolation check. The interpolation check determines whether a structure is within the model's domain or requires a DFT calculation, by checking the committee models disagreement, considering the model accuracy threshold."
+    description: "Settings for the interpolation check. The interpolation check determines whether a structure is within the model's knowledge domain by checking the committee models disagreement, considering the model accuracy threshold."
     mandatory: true
     model_acc_multiplier:
       description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
@@ -1056,6 +1056,16 @@ active_learning:
       mandatory: true
       default: "training"
       choices: ["training", "md_threshold"]
+    target_accuracy_e_meV_per_at:
+      description: "Target accuracy for energy per atom in meV/atom. This should roughly correspond to the noise floor of your reference method, e.g., 1-2 meV/atom for DFT. By default, a relatively large value of 43 meV/atom is selected, since it correponds with a typical measure of chemical accuracy. However, this might be too high for some properties, such as long term diffusion or phase transitions."
+      type: float
+      mandatory: false
+      default: 43.0
+    target_accuracy_f_meV_per_A:
+      description: "Target accuracy for force, in meV/Angstrom. This should roughly correspond to the noise floor of your reference method, e.g., 10-20 meV/atom for DFT. By default, a relatively large value of 50 meV/atom is selected, since it correponds with a typical measure of chemical accuracy."
+      type: float
+      mandatory: false
+      default: 50.0
   extrapolation:
     name: "extrapolation"
     name_pretty: "Extrapolation Check Settings"
@@ -1205,6 +1215,16 @@ active_learning:
         description: "Whether to sample frames during MD simulations for AL."
         mandatory: false
         default: false
+      al_keep_struct_every_n_ps:
+        description: "Keep a structure every N picoseconds of MD simulation."
+        type: float
+        mandatory: true
+        default: 0.5
+      log_save_interval:
+        description: "Log energy and force information every N MD steps."
+        type: int
+        mandatory: false
+        default: 1
       num_at_large_struct:
         description: "Number of structures with a number of atoms larger than `large_struct_size` to consider for MD simulations."
         type: int
@@ -1219,7 +1239,7 @@ active_learning:
         description: "Total number of timesteps for each MD simulation."
         type: int
         mandatory: true
-        default: 1000
+        default: 33334
       timestep_duration_ps:
         description: "Duration of each timestep in picoseconds."
         type: float
@@ -1291,16 +1311,6 @@ active_learning:
         mandatory: true
         default: "float32"
         choices: ["float32", "float64"]
-      al_keep_struct_every_n_ps:
-        description: "Keep a structure every N picoseconds of MD simulation."
-        type: float
-        mandatory: true
-        default: 0.5
-      log_save_interval:
-        description: "Log energy and force information every N MD steps."
-        type: int
-        mandatory: false
-        default: 1
       max_energy_threshold_per_atom:
         description: "Maximum energy threshold per atom in eV."
         type: float
