@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.48.3 (2026-02-04)
+
+### Fix
+
+- **domain_validity**: index the only entry on concave_hull list when creating Polygon ([#1f3ba90](https://github.com/pol-sb/MatDBForge/commit/1f3ba902cb7d75fedddc88f1debfaa9df96f7279))
+
 ## 0.48.2 (2026-02-04)
 
 ### Fix

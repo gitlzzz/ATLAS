@@ -82,7 +82,7 @@ def check_traj_in_domain(
     # If the concave hull has multiple parts, create a MultiPolygon
     # from all the parts.
     if len(concave_hull) == 1:
-        polygon = Polygon(concave_hull)
+        polygon = Polygon(concave_hull[0])
     else:
         polygons = []
         for part in concave_hull:
