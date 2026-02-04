@@ -68,6 +68,7 @@ def validate_config_file(
     config_path=None,
     allow_deprecated=False,
     run_mode='workflow',
+    logger=None,
 ):
     """
     Validate a TOML configuration file against the schema.
@@ -96,8 +97,11 @@ def validate_config_file(
             where any_errors_found is bool, errors is list of strings
             and warnings is list of dicts
     """
+    deprecation_warnings = None
+    migrated_config = None
+
     if config_dict is None and config_path is None:
-        return False, ['Either config_dict or config_path must be provided.'], []
+        return True, ['Either config_dict or config_path must be provided.'], []
 
     if config_path is not None:
         try:
@@ -106,9 +110,13 @@ def validate_config_file(
             with open(config_path, 'rb') as f:
                 config_data = tomllib.load(f)
         except FileNotFoundError:
-            return False, [f'Configuration file not found: {config_path}'], []
+            warnings = []
+            config_data = None
+            errors = [f'Configuration file not found: {config_path}']
         except Exception as e:
-            return False, [f'Error reading TOML file: {e}'], []
+            warnings = []
+            config_data = None
+            errors = [f'Error reading TOML file: {e}']
     elif config_dict is not None:
         config_data = config_dict
 
@@ -118,25 +126,27 @@ def validate_config_file(
     if not config_schema:
         return False, [f'Unknown configuration type: {config_type}'], []
 
-    custom_print('Validating TOML input file...', print_type='info')
+    custom_print('Validating TOML input file...', print_type='info', logger=logger)
 
     # Check for deprecated keys and migrate them
-    migrated_config, deprecation_warnings = check_deprecated_keys(
-        config_data, config_schema
-    )
+    if config_data:
+        migrated_config, deprecation_warnings = check_deprecated_keys(
+            config_data, config_schema
+        )
 
     # Show deprecation warnings
     if deprecation_warnings:
         for warning in deprecation_warnings:
-            custom_print(warning, print_type='warning')
+            custom_print(warning, print_type='warning', logger=logger)
 
     # Validate the configuration
-    errors, warnings = validate_section_recursive(
-        migrated_config,
-        config_schema,
-        root_config_data=migrated_config,
-        original_schema_dict=config_schema,
-    )
+    if config_schema is not None and migrated_config is not None:
+        errors, warnings = validate_section_recursive(
+            migrated_config,
+            config_schema,
+            root_config_data=migrated_config,
+            original_schema_dict=config_schema,
+        )
 
     # Add deprecation warnings as validation errors to fail validation
     if deprecation_warnings and not allow_deprecated:
@@ -151,6 +161,7 @@ def validate_config_file(
         custom_print(
             f'TOML input file validation {WB_FMT}warnings{WB_END}:',
             print_type='warning',
+            logger=logger,
         )
         for warning in warnings:
             custom_print(f'  • {warning["msg"]}', print_type='warning')
@@ -158,27 +169,37 @@ def validate_config_file(
 
     if len(errors) == 0:
         custom_print(
-            'TOML input file is [bold green]valid[/bold green]!', print_type='done'
+            'TOML input file is [bold green]valid[/bold green]!',
+            print_type='done',
+            logger=logger,
         )
         if len(warnings) > 0:
             custom_print(
                 'However, please take into account the reported warnings'
                 ' and act accordingly if necessary.',
                 print_type='warning',
+                logger=logger,
             )
 
     else:
         custom_print(
-            f'TOML input file validation {E_FMT}failed{E_END}:', print_type='error'
+            f'TOML input file validation {E_FMT}failed{E_END}:',
+            print_type='error',
+            logger=logger,
         )
         for error in errors:
-            custom_print(f'  • {error}', print_type='error')
+            custom_print(
+                f'  • {error}',
+                print_type='error',
+                logger=logger,
+            )
 
         if run_mode == 'workflow':
             custom_print(
                 'Process has not started due to validation errors. '
                 'All input errors must be fixed before proceeding.',
                 print_type='error',
+                logger=logger,
             )
     return len(errors) > 0, errors, warnings
 

@@ -823,7 +823,7 @@ def run_active_learning():
     # Getting CLI arguments
     args = parser.parse_args()
 
-    logger = init_logger('active_learning', show_log_path=False)
+    logger, log_filenam = init_logger('active_learning', show_log_path=False)
 
     # Checking version
     check_mdb_version(logger)
@@ -847,7 +847,9 @@ def run_active_learning():
 
         # Check if TOML file is correct
         errors_found, errors, warnings = validate_config_file(
-            config_path=args.config_file, config_type='active_learning'
+            config_path=args.config_file,
+            config_type='active_learning',
+            logger=logger,
         )
         if len(errors) > 0:
             sys.exit(1)
