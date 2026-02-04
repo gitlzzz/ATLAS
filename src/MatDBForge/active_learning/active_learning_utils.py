@@ -1698,7 +1698,7 @@ def get_final_db_path(result_dir_path, final_db_name, node):
         curr_run_dir.mkdir()
 
     # Adding the final database path and the 'mdb_train_db_' prefix
-    # used to identifd the final database.
+    # used to identify the final database.
     final_db_path = curr_run_dir / f'mdb_train_db_{final_db_name}.xyz'
     return final_db_path, curr_run_dir
 
@@ -1749,6 +1749,7 @@ def update_mace_train_settings_dict(
     curr_model: str,
     curr_iter: int,
     db_size: int,
+    containerized: orm.Bool = False,
 ):
     """Update the MACE training settings dictionary with the new database path."""
     if isinstance(settings_dict, orm.Dict):
@@ -1761,7 +1762,17 @@ def update_mace_train_settings_dict(
     elif isinstance(train_data_path, str):
         train_data_path: Path = Path(train_data_path)
 
-    settings_dict['train_file'] = str(train_data_path.name)
+    if containerized.value is True:
+        # When using containerized code, the training file
+        # is expected to be in the /mdb_data folder inside the container
+        train_data_path = Path('/mdb_data') / train_data_path.name
+        settings_dict['train_file'] = str(train_data_path)
+        settings_dict['results_dir'] = str(Path('/mdb_data') / 'results')
+        settings_dict['checkpoints_dir'] = str(Path('/mdb_data') / 'checkpoints')
+        settings_dict['model_dir'] = str(Path('/mdb_data'))
+        settings_dict['log_dir'] = str(Path('/mdb_data') / 'logs')
+    else:
+        settings_dict['train_file'] = str(train_data_path.name)
 
     # Updating name to include model and iteration number
     curr_name = settings_dict['name']

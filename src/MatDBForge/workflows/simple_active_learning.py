@@ -604,6 +604,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
                 db_size=len(database_training),
+                containerized=containerized,
             )
 
             # Run training and save new model file

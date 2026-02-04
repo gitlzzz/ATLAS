@@ -603,7 +603,7 @@ class TrainMACEModelCalculation(CalcJob):
         final_db_path = self.inputs.mace_train_file_path.value
         folder.insert_path(
             src=final_db_path,
-            dest_name=self.inputs.mace_settings_dict['train_file'],
+            dest_name=str(Path(self.inputs.mace_settings_dict['train_file']).name),
         )
 
         # Copying foundation model to temporary folder
