@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.48.2 (2026-02-04)
+
+### Fix
+
+- **domain_validity**: instantiate missing concave hull variable ([#5f96c9e](https://github.com/pol-sb/MatDBForge/commit/5f96c9eda3c792bdcba4ab65b57dcb1d27e90d10))
+- **al_loop**: add config and uuid check ([#d64709c](https://github.com/pol-sb/MatDBForge/commit/d64709c59c6aa6383d55bf9e7ac3c36baed3e407))
+
 ## 0.48.1 (2026-02-03)
 
 ### Fix
