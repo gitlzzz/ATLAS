@@ -1318,6 +1318,7 @@ class GetDescriptorsCombinedParser(Parser):
         latent_space = None
         extrapolation_plot = None
         autoencoder_model = None
+        concave_hull_data = None
 
         # Gathering results from the temporary folder
         # for child_file in retrieved_temporary_folder.iterdir():

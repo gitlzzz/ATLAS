@@ -838,6 +838,13 @@ def run_active_learning():
         from aiida.engine import run, submit
         from aiida.orm import Bool, Str
 
+        if not args.config_file.exists():
+            raise FileNotFoundError(
+                f"The config file '{args.config_file}' does not exist. "
+                'Please make sure that is the correct path, or create one '
+                'by hand, or by using the `mdb_gen_configuration_file` tool.'
+            )
+
         # Check if TOML file is correct
         errors_found, errors, warnings = validate_config_file(
             config_path=args.config_file, config_type='active_learning'

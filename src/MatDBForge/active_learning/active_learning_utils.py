@@ -7,6 +7,7 @@ import itertools as it
 import tempfile
 import time
 import tomllib as toml
+from collections import Counter
 from contextlib import redirect_stdout
 from pathlib import Path
 from uuid import uuid4
@@ -48,6 +49,26 @@ from MatDBForge.core.filtering.structure_filters import (
 )
 from MatDBForge.workflows import aiida_utils as mdb_aut
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
+
+
+def check_mdb_ids(atoms_list: list[Atoms]):
+    """Checks for 'mdb_id' key in info dicts and reports missing or repeated IDs."""
+    mdb_ids = []
+    missing_count = 0
+    missing_indices = []
+
+    for i, atoms in enumerate(atoms_list):
+        if 'mdb_id' in atoms.info:
+            mdb_ids.append(atoms.info['mdb_id'])
+        else:
+            missing_count += 1
+            missing_indices.append(i)
+
+    # Check for duplicates
+    id_counts = Counter(mdb_ids)
+    duplicates = {k: v for k, v in id_counts.items() if v > 1}
+
+    return missing_indices, duplicates
 
 
 def aiida_wait_submit(
