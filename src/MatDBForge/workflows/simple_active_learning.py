@@ -2289,6 +2289,58 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 f"Backup of original database already exists in: '{backup_path}'"
             )
 
+        # Adding the database indexes to the info dict of the structures
+        # and the current active learning loop step index (0).
+        for idx, struct in enumerate(database_training):
+            # Storing position in the database
+            if not struct.info.get('mdb_db_index'):
+                struct.info['mdb_db_index'] = idx
+
+            # If workchain is resumed from a previous run, we should keep
+            # the step index from the previous run.
+            if self.inputs.resume_dict:
+                # However, structures without step numbers will be set to 0.
+                if not struct.info.get('mdb_al_step'):
+                    struct.info['mdb_al_step'] = 0
+
+            # On the other hand, if starting from scratch, we set the step index to 0,
+            # as this is the first step of the active learning loop.
+            else:
+                # Adding step index
+                struct.info['mdb_al_step'] = 0
+
+            # Adding unique id to structures that don't have it.
+            if not struct.info.get('mdb_id'):
+                struct.info['mdb_id'] = str(uuid.uuid4())
+
+            database_training[idx] = struct
+
+        # Check if every structure has an unique uuid
+        missing_indices, duplicates = mdb_al_ut.check_mdb_ids(database_training)
+
+        if len(missing_indices) != 0:
+            self.logger.error(
+                f"Found {len(missing_indices)} structures missing 'mdb_id'."
+            )
+            self.logger.error(
+                f"Indices of structures missing 'mdb_id': {missing_indices}"
+            )
+
+        elif len(duplicates) != 0:
+            self.logger.error(f"Found {len(duplicates)} repeated 'mdb_id' values:")
+            for mdb_id, count in duplicates.items():
+                self.logger.error(f"  ID '{mdb_id}' appears {count} times.")
+
+        if len(missing_indices) == 0 and len(duplicates) == 0:
+            self.report("All structures have a correct 'mdb_id' field.")
+        else:
+            raise ValueError(
+                'Some structures in the initial database lack unique IDs. '
+                'Please ensure all structures have a unique "mdb_id" in their info '
+                'or remove all mdb_id keys and re-run to auto-generate them. '
+                'See above for more information.'
+            )
+
         # If test database is enabled, load it or prepare it depending on settings,
         # storing it into a node, and adding it into the context
         test_settings = self.inputs.active_learning.get('eval_test_db_settings', {})
@@ -2327,41 +2379,6 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.test_db_file = None
             self.ctx.use_test_db = orm.Bool(False)
             self.ctx.test_settings = orm.Dict({})
-
-        # Adding the database indexes to the info dict of the structures
-        # and the current active learning loop step index (0).
-        for idx, struct in enumerate(database_training):
-            # Storing position in the database
-            if not struct.info.get('mdb_db_index'):
-                struct.info['mdb_db_index'] = idx
-
-            # If workchain is resumed from a previous run, we should keep
-            # the step index from the previous run.
-            if self.inputs.resume_dict:
-                # However, structures without step numbers will be set to 0.
-                if not struct.info.get('mdb_al_step'):
-                    struct.info['mdb_al_step'] = 0
-
-            # On the other hand, if starting from scratch, we set the step index to 0,
-            # as this is the first step of the active learning loop.
-            else:
-                # Adding step index
-                struct.info['mdb_al_step'] = 0
-
-            # Adding unique id to structures that don't have it.
-            if not struct.info.get('mdb_id'):
-                struct.info['mdb_id'] = str(uuid.uuid4())
-
-            database_training[idx] = struct
-
-        # Check if every structure has an unique uuid
-        unique_uuids = set([struct.info.get('mdb_id') for struct in database_training])
-        if len(unique_uuids) != len(database_training):
-            raise ValueError(
-                'Some structures in the initial database lack unique IDs. '
-                'Please ensure all structures have a unique "mdb_id" in their info '
-                'or remove all mdb_id keys and re-run to auto-generate them.'
-            )
 
         # Update modified training database
         ase_write(
