@@ -244,6 +244,7 @@ def generate_tool_section(schema, tool_name, tool_config):
         'dft': 'DFT Calculations',
         'active_learning': 'Active Learning Loop',
         'mlip_benchmarks': 'MLIP Benchmarks',
+        'latent_space_analysis': 'Latent Space Analysis',
     }
 
     # Tool command mapping
@@ -252,6 +253,7 @@ def generate_tool_section(schema, tool_name, tool_config):
         'dft': 'dft',
         'active_learning': 'active_learning',
         'mlip_benchmarks': 'mlip_benchmarks',
+        'latent_space_analysis': 'latent_space_analysis',
     }
 
     header = tool_headers.get(tool_name, tool_name.replace('_', ' ').title())
@@ -312,6 +314,7 @@ def generate_full_documentation(schema, args):
         'dft',
         'active_learning',
         'mlip_benchmarks',
+        'latent_space_analysis',
     ]:
         if tool_name in schema:
             tool_lines = generate_tool_section(schema, tool_name, schema[tool_name])
