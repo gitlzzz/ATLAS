@@ -604,6 +604,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 curr_model=model_name,
                 curr_iter=self.inputs.al_loop_iteration.value,
                 db_size=len(database_training),
+                containerized=containerized,
             )
 
             # Run training and save new model file
@@ -3761,6 +3762,14 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         self.out('final_training_db', train_db)
 
         if not hasattr(self.ctx, 'stop_al_loop_error'):
+            self.logger.error(
+                f"'stop_al_loop_error' could not be found in last iteration. "
+                f"Most likely, workchain '{self.node.pk}' crashed..."
+            )
+        elif (
+            hasattr(self.ctx, 'stop_al_loop_error')
+            and self.ctx.stop_al_loop_error is False
+        ):
             # Returning final model as orm.SinglefileData object
             final_model_singlefile = self.ctx.last_workchain_completed.outputs[
                 'm0_model_file'
@@ -3783,4 +3792,4 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             self.report('Workchain completed correctly!')
         else:
-            self.report(f"Workchain '{self.node.pk}' exited with errors...")
+            self.logger.error(f"Workchain '{self.node.pk}' exited with errors...")

@@ -26,7 +26,7 @@ MDB_THEME = Theme(
         'logging.level.[ ! ]': 'yellow',
         'logging.level.[...]': 'white dim',
         'logging.level.[ ✔ ]': 'green bold',
-        'logging.level.[ X ]': 'red bold',
+        'logging.level.[ x ]': 'red bold',
         # Message Highlighting
         'mdb.path': 'magenta italic',
         'mdb.number': 'cyan bold',
@@ -278,7 +278,7 @@ def custom_print(
         case 'done' | 'ok':
             # Level 25: [ ✔ ]
             logger.log(level=25, msg=message, extra=extra_data)
-        case 'error' | 'problem':
+        case 'error' | 'problem' | 'err':
             # Level 40: [ X ]
             logger.log(level=40, msg=message, extra=extra_data)
         case _:

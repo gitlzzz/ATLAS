@@ -603,7 +603,7 @@ class TrainMACEModelCalculation(CalcJob):
         final_db_path = self.inputs.mace_train_file_path.value
         folder.insert_path(
             src=final_db_path,
-            dest_name=self.inputs.mace_settings_dict['train_file'],
+            dest_name=str(Path(self.inputs.mace_settings_dict['train_file']).name),
         )
 
         # Copying foundation model to temporary folder
@@ -839,7 +839,7 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             help='List of array of values for the force prediction.',
         )
         spec.exit_code(
-            420, 'ERROR_INVALID_OUTPUT', 'MACE training calculation could not run'
+            420, 'ERROR_INVALID_OUTPUT', 'MACE labelling calculation could not run'
         )
         spec.exit_code(
             421,

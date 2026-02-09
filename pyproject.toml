@@ -114,6 +114,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb_train_autoencoder" = "MatDBForge.core.command_line.cli_train_autoencoder:run_train_autoencoder"
 "mdb_run_dft_database" = "MatDBForge.workflows.dft.vasp.aiida_run_vasp_dft_database:main"
 "mdb_benchmark_mlip" = "MatDBForge.benchmarks.mlip.evaluate_mlip_performance:main"
+"mdb_latent_space_analysis" = "MatDBForge.core.command_line.cli_latent_space_analysis:run_latent_space_analysis"
 
 [tool.setuptools]
 include-package-data = true
@@ -132,7 +133,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.48.3"
+version = "0.49.0"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [

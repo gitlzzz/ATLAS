@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.49.0 (2026-02-09)
+
+### Feature
+
+- **domain_validity**: add 'mdb_latent_space_analysis' tool ([#906c630](https://github.com/pol-sb/MatDBForge/commit/906c6309cd1a7e1eb9065272bee87b1171f35918))
+
+### Fix
+
+- **domain_validity**: fix check_traj_in_domain() implementation in concave_hull.py ([#662ccb4](https://github.com/pol-sb/MatDBForge/commit/662ccb4c5dfbcd9d412dc72b55efc87367464b55))
+- **al_loop**: add condition for missing stop_al_loop_error at end of loop ([#e0c570b](https://github.com/pol-sb/MatDBForge/commit/e0c570beb854588ab29dc78c6288326b66946409))
+- **core**: misc fixes ([#2e7571c](https://github.com/pol-sb/MatDBForge/commit/2e7571cc85b5298b29e458ac0c282e0e52c4b7ca))
+- **md**: add missing argument when unpacking mdb_al_ut.generate_descriptors_soap ([#a558078](https://github.com/pol-sb/MatDBForge/commit/a5580789520b8ed1c2635d0cc09bc95e1cd7bac4))
+- **core**: return errors when failing to load toml file ([#3d34207](https://github.com/pol-sb/MatDBForge/commit/3d3420794e6f5752c55872a8a816dfdaefcc738e))
+- **core**: use lowercase in logger styles ([#9346719](https://github.com/pol-sb/MatDBForge/commit/93467194f15ddcfcdb68aaa3a6e361a0776bca73))
+- **al_loop**: allow containerized code usage for mlip train ([#3425d88](https://github.com/pol-sb/MatDBForge/commit/3425d886a22b3147e77bf10d51c5be3628e6810d))
+
+### Misc
+
+- **core**: update LICENSE ([#ca3cbc1](https://github.com/pol-sb/MatDBForge/commit/ca3cbc172a2a71f7859ca4ccf7e298fb8d412a4b))
+
+### Refactor
+
+- **domain_validity**: move check_traj_in_domain() to concave_hull.py ([#20aa47d](https://github.com/pol-sb/MatDBForge/commit/20aa47d47d524546bb4d179b65b6bb781c34ad6d))
+
 ## 0.48.3 (2026-02-04)
 
 ### Fix
