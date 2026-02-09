@@ -70,8 +70,10 @@ def check_traj_in_domain(
     # polygon formed by the concave hull.
     # If the concave hull has multiple parts, create a MultiPolygon
     # from all the parts.
-    if len(concave_hull) == 1:
+    if isinstance(concave_hull, list) and len(concave_hull) == 1:
         polygon = Polygon(concave_hull[0])
+    elif isinstance(concave_hull, np.ndarray) and concave_hull.ndim == 2:
+        polygon = Polygon(concave_hull)
     else:
         polygons = []
         for part in concave_hull:
@@ -104,6 +106,14 @@ def check_traj_in_domain(
 
         for _, frame_desc in enumerate(descriptors):
             c_all_p = []
+
+            # In some cases, the frame_desc might be a 1D array instead of 2D
+            # (e.g., only one descriptor).
+            # We need to handle this case by reshaping it to (1, -1)
+            # so that we can iterate over it consistently.
+            if isinstance(frame_desc, np.ndarray) and frame_desc.ndim == 1:
+                frame_desc = frame_desc.reshape(1, -1)
+
             for point in frame_desc:
                 p = Point(point)
                 if polygon.contains(p):

@@ -286,7 +286,7 @@ def run_latent_space_analysis():
 
                 autoenc_dev = next(model.parameters()).device
                 mdb_cut.custom_print(
-                    f'Autoencoder model is currently on: {autoenc_dev}'
+                    f"Autoencoder model is currently on: '{autoenc_dev}'"
                 )
 
                 with torch.no_grad():  # No need to compute gradients for inference
