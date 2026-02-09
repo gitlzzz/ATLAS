@@ -98,7 +98,6 @@ def load_dataset(
     # that stores the data in a dictionary-like structure
     # with the key 'arr_0' or 'descriptor'
     if isinstance(descr_data, np.lib.npyio.NpzFile):
-
         # New name
         point_arr = descr_data.get('descriptor')
 
@@ -107,7 +106,7 @@ def load_dataset(
             point_arr = descr_data.get('arr_0')
 
         if point_arr is None:
-            raise ValueError("No array found in the npz file.")
+            raise ValueError('No array found in the npz file.')
 
     valid_data_size = int(point_arr.shape[0] * valid_frac)
     test_data_size = int(point_arr.shape[0] * test_frac)

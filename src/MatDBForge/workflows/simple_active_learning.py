@@ -3784,4 +3784,4 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             self.report('Workchain completed correctly!')
         else:
-            self.report(f"Workchain '{self.node.pk}' exited with errors...")
+            self.logger.error(f"Workchain '{self.node.pk}' exited with errors...")

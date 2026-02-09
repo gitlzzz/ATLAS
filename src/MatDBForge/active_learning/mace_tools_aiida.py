@@ -839,7 +839,7 @@ class EvaluateMACEConfigsCalculation(CalcJob):
             help='List of array of values for the force prediction.',
         )
         spec.exit_code(
-            420, 'ERROR_INVALID_OUTPUT', 'MACE training calculation could not run'
+            420, 'ERROR_INVALID_OUTPUT', 'MACE labelling calculation could not run'
         )
         spec.exit_code(
             421,
