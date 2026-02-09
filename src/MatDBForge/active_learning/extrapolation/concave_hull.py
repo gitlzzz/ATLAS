@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar
 from scipy.spatial import ConvexHull, Delaunay, KDTree
+from shapely.affinity import scale
 from shapely.geometry import LineString, MultiPoint, MultiPolygon, Point, Polygon
 from shapely.ops import polygonize, unary_union
 
@@ -22,20 +23,102 @@ except ImportError:  # fall back gracefully
         return x if x is not None else (lambda f: f)
 
 
-# @njit
-# def _edges_from_triangles(tris):
-#     """
-#     Return the set of boundary oriented edges from the subset of
-#     triangles that satisfy the alpha condition.
-#     """
-#     edges = set()
-#     for t0, t1, t2 in tris:
-#         for i, j in ((t0, t1), (t1, t2), (t2, t0)):
-#             if (j, i) in edges:  # internal edge -> remove
-#                 edges.remove((j, i))
-#             else:  # external edge -> add
-#                 edges.add((i, j))
-#     return edges
+def check_traj_in_domain(
+    concave_hull: np.ndarray,
+    descriptor_dict: dict,
+    hull_scale_factor: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list | np.ndarray | None]:
+    """
+    Check if the generated descriptors are inside the precomputed concave hull.
+
+    Parameters
+    ----------
+    concave_hull : np.ndarray
+        Concave hull of the latent space for the database, corresponding
+        to its convex or concave hull.
+    descriptor_dict : dict
+        Descriptor dictionary containing the descriptors for each frame.
+        The structure is as follows:
+        ```python
+        {
+            uuid: {
+                'latent_space': np.ndarray,
+                'descriptors': np.ndarray,
+                'is_extrapolating': np.ndarray,
+            }
+        }
+        ```
+    hull_scale_factor : float, optional
+        Tolerance percentage to enlarge the concave hull.
+        For example, 0.1 adds 10% tolerance. Default is 0.0.
+
+    Returns
+    -------
+    np.ndarray
+        Array containing the descriptors that are inside the concave hull.
+    np.ndarray
+        Array containing the descriptors that are outside the concave hull.
+    np.ndarray
+        Array containing boolean values showing if the frame is inside the concave
+    """
+    point_inside = []
+    point_outside = []
+    all_points_in_out = []
+
+    # Check if the random points are inside the bounds of the
+    # concave hull by checking if the points are inside the
+    # polygon formed by the concave hull.
+    # If the concave hull has multiple parts, create a MultiPolygon
+    # from all the parts.
+    if len(concave_hull) == 1:
+        polygon = Polygon(concave_hull[0])
+    else:
+        polygons = []
+        for part in concave_hull:
+            if len(part) >= 3:
+                polygons.append(Polygon(part))
+        polygon = MultiPolygon(polygons)
+
+    # Scale the polygon if tolerance is provided
+    scaled_hull_coords = None
+    if hull_scale_factor > 0:
+        scaling_factor = 1.0 + hull_scale_factor
+        mdb_cut.custom_print(
+            f'Scaling concave hull by a factor of {scaling_factor} '
+            'to apply tolerance...',
+            'info',
+        )
+        polygon = scale(
+            polygon, xfact=scaling_factor, yfact=scaling_factor, origin='center'
+        )
+
+        if isinstance(polygon, Polygon):
+            scaled_hull_coords = np.array(polygon.exterior.coords)
+        elif isinstance(polygon, MultiPolygon):
+            scaled_hull_coords = [np.array(p.exterior.coords) for p in polygon.geoms]
+    else:
+        mdb_cut.custom_print('No tolerance applied to concave hull.', 'warn')
+
+    for c_uuid in descriptor_dict:
+        descriptors = descriptor_dict[c_uuid]['latent_space']
+
+        for _, frame_desc in enumerate(descriptors):
+            c_all_p = []
+            for point in frame_desc:
+                p = Point(point)
+                if polygon.contains(p):
+                    point_inside.append(point)
+                    c_all_p.append(True)
+                else:
+                    point_outside.append(point)
+                    c_all_p.append(False)
+
+            all_points_in_out.append(np.array(c_all_p))
+
+    point_inside = np.array(point_inside)
+    point_outside = np.array(point_outside)
+    all_points_in_out = np.array(all_points_in_out)
+    return point_inside, point_outside, all_points_in_out, scaled_hull_coords
 
 
 def _edges_from_triangles(simplices):
