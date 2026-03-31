@@ -105,11 +105,12 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray = None):
 
     # Only my classes and pytorch classes are allowed.
     # Only bugs in my classes should be dangerous.
-    trusted_classes = (
-        [Autoencoder, torch.nn.modules.container.Sequential,
-         torch.nn.modules.linear.Linear,
-         torch.nn.modules.activation.ReLU]
-    )
+    trusted_classes = [
+        Autoencoder,
+        torch.nn.modules.container.Sequential,
+        torch.nn.modules.linear.Linear,
+        torch.nn.modules.activation.ReLU,
+    ]
 
     # To allow loading of custom model classes without changing
     # to weights_only = False
