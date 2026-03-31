@@ -263,8 +263,8 @@ def load_and_save_descriptors(
 
     else:
         outer_average = False
-        if descriptor_settings.get('outer_average') is not None:
-            outer_average = True
+        if descriptor_settings.get('outer_average') is True:
+            outer_average = descriptor_settings.pop('outer_average')
         descriptor_dict, feature_matrix_X, uuid_list = generate_descriptors(
             database=dataset,
             descriptor_type=descriptor_type,
