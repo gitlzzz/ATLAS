@@ -760,6 +760,24 @@ active_learning:
             mandatory: false
             default: "data_acquisition"
             choices: ["md", "data_reduction", "data_acquisition"]
+    stop_conditions:
+        name: "stop_conditions"
+        mandatory: false
+        name_pretty: "Active Learning Stopping Conditions"
+        description: "Settings for the stopping conditions of the active learning loop."
+        energy_threshold_mev:
+            description: "Energy error threshold in meV/atom for the stopping criterion of the active learning loop. If not specified, a default of 43.0 is used."
+            type: float
+            default: 43.0
+        forces_threshold_mev_per_ang:
+            description: "Forces error threshold in meV/Å for the stopping criterion of the active learning loop. If not specified, a default of 50.0 is used."
+            type: float
+            default: 50.0
+        stopping_threshold_type:
+            description: "This option allows to select which error metric to compare with a threshold for the stopping criterion of the active learning loop. If not specified, this is not inclduded in the stopping criterion."
+            type: str
+            choices: ["validation", "testing"]
+            default: None
     test_db:
         name: "test_db"
         name_pretty: "Test Set Settings"
@@ -1139,11 +1157,19 @@ active_learning:
         target_structure_mode:
             name: "target_structure_mode"
             name_pretty: "Safeguard - Target Structure Mode"
-            description: "Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures. If `target` is provided, a selection of targeted must be included through the `struct_target_list` option below."
+            description: "Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures, after applying lateral expansion controlled with the base_struct_supercell_size option. If `target` is provided, a selection of targeted structures (via paths or mdb_id) must be included through the `struct_target_list` option below."
             type: str
             default: "base"
             mandatory: true
             choices: ["base", "target"]
+        base_struct_supercell_size:
+            description: "3D vector representing the lateral expansion factors to be used. Only used if `target_structure_mode` is set to `base`."
+            type: list[int]
+            default: [3, 3, 3]
+            depends_on:
+                key: safeguard.target_structure_mode
+                value: "base"
+            mandatory: false
         struct_target_list:
             description: "List of structure IDs or paths to be used as target structures in the safeguard. Only used if `target_structure_mode` is set to `target`."
             type: list[str, int]
@@ -2178,6 +2204,11 @@ mlip_benchmarks:
         name: "surface_energy_benchmark"
         name_pretty: "Surface Energy Benchmark Settings"
         mandatory: false
+        plot_relative_dft:
+            type: bool
+            description: "Whether to plot the vacancy formation energies relative to DFT reference values. If false, absolute values of the vacancy formation energies will be plotted."
+            mandatory: false
+            default: false
         create_slab_settings:
             description: "Settings to create slabs for surface energy calculations."
             mandatory: false
@@ -2255,8 +2286,18 @@ mlip_benchmarks:
         depends_on:
             key: mlip_benchmarks.benchmarks.run_defect_formation_energy
             value: true
+        plot_relative_dft:
+            type: bool
+            description: "Whether to plot the vacancy formation energies relative to DFT reference values. If false, absolute values of the vacancy formation energies will be plotted."
+            mandatory: false
+            default: false
         generate_automatically:
             description: "Whether to generate bulk and vacancy structures automatically. If this is set to false, the user must provide reference energies and structures."
+            type: bool
+            mandatory: true
+            default: true
+        use_static_calculations:
+            description: "Whether to use the DFT-generated structures directly, or to optimize them using the MLIP."
             type: bool
             mandatory: true
             default: true
@@ -2311,27 +2352,12 @@ latent_space_analysis:
         name_pretty: "Interpolation Check Settings"
         description: "Settings for the interpolation check. The interpolation check determines whether a structure is within the model's knowledge domain by checking the committee models disagreement, considering the model accuracy threshold."
         mandatory: true
-        model_acc_multiplier:
-            description: "Multiplier for model accuracy threshold. Higher values mean more DFT calculations."
-            type: float
-            mandatory: true
-            default: 10.0
         disagreement_check_type:
             description: "Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames."
             type: str
             mandatory: true
             default: "training"
             choices: ["training", "md_threshold"]
-        target_accuracy_e_meV_per_at:
-            description: "Target accuracy for energy per atom in meV/atom. This should roughly correspond to the noise floor of your reference method, e.g., 1-2 meV/atom for DFT. By default, a relatively large value of 43 meV/atom is selected, since it correponds with a typical measure of chemical accuracy. However, this might be too high for some properties, such as long term diffusion or phase transitions."
-            type: float
-            mandatory: false
-            default: 43.0
-        target_accuracy_f_meV_per_A:
-            description: "Target accuracy for force, in meV/Angstrom. This should roughly correspond to the noise floor of your reference method, e.g., 10-20 meV/atom for DFT. By default, a relatively large value of 50 meV/atom is selected, since it correponds with a typical measure of chemical accuracy."
-            type: float
-            mandatory: false
-            default: 50.0
 
     extrapolation:
         name: "extrapolation"

@@ -3007,7 +3007,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             self.ctx.safeguard_check_done = True
             return False
 
-        # Implement safeguard logic
+        # Run safeguard logic
         self.safeguard_check_md()
 
     def safeguard_check_md(self):
@@ -3158,6 +3158,15 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             target_md_structs: list[Atoms] = [
                 struct for struct in database_training if struct.info.get('base')
             ]
+
+            supercell_vec = safeguard_settings.get(
+                'base_struct_supercell_size', [3, 3, 3]
+            )
+
+            if supercell_vec:
+                target_md_structs = [
+                    struct.repeat(supercell_vec) for struct in target_md_structs
+                ]
 
         elif target_structure_mode == 'target':
             # Get target structures from the user settings, which can either contain
