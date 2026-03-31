@@ -1,5 +1,6 @@
 """Utility functions for QuadTree operations."""
 
+import pathlib as pl
 from dataclasses import dataclass
 
 import datashader as ds
@@ -25,11 +26,25 @@ class Rectangle:
     w: float
     h: float
 
-    def contains(self, point: Point) -> bool:
-        return (
-            self.x - self.w <= point.x < self.x + self.w
-            and self.y - self.h <= point.y < self.y + self.h
-        )
+    @property
+    def xmin(self) -> float:
+        return self.x - self.w
+
+    @property
+    def xmax(self) -> float:
+        return self.x + self.w
+
+    @property
+    def ymin(self) -> float:
+        return self.y - self.h
+
+    @property
+    def ymax(self) -> float:
+        return self.y + self.h
+
+    def contains(self, point) -> bool:
+        # Refactored to use the properties for consistency
+        return self.xmin <= point.x < self.xmax and self.ymin <= point.y < self.ymax
 
     def get_area(self) -> float:
         return (self.w * 2) * (self.h * 2)
@@ -313,8 +328,9 @@ def visualize_quadtree(
     points: list[Point],
     clusters: list[list[Rectangle]],
     alpha_shapes: list[dict] | None = None,
-    filename: str = 'quadtree_viz.png',
+    filename: str | pl.Path = 'quadtree_viz.png',
     frac_outside: float = 0.0,
+    show: bool = False,
 ):
     """Visualizes the quadtree structure, data points, and clusters."""
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -478,7 +494,8 @@ def visualize_quadtree(
 
     plt.savefig(filename)
     print(f'Visualization saved to {filename}')
-    plt.show()
+    if show:
+        plt.show()
     plt.close()
 
 
@@ -493,7 +510,7 @@ def check_if_points_in_polygons(alpha_shapes: list, data: list[Point]):
     for point in data:
         added_point = False
         for polygon in alpha_shapes_list:
-            if polygon.contains(point):
+            if polygon is not None and polygon.contains(point):
                 points_inside.append(point)
                 added_point = True
                 break
