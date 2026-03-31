@@ -689,7 +689,7 @@ if __name__ == '__main__':
                 logger=logger,
             )
 
-        elif extrap_type != 'none':
+        if extrap_type != 'none':
             for idx, is_extrapolating in enumerate(
                 descriptor_dict[structure_uuid]['is_extrapolating']
             ):

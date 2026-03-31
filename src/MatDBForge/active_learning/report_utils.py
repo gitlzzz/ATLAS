@@ -228,6 +228,12 @@ def gen_al_loop_report(
                     'Database path not provided. Using the one from the first AL loop.',
                     'warn',
                 )
+            except TypeError:
+                database_path = al_loop_node.inputs.active_learning.init_db_path.value
+                custom_print(
+                    'Database path not provided. Using the one from the first AL loop.',
+                    'warn',
+                )
             except Exception:
                 custom_print(
                     (

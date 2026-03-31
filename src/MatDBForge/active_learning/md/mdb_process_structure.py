@@ -997,6 +997,9 @@ if __name__ == '__main__':
             f_std_error = np.std(f_std_norm_max)
             mdb_cut.custom_print(f'f_std_error: {f_std_error}', 'none', logger=logger)
 
+            # REMOVE
+            # f_error_threshold = 103.71869367415634  # meV
+
             # Threshold for identifying frames with unusually high variability
             f_error_threshold = f_mean_error + 3 * f_std_error  # meV
             mdb_cut.custom_print(
@@ -1205,7 +1208,9 @@ if __name__ == '__main__':
                 logger=logger,
             )
 
-        elif extrap_type != 'none':
+        # Gathering indices of extrapolating frames
+        # according to the extrapolation check results
+        if extrap_type != 'none':
             for idx, is_extrapolating in enumerate(
                 descriptor_dict[structure_uuid]['is_extrapolating']
             ):

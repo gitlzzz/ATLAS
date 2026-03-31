@@ -250,6 +250,11 @@ This section is optional.
 :::
 
 
+- {alt}`plot_relative_dft`:
+  - **Description**: Whether to plot the vacancy formation energies relative to DFT reference values. If false, absolute values of the vacancy formation energies will be plotted.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
 - {alt}`dft_refs`:
   - **Description**: Path to JSON file with DFT reference energies.
   - **Type**: `(optional, str)`
@@ -332,8 +337,18 @@ This section is optional.
 :::
 
 
+- {alt}`plot_relative_dft`:
+  - **Description**: Whether to plot the vacancy formation energies relative to DFT reference values. If false, absolute values of the vacancy formation energies will be plotted.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
 - {alt}`generate_automatically`:
   - **Description**: Whether to generate bulk and vacancy structures automatically. If this is set to false, the user must provide reference energies and structures.
+  - **Type**: `(bool)`
+  - **Default**: `True`.
+
+- {alt}`use_static_calculations`:
+  - **Description**: Whether to use the DFT-generated structures directly, or to optimize them using the MLIP.
   - **Type**: `(bool)`
   - **Default**: `True`.
 

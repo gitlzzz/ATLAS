@@ -7,72 +7,133 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import wandb
+from torch.utils.data import DataLoader, TensorDataset, random_split
 
 import MatDBForge.active_learning.extrapolation.autoencoder as ae
 import MatDBForge.core.code_utils as mdb_cut
 
 
-def train_loop(data_loader, model, loss_fn, optimizer):
-    num_batches = len(data_loader)
-    # Set the model to training mode - important for batch normalization
+def train_loop(data_loader, model, loss_fn, optimizer, device):
+    # Set the model to training mode, important for batch normalization
     # and dropout layers
-    # Unnecessary in this situation but added for best practices
+    # Unnecessary in this situation (since no nn.Dropout, ... etc) in the
+    # Autoencoder, but added for best practices.
     model.train()
-    running_loss = 0.0
+    total_loss = 0
 
-    for _, X in enumerate(data_loader):
-        # Zero the parameter gradients
+    for batch in data_loader:
+        # Unpack the batch and move it to the GPU
+        # TensorDataset returns a tuple, so we grab the first element
+        inputs = batch[0].to(device)
+
+        # Forward pass (Autoencoder targets its own input)
+        outputs = model(inputs)
+        loss = loss_fn(outputs, inputs)
+
+        # Backward pass
         optimizer.zero_grad()
-
-        # model(X): Forward pass, compute the reconstruction
-        # Compute loss: reconstruction error
-        loss = loss_fn(model(X), X)
-
-        # Backward pass: compute gradients
         loss.backward()
-
-        # Optimize: update model weights
         optimizer.step()
 
-        # Track loss
-        running_loss += loss.item()
+        total_loss += loss.item()
 
     # Compute average loss
-    avg_loss = running_loss / num_batches
+    avg_loss = total_loss / len(data_loader)
 
-    return running_loss, avg_loss
+    return total_loss, avg_loss
 
 
-def val_loop(data_loader, model, loss_fn):
+def val_loop(data_loader, model, loss_fn, device):
     # Set the model to evaluation mode - important for batch
     # normalization and dropout layers
     # Unnecessary in this situation but added for best practices
     model.eval()
     num_batches = len(data_loader)
-    running_loss = 0.0
+    total_loss = 0.0
 
     # Evaluating the model with torch.no_grad() ensures that no gradients
-    # are computed during test mode also serves to reduce unnecessary gradient
-    # computations and memory usage for tensors with requires_grad=True
+    # are computed during validation reducing computations and memory usage
+    # for tensors with requires_grad=True
     with torch.no_grad():
-        for X in data_loader:
+        for batch in data_loader:
+            # Unpack the tuple and move data to the correct device
+            inputs = batch[0].to(device)
+
             # Forward pass: compute the reconstruction
-            reconstruction = model(X)
+            reconstruction = model(inputs)
 
             # Compute loss: reconstruction error
-            loss = loss_fn(reconstruction, X)
+            loss = loss_fn(reconstruction, inputs)
 
             # Track loss
-            running_loss += loss.item()
+            total_loss += loss.item()
 
     # Compute average loss
-    avg_loss = running_loss / num_batches
+    avg_loss = total_loss / num_batches
 
     return avg_loss
 
 
-def load_dataset(
-    data: str | np.ndarray,
+def _load_dataset_as_point_array(data: np.ndarray | str | pl.Path) -> np.ndarray:
+    # Load numpy array
+    descr_data = np.load(data)
+
+    # If npz file, extract the first array
+    # This is a workaround for the npz file format
+    # that stores the data in a dictionary-like structure
+    # with the key 'arr_0' or 'descriptor'
+    if isinstance(descr_data, np.lib.npyio.NpzFile):
+        # New name
+        point_arr = descr_data.get('descriptor')
+
+        # Old name fallback
+        if point_arr is None:
+            point_arr = descr_data.get('arr_0')
+
+        if point_arr is None:
+            raise ValueError('No array found in the npz file.')
+    elif isinstance(descr_data, np.ndarray):
+        point_arr = descr_data
+    else:
+        raise ValueError('Invalid data type. Expected np.ndarray or npz file.')
+    return point_arr
+
+
+def safe_to_gpu(arrays, target_dtype, device):
+    """
+    Checks if there is enough VRAM to move an array to the GPU.
+    Returns True if safe, False if it will likely OOM.
+    """
+    if torch.device(device).type != 'cuda':
+        return True  # CPU RAM limits apply instead
+
+    # Calculate required memory
+    bytes_per_element = torch.tensor([], dtype=target_dtype).element_size()
+    required_bytes = 0
+    for arr in arrays:
+        required_bytes += arr.size * bytes_per_element
+    required_gb = required_bytes / (1024**3)
+
+    # Check available VRAM
+    free_bytes, total_bytes = torch.cuda.mem_get_info(device)
+    free_gb = free_bytes / (1024**3)
+
+    mdb_cut.custom_print(f'Target Tensor Size: {required_gb:.3f} GB', 'debug')
+    mdb_cut.custom_print(f'Available VRAM:     {free_gb:.3f} GB', 'debug')
+
+    # Leave a safety margin (e.g., 500 MB) for PyTorch context and operations
+    safety_margin = 500 * (1024**2)
+
+    if (required_bytes + safety_margin) < free_bytes:
+        mdb_cut.custom_print('It is safe to store tensors on GPU.', 'debug')
+        return True
+    else:
+        print('Tensors will likely cause OOM on GPU.', 'warning')
+        return False
+
+
+def split_dataset(
+    data: str | pl.Path | np.ndarray,
     train_frac: float,
     valid_frac: float,
     test_frac: float,
@@ -89,58 +150,42 @@ def load_dataset(
 
     # Load the dataset
     if isinstance(data, (str, pl.Path)):
-        descr_data = np.load(data)
+        point_arr = _load_dataset_as_point_array(data)
     elif isinstance(data, np.ndarray):
-        descr_data = data
+        point_arr = data
 
-    # If npz file, extract the first array
-    # This is a workaround for the npz file format
-    # that stores the data in a dictionary-like structure
-    # with the key 'arr_0' or 'descriptor'
-    if isinstance(descr_data, np.lib.npyio.NpzFile):
-        # New name
-        point_arr = descr_data.get('descriptor')
-
-        # Old name fallback
-        if point_arr is None:
-            point_arr = descr_data.get('arr_0')
-
-        if point_arr is None:
-            raise ValueError('No array found in the npz file.')
-
-    valid_data_size = int(point_arr.shape[0] * valid_frac)
-    test_data_size = int(point_arr.shape[0] * test_frac)
+    # Select a fraction of the data for training, validation, and testing
+    total_size = point_arr.shape[0]
+    valid_data_size = int(total_size * valid_frac)
+    test_data_size = int(total_size * test_frac)
 
     # Set random seed for reproducibility
     rng = np.random.default_rng(seed=rng_seed)
     torch.manual_seed(rng_seed)
 
-    # Select a fraction of the data for training, validation, and testing
-    valid_arr_idx = rng.choice(
-        point_arr.shape[0],
-        size=valid_data_size,
-        replace=False,
+    # Shuffle in-place
+    # This modifies point_arr directly in memory without creating a copy.
+    rng.shuffle(point_arr, axis=0)
+
+    # Calculate split indices
+    valid_end = valid_data_size
+    test_end = valid_end + test_data_size
+
+    # Slicing the array
+    # This creates memory-efficient views, which should avoid
+    # damn OOM errors, I hope.
+    valid_arr = point_arr[:valid_end]
+    test_arr = point_arr[valid_end:test_end]
+    train_arr = point_arr[test_end:]
+
+    safe_to_gpu(
+        arrays=(valid_arr, test_arr, train_arr), target_dtype=dtype, device=device
     )
 
-    # Remove validation data from the point array
-    valid_arr = point_arr[valid_arr_idx]
-
-    # Remove selected values from the point_arr
-    point_arr = np.delete(point_arr, obj=valid_arr_idx, axis=0)
-
-    # Getting the test data
-    test_arr_idx = rng.choice(
-        point_arr.shape[0],
-        size=test_data_size,
-        replace=False,
-    )
-
-    test_arr = point_arr[test_arr_idx]
-    point_arr = np.delete(point_arr, obj=test_arr_idx, axis=0)
-
-    train_data = torch.Tensor(point_arr).to(device=device, dtype=dtype)
+    train_data = torch.Tensor(train_arr).to(device=device, dtype=dtype)
     valid_data = torch.Tensor(valid_arr).to(device=device, dtype=dtype)
     test_data = torch.Tensor(test_arr).to(device=device, dtype=dtype)
+
     mdb_cut.custom_print('Data loaded:', 'info')
     mdb_cut.custom_print(f'  Training data array shape: {train_data.shape}', 'clean')
     mdb_cut.custom_print(f'  Validation data array shape: {valid_data.shape}', 'clean')
@@ -148,6 +193,40 @@ def load_dataset(
     print()
 
     return train_data, valid_data, test_data
+
+
+def return_dataset_loader(
+    dataset: str | pl.Path | np.ndarray,
+    train_frac: float,
+    valid_frac: float,
+    dtype: str,
+    batch_size: int,
+    rng_seed: int,
+):
+    if isinstance(dataset, (str, pl.Path)):
+        dataset = _load_dataset_as_point_array(dataset)
+
+    # Wrap the full numpy array in a Dataset (Keep it on the CPU for now!)
+    full_dataset = TensorDataset(torch.as_tensor(dataset, dtype=dtype))
+
+    # Calculate sizes
+    total_size = len(full_dataset)
+    train_size = int(total_size * train_frac)
+    valid_size = int(total_size * valid_frac)
+    # catches any rounding remainder
+    test_size = total_size - train_size - valid_size
+
+    # Automatically split the dataset (this handles the random seed safely)
+    split_generator = torch.Generator().manual_seed(rng_seed)
+    train_ds, valid_ds, test_ds = random_split(
+        full_dataset, [train_size, valid_size, test_size], generator=split_generator
+    )
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+
+    return train_loader, val_loader, test_loader
 
 
 def run_training(args):
@@ -200,6 +279,8 @@ def run_training(args):
             Name of the wandb project.
         - wandb_name : str
             Name of the wandb run.
+        - normalize_data : bool
+            Whether to normalize the data before training the autoencoder
 
 
     Returns
@@ -242,22 +323,53 @@ def run_training(args):
         args.rng_seed = np.random.randint(1, int(1e15))
     mdb_cut.custom_print(f"Using RNG seed: '{args.rng_seed}'.", 'info')
 
+    # Optionally normalizing data
+    # Z-score standardization
+    # TODO: move this outside
+    # if hasattr(args, "normalize_data") and args.normalize_data is True:
+    #     print("#@# normalizing data")
+    #     dataset = _load_dataset_as_point_array(args.dataset)
+    #     mean_vals = dataset.mean(axis=0)
+    #     std_vals = dataset.std(axis=0)
+    #     std_vals[std_vals == 0] = 1.0
+
+    #     # Save them alongside model
+    #     np.save(args.model_path.parent / "ae_mean_vals.npy", mean_vals)
+    #     np.save(args.model_path.parent / "ae_std_vals.npy", std_vals)
+
+    #     dataset = (dataset - mean_vals) / std_vals
+
+    # else:
+    #     dataset = args.dataset
+
+    dataset = args.dataset
+
     # Load data
-    train_data, valid_data, test_data = load_dataset(
-        data=args.dataset,
-        device=device,
-        train_frac=args.train_frac,
-        valid_frac=args.valid_frac,
-        test_frac=args.test_frac,
-        rng_seed=args.rng_seed,
-        dtype=args.dtype,
+    # Return as DataLoader for batch processing
+    train_data, valid_data, test_data = return_dataset_loader(
+        dataset,
+        args.train_frac,
+        args.valid_frac,
+        args.dtype,
+        args.batch_size,
+        args.rng_seed,
     )
 
-    # Number of input dimensions
-    input_dim = train_data.shape[1]
+    # train_data, valid_data, test_data = split_dataset(
+    #     data=dataset,
+    #     device=device,
+    #     train_frac=args.train_frac,
+    #     valid_frac=args.valid_frac,
+    #     test_frac=args.test_frac,
+    #     rng_seed=args.rng_seed,
+    #     dtype=args.dtype,
+    # )
 
-    # start a new wandb run to track this script
-    if args.wandb:
+    # Number of input dimensions
+    input_dim = dataset.shape[1]
+
+    # Start a new wandb run to track this script
+    if hasattr(args, 'wandb'):
         wandb.init(
             # set the wandb project where this run will be logged
             project=args.wandb_project,
@@ -321,16 +433,6 @@ def run_training(args):
         # threshold=1e-3,
     )
 
-    # Create a DataLoader for batch processing
-    train_data = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batch_size, shuffle=True
-    )
-    val_data = torch.utils.data.DataLoader(
-        valid_data,
-        batch_size=args.batch_size,
-        # shuffle=True,
-    )
-
     mdb_cut.custom_print(
         f'Starting autoencoder training for {args.num_epochs} epochs...', 'info'
     )
@@ -341,12 +443,14 @@ def run_training(args):
             model=model,
             loss_fn=criterion,
             optimizer=optimizer,
+            device=device,
         )
 
         val_loss = val_loop(
-            data_loader=val_data,
+            data_loader=valid_data,
             model=model,
             loss_fn=criterion,
+            device=device,
         )
 
         # Perform test evaluation every 5 epochs
@@ -356,6 +460,7 @@ def run_training(args):
                 data_loader=test_data,
                 model=model,
                 loss_fn=criterion,
+                device=device,
             )
             if args.verbose:
                 mdb_cut.custom_print(
@@ -369,7 +474,7 @@ def run_training(args):
                     'none',
                 )
             # log metrics to wandb
-            if args.wandb:
+            if hasattr(args, 'wandb') and args.wandb:
                 wandb.log(
                     {
                         'epoch': epoch,
@@ -392,7 +497,7 @@ def run_training(args):
                     'none',
                 )
             # log metrics to wandb
-            if args.wandb:
+            if hasattr(args, 'wandb') and args.wandb:
                 wandb.log(
                     {
                         'epoch': epoch,

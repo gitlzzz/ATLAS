@@ -81,6 +81,31 @@ General active learning settings.
   - **Default**: `'data_acquisition'`.
   - Possible values are: `md`, `data_reduction`, `data_acquisition`.
 
+### Active Learning Stopping Conditions - `[stop_conditions]`
+
+Settings for the stopping conditions of the active learning loop.
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`energy_threshold_mev`:
+  - **Description**: Energy error threshold in meV/atom for the stopping criterion of the active learning loop. If not specified, a default of 43.0 is used.
+  - **Type**: `(float)`
+  - **Default**: `43.0`.
+
+- {alt}`forces_threshold_mev_per_ang`:
+  - **Description**: Forces error threshold in meV/Å for the stopping criterion of the active learning loop. If not specified, a default of 50.0 is used.
+  - **Type**: `(float)`
+  - **Default**: `50.0`.
+
+- {alt}`stopping_threshold_type`:
+  - **Description**: This option allows to select which error metric to compare with a threshold for the stopping criterion of the active learning loop. If not specified, this is not inclduded in the stopping criterion.
+  - **Type**: `(str)`
+  - **Default**: `'None'`.
+  - Possible values are: `validation`, `testing`.
+
 ### Test Set Settings - `[test_db]`
 
 Settings for the test database used to evaluate model performance during active learning. The test database is defined at the start of the active learning run, and is kept constant throughout the entire process. It can either be generated at random from the initial database, or loaded from a file. The test set is only used for evaluation and is not included in the training data.
@@ -462,10 +487,15 @@ Settings for active learning safeguard mechanisms. The safeguard will run long M
   - **Default**: `False`.
 
 - {alt}`target_structure_mode`:
-  - **Description**: Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures. If `target` is provided, a selection of targeted must be included through the `struct_target_list` option below.
+  - **Description**: Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures, after applying lateral expansion controlled with the base_struct_supercell_size option. If `target` is provided, a selection of targeted structures (via paths or mdb_id) must be included through the `struct_target_list` option below.
   - **Type**: `(str)`
   - **Default**: `'base'`.
   - Possible values are: `base`, `target`.
+
+- {alt}`base_struct_supercell_size`:
+  - **Description**: 3D vector representing the lateral expansion factors to be used. Only used if `target_structure_mode` is set to `base`.
+  - **Type**: `(optional, list[int])`
+  - **Default**: `[3, 3, 3]`.
 
 - {alt}`struct_target_list`:
   - **Description**: List of structure IDs or paths to be used as target structures in the safeguard. Only used if `target_structure_mode` is set to `target`.

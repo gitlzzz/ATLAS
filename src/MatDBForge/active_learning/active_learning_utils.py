@@ -9,7 +9,7 @@ import time
 import tomllib as toml
 from collections import Counter
 from contextlib import redirect_stdout
-from pathlib import Path
+from pathlib import Path, PosixPath
 from uuid import uuid4
 
 import matplotlib.pyplot as plt
@@ -44,6 +44,7 @@ from shapely.geometry import Point, Polygon
 
 from MatDBForge.active_learning import conversion as mdb_conv
 from MatDBForge.core import code_utils as mdb_cut
+from MatDBForge.core.exceptions import MissingMandatoryParameterError
 from MatDBForge.core.filtering.structure_filters import (
     apply_filter_exploding_structures,
 )
@@ -244,7 +245,8 @@ def generate_descriptors(
     descriptor_settings: dict,
     model_path: str = None,
     outer_average_mace: bool = False,
-):
+    verbose: bool = False,
+) -> tuple[dict, np.ndarray, list[str]]:
     """
     Wrapper function to generate descriptors for a given database.
 
@@ -268,13 +270,15 @@ def generate_descriptors(
 
     Returns
     -------
-    tuple[dict, np.ndarray]
+    tuple[dict, np.ndarray, list[str]]
         A tuple containing a dictionary of descriptors and a numpy array
         of vstacked descriptors.
     """
     if descriptor_type == 'soap':
         return generate_descriptors_soap(
-            database=database, descriptor_settings=descriptor_settings
+            database=database,
+            descriptor_settings=descriptor_settings,
+            verbose=verbose,
         )
     elif descriptor_type == 'mace':
         return generate_descriptors_mace(
@@ -282,6 +286,7 @@ def generate_descriptors(
             database=database,
             descriptor_settings=descriptor_settings,
             outer_average=outer_average_mace,
+            verbose=verbose,
         )
 
 
@@ -697,14 +702,23 @@ def generate_descriptors_mace(
     database,
     descriptor_settings: dict,
     outer_average: bool = False,
-) -> (dict, np.ndarray):
+    verbose: bool = False,
+) -> tuple[dict, np.ndarray, list[str]]:
     from mace.calculators import MACECalculator
+
+    if model_path is None:
+        raise MissingMandatoryParameterError(
+            'Missing model path for MACE descriptor generation.'
+        )
 
     device = descriptor_settings.get('device', 'cpu')
     dtype = descriptor_settings.get('dtype', 'float32')
 
     is_mp_foundation = False
     is_off_foundation = False
+
+    if isinstance(model_path, PosixPath | Path):
+        model_path = str(model_path)
 
     try:
         # Use torch.load with map_location to ensure model loads on the correct device
@@ -756,7 +770,11 @@ def generate_descriptors_mace(
     uuid_list = []
 
     # Getting descriptors for every structure
-    for struct in database:
+    tot_num_structures = len(database)
+    for idx, struct in enumerate(database):
+        if verbose and idx % 100 == 0:
+            print(f'MACE: {idx}/{tot_num_structures}', end='\r')
+
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         elif struct.info.get('aiida_uuid'):
@@ -794,7 +812,7 @@ def generate_descriptors_mace(
     return descriptor_dict, descriptor_arr, uuid_list
 
 
-def get_species_from_database(database: list[Atoms]) -> list[str]:
+def get_species_from_database(database: list[Atoms] | Atoms) -> list[str]:
     """
     Get the list of species from the database of structures.
 
@@ -809,12 +827,19 @@ def get_species_from_database(database: list[Atoms]) -> list[str]:
         List of unique species in the database.
     """
     species = set()
-    for struct in database:
+    if isinstance(database, list):
+        for struct in database:
+            species.update(struct.get_chemical_symbols())
+    elif isinstance(database, Atoms):
         species.update(struct.get_chemical_symbols())
     return sorted(species)
 
 
-def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings: dict):
+def generate_descriptors_soap(
+    database: Atoms | list[Atoms],
+    descriptor_settings: dict,
+    verbose: bool = False,
+) -> tuple[dict, np.ndarray, list[str]]:
     # Initializing the SOAP calculator
     from dscribe.descriptors import SOAP
 
@@ -843,8 +868,12 @@ def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings
     descriptor_list = []
     uuid_list = []
 
+    tot_num_structures = len(database)
+
     # Getting descriptors for every structure
-    for struct in database:
+    for idx, struct in enumerate(database):
+        if verbose and idx % 100 == 0:
+            print(f'SOAP: {idx}/{tot_num_structures}', end='\r')
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         # elif struct.info.get('aiida_uuid'):
@@ -862,7 +891,7 @@ def generate_descriptors_soap(database: Atoms | list[Atoms], descriptor_settings
             }
 
         # Getting the descriptors for the current structure
-        curr_struct_descriptors = soap.create(struct, n_jobs=-1)
+        curr_struct_descriptors = soap.create(struct, n_jobs=-2)
         descriptor_list.append(curr_struct_descriptors)
 
         # Appending the descriptors to the dictionary

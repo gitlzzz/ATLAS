@@ -20,26 +20,11 @@ All keys are mandatory unless stated otherwise.
 Settings for the interpolation check. The interpolation check determines whether a structure is within the model's knowledge domain by checking the committee models disagreement, considering the model accuracy threshold.
 
 
-- {alt}`model_acc_multiplier`:
-  - **Description**: Multiplier for model accuracy threshold. Higher values mean more DFT calculations.
-  - **Type**: `(float)`
-  - **Default**: `10.0`.
-
 - {alt}`disagreement_check_type`:
   - **Description**: Approach for energy and force (E&F) committee disagreement check. With `training`, compare E&F with a threshold obtained from the training RMSE values multiplied by a threshold. With `md_threshold`, compare E&F with a threshold obtained from the standard deviaiton of the MD frames.
   - **Type**: `(str)`
   - **Default**: `'training'`.
   - Possible values are: `training`, `md_threshold`.
-
-- {alt}`target_accuracy_e_meV_per_at`:
-  - **Description**: Target accuracy for energy per atom in meV/atom. This should roughly correspond to the noise floor of your reference method, e.g., 1-2 meV/atom for DFT. By default, a relatively large value of 43 meV/atom is selected, since it correponds with a typical measure of chemical accuracy. However, this might be too high for some properties, such as long term diffusion or phase transitions.
-  - **Type**: `(optional, float)`
-  - **Default**: `43.0`.
-
-- {alt}`target_accuracy_f_meV_per_A`:
-  - **Description**: Target accuracy for force, in meV/Angstrom. This should roughly correspond to the noise floor of your reference method, e.g., 10-20 meV/atom for DFT. By default, a relatively large value of 50 meV/atom is selected, since it correponds with a typical measure of chemical accuracy.
-  - **Type**: `(optional, float)`
-  - **Default**: `50.0`.
 
 ### Extrapolation Check Settings - `[extrapolation]`
 

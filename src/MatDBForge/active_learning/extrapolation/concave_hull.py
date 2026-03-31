@@ -580,7 +580,7 @@ def get_optimized_concave_hull(
     norm_latent_space = (latent_space - min_vals) / span
 
     # Define the objective function
-    def objective(alpha):
+    def objective(alpha, norm_latent_space):
         # Handle edge case where alpha is too small (convexhull-ish)
         if alpha <= 0:
             return 1e9
@@ -590,11 +590,22 @@ def get_optimized_concave_hull(
             # only_outer=True to get the polygon
             shape = alpha_shape(norm_latent_space, alpha=alpha, only_outer=True)
         except Exception:
-            return 1e9  # Penalty for failed shape generation
+            # Penalty for failed shape generation, guided by alpha.
+            # getting stuck at large alpha values that cause failures.
+            return 1e9 + (alpha * 1000)
 
         # If shape is empty or invalid geometry
+        # Penalizing by alpha to avoid getting stuck at
+        # large alpha values that cause empty shapes.
         if shape.is_empty or not hasattr(shape, 'area'):
-            return 1e9
+            cost = 1e9 + (alpha * 1000)
+            mdb_cut.custom_print(
+                'Shape is empty for '
+                f'Alpha: {alpha:.4f}, '
+                f'Cost: {1e9 + (alpha * 1000):.5e}',
+                'warning',
+            )
+            return cost
 
         # Constraint check
         # Check if the random points are inside the concave hull.
@@ -630,7 +641,7 @@ def get_optimized_concave_hull(
 
     # Enforce bounds
     lower_bound = max(0.001, target_alpha_range[0])
-    upper_bound = min(50.0, target_alpha_range[1])
+    upper_bound = min(350.0, target_alpha_range[1])
 
     # Run the optimizer
     # Method 'bounded' is best when we know the min/max alpha
@@ -640,6 +651,7 @@ def get_optimized_concave_hull(
         bounds=(lower_bound, upper_bound),
         method='bounded',
         options={'xatol': 0.00125},
+        args=(norm_latent_space,),
     )
     best_alpha = result.x
     # final_shape = alpha_shape(latent_space, alpha=best_alpha, only_outer=True)
@@ -648,19 +660,30 @@ def get_optimized_concave_hull(
     final_shape_norm = alpha_shape(norm_latent_space, alpha=best_alpha, only_outer=True)
 
     # Extract normalized coords
-    if hasattr(final_shape_norm.exterior, 'coords'):
+    if hasattr(final_shape_norm, 'exterior') and hasattr(
+        final_shape_norm.exterior, 'coords'
+    ):
         exterior_norm = np.array(final_shape_norm.exterior.coords)
+    elif isinstance(final_shape_norm, MultiPolygon) and final_shape_norm.is_empty:
+        alpha_shape_arr = np.empty((0, 2))
+        mdb_cut.custom_print(
+            f'Alpha={best_alpha:.4f} resulted in empty geometry.',
+            'warning',
+        )
+
     else:
         exterior_norm = np.array(final_shape_norm.convex_hull.exterior.coords)
 
-    # Rescale back to original units
-    alpha_shape_arr = exterior_norm * span + min_vals
+    if not final_shape_norm.is_empty:
+        # Rescale back to original units
+        alpha_shape_arr = exterior_norm * span + min_vals
 
-    mdb_cut.custom_print(
-        f'Optimized alpha: {best_alpha:.4f} with area: {final_shape_norm.area:.4e}. '
-        f'Number of points inside: {total_points}.',
-        'done',
-    )
+        mdb_cut.custom_print(
+            f'Optimized alpha: {best_alpha:.4f} with area: '
+            f'{final_shape_norm.area:.4e}. '
+            f'Number of points inside: {total_points}.',
+            'done',
+        )
 
     return alpha_shape_arr, best_alpha
 

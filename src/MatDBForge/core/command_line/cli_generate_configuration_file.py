@@ -226,6 +226,7 @@ def generate_command(args, schema):
         'dft': 'dft_settings.toml',
         'active_learning': 'active_learning_settings.toml',
         'mlip_benchmarks': 'mdb_benchmark_settings.toml',
+        'latent_space_analysis': 'latent_space_settings.toml',
     }
     output_filename = filename_map[args.config_type]
 
@@ -282,10 +283,17 @@ def gen_default_config():
             '\t- database_generation: For initial database generation.\n'
             '\t- dft: For DFT calculations.\n'
             '\t- active_learning: For the active learning loop.\n'
+            '\t- latent_space_analysis: For latent space analysis of datasets.\n'
         ),
         type=str,
         required=True,
-        choices=['database_generation', 'dft', 'active_learning', 'mlip_benchmarks'],
+        choices=[
+            'database_generation',
+            'dft',
+            'active_learning',
+            'mlip_benchmarks',
+            'latent_space_analysis',
+        ],
         metavar='TYPE',
     )
     generate_parser.add_argument(

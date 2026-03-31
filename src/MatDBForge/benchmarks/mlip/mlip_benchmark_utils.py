@@ -677,6 +677,9 @@ def create_final_multi_panel_plot(args):
         custom_print('No plot data available for multi-panel figure.', 'warn')
         return
 
+    # Set SVG font type to 'none' for editable text in Inkscape
+    plt.rcParams['svg.fonttype'] = 'none'
+
     # Count available plot types
     plot_types = list(_plot_data.keys())
     n_plots = len(plot_types)
@@ -685,22 +688,9 @@ def create_final_multi_panel_plot(args):
         custom_print('No plots to display.', 'warn')
         return
 
-    # Calculate grid layout (prefer taller layouts for document inclusion)
-    # Instead of making it square, prioritize vertical orientation
-    sqrt_n = math.sqrt(n_plots)
-
-    if sqrt_n == int(sqrt_n):
-        # Perfect square case
-        cols = rows = int(sqrt_n)
-    else:
-        # Non-square case: prefer fewer columns (more rows)
-        cols = math.floor(sqrt_n)
-        rows = math.ceil(n_plots / cols)
-
-        # If this creates too many empty spaces, try one more column
-        if (rows * cols - n_plots) > cols:
-            cols += 1
-            rows = math.ceil(n_plots / cols)
+    # Calculate grid layout (max 4 columns, filling row by row)
+    cols = min(4, n_plots)
+    rows = math.ceil(n_plots / cols)
 
     # Create figure
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
@@ -744,41 +734,321 @@ def create_final_multi_panel_plot(args):
             ax.legend()
 
         elif plot_type == 'defect_formation':
-            # Bar chart for defect formation energies
+            # Bar chart for defect formation energies (supports grouped by surface)
             model_names = plot_info['model_names']
-            formation_energies = plot_info['values']
+            groups = plot_info.get('groups', ['default'])
+            results = plot_info.get('results')
+            plot_relative_dft = plot_info.get('plot_relative_dft', False)
 
-            # Get consistent colors for models
-            colors = get_model_colors_by_names(model_names)
-            bars = ax.bar(
-                model_names,
-                formation_energies,
-                color=colors,
-                edgecolor='#282828',
-                linewidth=1,
-            )
-
-            ax.set_xlabel('Model')
-            ax.set_ylabel(plot_info['ylabel'])
-            ax.set_title(plot_info['title'])
-            ax.grid(True, linestyle='--', alpha=0.6)
-
-            # Rotate x-axis labels if more than 4 bars for better visibility
-            if len(model_names) > 4:
-                ax.tick_params(axis='x', labelrotation=45)
-                plt.setp(ax.get_xticklabels(), ha='right')
-
-            # Add value labels
-            for bar, energy in zip(bars, formation_energies, strict=True):
-                height = bar.get_height()
-                ax.text(
-                    bar.get_x() + bar.get_width() / 2.0,
-                    height + max(formation_energies) * 0.01,
-                    plot_info['value_format'].format(energy),
-                    ha='center',
-                    va='bottom',
-                    fontsize=9,
+            # Legacy/Simple mode: 'values' provided directly (single group)
+            if 'values' in plot_info:
+                formation_energies = plot_info['values']
+                colors = get_model_colors_by_names(model_names)
+                bars = ax.bar(
+                    model_names,
+                    formation_energies,
+                    color=colors,
+                    edgecolor='#282828',
+                    linewidth=1,
                 )
+
+                # Add value labels
+                for bar, energy in zip(bars, formation_energies, strict=True):
+                    height = bar.get_height()
+                    ax.text(
+                        bar.get_x() + bar.get_width() / 2.0,
+                        height + max(formation_energies) * 0.01,
+                        plot_info.get('value_format', '{:.3f}').format(energy),
+                        ha='center',
+                        va='bottom',
+                        fontsize=9,
+                    )
+            else:
+                # Grouped mode
+                dft_results = results.get('dft', {})
+
+                # Determine brightness factors for groups
+                n_groups = len(groups)
+                if n_groups == 1:
+                    brightness_factors = [1.0]
+                elif n_groups == 2:
+                    brightness_factors = [0.8, 1.2]
+                elif n_groups == 3:
+                    brightness_factors = [0.7, 1.0, 1.3]
+                else:
+                    brightness_factors = [
+                        0.5 + (1.0 * i / (n_groups - 1)) for i in range(n_groups)
+                    ]
+
+                mlip_colors = get_model_colors_by_names(model_names)
+
+                # Determine max energy for scaling labels (global or relative)
+                max_energy = 0.0
+                for model_res in results.values():
+                    for group_res in model_res.values():
+                        if (
+                            isinstance(group_res, dict)
+                            and 'formation_energy_eV' in group_res
+                        ):
+                            max_energy = max(
+                                max_energy, abs(group_res['formation_energy_eV'])
+                            )
+
+                if plot_relative_dft and dft_results:
+                    # SPLIT PLOT MODE: Relative energies (MLIP) top, Absolute DFT bottom
+
+                    # Setup subplot grid
+                    from matplotlib.gridspec import GridSpecFromSubplotSpec
+
+                    ax.clear()
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['bottom'].set_visible(False)
+                    ax.spines['left'].set_visible(False)
+
+                    gs = GridSpecFromSubplotSpec(
+                        1, 2, ax.get_subplotspec(), width_ratios=[3, 1], wspace=0.3
+                    )
+                    ax_rel = ax.figure.add_subplot(gs[0])
+                    ax_dft = ax.figure.add_subplot(gs[1])
+
+                    # Plot 1: Relative Energies (MLIP Only)
+                    bar_width = 0.8 / n_groups if n_groups > 1 else 0.8
+                    x_pos = np.arange(len(model_names))
+
+                    for i, group_name in enumerate(groups):
+                        group_energies = []
+                        group_colors = []
+                        group_x_pos = []
+
+                        dft_energy = dft_results.get(group_name, {}).get(
+                            'formation_energy_eV', 0.0
+                        )
+
+                        for j, model_name in enumerate(model_names):
+                            energy = 0.0
+                            if group_name in results.get(model_name, {}):
+                                energy = results[model_name][group_name][
+                                    'formation_energy_eV'
+                                ]
+
+                            # Calculate relative energy
+                            rel_energy = energy - dft_energy
+
+                            # Color logic
+                            base_color = mlip_colors[j]
+                            adjusted_color = adjust_color_brightness(
+                                base_color, brightness_factors[i]
+                            )
+
+                            group_energies.append(rel_energy)
+                            group_colors.append(adjusted_color)
+
+                            shift = i * bar_width if n_groups > 1 else 0
+                            group_x_pos.append(x_pos[j] + shift)
+
+                        # Plot bars
+                        bars = ax_rel.bar(
+                            group_x_pos,
+                            group_energies,
+                            bar_width,
+                            color=group_colors,
+                            edgecolor='#282828',
+                            linewidth=1,
+                        )
+
+                        # Labels
+                        for bar, val in zip(bars, group_energies, strict=True):
+                            height = bar.get_height()
+                            ax_rel.text(
+                                bar.get_x() + bar.get_width() / 2.0,
+                                height
+                                + (
+                                    max_energy * 0.02
+                                    if val >= 0
+                                    else -max_energy * 0.05
+                                ),
+                                f'{val:.3f}',
+                                ha='center',
+                                va='bottom' if val >= 0 else 'top',
+                                fontsize=8,
+                                rotation=90 if n_groups > 1 else 0,
+                            )
+
+                    if n_groups > 1:
+                        tick_positions = x_pos + bar_width * (n_groups - 1) / 2
+                        ax_rel.set_xticks(tick_positions)
+                    else:
+                        ax_rel.set_xticks(x_pos)
+                    ax_rel.set_xticklabels(model_names)
+
+                    ax_rel.set_ylabel('Energy Diff vs DFT (eV)', fontsize=9)
+                    ax_rel.set_title(plot_info['title'], fontsize=10)
+                    ax_rel.grid(True, linestyle='--', alpha=0.6)
+
+                    # Plot 2: Absolute DFT Energies
+                    dft_x_pos = np.arange(1)  # Only one "model" (DFT)
+
+                    for i, group_name in enumerate(groups):
+                        dft_val = dft_results.get(group_name, {}).get(
+                            'formation_energy_eV', 0.0
+                        )
+                        color = adjust_color_brightness(
+                            '#282828', brightness_factors[i]
+                        )
+
+                        shift = i * bar_width if n_groups > 1 else 0
+                        pos = (
+                            dft_x_pos[0] + shift - (bar_width * (n_groups - 1) / 2)
+                        )  # Center around 0
+
+                        bar = ax_dft.bar(
+                            pos,
+                            dft_val,
+                            bar_width,
+                            color=color,
+                            edgecolor='black',
+                            linewidth=1,
+                            label=group_name,
+                        )
+
+                        # Label
+                        height = bar[0].get_height()
+                        ax_dft.text(
+                            pos,
+                            height + max_energy * 0.02,
+                            f'{dft_val:.3f}',
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                        )
+
+                        # Group label inside bar
+                        if n_groups > 1:
+                            ax_dft.text(
+                                pos,
+                                height * 0.5,
+                                group_name,
+                                ha='center',
+                                va='center',
+                                rotation=90,
+                                color='white',
+                                fontweight='bold',
+                                fontsize=8,
+                            )
+
+                    ax_dft.set_xticks([])
+                    ax_dft.set_xlabel('DFT References', fontsize=9)
+                    ax_dft.set_ylabel('Abs Energy (eV)', fontsize=9)
+                    ax_dft.grid(True, linestyle='--', alpha=0.6)
+
+                else:
+                    # STANDARD PLOT MODE (Absolute energies, DFT included in main bars)
+                    all_model_names = model_names.copy()
+                    if dft_results:
+                        all_model_names.append('DFT')
+
+                    bar_width = 0.8 / n_groups if n_groups > 1 else 0.8
+                    x_pos = np.arange(len(all_model_names))
+
+                    for i, group_name in enumerate(groups):
+                        group_energies = []
+                        group_colors = []
+                        group_x_pos = []
+
+                        for j, model_name in enumerate(all_model_names):
+                            energy = 0.0
+
+                            if model_name == 'DFT':
+                                if group_name in dft_results:
+                                    energy = dft_results[group_name][
+                                        'formation_energy_eV'
+                                    ]
+                                adjusted_color = adjust_color_brightness(
+                                    '#282828', brightness_factors[i]
+                                )
+                            else:
+                                if group_name in results.get(model_name, {}):
+                                    energy = results[model_name][group_name][
+                                        'formation_energy_eV'
+                                    ]
+
+                                # Get base color index
+                                if model_name in model_names:
+                                    base_color = mlip_colors[
+                                        model_names.index(model_name)
+                                    ]
+                                else:
+                                    base_color = '#888888'
+
+                                adjusted_color = adjust_color_brightness(
+                                    base_color, brightness_factors[i]
+                                )
+
+                            group_energies.append(energy)
+                            group_colors.append(adjusted_color)
+
+                            shift = i * bar_width if n_groups > 1 else 0
+                            group_x_pos.append(x_pos[j] + shift)
+
+                        # Plot bars for this group
+                        bars = ax.bar(
+                            group_x_pos,
+                            group_energies,
+                            bar_width,
+                            color=group_colors,
+                            edgecolor='#282828',
+                            linewidth=1,
+                        )
+
+                        # Add labels
+                        for bar, energy in zip(bars, group_energies, strict=True):
+                            height = bar.get_height()
+                            # Value label
+                            ax.text(
+                                bar.get_x() + bar.get_width() / 2.0,
+                                height + max_energy * 0.02,
+                                f'{energy:.3f}',
+                                ha='center',
+                                va='bottom',
+                                fontsize=8,
+                                rotation=90 if n_groups > 1 else 0,
+                            )
+
+                            # Group label inside bar if multiple groups and
+                            # bar is tall enough
+                            if n_groups > 1 and abs(height) > (max_energy * 0.15):
+                                text_color = (
+                                    'white' if brightness_factors[i] < 0.9 else 'black'
+                                )
+                                # Position near bottom
+                                label_y = bar.get_y() + (height * 0.5)
+
+                                ax.text(
+                                    bar.get_x() + bar.get_width() / 2.0,
+                                    label_y,
+                                    f'{group_name}',
+                                    ha='center',
+                                    va='center',
+                                    rotation=90,
+                                    color=text_color,
+                                    fontsize=8,
+                                    fontweight='bold',
+                                )
+
+                    if n_groups > 1:
+                        tick_positions = x_pos + bar_width * (n_groups - 1) / 2
+                        ax.set_xticks(tick_positions)
+                    else:
+                        ax.set_xticks(x_pos)
+                    ax.set_xticklabels(all_model_names)
+
+                    ax.set_xlabel('Model')
+                    ax.set_ylabel(plot_info['ylabel'])
+                    ax.set_title(plot_info['title'])
+                    ax.grid(True, linestyle='--', alpha=0.6)
 
         elif plot_type == 'surface_energies':
             # Multiple surface energies subplot
@@ -786,6 +1056,7 @@ def create_final_multi_panel_plot(args):
             surface_names = plot_info['surface_names']
             results = plot_info['results']
             dft_surface_energies = plot_info.get('dft_surface_energies', {})
+            plot_relative_dft = plot_info.get('plot_relative_dft', False)
 
             # Add DFT as an additional "model" if DFT data is available
             all_model_names = model_names.copy()
@@ -808,184 +1079,466 @@ def create_final_multi_panel_plot(args):
             if n_surfaces == 1:
                 # Single surface - bar chart with model-based colors
                 surface_name = ''.join(map(str, surface_names[0]))
-                energies = []
-                colors = []
 
-                # Get consistent colors for MLIP models
-                mlip_colors = get_model_colors_by_names(model_names)
+                if plot_relative_dft and dft_surface_energies:
+                    # SPLIT PLOT MODE (Single Surface)
+                    from matplotlib.gridspec import GridSpecFromSubplotSpec
 
-                for model_name in all_model_names:
-                    if model_name == 'DFT':
-                        # Get DFT energy for this surface
-                        if surface_name in dft_surface_energies:
-                            energies.append(dft_surface_energies[surface_name])
-                        else:
-                            energies.append(0)
-                        # Use distinct color for DFT (black)
-                        colors.append('#282828')
-                    else:
-                        # Regular MLIP model
-                        mlip_idx = model_names.index(model_name)
-                        if surface_name in results[model_name]['surfaces']:
-                            energies.append(
-                                results[model_name]['surfaces'][surface_name][
-                                    'surface_energy_J_per_m2'
-                                ]
-                            )
-                        else:
-                            energies.append(0)
-                        # Use model-specific consistent color
-                        colors.append(mlip_colors[mlip_idx])
+                    ax.clear()
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['bottom'].set_visible(False)
+                    ax.spines['left'].set_visible(False)
 
-                bars = ax.bar(
-                    all_model_names,
-                    energies,
-                    color=colors,
-                    edgecolor='#282828',
-                    linewidth=1,
-                )
-                ax.set_title(f'{plot_info["metal"]}({surface_name}) Surface Energy')
-                ax.set_ylabel('Surface Energy (J/m²)')
-
-                # Rotate x-axis labels if more than 4 bars for better visibility
-                if len(all_model_names) > 4:
-                    ax.tick_params(axis='x', labelrotation=45)
-                    plt.setp(ax.get_xticklabels(), ha='right')
-
-                # Add value labels
-                for bar, energy in zip(bars, energies, strict=True):
-                    height = bar.get_height()
-                    ax.text(
-                        bar.get_x() + bar.get_width() / 2.0,
-                        height + max(energies) * 0.01,
-                        f'{energy:.2f}',
-                        ha='center',
-                        va='bottom',
-                        fontsize=9,
+                    gs = GridSpecFromSubplotSpec(
+                        1, 2, ax.get_subplotspec(), width_ratios=[3, 1], wspace=0.3
                     )
-            else:
-                # Multiple surfaces - grouped bar chart
-                bar_width = 0.8 / len(surface_names)
-                x_pos = range(len(all_model_names))
+                    ax_rel = ax.figure.add_subplot(gs[0])
+                    ax_dft = ax.figure.add_subplot(gs[1])
 
-                # Define brightness factors for each surface (centered around 1.0)
-                # For 3 surfaces: [0.7, 1.0, 1.3] gives darker, normal, brighter
-                n_surfaces = len(surface_names)
-                if n_surfaces == 1:
-                    brightness_factors = [1.0]
-                elif n_surfaces == 2:
-                    brightness_factors = [0.8, 1.2]
-                elif n_surfaces == 3:
-                    brightness_factors = [0.7, 1.0, 1.3]
-                else:
-                    # For more surfaces, distribute brightness factors evenly
-                    brightness_factors = [
-                        0.5 + (1.0 * i / (n_surfaces - 1)) for i in range(n_surfaces)
-                    ]
+                    # Get DFT energy
+                    dft_energy = dft_surface_energies.get(surface_name, 0.0)
 
-                for i, surface_indices in enumerate(surface_names):
-                    surface_name = ''.join(map(str, surface_indices))
+                    # 1. Relative Energies (MLIP Only)
+                    mlip_energies = []
+                    mlip_colors = get_model_colors_by_names(model_names)
 
-                    # Collect energies for each model for this surface
-                    surface_data = []
-                    for j, model_name in enumerate(all_model_names):
-                        if model_name == 'DFT':
-                            # Get DFT energy for this surface
-                            if surface_name in dft_surface_energies:
-                                energy = dft_surface_energies[surface_name]
-                            else:
-                                energy = 0
-                            # Use dark color for DFT, adjusted for brightness
-                            adjusted_color = adjust_color_brightness(
-                                '#282828', brightness_factors[i]
-                            )
-                        else:
-                            # Regular MLIP model
-                            if surface_name in results[model_name]['surfaces']:
-                                energy = results[model_name]['surfaces'][surface_name][
-                                    'surface_energy_J_per_m2'
-                                ]
-                            else:
-                                energy = 0
-                            # Get base color for this model and adjust brightness
-                            mlip_idx = model_names.index(model_name)
-                            mlip_colors = get_model_colors_by_names(model_names)
-                            base_color = mlip_colors[mlip_idx]
-                            adjusted_color = adjust_color_brightness(
-                                base_color, brightness_factors[i]
-                            )
+                    for _, model_name in enumerate(model_names):
+                        energy = 0.0
+                        if surface_name in results[model_name]['surfaces']:
+                            energy = results[model_name]['surfaces'][surface_name][
+                                'surface_energy_J_per_m2'
+                            ]
+                        mlip_energies.append(energy - dft_energy)
 
-                        surface_data.append(
-                            {
-                                'energy': energy,
-                                'color': adjusted_color,
-                                'x_pos': j + i * bar_width,
-                                'brightness_factor': brightness_factors[i],
-                            }
-                        )
-
-                    # Plot bars for this surface
-                    x_positions = [data['x_pos'] for data in surface_data]
-                    energies = [data['energy'] for data in surface_data]
-                    colors = [data['color'] for data in surface_data]
-
-                    bars = ax.bar(
-                        x_positions,
-                        energies,
-                        bar_width,
-                        color=colors,
+                    bars_rel = ax_rel.bar(
+                        model_names,
+                        mlip_energies,
+                        color=mlip_colors,
                         edgecolor='#282828',
                         linewidth=1,
                     )
 
-                    # Add surface name labels on bars
-                    for bar, data in zip(bars, surface_data, strict=True):
-                        bar_height = bar.get_height()
+                    # Add labels for relative plot
+                    max_abs_rel = (
+                        max([abs(e) for e in mlip_energies]) if mlip_energies else 1.0
+                    )
+                    for bar, val in zip(bars_rel, mlip_energies, strict=True):
+                        height = bar.get_height()
+                        ax_rel.text(
+                            bar.get_x() + bar.get_width() / 2.0,
+                            height
+                            + (max_abs_rel * 0.02 if val >= 0 else -max_abs_rel * 0.05),
+                            f'{val:.3f}',
+                            ha='center',
+                            va='bottom' if val >= 0 else 'top',
+                            fontsize=9,
+                        )
 
-                        # Add label even if bar height is very small
-                        # Choose text color based on brightness factor
-                        # Use white for darker bars, black for rest
-                        if abs(bar_height) > 1e-10:  # Much smaller threshold
-                            text_color = (
-                                'white' if data['brightness_factor'] < 0.9 else 'black'
+                    ax_rel.set_ylabel('Surf. Energy Diff vs DFT (J/m²)', fontsize=9)
+                    ax_rel.set_title(
+                        f'{plot_info["metal"]}({surface_name})', fontsize=10
+                    )
+                    ax_rel.grid(True, linestyle='--', alpha=0.6)
+                    # if len(model_names) > 4:
+                    #     ax_rel.tick_params(axis='x', labelrotation=45)
+                    #     plt.setp(ax_rel.get_xticklabels(), ha='right')
+
+                    # 2. Absolute DFT Energy
+                    bar_dft = ax_dft.bar(
+                        ['DFT'],
+                        [dft_energy],
+                        color='#282828',
+                        edgecolor='black',
+                        linewidth=1,
+                    )
+
+                    height = bar_dft[0].get_height()
+                    ax_dft.text(
+                        bar_dft[0].get_x() + bar_dft[0].get_width() / 2.0,
+                        height + dft_energy * 0.01,
+                        f'{dft_energy:.3f}',
+                        ha='center',
+                        va='bottom',
+                        fontsize=9,
+                    )
+
+                    ax_dft.set_ylabel('Abs Energy (J/m²)', fontsize=9)
+                    ax_dft.set_title('DFT Reference', fontsize=10)
+                    ax_dft.grid(True, linestyle='--', alpha=0.6)
+
+                else:
+                    # STANDARD PLOT MODE (Single Surface)
+                    energies = []
+                    colors = []
+
+                    # Get consistent colors for MLIP models
+                    mlip_colors = get_model_colors_by_names(model_names)
+
+                    for model_name in all_model_names:
+                        if model_name == 'DFT':
+                            # Get DFT energy for this surface
+                            if surface_name in dft_surface_energies:
+                                energies.append(dft_surface_energies[surface_name])
+                            else:
+                                energies.append(0)
+                            # Use distinct color for DFT (black)
+                            colors.append('#282828')
+                        else:
+                            # Regular MLIP model
+                            mlip_idx = model_names.index(model_name)
+                            if surface_name in results[model_name]['surfaces']:
+                                energies.append(
+                                    results[model_name]['surfaces'][surface_name][
+                                        'surface_energy_J_per_m2'
+                                    ]
+                                )
+                            else:
+                                energies.append(0)
+                            # Use model-specific consistent color
+                            colors.append(mlip_colors[mlip_idx])
+
+                    bars = ax.bar(
+                        all_model_names,
+                        energies,
+                        color=colors,
+                        edgecolor='#282828',
+                        linewidth=1,
+                    )
+                    ax.set_title(f'{plot_info["metal"]}({surface_name}) Surface Energy')
+                    ax.set_ylabel('Surface Energy (J/m²)')
+
+                    # Rotate x-axis labels if more than 4 bars for better visibility
+                    # if len(all_model_names) > 4:
+                    #     ax.tick_params(axis='x', labelrotation=45)
+                    #     plt.setp(ax.get_xticklabels(), ha='right')
+
+                    # Add value labels
+                    for bar, energy in zip(bars, energies, strict=True):
+                        height = bar.get_height()
+                        ax.text(
+                            bar.get_x() + bar.get_width() / 2.0,
+                            height + max(energies) * 0.01,
+                            f'{energy:.3f}',
+                            ha='center',
+                            va='bottom',
+                            fontsize=9,
+                        )
+            else:
+                # Multiple surfaces - grouped bar chart
+                if plot_relative_dft and dft_surface_energies:
+                    # SPLIT PLOT MODE (Multiple Surfaces)
+                    from matplotlib.gridspec import GridSpecFromSubplotSpec
+
+                    ax.clear()
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['bottom'].set_visible(False)
+                    ax.spines['left'].set_visible(False)
+
+                    gs = GridSpecFromSubplotSpec(
+                        1, 2, ax.get_subplotspec(), width_ratios=[3, 1], wspace=0.3
+                    )
+                    ax_rel = ax.figure.add_subplot(gs[0])
+                    ax_dft = ax.figure.add_subplot(gs[1])
+
+                    # 1. Relative Energies (MLIP Only)
+                    bar_width = 0.8 / n_surfaces if n_surfaces > 1 else 0.8
+                    x_pos = np.arange(len(model_names))
+
+                    # Determine brightness factors
+                    if n_surfaces == 1:
+                        brightness_factors = [1.0]
+                    elif n_surfaces == 2:
+                        brightness_factors = [0.8, 1.2]
+                    elif n_surfaces == 3:
+                        brightness_factors = [0.7, 1.0, 1.3]
+                    else:
+                        brightness_factors = [
+                            0.5 + (1.0 * i / (n_surfaces - 1))
+                            for i in range(n_surfaces)
+                        ]
+
+                    mlip_colors = get_model_colors_by_names(model_names)
+                    max_abs_rel = 0.0
+
+                    # First pass to find max value for scaling
+                    for _, surface_indices in enumerate(surface_names):
+                        surface_name = ''.join(map(str, surface_indices))
+                        dft_val = dft_surface_energies.get(surface_name, 0.0)
+
+                        for model_name in model_names:
+                            val = 0.0
+                            if surface_name in results[model_name]['surfaces']:
+                                val = results[model_name]['surfaces'][surface_name][
+                                    'surface_energy_J_per_m2'
+                                ]
+                            max_abs_rel = max(max_abs_rel, abs(val - dft_val))
+
+                    if max_abs_rel == 0:
+                        max_abs_rel = 1.0
+
+                    for i, surface_indices in enumerate(surface_names):
+                        surface_name = ''.join(map(str, surface_indices))
+                        dft_val = dft_surface_energies.get(surface_name, 0.0)
+
+                        surface_data = []
+                        for j, model_name in enumerate(model_names):
+                            val = 0.0
+                            if surface_name in results[model_name]['surfaces']:
+                                val = results[model_name]['surfaces'][surface_name][
+                                    'surface_energy_J_per_m2'
+                                ]
+
+                            rel_val = val - dft_val
+                            base_color = mlip_colors[j]
+                            color = adjust_color_brightness(
+                                base_color, brightness_factors[i]
                             )
 
-                            # Calculate label position based on current y-axis range
-                            y_min, y_max = ax.get_ylim()
-                            y_range = y_max - y_min
-                            # Position label at 10% from bottom of visible range
-                            label_y = y_min + (y_range * 0.1)
+                            surface_data.append(
+                                {
+                                    'val': rel_val,
+                                    'color': color,
+                                    'x_pos': j + i * bar_width if n_surfaces > 1 else j,
+                                }
+                            )
 
-                            # Add surface name rotated 90 degrees
-                            ax.text(
-                                x=bar.get_x() + bar.get_width() / 2.0,
-                                y=label_y,
-                                s=f'({surface_name})',
+                        x_positions = [d['x_pos'] for d in surface_data]
+                        vals = [d['val'] for d in surface_data]
+                        colors = [d['color'] for d in surface_data]
+
+                        bars = ax_rel.bar(
+                            x_positions,
+                            vals,
+                            bar_width,
+                            color=colors,
+                            edgecolor='#282828',
+                            linewidth=1,
+                        )
+
+                        for bar, val in zip(bars, vals, strict=True):
+                            height = bar.get_height()
+                            ax_rel.text(
+                                bar.get_x() + bar.get_width() / 2.0,
+                                height
+                                + (
+                                    max_abs_rel * 0.02
+                                    if val >= 0
+                                    else -max_abs_rel * 0.05
+                                ),
+                                f'{val:.3f}',
+                                ha='center',
+                                va='bottom' if val >= 0 else 'top',
+                                fontsize=8,
+                                rotation=90 if n_surfaces > 1 else 0,
+                            )
+
+                    if n_surfaces > 1:
+                        tick_positions = x_pos + bar_width * (n_surfaces - 1) / 2
+                        ax_rel.set_xticks(tick_positions)
+                    else:
+                        ax_rel.set_xticks(x_pos)
+                    ax_rel.set_xticklabels(model_names)
+                    ax_rel.set_ylabel('Surf. Energy Diff vs DFT (J/m²)', fontsize=9)
+                    ax_rel.set_title(
+                        f'{plot_info["metal"]} Surface Energies', fontsize=10
+                    )
+                    ax_rel.grid(True, linestyle='--', alpha=0.6)
+
+                    # 2. Absolute DFT Energies
+                    dft_x_pos = np.arange(1)
+
+                    for i, surface_indices in enumerate(surface_names):
+                        surface_name = ''.join(map(str, surface_indices))
+                        dft_val = dft_surface_energies.get(surface_name, 0.0)
+
+                        color = adjust_color_brightness(
+                            '#282828', brightness_factors[i]
+                        )
+                        shift = i * bar_width if n_surfaces > 1 else 0
+                        pos = dft_x_pos[0] + shift - (bar_width * (n_surfaces - 1) / 2)
+
+                        bar = ax_dft.bar(
+                            pos,
+                            dft_val,
+                            bar_width,
+                            color=color,
+                            edgecolor='black',
+                            linewidth=1,
+                        )
+
+                        height = bar[0].get_height()
+                        ax_dft.text(
+                            pos,
+                            height + dft_val * 0.01,
+                            f'{dft_val:.3f}',
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                        )
+
+                        if n_surfaces > 1:
+                            ax_dft.text(
+                                pos,
+                                height * 0.5,
+                                f'({surface_name})',
                                 ha='center',
                                 va='center',
                                 rotation=90,
+                                color='white'
+                                if brightness_factors[i] < 0.9
+                                else 'black',
                                 fontweight='bold',
-                                color=text_color,
-                                fontsize=10,  # Increased font size
-                                zorder=100,  # Much higher z-order
-                                transform=ax.transData,
+                                fontsize=8,
                             )
 
-                ax.set_xlabel('Model')
-                ax.set_ylabel('Surface Energy (J/m²)')
-                ax.set_title(f'{plot_info["metal"]} Surface Energies')
-                tick_positions = [
-                    x + bar_width * (len(surface_names) - 1) / 2 for x in x_pos
-                ]
-                ax.set_xticks(tick_positions)
-                ax.set_xticklabels(all_model_names)
+                    ax_dft.set_xticks([])
+                    ax_dft.set_xlabel('DFT References', fontsize=9)
+                    ax_dft.set_ylabel('Abs Energy (J/m²)', fontsize=9)
+                    ax_dft.grid(True, linestyle='--', alpha=0.6)
 
-                # Rotate x-axis labels if more than 4 bars for better visibility
-                if len(all_model_names) > 4:
-                    ax.tick_params(axis='x', labelrotation=45)
-                    plt.setp(ax.get_xticklabels(), ha='right')
+                else:
+                    # STANDARD PLOT MODE (Multiple Surfaces)
+                    bar_width = 0.8 / len(surface_names)
+                    x_pos = range(len(all_model_names))
 
-            ax.grid(True, linestyle='--', alpha=0.6)
+                    # Define brightness factors for each surface (centered around 1.0)
+                    # For 3 surfaces: [0.7, 1.0, 1.3] gives darker, normal, brighter
+                    n_surfaces = len(surface_names)
+                    if n_surfaces == 1:
+                        brightness_factors = [1.0]
+                    elif n_surfaces == 2:
+                        brightness_factors = [0.8, 1.2]
+                    elif n_surfaces == 3:
+                        brightness_factors = [0.7, 1.0, 1.3]
+                    else:
+                        # For more surfaces, distribute brightness factors evenly
+                        brightness_factors = [
+                            0.5 + (1.0 * i / (n_surfaces - 1))
+                            for i in range(n_surfaces)
+                        ]
+
+                    for i, surface_indices in enumerate(surface_names):
+                        surface_name = ''.join(map(str, surface_indices))
+
+                        # Collect energies for each model for this surface
+                        surface_data = []
+                        for j, model_name in enumerate(all_model_names):
+                            if model_name == 'DFT':
+                                # Get DFT energy for this surface
+                                if surface_name in dft_surface_energies:
+                                    energy = dft_surface_energies[surface_name]
+                                else:
+                                    energy = 0
+                                # Use dark color for DFT, adjusted for brightness
+                                adjusted_color = adjust_color_brightness(
+                                    '#282828', brightness_factors[i]
+                                )
+                            else:
+                                # Regular MLIP model
+                                if surface_name in results[model_name]['surfaces']:
+                                    energy = results[model_name]['surfaces'][
+                                        surface_name
+                                    ]['surface_energy_J_per_m2']
+                                else:
+                                    energy = 0
+                                # Get base color for this model and adjust brightness
+                                mlip_idx = model_names.index(model_name)
+                                mlip_colors = get_model_colors_by_names(model_names)
+                                base_color = mlip_colors[mlip_idx]
+                                adjusted_color = adjust_color_brightness(
+                                    base_color, brightness_factors[i]
+                                )
+
+                            surface_data.append(
+                                {
+                                    'energy': energy,
+                                    'color': adjusted_color,
+                                    'x_pos': j + i * bar_width,
+                                    'brightness_factor': brightness_factors[i],
+                                }
+                            )
+
+                        # Plot bars for this surface
+                        x_positions = [data['x_pos'] for data in surface_data]
+                        energies = [data['energy'] for data in surface_data]
+                        colors = [data['color'] for data in surface_data]
+
+                        bars = ax.bar(
+                            x_positions,
+                            energies,
+                            bar_width,
+                            color=colors,
+                            edgecolor='#282828',
+                            linewidth=1,
+                        )
+
+                        # Add surface name labels on bars
+                        for bar, data in zip(bars, surface_data, strict=True):
+                            bar_height = bar.get_height()
+
+                            # Add energy value label
+                            ax.text(
+                                bar.get_x() + bar.get_width() / 2.0,
+                                bar_height + max(energies) * 0.02,
+                                f'{data["energy"]:.3f}',
+                                ha='center',
+                                va='bottom',
+                                fontsize=8,
+                                rotation=90,
+                            )
+
+                            # Add label even if bar height is very small
+                            # Choose text color based on brightness factor
+                            # Use white for darker bars, black for rest
+                            if abs(bar_height) > 1e-10:  # Much smaller threshold
+                                text_color = (
+                                    'white'
+                                    if data['brightness_factor'] < 0.9
+                                    else 'black'
+                                )
+
+                                # Calculate label position based on current y-axis range
+                                y_min, y_max = ax.get_ylim()
+                                y_range = y_max - y_min
+                                # Position label at 10% from bottom of visible range
+                                label_y = y_min + (y_range * 0.1)
+
+                                # Add surface name rotated 90 degrees
+                                ax.text(
+                                    x=bar.get_x() + bar.get_width() / 2.0,
+                                    y=label_y,
+                                    s=f'({surface_name})',
+                                    ha='center',
+                                    va='center',
+                                    rotation=90,
+                                    fontweight='bold',
+                                    color=text_color,
+                                    fontsize=10,  # Increased font size
+                                    zorder=100,  # Much higher z-order
+                                    transform=ax.transData,
+                                )
+
+                    ax.set_xlabel('Model')
+                    ax.set_ylabel('Surface Energy (J/m²)')
+                    ax.set_title(f'{plot_info["metal"]} Surface Energies')
+                    tick_positions = [
+                        x + bar_width * (len(surface_names) - 1) / 2 for x in x_pos
+                    ]
+                    ax.set_xticks(tick_positions)
+                    ax.set_xticklabels(all_model_names)
+
+                    # Rotate x-axis labels if more than 4 bars for better visibility
+                    # if len(all_model_names) > 4:
+                    #     ax.tick_params(axis='x', labelrotation=45)
+                    #     plt.setp(ax.get_xticklabels(), ha='right')
+
+                ax.grid(True, linestyle='--', alpha=0.6)
 
         elif plot_type == 'high_temp_md':
             # High-temperature MD heatmap
@@ -1076,7 +1629,7 @@ def create_final_multi_panel_plot(args):
             ax.set_xlabel('AL Run')
             ax.set_ylabel('Number of Structures')
             ax.set_title(plot_info['title'])
-            ax.set_xticklabels(run_names, rotation=45, ha='right')
+            ax.set_xticklabels(run_names)
             ax.grid(True, linestyle='--', alpha=0.6)
 
         elif plot_type == 'learning_curves':
@@ -1209,8 +1762,8 @@ def create_final_multi_panel_plot(args):
             )
 
             # Rotate x-axis labels if needed
-            if len(model_names) > 3:
-                ax.tick_params(axis='x', rotation=45)
+            # if len(model_names) > 3:
+            #     ax.tick_params(axis='x', rotation=45)
 
             ax.set_xlabel('Model')
             ax.set_ylabel(plot_info['ylabel'])
@@ -1298,8 +1851,8 @@ def create_final_multi_panel_plot(args):
             ax_force.tick_params(axis='both', which='major', labelsize=8)
 
             # Rotate x-axis labels if needed
-            if len(model_names) > 3:
-                ax_force.tick_params(axis='x', rotation=45)
+            # if len(model_names) > 3:
+            #     ax.tick_params(axis='x', rotation=45)
 
             # Add value labels on force bars
             for bar, error in zip(bars_force, mean_force_errors, strict=True):
@@ -1453,7 +2006,7 @@ def create_final_multi_panel_plot(args):
                     ax.text(
                         bar.get_x() + bar.get_width() / 2.0,
                         height / 2.0,  # Center vertically in the middle of the bar
-                        f'{energy:.4f}',  # 4 decimal places
+                        f'{energy:.3f}',
                         ha='center',
                         va='center',  # Center vertically
                         fontsize=9,
@@ -1461,9 +2014,9 @@ def create_final_multi_panel_plot(args):
                     )
 
                 # Rotate x-axis labels if needed
-                if len(valid_names) > 4:
-                    ax.tick_params(axis='x', labelrotation=45)
-                    plt.setp(ax.get_xticklabels(), ha='right')
+                # if len(valid_names) > 4:
+                #     ax.tick_params(axis='x', labelrotation=45)
+                #     plt.setp(ax.get_xticklabels(), ha='right')
 
             else:
                 # Multiple cluster sizes - grouped bar chart
@@ -1545,7 +2098,7 @@ def create_final_multi_panel_plot(args):
                             ax.text(
                                 bar.get_x() + bar.get_width() / 2.0,
                                 height / 2.0,  # Center vertically in middle of bar
-                                f'{energy:.4f}',  # 4 decimal places
+                                f'{energy:.3f}',
                                 ha='center',
                                 va='center',  # Center vertically
                                 fontsize=7,
@@ -1564,9 +2117,9 @@ def create_final_multi_panel_plot(args):
                 ax.set_xticklabels(model_names)
 
                 # Rotate x-axis labels if needed
-                if len(model_names) > 4:
-                    ax.tick_params(axis='x', labelrotation=45)
-                    plt.setp(ax.get_xticklabels(), ha='right')
+                # if len(model_names) > 4:
+                #     ax.tick_params(axis='x', labelrotation=45)
+                #     plt.setp(ax.get_xticklabels(), ha='right')
 
                 # Add legend
                 ax.legend(fontsize=8, loc='best')
