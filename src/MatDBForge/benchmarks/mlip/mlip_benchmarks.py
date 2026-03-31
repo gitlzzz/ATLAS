@@ -573,6 +573,8 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
             ref_data: dict = json.load(f)
 
     is_automatic_mode_enabled: bool = bench_settings.get('generate_automatically', True)
+    use_static: bool = bench_settings.get('use_static_calculations', True)
+
     if is_automatic_mode_enabled:
         # Create a large perfect supercell
         # (4x4x4 should be sufficient)
@@ -599,36 +601,74 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
         defect_supercell.write(defect_structure_path, format='extxyz')
 
         # Preprare calculations dictionary
-        calculations = {
-            'perfect': {
-                'path': perfect_structure_path,
-                'structure': perfect_supercell,
-                'stoichiometry_balancing_factor': -(len(perfect_supercell) - 1)
-                / len(perfect_supercell),
-                'energy_dft': ref_data.get('perfect', {}).get('energy', 0.0),
-            },
-            'vacancy': {
-                'path': defect_structure_path,
-                'structure': defect_supercell,
-                'stoichiometry_balancing_factor': 1.0,
-                'energy_dft': ref_data.get('vacancy', {}).get('energy', 0.0),
-            },
+        calculation_groups = {
+            'default': {
+                'perfect': {
+                    'path': perfect_structure_path,
+                    'structure': perfect_supercell,
+                    'stoichiometry_balancing_factor': -(len(perfect_supercell) - 1)
+                    / len(perfect_supercell),
+                    'energy_dft': ref_data.get('perfect', {}).get('energy', 0.0),
+                },
+                'vacancy': {
+                    'path': defect_structure_path,
+                    'structure': defect_supercell,
+                    'stoichiometry_balancing_factor': 1.0,
+                    'energy_dft': ref_data.get('vacancy', {}).get('energy', 0.0),
+                },
+            }
         }
 
     else:
         # This block runs when user provides calculation data and energies, and
         # automatic mode is disabled.
-        calculations: dict = bench_settings.get('user_provided_structures', {})
-        for name, struct in calculations.items():
+        calculation_groups = {}
+        common_calculations = {}
+        raw_calculations: dict = bench_settings.get('user_provided_structures', {})
+
+        # First pass: Process all structures
+        for name, struct in raw_calculations.items():
             calc_path = pl.Path(struct.get('path')).resolve(strict=True)
-            calculations[name]['path'] = calc_path
-            calculations[name]['structure'] = ase_read(calc_path)
-            calculations[name]['energy'] = ref_data[name]['energy']
-            calculations[name]['energy_dft'] = ref_data[name]['energy']
-            calculations[name]['n_atoms'] = ref_data[name]['n_atoms']
+
+            # Create a new dictionary for this calculation to avoid mutating raw config
+            calc_data = struct.copy()
+            calc_data['path'] = calc_path
+            calc_data['structure'] = ase_read(calc_path)
+
+            if 'surface' in struct:
+                # Surface specific structure
+                surface_idx = struct['surface']
+                if surface_idx not in calculation_groups:
+                    calculation_groups[surface_idx] = {}
+
+                ref_entry = ref_data[surface_idx][name]
+                calc_data['energy'] = ref_entry['energy']
+                calc_data['energy_dft'] = ref_entry['energy']
+                calc_data['n_atoms'] = ref_entry.get('n_atoms', ref_entry.get('natom'))
+
+                calculation_groups[surface_idx][name] = calc_data
+            else:
+                # Common structure (e.g. O, H, H2O)
+                ref_entry = ref_data[name]
+                calc_data['energy'] = ref_entry['energy']
+                calc_data['energy_dft'] = ref_entry['energy']
+                calc_data['n_atoms'] = ref_entry.get('n_atoms', ref_entry.get('natom'))
+
+                common_calculations[name] = calc_data
+
+        # Second pass: Add common structures to all groups
+        if not calculation_groups and common_calculations:
+            # If only common structures exist, put them in a default group
+            calculation_groups['default'] = common_calculations
+        else:
+            # Add common structures to every surface group
+            # We use copy.deepcopy to ensure independent dictionaries for each group
+            for group_name in calculation_groups:
+                calculation_groups[group_name].update(
+                    copy.deepcopy(common_calculations)
+                )
 
     # For each model, calculate formation energies
-    #
     for _, model_path in enumerate(model_paths):
         model_name = mdb_b_ut.get_model_display_name(model_path)
 
@@ -640,104 +680,104 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
         results_file = pl.Path(
             benchmark_dir / f'{model_name}_vacancy_formation_energy.json'
         )
-        try:
-            for calc_name, calc_data in calculations.items():
-                # Skip if already calculated
-                if results_file.exists():
-                    with open(results_file, 'rb') as f:
-                        model_results_dict = json.load(f)
 
-                        if model_results_dict.get(calc_name):
-                            mdb_b_ut.custom_print(
-                                f"Results for '{calc_name}' already exist. "
-                                'Loading from file.',
-                                'warn',
-                            )
-                            with open(results_file) as f:
-                                # TODO
-                                results[model_name] = json.load(f)
-                            continue
+        results[model_name] = {}
 
-                curr_structure = calc_data.get('structure').copy()
+        # Load existing results if available
+        if results_file.exists():
+            with open(results_file) as f:
+                results[model_name] = json.load(f)
 
-                # Load and relax perfect supercell
-                # perfect_atoms = ase_read(perfect_structure_path, format='extxyz')
-                curr_structure.set_calculator(calculator)
-
-                if is_automatic_mode_enabled:
-                    # Relax the perfect structure
-                    optimizer = LBFGS(
-                        curr_structure,
-                        logfile=benchmark_dir / f'{model_name}_{calc_name}_relax.log',
+        for group_name, calculations in calculation_groups.items():
+            try:
+                # Check if this group is already calculated
+                if group_name in results[model_name]:
+                    # We might want to verify if it's complete,
+                    # but for now assume yes if present
+                    mdb_b_ut.custom_print(
+                        f"Results for '{group_name}' already exist. Skipping.",
+                        'warn',
                     )
-                    optimizer.run(fmax=0.01, steps=500)
+                    continue
 
-                    # Save relaxed perfect structure
-                    perfect_relaxed_path = (
-                        benchmark_dir / f'{model_name}_{calc_name}_relaxed.xyz'
+                for calc_name, calc_data in calculations.items():
+                    curr_structure = calc_data.get('structure').copy()
+                    curr_structure.set_calculator(calculator)
+
+                    if is_automatic_mode_enabled or use_static is False:
+                        # Relax the perfect structure
+                        optimizer = LBFGS(
+                            curr_structure,
+                            logfile=benchmark_dir
+                            / f'{model_name}_{calc_name}_relax.log',
+                        )
+                        optimizer.run(fmax=0.0001, steps=500)
+
+                        # Save relaxed perfect structure
+                        perfect_relaxed_path = (
+                            benchmark_dir / f'{model_name}_{calc_name}_relaxed.xyz'
+                        )
+                        curr_structure.write(perfect_relaxed_path, format='extxyz')
+
+                    curr_E = curr_structure.get_potential_energy()
+
+                    calc_data['energy'] = curr_E
+                    calc_data['n_atoms'] = len(curr_structure)
+
+                # Calculate formation energy for model (per group)
+                formation_energy_eV = 0
+                group_results = {}
+                for calc_name, calc_data in calculations.items():
+                    formation_energy_eV += (
+                        calc_data['stoichiometry_balancing_factor']
+                        * calc_data['energy']
                     )
-                    curr_structure.write(perfect_relaxed_path, format='extxyz')
 
-                curr_E = curr_structure.get_potential_energy()
+                    group_results[calc_name] = {
+                        'energy_eV': calc_data['energy'],
+                        'n_atoms': calc_data['n_atoms'],
+                        'stoichiometry_balancing_factor': calc_data[
+                            'stoichiometry_balancing_factor'
+                        ],
+                    }
 
-                calculations[calc_name]['energy'] = curr_E
-                calculations[calc_name]['n_atoms'] = len(curr_structure)
+                group_results['formation_energy_eV'] = formation_energy_eV
+                results[model_name][group_name] = group_results
 
-        except Exception as e:
-            mdb_b_ut.custom_print(
-                f"Failed to calculate vacancy formation energy for '{model_name}': {e}",
-                'error',
-            )
-            mdb_b_ut.custom_print(' ', 'empty')
-            continue
+                mdb_b_ut.custom_print(
+                    f"Vacancy formation energy for '{model_name}' ({group_name}): "
+                    f'{formation_energy_eV:.3f} eV',
+                    'done',
+                )
 
-        # Calculate formation energy for model
-        formation_energy_eV = 0
-        model_results = {}
-        for calc_name, calc_data in calculations.items():
-            # E_formation = E_defect - (N-1)/N * E_perfect
-            # This is equivalent to: E_defect - E_perfect + E_perfect/N
-            # where E_perfect/N is the energy per atom in the perfect crystal
-            # e_per_atom_perfect = e_perfect / n_atoms_perfect
-            # formation_energy = e_defect - e_perfect + e_per_atom_perfect
+            except Exception as e:
+                mdb_b_ut.custom_print(
+                    f"Failed to calculate vacancy formation energy for '{model_name}' "
+                    f"group '{group_name}': {e}",
+                    'error',
+                )
+                mdb_b_ut.custom_print(' ', 'empty')
+                continue
 
-            formation_energy_eV += (
-                calc_data['stoichiometry_balancing_factor'] * calc_data['energy']
-            )
-
-            model_results[calc_name] = {
-                'energy_eV': calc_data['energy'],
-                'n_atoms': calc_data['n_atoms'],
-            }
-
-        model_results['formation_energy_eV'] = formation_energy_eV
-
-        results[model_name] = model_results
-
-        # Save individual results
+        # Save results (updated with all groups)
         with open(results_file, 'w') as f:
-            json.dump(model_results, f, indent=2)
+            json.dump(results[model_name], f, indent=2)
 
-        mdb_b_ut.custom_print(
-            f"Vacancy formation energy for '{model_name}': "
-            f'{formation_energy_eV:.3f} eV',
-            'done',
-        )
+        mdb_b_ut.custom_print(' ', 'empty')
 
         # Cosmetic empty line in output
         mdb_b_ut.custom_print(' ', 'empty')
 
     # Calculate formation energy for DFT
-    formation_energy_eV_dft = 0
     results['dft'] = {}
 
-    for calc_name, calc_data in calculations.items():
-        formation_energy_eV_dft += (
-            calculations[calc_name]['stoichiometry_balancing_factor']
-            * calc_data['energy_dft']
-        )
-
-    results['dft']['formation_energy_eV'] = formation_energy_eV_dft
+    for _, calculations in calculation_groups.items():
+        formation_energy_eV_dft = 0
+        for _, calc_data in calculations.items():
+            formation_energy_eV_dft += (
+                calc_data['stoichiometry_balancing_factor'] * calc_data['energy_dft']
+            )
+        results['dft'][group_name] = {'formation_energy_eV': formation_energy_eV_dft}
 
     # Save combined results and store plot data
     if results:
@@ -746,28 +786,57 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
         with open(all_results_file, 'w') as f:
             json.dump(results, f, indent=2)
 
-        # Store plot data for final multi-panel figure
-        model_names = list(results.keys())
-        formation_energies = [
-            results[name]['formation_energy_eV'] for name in model_names
-        ]
+        model_names = [k for k in results if k != 'dft']
 
-        mdb_b_ut.set_plot_data(
-            'defect_formation',
-            {
-                'type': 'bar',
-                'model_names': model_names,
-                'values': formation_energies,
-                'title': f'Monovacancy Formation Energy - {args.metal}',
-                'ylabel': 'Formation Energy (eV)',
-                'value_format': '{:.3f}',
-            },
-        )
+        # We need to iterate over groups to plot/print
+        groups = list(calculation_groups.keys())
 
-        # Print summary
-        mdb_b_ut.custom_print('Vacancy Formation Energy Summary:', 'info')
-        for name, energy in zip(model_names, formation_energies, strict=True):
-            mdb_b_ut.custom_print(f'  {name}: {energy:.3f} eV', 'empty')
+        # Prepare grouped plot data
+        plot_relative_dft = bench_settings.get('plot_relative_dft', False)
+        has_dft = 'dft' in results and results['dft']
+
+        ylabel = 'Formation Energy (eV)'
+        title = f'Monovacancy Formation Energy - {args.metal}'
+
+        if plot_relative_dft and has_dft:
+            ylabel = 'Formation Energy Diff vs DFT (eV)'
+            title = f'Monovacancy Formation Energy (Diff vs DFT) - {args.metal}'
+
+        plot_data = {
+            'model_names': model_names,
+            'groups': groups,
+            'results': results,
+            'title': title,
+            'ylabel': ylabel,
+            'plot_relative_dft': plot_relative_dft and has_dft,
+        }
+        mdb_b_ut.set_plot_data('defect_formation', plot_data)
+
+        for group_name in groups:
+            # Extract energies for this group across all models
+            formation_energies = []
+            valid_models = []
+
+            for name in model_names:
+                if group_name in results[name]:
+                    formation_energies.append(
+                        results[name][group_name]['formation_energy_eV']
+                    )
+                    valid_models.append(name)
+
+            # Add DFT if available
+            if group_name in results.get('dft', {}):
+                formation_energies.append(
+                    results['dft'][group_name]['formation_energy_eV']
+                )
+                valid_models.append('DFT')
+
+            # Print summary
+            mdb_b_ut.custom_print(
+                f'Vacancy Formation Energy Summary ({group_name}):', 'info'
+            )
+            for name, energy in zip(valid_models, formation_energies, strict=False):
+                mdb_b_ut.custom_print(f'  {name}: {energy:.3f} eV', 'empty')
     else:
         mdb_b_ut.custom_print(
             'No results to plot for vacancy formation energy benchmark.', 'warn'
@@ -1353,6 +1422,13 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
             'surface_stats': surface_stats,
         }
 
+        plot_relative_dft = benchmark_settings.get('plot_relative_dft', False)
+        has_dft = bool(dft_surface_energies)
+        title = 'Surface Energies'
+
+        if plot_relative_dft and has_dft:
+            title = 'Surface Energies (Diff vs DFT)'
+
         mdb_b_ut.set_plot_data(
             'surface_energies',
             {
@@ -1361,9 +1437,10 @@ def run_surface_energies_benchmark(args, model_paths: list[pl.Path]):
                 'surface_names': surface_names,
                 'results': results,
                 'metal': args.metal,
-                'title': 'Surface Energies',
+                'title': title,
                 'zoom_info': zoom_info,
                 'dft_surface_energies': dft_surface_energies,
+                'plot_relative_dft': plot_relative_dft and has_dft,
             },
         )
 
