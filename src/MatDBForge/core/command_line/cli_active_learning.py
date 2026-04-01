@@ -743,11 +743,31 @@ def run_active_learning():
     # Create the subparser for the 'resume' command
     resume_parser = subparsers.add_parser(
         'resume',
-        help='Resume an active learning loop using a results folder.',
+        help=(
+            'Resume a MatDBForge Active Learning Loop. '
+            'The resume command allows to continue a stopped '
+            'active learning loop using its results folder. '
+            'The code will check for the files in the folder and '
+            'restart the last attempted iteration from the beginning. '
+            'The training database will be loaded from the results folder, '
+            'and the seed database can be loaded from the results folder '
+            'or reinitialized from the current training database.'
+            'The old_log_path option can be provided to continue the '
+            'logging from the previous run.'
+        ),
         usage=(
             'run_active_learning resume [-h] --dir_resume <PATH> '
             '[--config_file <PATH>]\n\n'
-            'Resume an active learning loop using a results folder.'
+            'Resume a MatDBForge Active Learning Loop.\n'
+            'The resume command allows to continue a stopped '
+            'active learning loop using its results folder.\n'
+            'The code will check for the files in the folder and\n'
+            'restart the last attempted iteration from the beginning.\n'
+            'The training database will be loaded from the results,\n'
+            'folder and the seed database can be loaded from the results\n'
+            'folder or reinitialized from the current training database.\n'
+            'The old_log_path option can be provided to continue the\n'
+            'logging from the previous run.'
         ),
     )
 
