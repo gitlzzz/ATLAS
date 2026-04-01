@@ -562,12 +562,14 @@ if __name__ == '__main__':
             # Only MACE is supported for now
             mdb_cut.custom_print('Generating descriptors...', 'info', logger=logger)
             if settings['descriptors'].get('descriptor_type', 'mace') == 'soap':
-                descriptor_dict, descriptor_arr = mdb_al_ut.generate_descriptors_soap(
-                    database=md_traj_short,
-                    descriptor_settings=settings['descriptors'],
+                descriptor_dict, descriptor_arr, uuids = (
+                    mdb_al_ut.generate_descriptors_soap(
+                        database=md_traj_short,
+                        descriptor_settings=settings['descriptors'],
+                    )
                 )
             else:
-                descriptor_dict, descriptor_arr, uuid = (
+                descriptor_dict, descriptor_arr, uuids = (
                     mdb_al_ut.generate_descriptors_mace(
                         model_path=prepend_path / 'sampler_model.model',
                         database=md_traj_short,
