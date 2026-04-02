@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.49.1 (2026-04-02)
+
+### Docs
+
+- **domain_validity**: increase default alpha-shape alpha value range ([#975aa65](https://github.com/pol-sb/MatDBForge/commit/975aa653cdb7307fafd7af9e8c78b20a5382fec7))
+- **al_loop**: improve resume python argparse help entry ([#92cc24f](https://github.com/pol-sb/MatDBForge/commit/92cc24f8e185f8ef2a1466ca081400b571fe7d99))
+
+### Fix
+
+- **al_loop**: enable usage of ImagePNGData class throughout active learning ([#fabaa5c](https://github.com/pol-sb/MatDBForge/commit/fabaa5cbb25dc438e57092563af77e20ca5e703d))
+- **domain_validity**: check autoencoder train data from train_data dataloader tensor ([#61d947a](https://github.com/pol-sb/MatDBForge/commit/61d947a8da77743ee2b562090337020a9531e04b))
+- **safeguard**: rename uuid variable overwriting uuid module in extrapolation scope ([#7fd10b3](https://github.com/pol-sb/MatDBForge/commit/7fd10b37bbb2ce7f7ddd69853fbb17fd73ca633f))
+- **benchmarks**: improve several benchmark tests from MLIP benchmark suite ([#93f0451](https://github.com/pol-sb/MatDBForge/commit/93f04514ccb239476ad0d1c8de5e0518d8ac1b9b))
+- **core**: add options for cli config generation for latent_space_analysis ([#3992331](https://github.com/pol-sb/MatDBForge/commit/3992331037ae161dc21674782e2d6b85add14ac1))
+- **domain_validity**: update inputs for generate_descriptors function in diversity_metrics.py ([#5148d6d](https://github.com/pol-sb/MatDBForge/commit/5148d6d7770e168a6622413debf0c54fb085a550))
+- **report**: catch TypeError when path is missing, add default ([#7f90fbf](https://github.com/pol-sb/MatDBForge/commit/7f90fbf1121aca675cd1da11d7274ca15596cd61))
+- **domain_validity**: add missing verbosity parameters to descriptor gathering functions ([#b7b00e3](https://github.com/pol-sb/MatDBForge/commit/b7b00e38eb13cf6fee9c8a1ad7b6175a609aafb6))
+- **domain_validity**: add alpha term to cost function on cases above threshold in alpha-shape optimizer objective function ([#ae9ac9e](https://github.com/pol-sb/MatDBForge/commit/ae9ac9e1d8f35748ee12574178eebc2a6b20c9f4))
+- **md**: change elif with if for the extrap_type != 'none' check ([#8726710](https://github.com/pol-sb/MatDBForge/commit/87267101e135837cb25e98e7922b77677f41609d))
+- **al_loop**: Add missing repeat option for base structures in safeguard ([#6d867b4](https://github.com/pol-sb/MatDBForge/commit/6d867b4b7658fa4ecfbdd7088e935a62151b1ca9))
+- **domain_validity**: improved verbosity settings when gathering descriptors ([#3e0996b](https://github.com/pol-sb/MatDBForge/commit/3e0996b3c6bcd599c4b2c6936a1e78986293dfd8))
+
+### Misc
+
+- **core**: add exclude-newer for tool.uv ([#55b5303](https://github.com/pol-sb/MatDBForge/commit/55b53036c84c510c7a1a71a07602fa3e99c0c034))
+
+### Performance
+
+- **domain_validity**: improve Autoencoder dataset splitting and data loading ([#a8d19c6](https://github.com/pol-sb/MatDBForge/commit/a8d19c655aedb0d0a258676b1d7d44628d802150))
+
+### Refactor
+
+- **domain_validity**: add convenience methods to rectangle class ([#3924638](https://github.com/pol-sb/MatDBForge/commit/3924638b97ab0a54097c908aa82a6690ac1d7c1d))
+
 ## 0.49.0 (2026-02-09)
 
 ### Feature
