@@ -366,7 +366,12 @@ def run_training(args):
     # )
 
     # Number of input dimensions
-    input_dim = dataset.shape[1]
+    if isinstance(train_data, DataLoader):
+        input_dim = train_data.dataset.dataset.tensors[0].shape[1]
+    elif isinstance(dataset, np.ndarray):
+        input_dim = dataset.shape[1]
+    else:
+        raise ValueError(f'Unexpected dataset type: {type(dataset)}')
 
     # Start a new wandb run to track this script
     if hasattr(args, 'wandb'):
