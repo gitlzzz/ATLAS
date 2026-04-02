@@ -1106,12 +1106,12 @@ active_learning:
                 description: "Minimum alpha value for the concave hull."
             target_alpha_range_max:
                 type: float
-                default: 50.0
+                default: 350.0
                 mandatory: false
                 description: "Maximum alpha value for the concave hull."
             default_alpha_if_issues:
                 type: float
-                default: 5.0
+                default: 10.0
                 mandatory: false
                 description: "Default alpha value if there are issues with the concave hull generation."
             nn_dist_scale_factor:

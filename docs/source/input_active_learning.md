@@ -439,12 +439,12 @@ This section is optional.
 - {alt}`target_alpha_range_max`:
   - **Description**: Maximum alpha value for the concave hull.
   - **Type**: `(optional, float)`
-  - **Default**: `50.0`.
+  - **Default**: `350.0`.
 
 - {alt}`default_alpha_if_issues`:
   - **Description**: Default alpha value if there are issues with the concave hull generation.
   - **Type**: `(optional, float)`
-  - **Default**: `5.0`.
+  - **Default**: `10.0`.
 
 - {alt}`nn_dist_scale_factor`:
   - **Description**: Scaling factor for the alpha candidate calculation, where `alpha_candidate = nn_dist_scale_factor / mean_nn_dist`
