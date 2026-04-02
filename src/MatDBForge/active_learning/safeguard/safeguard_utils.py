@@ -10,6 +10,8 @@ from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.engine import CalcJob
 from aiida.parsers.parser import Parser
 
+from MatDBForge.workflows.datatypes import image_types as mdb_img
+
 
 # mdb-safeguard-md
 class RunMDSafeguardCalculation(CalcJob):
@@ -147,7 +149,7 @@ class RunMDSafeguardCalculation(CalcJob):
         )
         spec.output(
             'extrapolation_plot',
-            valid_type=(orm.SinglefileData, None),
+            valid_type=(mdb_img.ImagePNGData, None),
             help=('File containing a figure showing the extrapolation results.'),
             required=False,
         )
@@ -332,7 +334,7 @@ class RunMDSafeguardCalculationParser(Parser):
             if 'extrapolating_frames.xyz' in child_file.name:
                 extrapolating_structures = orm.SinglefileData(file=child_file)
             if '.png' in child_file.name:
-                extrapolation_plot = orm.SinglefileData(file=child_file)
+                extrapolation_plot = mdb_img.ImagePNGData(filepath=child_file)
 
         # Return failed code
         if not extrapolating_structures:
@@ -350,7 +352,7 @@ class RunMDSafeguardCalculationParser(Parser):
                 prefix='mdb_extrapolation_plot_placeholder-',
             ) as f:
                 f.write(b'')
-                extrapolation_plot = orm.SinglefileData(file=f)
+                extrapolation_plot = mdb_img.ImagePNGData(filepath=f)
 
         self.out('extrapolating_structures', extrapolating_structures)
         self.out('extrapolation_plot', extrapolation_plot)
