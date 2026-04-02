@@ -22,6 +22,7 @@ from ase.io import read as ase_read
 from tomlkit import dumps as tomlkit_dumps
 
 from MatDBForge.active_learning import active_learning_utils as mdb_al_ut
+from MatDBForge.workflows.datatypes import image_types as mdb_img
 
 
 # mdb-process-md-seed-struct
@@ -59,6 +60,9 @@ class ProcessMDSeedStructCalculation(CalcJob):
     extrapolating_structures : orm.SinglefileData
         File containing all structures that were found to be extrapolating.
         Uses the extxyz format.
+    extrapolation_plot: mdb_img.ImagePNGData
+        File containing a visualization of the extrapolation check and latent
+        space boundaries
 
     Exit Codes
     ----------
@@ -162,7 +166,7 @@ class ProcessMDSeedStructCalculation(CalcJob):
         )
         spec.output(
             'extrapolation_plot',
-            valid_type=(orm.SinglefileData, None),
+            valid_type=(mdb_img.ImagePNGData, None),
             help=('File containing a figure showing the extrapolation results.'),
             required=False,
         )
@@ -367,7 +371,7 @@ class ProcessMDSeedStructCalculationParser(Parser):
             if 'extrapolating_frames.xyz' in child_file.name:
                 extrapolating_structures = orm.SinglefileData(file=child_file)
             if '.png' in child_file.name:
-                extrapolation_plot = orm.SinglefileData(file=child_file)
+                extrapolation_plot = mdb_img.ImagePNGData(filepath=child_file)
 
         # Return failed code
         if not extrapolating_structures:
@@ -1347,7 +1351,9 @@ class GetDescriptorsCombinedParser(Parser):
                 case 'latent_space.npy':
                     latent_space = orm.ArrayData(arrays=np.load(child_file.absolute()))
                 case 'concave_hull.png':
-                    extrapolation_plot = orm.SinglefileData(file=child_file.absolute())
+                    extrapolation_plot = mdb_img.ImagePNGData(
+                        filepath=child_file.absolute()
+                    )
                 case 'autoencoder_model.pth':
                     autoencoder_model = orm.SinglefileData(file=child_file.absolute())
 
@@ -1438,7 +1444,7 @@ class EvalTestDatabaseCalculationParser(Parser):
                         )
 
                 case 'test_db_eval_plots.png':
-                    eval_plot = orm.SinglefileData(file=child_file.absolute())
+                    eval_plot = mdb_img.ImagePNGData(filepath=child_file.absolute())
                     self.out('eval_plot', eval_plot)
 
         # Return failed code if the mandatory outputs are missing
@@ -1559,7 +1565,7 @@ class EvalTestDatabaseCalculation(CalcJob):
         )
         spec.output(
             'eval_plot',
-            valid_type=orm.SinglefileData,
+            valid_type=mdb_img.ImagePNGData,
             help='File containing the evaluation plot.',
             required=False,
         )
@@ -1689,7 +1695,7 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         File containing the latent space as an array.
     concave_hull : orm.ArrayData, optional
         File containing the concave hull of the latent space as an array.
-    extrapolation_plot : orm.SinglefileData, optional
+    extrapolation_plot : mdb_img.ImagePNGData, optional
         Figure showing the extrapolation for the current database.
     autoencoder_model : orm.SinglefileData, optional
         File containing the autoencoder model.
@@ -1763,7 +1769,7 @@ class GetDescriptorsCombinedCalculation(CalcJob):
         )
         spec.output(
             'extrapolation_plot',
-            valid_type=orm.SinglefileData,
+            valid_type=mdb_img.ImagePNGData,
             help='Figure showing the extrapolation for the current database.',
             required=False,
         )

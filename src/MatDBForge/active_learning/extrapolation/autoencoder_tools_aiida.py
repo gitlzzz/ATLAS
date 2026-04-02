@@ -9,6 +9,8 @@ from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.engine import CalcJob
 from aiida.parsers.parser import Parser
 
+from MatDBForge.workflows.datatypes import image_types as mdb_img
+
 
 # entry point: mdb-autoencoder-train-parser
 class TrainAutoencoderCalculationParser(Parser):
@@ -357,7 +359,7 @@ class GetConcaveHullCalculationParser(Parser):
                 case 'concave_hull.npy':
                     concave_hull_array = orm.ArrayData(np.load(child_file))
                 case 'concave_hull.png':
-                    concave_hull_plot = orm.SinglefileData(file=child_file)
+                    concave_hull_plot = mdb_img.ImagePNGData(filepath=child_file)
 
         if not all((child_file, concave_hull_plot)):
             return self.exit_codes.ERROR_INVALID_OUTPUT
@@ -388,7 +390,7 @@ class GetConcaveHullCalculation(CalcJob):
         )
         spec.output(
             'concave_hull_plot',
-            valid_type=orm.SinglefileData,
+            valid_type=mdb_img.ImagePNGData,
             help='Chart showing the 2D representation of the concave hull.',
         )
         spec.exit_code(
