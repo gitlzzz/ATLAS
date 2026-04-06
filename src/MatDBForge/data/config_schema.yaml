@@ -823,7 +823,15 @@ active_learning:
                 description: "AiiDA options dictionary for the test set calculations."
                 mandatory: false
                 queue_name:
-                    description: "Queue name."
+                    description: "(SGE) Queue name."
+                    type: str
+                    mandatory: false
+                qos:
+                    description: "(SLURM) QoS name."
+                    type: str
+                    mandatory: false
+                account:
+                    description: "(SLURM) Account name."
                     type: str
                     mandatory: false
                 max_wallclock_seconds:
@@ -851,6 +859,14 @@ active_learning:
                         mandatory: false
                     tot_num_mpiprocs:
                         description: "Total number of MPI processes."
+                        type: int
+                        mandatory: false
+                    num_cores_per_mpiproc:
+                        description: "Number of cores per MPI process."
+                        type: int
+                        mandatory: false
+                    num_machines:
+                        description: "Number of machines."
                         type: int
                         mandatory: false
         model_settings:

@@ -161,7 +161,15 @@ This section is optional.
 
 
 - {alt}`queue_name`:
-  - **Description**: Queue name.
+  - **Description**: (SGE) Queue name.
+  - **Type**: `(optional, str)`
+
+- {alt}`qos`:
+  - **Description**: (SLURM) QoS name.
+  - **Type**: `(optional, str)`
+
+- {alt}`account`:
+  - **Description**: (SLURM) Account name.
   - **Type**: `(optional, str)`
 
 - {alt}`max_wallclock_seconds`:
@@ -195,6 +203,14 @@ This section is optional.
 
 - {alt}`tot_num_mpiprocs`:
   - **Description**: Total number of MPI processes.
+  - **Type**: `(optional, int)`
+
+- {alt}`num_cores_per_mpiproc`:
+  - **Description**: Number of cores per MPI process.
+  - **Type**: `(optional, int)`
+
+- {alt}`num_machines`:
+  - **Description**: Number of machines.
   - **Type**: `(optional, int)`
 
 #### Model Settings for Test Set Evaluation - `[test_db.model_settings]`
