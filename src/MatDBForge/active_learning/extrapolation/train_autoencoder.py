@@ -374,7 +374,7 @@ def run_training(args):
         raise ValueError(f'Unexpected dataset type: {type(dataset)}')
 
     # Start a new wandb run to track this script
-    if hasattr(args, 'wandb'):
+    if hasattr(args, 'wandb') and args.wandb is True:
         wandb.init(
             # set the wandb project where this run will be logged
             project=args.wandb_project,

@@ -185,7 +185,11 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     shapely.geometry.Polygon | MultiPolygon
     """
     pts = np.ascontiguousarray(points, dtype=np.float64)
-    if pts.shape[0] < 4:  # degenerate cases
+
+    # Some degenerate cases
+    if pts.shape[0] <= 2:
+        return LineString(pts)
+    elif pts.shape[0] < 4:
         return Polygon(pts).convex_hull
     elif pts.shape[0] == 4:
         return Polygon(pts)
@@ -550,7 +554,7 @@ def get_optimized_concave_hull(
 
     # Threshold: if the collection of descriptors is 500x longer than it is wide,
     # treat as a line.
-    if aspect_ratio > 500.0:
+    if aspect_ratio > 500.0 or total_points <= 2:
         mdb_cut.custom_print(
             f'Linear Geometry detected (Ratio {aspect_ratio:.1f}). '
             'Returning Convex Hull.',
