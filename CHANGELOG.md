@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.49.2 (2026-04-07)
+
+### Docs
+
+- **al_loop**: add missing scheduler options to test_db schema ([#86926ed](https://github.com/pol-sb/MatDBForge/commit/86926ed9b2af7559fe8b7152acb82a5f2e237e0b))
+
+### Fix
+
+- **domain_validity**: allow autoencoder training to run when wandb=False ([#2fa7cfa](https://github.com/pol-sb/MatDBForge/commit/2fa7cfa22425814b43bfafab2628b068796139fb))
+- **domain_validity**: allow alpha shape function to continue when hulls with two points are found ([#4b4c0da](https://github.com/pol-sb/MatDBForge/commit/4b4c0da487fbc8e5b727ffcba3999a295004e4d4))
+
 ## 0.49.1 (2026-04-02)
 
 ### Docs
