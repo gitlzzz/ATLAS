@@ -620,6 +620,7 @@ def get_optimized_concave_hull(
 
         # Constraint check
         # Check if the random points are inside the concave hull.
+        shape = scale(shape, xfact=1.015, yfact=1.015, origin='centroid')
         point_inside, point_outside, all_points = check_atom_in_domain(
             shape, norm_latent_space
         )
