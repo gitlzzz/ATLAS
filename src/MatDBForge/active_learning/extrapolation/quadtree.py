@@ -137,11 +137,16 @@ class QuadTree:
     def insert(self, point: Point) -> bool:
         if not self.boundary.contains(point):
             return False
-        if len(self.points) < self.capacity:
-            self.points.append(point)
-            return True
+
+        # If it's a leaf node and has space, store the point
         if not self.divided:
-            self.subdivide()
+            if len(self.points) < self.capacity:
+                self.points.append(point)
+                return True
+            else:
+                # If the box is full, we need to subdivide and
+                # then try inserting into children
+                self.subdivide()
 
         # We know children exist after subdivide
         if self.northeast.insert(point):
