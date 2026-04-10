@@ -229,39 +229,6 @@ def return_dataset_loader(
     return train_loader, val_loader, test_loader
 
 
-def locate_standarization_files(autoencoder_path=pl.Path('.')):
-    """Check for the existence of standardization files.
-
-    These files are stored as numpy arrays containing values necessary
-    to apply same standarization scale.
-
-    Parameters
-    ----------
-    autoencoder_path: pl.Path
-        Path for the autoencoder model
-
-    Returns
-    -------
-    mean_vals: np.ndarray or False
-        Array of mean values for each feature, or False if not found.
-    """
-    if isinstance(autoencoder_path, str):
-        autoencoder_path = pl.Path(autoencoder_path)
-
-    mean_vals, std_vals = None, None
-
-    for file in autoencoder_path.parent.glob('*vals.npy'):
-        if 'mean' in file.name:
-            mean_vals = np.load(file)
-        if 'std' in file.name:
-            std_vals = np.load(file)
-
-    if mean_vals is True and std_vals is True:
-        return mean_vals, std_vals
-    else:
-        return False, False
-
-
 def run_training(args):
     """
     Train an autoencoder model for dimensionality reduction.
@@ -370,12 +337,12 @@ def run_training(args):
             dataset = args.dataset
 
         # Check if standardization files already exist (mean and std values)
-        mean_vals, std_vals = locate_standarization_files(model_path)
+        mean_vals, std_vals = ae.locate_standarization_files(model_path)
 
         if mean_vals and std_vals:
-            print('Loaded standardized values.')
+            mdb_cut.custom_print('Loaded standardized values.')
         else:
-            print('Carrying out data standarization...')
+            mdb_cut.custom_print('Carrying out data standarization...')
             mean_vals = dataset.mean(axis=0)
             std_vals = dataset.std(axis=0)
 
