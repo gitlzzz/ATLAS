@@ -186,6 +186,13 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     """
     pts = np.ascontiguousarray(points, dtype=np.float64)
 
+    # Add small amount of noise to break perfect geometric alignments
+    # 1e-9 should be small enough not to affect the data's meaning,
+    # but large enough for Qhull to process it.
+    # This should address the error from scipy.spatial._qhull.QhullError:
+    # QH6019 qhull input error (qh_scalelast): can not scale last coordinate to...
+    pts = pts + np.random.normal(0, 1e-9, pts.shape)
+
     # Some degenerate cases
     if pts.shape[0] <= 2:
         return LineString(pts)
