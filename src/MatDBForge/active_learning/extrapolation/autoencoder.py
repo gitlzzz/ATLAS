@@ -9,6 +9,36 @@ import torch.nn as nn
 from MatDBForge.core.code_utils import custom_print
 
 
+def locate_standarization_files(autoencoder_path=pl.Path('.')):
+    """Check for the existence of standardization files.
+
+    These files are stored as numpy arrays containing values necessary
+    to apply same standarization scale.
+
+    Parameters
+    ----------
+    autoencoder_path: pl.Path
+        Path for the autoencoder model
+
+    Returns
+    -------
+    mean_vals: np.ndarray or False
+        Array of mean values for each feature, or False if not found.
+    """
+    if isinstance(autoencoder_path, str):
+        autoencoder_path = pl.Path(autoencoder_path)
+
+    mean_vals, std_vals = None, None
+
+    for file in autoencoder_path.parent.glob('*vals.npy'):
+        if 'mean' in file.name:
+            mean_vals = np.load(file)
+        if 'std' in file.name:
+            std_vals = np.load(file)
+
+    return mean_vals, std_vals
+
+
 class Autoencoder(nn.Module):
     """
     Autoencoder model for dimensionality reduction and data reconstruction.
@@ -155,6 +185,8 @@ def get_latent_space_autoencoder(
     device: str = None,
     dtype=torch.float32,
     quiet: bool = False,
+    standardize_data: bool = False,
+    autoencoder_path: str | pl.Path = None,
 ):
     if quiet:
         init_print_type = 'debug'
@@ -169,17 +201,33 @@ def get_latent_space_autoencoder(
 
     model.to(device)
 
-    # Remember that you must call model.eval() to set dropout and batch
+    # Remember that I must call model.eval() to set dropout and batch
     # normalization layers to evaluation mode before running inference.
     # Failing to do this will yield inconsistent inference results.
     model.eval()
 
+    # Standardize the data if required
+    should_standardize: bool = standardize_data and (autoencoder_path is not None)
+
+    # Loading standardization parameters from arrays in path
+    if should_standardize:
+        autoencoder_path = pl.Path(autoencoder_path)
+        mean_vals, std_vals = locate_standarization_files(autoencoder_path)
+        custom_print('Loaded standardization parameters.', init_print_type)
+
     # Reduce the dimensionality of the input points to 2D
     custom_print('Computing latent space for all structures...', init_print_type)
-    with torch.no_grad():  # No need to compute gradients for inference
+
+    # No need to compute gradients for inference
+    with torch.no_grad():
         for uuid, descr_dict in descriptor_dict.items():
             # Get latent space
             descr_arr = np.array(descr_dict['descriptors'])
+
+            if should_standardize and mean_vals is not None and std_vals is not None:
+                # Standardize the data using the loaded mean and std values
+                descr_arr = (descr_arr - mean_vals) / std_vals
+
             latent_space = model.encoder(
                 torch.Tensor(descr_arr).to(device=device, dtype=dtype)
             )

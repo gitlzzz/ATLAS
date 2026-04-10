@@ -186,6 +186,13 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     """
     pts = np.ascontiguousarray(points, dtype=np.float64)
 
+    # Add small amount of noise to break perfect geometric alignments
+    # 1e-9 should be small enough not to affect the data's meaning,
+    # but large enough for Qhull to process it.
+    # This should address the error from scipy.spatial._qhull.QhullError:
+    # QH6019 qhull input error (qh_scalelast): can not scale last coordinate to...
+    pts = pts + np.random.normal(0, 1e-9, pts.shape)
+
     # Some degenerate cases
     if pts.shape[0] <= 2:
         return LineString(pts)
@@ -587,7 +594,7 @@ def get_optimized_concave_hull(
     def objective(alpha, norm_latent_space):
         # Handle edge case where alpha is too small (convexhull-ish)
         if alpha <= 0:
-            return 1e9
+            return 1e9 - (alpha * 1000)
 
         # Compute the alpha shape
         try:
@@ -613,6 +620,7 @@ def get_optimized_concave_hull(
 
         # Constraint check
         # Check if the random points are inside the concave hull.
+        shape = scale(shape, xfact=1.015, yfact=1.015, origin='centroid')
         point_inside, point_outside, all_points = check_atom_in_domain(
             shape, norm_latent_space
         )
@@ -626,14 +634,20 @@ def get_optimized_concave_hull(
             cost = 1e6 + (frac_outside * 1000)
         else:
             # We want to minimize area.
+
             # However, we must ensure the optimizer doesn't pick a massive alpha
             # that results in a tiny, fragmented hull just to get low area
+
             # We penalize area by alpha^2 to ensure that the optimizer doesn't pick
             # a very small alpha every time.
-            cost = shape.area / (alpha**2)
+
+            # We add a small epsilon to alpha^2 to avoid division by zero
+            # or the cost blowing up with very small alpha.
+            cost = shape.area / (alpha**2 + 1e-4)
 
         mdb_cut.custom_print(
             f'Alpha: {alpha:.4f}, '
+            f'Points inside: {point_inside.shape[0]}, '
             f'Points outside: {point_outside.shape[0]}, '
             f'Points total: {total_points}, '
             f'Fraction outside: {frac_outside:.4f}, '

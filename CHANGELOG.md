@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.49.3 (2026-04-10)
+
+### Fix
+
+- **domain_validity**: add small scaling after hull optimization ([#a73b8ed](https://github.com/pol-sb/MatDBForge/commit/a73b8ed3c8ecd8fd831647c90195840ea349918b))
+- **domain_validity**: add standardization to autoencoder evaluation ([#bf32d55](https://github.com/pol-sb/MatDBForge/commit/bf32d554bda37117cc92f72d0a3e0df333bc3901))
+- **domain_validity**: pass missing bottleneck_dim parameter to autoencoder ([#925f6e1](https://github.com/pol-sb/MatDBForge/commit/925f6e1cb6ce36557a5b867a2c95e9f67c973afa))
+- **domain_validity**: add missing data standardization to autoencoder ([#6e0e4d2](https://github.com/pol-sb/MatDBForge/commit/6e0e4d262760123e53c9f86bb43e05a3a0bdebe9))
+- **domain_validity**: unclutter legend and higher res exports in quadtree/alpha-shape plots ([#777d593](https://github.com/pol-sb/MatDBForge/commit/777d593eb5cd322e5a6a9bc3ac9f4cc6a0e8594f))
+- **domain_validity**: disallow adding points to already subdivided leaves in quadtree ([#47ba1f5](https://github.com/pol-sb/MatDBForge/commit/47ba1f56246042de0f8ec85ee9616b8c7dd738e4))
+- **domain_validity**: include small epsilon in cost when minimizing area in alpha minimizer ([#a34e178](https://github.com/pol-sb/MatDBForge/commit/a34e178a1a876e40ba5027f690b17f08408c0deb))
+- **domain_validity**: Include alpha-based gradient in objective function to negative alpha penalty term ([#099ad81](https://github.com/pol-sb/MatDBForge/commit/099ad8100e6f3b86af3df723e6d5532ffca4e17e))
+
+### Refactor
+
+- **domain_validity**: move locate_standarization_files to autoencoder.py ([#036efa7](https://github.com/pol-sb/MatDBForge/commit/036efa7f4f76096c7ca76e63095fa526e0e62cee))
+
 ## 0.49.2 (2026-04-07)
 
 ### Docs

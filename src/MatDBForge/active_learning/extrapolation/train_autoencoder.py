@@ -279,7 +279,7 @@ def run_training(args):
             Name of the wandb project.
         - wandb_name : str
             Name of the wandb run.
-        - normalize_data : bool
+        - standardize_data : bool
             Whether to normalize the data before training the autoencoder
 
 
@@ -325,24 +325,42 @@ def run_training(args):
 
     # Optionally normalizing data
     # Z-score standardization
-    # TODO: move this outside
-    # if hasattr(args, "normalize_data") and args.normalize_data is True:
-    #     print("#@# normalizing data")
-    #     dataset = _load_dataset_as_point_array(args.dataset)
-    #     mean_vals = dataset.mean(axis=0)
-    #     std_vals = dataset.std(axis=0)
-    #     std_vals[std_vals == 0] = 1.0
+    if hasattr(args, 'standardize_data') and args.standardize_data is True:
+        if isinstance(args.model_path, str):
+            model_path = pl.Path(args.model_path)
+        else:
+            model_path = args.model_path
 
-    #     # Save them alongside model
-    #     np.save(args.model_path.parent / "ae_mean_vals.npy", mean_vals)
-    #     np.save(args.model_path.parent / "ae_std_vals.npy", std_vals)
+        if isinstance(args.dataset, (str, pl.Path)):
+            dataset = _load_dataset_as_point_array(args.dataset)
+        else:
+            dataset = args.dataset
 
-    #     dataset = (dataset - mean_vals) / std_vals
+        # Check if standardization files already exist (mean and std values)
+        mean_vals, std_vals = ae.locate_standarization_files(model_path)
 
-    # else:
-    #     dataset = args.dataset
+        if mean_vals and std_vals:
+            mdb_cut.custom_print('Loaded standardized values.')
+        else:
+            mdb_cut.custom_print('Carrying out data standarization...')
+            mean_vals = dataset.mean(axis=0)
+            std_vals = dataset.std(axis=0)
 
-    dataset = args.dataset
+            # To avoid division by zero, we can set any zero std to 1
+            # (which means no scaling for that feature)
+            std_vals[std_vals == 0] = 1.0
+
+        # Save them alongside model
+        np.save(model_path.parent / 'ae_mean_vals.npy', mean_vals)
+        np.save(model_path.parent / 'ae_std_vals.npy', std_vals)
+
+        # Apply standardization to the dataset
+        dataset = (dataset - mean_vals) / std_vals
+
+    else:
+        dataset = args.dataset
+
+    # dataset = args.dataset
 
     # Load data
     # Return as DataLoader for batch processing
@@ -403,6 +421,7 @@ def run_training(args):
         input_dim=input_dim,
         l1_dim=args.l1_hidden_dim,
         l2_dim=args.l2_hidden_dim,
+        bottleneck_dim=args.bottleneck_dim,
         bias_flag=args.bias_flag,
     )
     model.to(device=device, dtype=args.dtype)

@@ -137,11 +137,16 @@ class QuadTree:
     def insert(self, point: Point) -> bool:
         if not self.boundary.contains(point):
             return False
-        if len(self.points) < self.capacity:
-            self.points.append(point)
-            return True
+
+        # If it's a leaf node and has space, store the point
         if not self.divided:
-            self.subdivide()
+            if len(self.points) < self.capacity:
+                self.points.append(point)
+                return True
+            else:
+                # If the box is full, we need to subdivide and
+                # then try inserting into children
+                self.subdivide()
 
         # We know children exist after subdivide
         if self.northeast.insert(point):
@@ -222,6 +227,7 @@ class QuadTree:
 def setup_quadtree(
     all_points, offset_frac: float = 0.1, data_frac_capacity: float = 0.015
 ):
+    # Define boundary
     min_x = min(p.x for p in all_points)
     max_x = max(p.x for p in all_points)
     min_y = min(p.y for p in all_points)
@@ -380,6 +386,8 @@ def visualize_quadtree(
     # Get a colormap to differentiate clusters
     cmap = plt.get_cmap('tab10')
 
+    n_clusters = len(clusters)
+
     for i, cluster in enumerate(clusters):
         color = cmap(i % 10)
         for j, box in enumerate(cluster):
@@ -387,7 +395,10 @@ def visualize_quadtree(
             w, h = box.w * 2, box.h * 2
 
             # Label only the first box of the cluster for the legend
-            label = f'Cluster {i + 1}' if j == 0 else None
+            if n_clusters > 5:
+                label = f'{i + 1}' if j == 0 else None
+            else:
+                label = f'Cluster {i + 1}' if j == 0 else None
 
             rect = patches.Rectangle(
                 (x, y),
@@ -402,37 +413,40 @@ def visualize_quadtree(
             ax.add_patch(rect)
             ax.plot(box.x, box.y, marker='x', color='black', markersize=5)
 
-    # Scatter Plot Points (Datashader)
     df = pd.DataFrame([(p.x, p.y) for p in points], columns=['x', 'y'])
 
-    # Use the plot limits for the canvas
-    x_min, x_max = ax.get_xlim()
-    y_min, y_max = ax.get_ylim()
+    # Scatter Plot Points (Datashader)
+    if len(points) > int(5e4):
+        # Use the plot limits for the canvas
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
 
-    # Create datashader canvas
-    cvs = ds.Canvas(
-        plot_width=800 * 2,
-        plot_height=800 * 2,
-        x_range=(x_min, x_max),
-        y_range=(y_min, y_max),
-    )
-    agg = cvs.points(df, 'x', 'y')
+        # Create datashader canvas
+        cvs = ds.Canvas(
+            plot_width=800 * 2,
+            plot_height=800 * 2,
+            x_range=(x_min, x_max),
+            y_range=(y_min, y_max),
+        )
+        agg = cvs.points(df, 'x', 'y')
+        img = tf.shade(agg, cmap=['lightblue', 'darkblue'], how='log')
+        img_pil = img.to_pil()
+        ax.imshow(
+            img_pil,
+            extent=[x_min, x_max, y_min, y_max],
+            origin='upper',
+            aspect='auto',
+            zorder=2,
+        )
+        ax.scatter([], [], c='darkblue', label='Data Points (Density)', s=10)
+    else:
+        ax.scatter(df['x'], df['y'], c='darkblue', label='Data Points (Density)', s=10)
 
     # Shade the points - using a blue colormap for density
-    img = tf.shade(agg, cmap=['lightblue', 'darkblue'], how='log')
 
     # Convert to PIL image and display with imshow
-    img_pil = img.to_pil()
-    ax.imshow(
-        img_pil,
-        extent=[x_min, x_max, y_min, y_max],
-        origin='upper',
-        aspect='auto',
-        zorder=2,
-    )
 
     # Add dummy legend entry
-    ax.scatter([], [], c='darkblue', label='Data Points (Density)', s=10)
 
     # Draw Alpha Shapes
     if alpha_shapes:
@@ -490,9 +504,11 @@ def visualize_quadtree(
     # Reorder legend to show clusters nicely
     handles, labels = ax.get_legend_handles_labels()
     by_label = dict(zip(labels, handles, strict=False))
-    ax.legend(by_label.values(), by_label.keys())
 
-    plt.savefig(filename)
+    if n_clusters <= 15:
+        ax.legend(by_label.values(), by_label.keys())
+
+    plt.savefig(filename, dpi=600, bbox_inches='tight')
     print(f'Visualization saved to {filename}')
     if show:
         plt.show()
