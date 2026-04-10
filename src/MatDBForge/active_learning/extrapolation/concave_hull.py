@@ -626,14 +626,20 @@ def get_optimized_concave_hull(
             cost = 1e6 + (frac_outside * 1000)
         else:
             # We want to minimize area.
+
             # However, we must ensure the optimizer doesn't pick a massive alpha
             # that results in a tiny, fragmented hull just to get low area
+
             # We penalize area by alpha^2 to ensure that the optimizer doesn't pick
             # a very small alpha every time.
-            cost = shape.area / (alpha**2)
+
+            # We add a small epsilon to alpha^2 to avoid division by zero
+            # or the cost blowing up with very small alpha.
+            cost = shape.area / (alpha**2 + 1e-4)
 
         mdb_cut.custom_print(
             f'Alpha: {alpha:.4f}, '
+            f'Points inside: {point_inside.shape[0]}, '
             f'Points outside: {point_outside.shape[0]}, '
             f'Points total: {total_points}, '
             f'Fraction outside: {frac_outside:.4f}, '
