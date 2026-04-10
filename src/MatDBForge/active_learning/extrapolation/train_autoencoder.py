@@ -454,6 +454,7 @@ def run_training(args):
         input_dim=input_dim,
         l1_dim=args.l1_hidden_dim,
         l2_dim=args.l2_hidden_dim,
+        bottleneck_dim=args.bottleneck_dim,
         bias_flag=args.bias_flag,
     )
     model.to(device=device, dtype=args.dtype)
