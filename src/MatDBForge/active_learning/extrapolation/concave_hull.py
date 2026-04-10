@@ -587,7 +587,7 @@ def get_optimized_concave_hull(
     def objective(alpha, norm_latent_space):
         # Handle edge case where alpha is too small (convexhull-ish)
         if alpha <= 0:
-            return 1e9
+            return 1e9 - (alpha * 1000)
 
         # Compute the alpha shape
         try:
