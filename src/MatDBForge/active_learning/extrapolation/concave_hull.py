@@ -651,7 +651,7 @@ def get_optimized_concave_hull(
             f'Points outside: {point_outside.shape[0]}, '
             f'Points total: {total_points}, '
             f'Fraction outside: {frac_outside:.4f}, '
-            f'Area: {shape.area:.4e}, '
+            f'Normalized Area: {shape.area:.4e}, '
             f'Cost: {cost:.5e}',
             'info',
         )
@@ -697,8 +697,8 @@ def get_optimized_concave_hull(
         alpha_shape_arr = exterior_norm * span + min_vals
 
         mdb_cut.custom_print(
-            f'Optimized alpha: {best_alpha:.4f} with area: '
-            f'{final_shape_norm.area:.4e}. '
+            f'Optimized alpha: {best_alpha:.4f} with non-normalized area: '
+            f'{Polygon(alpha_shape_arr).area:.4e}. '
             f'Number of points inside: {total_points}.',
             'done',
         )
