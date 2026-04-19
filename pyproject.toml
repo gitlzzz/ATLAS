@@ -49,9 +49,12 @@ mace = [
     "mace-torch==0.3.14",
     "torch>=2.5.0,<2.10",
     "torchvision>=0.24.1",
-    "cuequivariance==0.5.1",
-    "cuequivariance-torch==0.5.1",
-    "cuequivariance-ops-torch-cu12==0.5.1",
+    "cuequivariance",
+    "cuequivariance-torch",
+    "cuequivariance-ops-torch-cu12",
+    # "cuequivariance==0.5.1",
+    # "cuequivariance-torch==0.5.1",
+    # "cuequivariance-ops-torch-cu12==0.5.1",
 ]
 
 [project.urls]
