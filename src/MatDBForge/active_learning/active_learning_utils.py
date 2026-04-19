@@ -789,10 +789,19 @@ def generate_descriptors_mace(
 
     # Getting descriptors for every structure
     tot_num_structures = len(database)
-    for idx, struct in enumerate(database):
-        if verbose and idx % 100 == 0:
-            print(f'MACE: {idx}/{tot_num_structures}', end='\r')
 
+    iterable = (
+        mdb_cut.mdb_show_progress(
+            enumerate(database),
+            total=tot_num_structures,
+            interval=100,
+            prepend='MACE:',
+        )
+        if verbose
+        else enumerate(database)
+    )
+
+    for _, struct in iterable:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         elif struct.info.get('aiida_uuid'):
@@ -889,9 +898,15 @@ def generate_descriptors_soap(
     tot_num_structures = len(database)
 
     # Getting descriptors for every structure
-    for idx, struct in enumerate(database):
-        if verbose and idx % 100 == 0:
-            print(f'SOAP: {idx}/{tot_num_structures}', end='\r')
+    iterable = (
+        mdb_cut.mdb_show_progress(
+            enumerate(database), total=tot_num_structures, interval=100, prepend='SOAP:'
+        )
+        if verbose
+        else enumerate(database)
+    )
+
+    for _, struct in iterable:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         # elif struct.info.get('aiida_uuid'):
