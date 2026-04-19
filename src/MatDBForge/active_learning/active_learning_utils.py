@@ -308,81 +308,67 @@ def generate_descriptors(
 
 
 def calculate_fps_scores_descriptor(
-    init_structure_uuid: str, descriptor_dict: dict
-) -> dict[str, float]:
+    selected_uuids: list[str], descriptor_dict: dict, n_to_select: int
+) -> dict[str, dict]:
     """
-    Calculates a dissimilarity score for each structure using an optimized
-    Farthest Point Sampling algorithm.
-
-    This implementation avoids redundant distance calculations by maintaining an
-    array of minimum distances from each candidate to the set of selected points,
-    achieving O(N^2) complexity.
-
-    The score is calculated as: (Total Structures - Rank) / Total Structures.
-
-    Parameters
-    ----------
-    init_structure_uuid : str
-        The UUID of the initial structure to start the sampling from.
-    descriptor_dict : dict
-        A dictionary where keys are structure UUIDs and values are dictionaries
-        containing at least a 'descriptors' key with a numpy array.
-
-    Returns
-    -------
-    dict[str, float]
-        A dictionary mapping each structure UUID to its calculated FPS score.
+    Calculates FPS scores for candidate structures by finding points farthest
+    from an ALREADY SELECTED subset of structures.
     """
     # Prepare data for vectorized operations
     uuids = list(descriptor_dict.keys())
-    descriptors = np.array([descriptor_dict[uuid]['descriptors'] for uuid in uuids])
 
-    descriptors = descriptors[:, 0]
+    # Stack the descriptors
+    descriptors = np.vstack([descriptor_dict[uuid]['descriptors'] for uuid in uuids])
+
+    # Force the array to be exactly 2D (number of structures, flattened features)
+    # This makes it compatible with MACE (N, 1, 256) while leaving
+    # SOAP (N, 256) unchanged.
+    descriptors = descriptors.reshape(len(uuids), -1)
+
     total_structures = len(uuids)
 
-    # Create a mapping from UUID to index for quick lookups
     uuid_to_idx = {uuid: i for i, uuid in enumerate(uuids)}
 
-    # Initialization
     scores = {}
     selected_indices = np.zeros(total_structures, dtype=bool)
-
-    # Initialize distances to a large value
     min_distances = np.full(total_structures, np.inf, dtype=descriptors.dtype)
 
-    # Select the first point
-    first_idx = uuid_to_idx[init_structure_uuid]
-    selected_indices[first_idx] = True
+    # Initialize distances using the already selected subset
+    # This guarantees new points are far from the existing cluster
+    for uuid in selected_uuids:
+        if uuid in uuid_to_idx:
+            idx = uuid_to_idx[uuid]
+            selected_indices[idx] = True
+            # Update minimum distance array from this established point
+            distances_to_existing = np.linalg.norm(
+                descriptors - descriptors[idx], axis=1
+            )
+            min_distances = np.minimum(min_distances, distances_to_existing)
 
-    # Rank 0 has score 1
-    scores[init_structure_uuid] = {'score': 1.0, 'distance': 0.0}
-    last_selected_idx = first_idx
+    # Prevent already selected points from being picked again
+    min_distances[selected_indices] = -1.0
 
-    # Main FPS loop
-    for rank in range(1, total_structures):
-        # Update distances based on the last selected point
-        # This is the most computationally intensive step pr iteration
-        distances_to_last = np.linalg.norm(
-            descriptors - descriptors[last_selected_idx], axis=1
-        )
-
-        # Update the minimum distance for each candidate
-        min_distances = np.minimum(min_distances, distances_to_last)
-
-        # Find the unselected point that is farthest from the selected set
-        # We set selected points' distances to -1 to ensure they are not chosen
-        min_distances[selected_indices] = -1
+    # 2. Main FPS expansion loop for the NEW structures
+    for rank in range(n_to_select):
+        # Find the unselected point farthest from the established set
         farthest_idx = np.argmax(min_distances)
+        farthest_uuid = uuids[farthest_idx]
 
-        # Record score and update state for the next iteration
-        scores[uuids[farthest_idx]] = {}
-        scores[uuids[farthest_idx]]['score'] = (
-            float(total_structures - rank) / total_structures
-        )
-        scores[uuids[farthest_idx]]['distance'] = min_distances[farthest_idx]
+        # Record score (scaled for consistency) and distance
+        scores[farthest_uuid] = {
+            'score': float(total_structures - rank) / total_structures,
+            'distance': min_distances[farthest_idx],
+        }
 
+        # Mark as selected
         selected_indices[farthest_idx] = True
-        last_selected_idx = farthest_idx
+
+        # Update distances based on this newly selected point
+        distances_to_last = np.linalg.norm(
+            descriptors - descriptors[farthest_idx], axis=1
+        )
+        min_distances = np.minimum(min_distances, distances_to_last)
+        min_distances[selected_indices] = -1.0
 
     return scores
 
@@ -439,74 +425,57 @@ def select_structures_lowest_energy(
 
 
 def select_structures_fps(
-    database: list[Atoms],
+    candidate_db: list[Atoms],
+    selected_db: list[Atoms],  # <--- NEW: Pass the existing subset
     n_structures: int,
     descriptor_settings: dict,
-    initial_structure_method: str = 'lowest_energy',
+    outer_average_mace: bool = False,
+    model_path: str = None,
 ) -> list[Atoms]:
-    """
-    Select n structures using Farthest Point Sampling on descriptors.
+    """Select n structures using Farthest Point Sampling."""
+    if n_structures >= len(candidate_db):
+        return candidate_db.copy()
 
-    Parameters
-    ----------
-    database : list[Atoms]
-        List of ASE Atoms objects to select from.
-    n_structures : int
-        Number of structures to select.
-    descriptor_settings : dict
-        Settings for descriptor calculation.
-    initial_structure_method : str
-        Method to select initial structure: 'lowest_energy' or 'random'.
+    # We need descriptors for BOTH selected and candidates to compute distances
+    combined_db = selected_db + candidate_db
 
-    Returns
-    -------
-    list[Atoms]
-        List of selected structures using FPS.
-    """
-    if n_structures >= len(database):
-        return database.copy()
-
-    # Select initial structure
-    if initial_structure_method == 'lowest_energy':
-        sorted_db = sorted(
-            database, key=lambda x: float(x.info.get('REF_energy', float('inf')))
-        )
-        init_structure_uuid = sorted_db[0].info['mdb_id']
-    else:  # random
-        init_structure_uuid = np.random.choice([s.info['mdb_id'] for s in database])
-
-    # Generate descriptors
     descriptor_type = descriptor_settings.get('descriptor_type', 'soap')
-    descr_dict, _ = generate_descriptors(
-        database=database,
+
+    # (Add your MACE path checks here if needed)
+
+    # Generate descriptors for the combined pool
+    descr_dict, _, _ = generate_descriptors(
+        database=combined_db,
         descriptor_type=descriptor_type,
         descriptor_settings=descriptor_settings.get('descriptor', {}),
+        outer_average_mace=outer_average_mace,
+        model_path=model_path,
+        verbose=False,
     )
 
-    # Calculate FPS scores
+    # Extract the UUIDs of the structures we ALREADY have
+    selected_uuids = [s.info['mdb_id'] for s in selected_db]
+
+    # Calculate FPS scores asking only for 'n_structures' new points
     scores = calculate_fps_scores_descriptor(
-        init_structure_uuid=init_structure_uuid,
+        selected_uuids=selected_uuids,
         descriptor_dict=descr_dict,
+        n_to_select=n_structures,
     )
 
-    # Sort by score and select top n
-    sorted_db = sorted(
-        database,
-        key=lambda x: scores.get(x.info['mdb_id'], {}).get('score', 0.0),
-        reverse=True,
-    )
+    # Extract just the newly selected candidates and apply their scores
+    selected_candidates = []
+    for struct in candidate_db:
+        uuid = struct.info['mdb_id']
+        if uuid in scores:
+            struct.info['fps_score'] = scores[uuid]['score']
+            struct.info['fps_distance'] = scores[uuid]['distance']
+            selected_candidates.append(struct)
 
-    selected_db = sorted_db[:n_structures]
+    # Sort descending by score just to keep them ordered properly
+    selected_candidates.sort(key=lambda x: x.info['fps_score'], reverse=True)
 
-    for struct in selected_db:
-        struct.info['fps_score'] = scores.get(struct.info['mdb_id'], {}).get(
-            'score', 0.0
-        )
-        struct.info['fps_distance'] = scores.get(struct.info['mdb_id'], {}).get(
-            'distance', 0.0
-        )
-
-    return selected_db
+    return selected_candidates[:n_structures]
 
 
 def select_structures_uncertainty(
