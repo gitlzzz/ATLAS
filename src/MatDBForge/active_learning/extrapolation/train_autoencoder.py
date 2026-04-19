@@ -213,6 +213,7 @@ def return_dataset_loader(
     total_size = len(full_dataset)
     train_size = int(total_size * train_frac)
     valid_size = int(total_size * valid_frac)
+
     # catches any rounding remainder
     test_size = total_size - train_size - valid_size
 
@@ -327,9 +328,9 @@ def run_training(args):
     # Z-score standardization
     if hasattr(args, 'standardize_data') and args.standardize_data is True:
         if isinstance(args.model_path, str):
-            model_path = pl.Path(args.model_path)
+            model_path = pl.Path(args.model_path).resolve()
         else:
-            model_path = args.model_path
+            model_path = args.model_path.resolve()
 
         if isinstance(args.dataset, (str, pl.Path)):
             dataset = _load_dataset_as_point_array(args.dataset)

@@ -710,6 +710,26 @@ def check_atom_in_domain(
     concave_hull: np.ndarray,
     descriptors: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Check if the generated descriptors are inside the precomputed concave hull.
+
+    Parameters
+    ----------
+    concave_hull : np.ndarray
+        Concave hull of the latent space for the database, corresponding
+        to its convex or concave hull.
+    descriptors : np.ndarray
+        The descriptors to check, typically of shape (N, 2).
+
+    Returns
+    -------
+    np.ndarray
+        Array containing the descriptors that are inside the concave hull.
+    np.ndarray
+        Array containing the descriptors that are outside the concave hull.
+    np.ndarray
+        Array containing boolean values showing if the frame is inside the concave hull.
+    """
     point_inside = []
     point_outside = []
     all_points_in_out = []

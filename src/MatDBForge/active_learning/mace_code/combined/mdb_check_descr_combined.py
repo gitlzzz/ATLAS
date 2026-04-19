@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Script to handle descriptor gathering for an AL Loop iteration."""
 
+import logging
 import pathlib as pl
 import pickle
 import tomllib
 import uuid
+import warnings
 
 import numpy as np
 from aiida.common.extendeddicts import AttributeDict
@@ -18,6 +20,13 @@ from MatDBForge.active_learning.extrapolation.concave_hull import (
     get_optimized_concave_hull,
 )
 from MatDBForge.core import code_utils as mdb_cut
+
+# Silencing specific warnings and log messages
+warnings.filterwarnings('ignore', category=UserWarning, message='.*weights_only.*')
+
+# Force third party loggers to only show errors and critical messages
+logging.getLogger('mace').setLevel(logging.ERROR)
+logging.getLogger('e3nn').setLevel(logging.ERROR)
 
 
 def is_advanced_extrapolation_set(input_dict: dict):
@@ -336,7 +345,7 @@ if __name__ == '__main__':
 
                             alpha_shape_arr, alpha_val = get_optimized_concave_hull(
                                 latent_space=coords,
-                                target_alpha_range=(2, 20.0),
+                                target_alpha_range=(1, 500.0),
                                 frac_points_allowed_out=0.05,
                             )
 
