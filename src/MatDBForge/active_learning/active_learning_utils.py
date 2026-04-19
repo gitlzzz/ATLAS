@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import io
 import itertools as it
+import logging
+import os
 import tempfile
 import time
 import tomllib as toml
+import warnings
 from collections import Counter
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path, PosixPath
 from uuid import uuid4
 
@@ -50,6 +53,20 @@ from MatDBForge.core.filtering.structure_filters import (
 )
 from MatDBForge.workflows import aiida_utils as mdb_aut
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
+
+# Silencing specific warnings and log messages
+warnings.filterwarnings('ignore', category=UserWarning, message='.*weights_only.*')
+
+# Force third party loggers to only show errors and critical messages
+logging.getLogger('mace').setLevel(logging.ERROR)
+logging.getLogger('e3nn').setLevel(logging.ERROR)
+
+
+@contextmanager
+def suppress_stdout():
+    """Temporarily redirects standard output to the void."""
+    with open(os.devnull, 'w') as devnull, redirect_stdout(devnull):
+        yield
 
 
 def check_mdb_ids(atoms_list: list[Atoms]):
@@ -744,26 +761,27 @@ def generate_descriptors_mace(
                 ' "mace:mp-small", "mace:off-medium", etc.'
             ) from e
 
-    if is_mp_foundation:
-        from mace.calculators import mace_mp
+    with suppress_stdout():
+        if is_mp_foundation:
+            from mace.calculators import mace_mp
 
-        calculator = mace_mp(
-            model=model_loaded,
-            device=device,
-            default_dtype=dtype,
-        )
-    elif is_off_foundation:
-        from mace.calculators import mace_off
+            calculator = mace_mp(
+                model=model_loaded,
+                device=device,
+                default_dtype=dtype,
+            )
+        elif is_off_foundation:
+            from mace.calculators import mace_off
 
-        calculator = mace_off(
-            model=model_loaded,
-            device=device,
-            default_dtype=dtype,
-        )
-    else:
-        calculator = MACECalculator(
-            models=[model_loaded], device=device, default_dtype=dtype
-        )
+            calculator = mace_off(
+                model=model_loaded,
+                device=device,
+                default_dtype=dtype,
+            )
+        else:
+            calculator = MACECalculator(
+                models=[model_loaded], device=device, default_dtype=dtype
+            )
 
     descriptor_dict = {}
     descriptor_list = []
