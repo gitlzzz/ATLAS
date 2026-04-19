@@ -870,15 +870,20 @@ def generate_descriptors_soap(
     # Initializing the SOAP calculator
     from dscribe.descriptors import SOAP
 
+    # To avoid modifying the original dict
+    descriptor_settings_copy = descriptor_settings.copy()
     # Setting default SOAP parameters
-    r_cut = descriptor_settings.pop('r_cut', 6.0)
-    n_max = int(descriptor_settings.pop('n_max', 8))
-    l_max = int(descriptor_settings.pop('l_max', 6))
-    periodic = descriptor_settings.pop('periodic', True)
-    average = descriptor_settings.pop('average', 'off')
+    r_cut = descriptor_settings_copy.pop('r_cut', 6.0)
+    n_max = int(descriptor_settings_copy.pop('n_max', 8))
+    l_max = int(descriptor_settings_copy.pop('l_max', 6))
+    periodic = descriptor_settings_copy.pop('periodic', True)
+    average = descriptor_settings_copy.pop('average', 'off')
 
     # Getting the species from the database
-    species = get_species_from_database(database)
+    if 'species' in descriptor_settings:
+        species = descriptor_settings_copy.pop('species')
+    else:
+        species = get_species_from_database(database)
 
     # Setting up the SOAP descriptor
     soap = SOAP(
@@ -888,7 +893,7 @@ def generate_descriptors_soap(
         n_max=n_max,
         average=average,
         l_max=l_max,
-        **descriptor_settings,
+        **descriptor_settings_copy,
     )
 
     descriptor_dict = {}
@@ -1692,7 +1697,7 @@ def get_dft_calc_builder_mace_list(
         # Get code and remove from settings dict
         mace_builder.code = orm.load_code(dft_settings['options']['code_string'])
 
-    dft_settings['options'].pop('code_string')
+    dft_settings['options'].pop('code_string', None)
 
     # Load scheduler and resources options
     mace_builder.metadata.options = dft_settings['options']
