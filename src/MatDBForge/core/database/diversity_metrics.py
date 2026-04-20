@@ -85,7 +85,7 @@ def get_feature_matrix_with_custom_features(dataset, feature_matrix_X):
     return scaled_feature_matrix
 
 
-def get_vendi_score_rbf(
+def get_vendi_score_db_rbf(
     dataset: list[Atoms],
     descriptor_type: str = 'soap',
     descriptor_settings: dict = None,
@@ -113,7 +113,25 @@ def get_vendi_score_rbf(
     )
 
     custom_print(f'Feature matrix shape: {feature_matrix_X.shape}')
+
+    get_vendi_score(feature_matrix_X=feature_matrix_X, sigma=sigma, k=k)
+
+
+def get_vendi_score(
+    feature_matrix_X: np.ndarray,
+    sigma: float | None = None,
+    k: int = 1,
+) -> float:
+    """
+    Lower time complexity than the alternative
+    O(n^3) implementation above, but requires that the embeddings
+    are available, and that the embedding dimension d is
+    significantly smaller than n (d << n). This is usually the case
+    when using MLIPs, and for large datasets.
+    """
     n = feature_matrix_X.shape[0]
+
+    print(f'{n=}')
 
     # Compute Pairwise Euclidean Distances
     # pdist returns a condensed distance matrix (efficient)
@@ -160,39 +178,16 @@ def get_vendi_score_rbf(
     return np.exp(entropy)
 
 
-def get_vendi_score_db(
-    dataset: list[Atoms],
-    descriptor_type: str = 'soap',
-    descriptor_settings: dict = None,
-    mace_model_path: str = None,
-    use_custom_features: bool = True,
-    save_descriptors: bool = False,
-    load_descriptors: bool = False,
-    descriptors_path: str = 'descriptors.npy',
-):
-    """Computes the Vendi Score for a dataset of n structures.
-
-    This implementation has a lower time complexity than the
+def _old_get_vendi_score(
+    feature_matrix_X: np.ndarray,
+) -> float:
+    """
+    Implementatio with a lower time complexity than the
     O(n^3) implementation above, but requires that the embeddings
     are available, and that the embedding dimension d is
     significantly smaller than n (d << n). This is usually the case
     when using MLIPs, and for large datasets.
     """
-    custom_print(
-        f'Getting feature matrix for {len(dataset)} '
-        f'structures using {descriptor_type.upper()}...'
-    )
-
-    _, feature_matrix_X = load_and_save_descriptors(
-        dataset,
-        descriptor_type,
-        descriptor_settings,
-        mace_model_path,
-        save_descriptors,
-        load_descriptors,
-        descriptors_path,
-    )
-
     # feature_matrix_X = np.vstack([desc.create(s) for s in dataset])
 
     # if use_custom_features:
@@ -242,6 +237,37 @@ def get_vendi_score_db(
     # Compute Vendi Score
     # VS=\exp(S_shannon)
     vendi_score = np.exp(shannon_entropy)
+
+    return vendi_score
+
+
+def get_vendi_score_db_simple(
+    dataset: list[Atoms],
+    descriptor_type: str = 'soap',
+    descriptor_settings: dict = None,
+    mace_model_path: str = None,
+    use_custom_features: bool = True,
+    save_descriptors: bool = False,
+    load_descriptors: bool = False,
+    descriptors_path: str = 'descriptors.npy',
+):
+    """Computes the Vendi Score for a dataset of n structures."""
+    custom_print(
+        f'Getting feature matrix for {len(dataset)} '
+        f'structures using {descriptor_type.upper()}...'
+    )
+
+    _, feature_matrix_X = load_and_save_descriptors(
+        dataset,
+        descriptor_type,
+        descriptor_settings,
+        mace_model_path,
+        save_descriptors,
+        load_descriptors,
+        descriptors_path,
+    )
+
+    vendi_score = _old_get_vendi_score(feature_matrix_X)
 
     return vendi_score
 
@@ -413,7 +439,7 @@ class TestVendiScore(unittest.TestCase):
         self.mock_loader.return_value = (None, X)
         dataset = [MagicMock()] * 4
 
-        score = get_vendi_score_db(dataset)
+        score = get_vendi_score_db_simple(dataset)
 
         print('Test: Orthogonal Modes (4 distinct items)')
         print('Expected: 4.0000')
@@ -428,7 +454,7 @@ class TestVendiScore(unittest.TestCase):
         self.mock_loader.return_value = (None, X)
         dataset = [MagicMock()] * 4
 
-        score = get_vendi_score_db(dataset)
+        score = get_vendi_score_db_simple(dataset)
 
         print('Test: Identical Modes (4 identical items)')
         print('Expected: 1.0000')
@@ -443,7 +469,7 @@ class TestVendiScore(unittest.TestCase):
         self.mock_loader.return_value = (None, X)
         dataset = [MagicMock()] * 4
 
-        score = get_vendi_score_db(dataset)
+        score = get_vendi_score_db_simple(dataset)
 
         print('Test: Two Distinct Groups (2 groups of 2)')
         print('Expected: 2.0000')
@@ -460,13 +486,166 @@ class TestVendiScore(unittest.TestCase):
         self.mock_loader.return_value = (None, X)
         dataset = [MagicMock()] * 4
 
-        score = get_vendi_score_db(dataset)
+        score = get_vendi_score_db_simple(dataset)
 
         print('Test: Shape & Color Overlap (Sim=0.5)')
         print('Expected: 2.8284')
         print(f'Actual:   {score:.4f}')
 
         self.assertAlmostEqual(score, 2.8284, places=3)
+
+
+def _to_dense(X):
+    """Convert X to a dense numpy array if it is a sparse matrix, preserving dtype."""
+    import scipy.sparse as sp
+
+    if sp.issparse(X):
+        return np.asarray(X.todense(), dtype=X.dtype)
+    return np.asarray(X)
+
+
+def compute_heuristic_sigma(feature_matrix, sample_size=10000, seed=420):
+    """
+    Computes the median pairwise Euclidean distance of a subsample of the dataset.
+    This is the standard heuristic for choosing the RBF kernel bandwidth (sigma).
+    """
+    import numpy as np
+    import scipy.sparse as sp
+    from scipy.spatial.distance import pdist
+
+    # Use the existing custom_print from your script
+    from MatDBForge.core.code_utils import custom_print
+
+    n_samples = feature_matrix.shape[0]
+    effective_size = min(sample_size, n_samples)
+
+    custom_print(f'Tuning Sigma: Subsampling {effective_size} environments...')
+
+    rng = np.random.default_rng(seed)
+    indices = rng.choice(n_samples, size=effective_size, replace=False)
+
+    # Extract subset
+    subset = feature_matrix[indices]
+
+    # Convert to dense if it's a sparse matrix
+    if sp.issparse(subset):
+        subset = np.asarray(subset.todense(), dtype=np.float32)
+    else:
+        subset = np.asarray(subset, dtype=np.float32)
+
+    # Compute condensed distance matrix
+    dists = pdist(subset, metric='euclidean')
+
+    # Calculate median and percentiles
+    median_dist = float(np.median(dists))
+    fine_grained = float(np.percentile(dists, 1))
+    coarse = float(np.percentile(dists, 99))
+
+    custom_print('\n' + '=' * 40)
+    custom_print('      SIGMA (RBF BANDWIDTH) HEURISTICS      ')
+    custom_print('=' * 40)
+    custom_print(f' Fine-grained                   : {fine_grained:.4f}')
+    custom_print(f' Median                         : {median_dist:.4f}')
+    custom_print(f' Coarse                         : {coarse:.4f}')
+    custom_print('=' * 40 + '\n')
+
+    return (fine_grained, median_dist, coarse)
+
+
+def get_vendi_score_subsampling(
+    feature_matrix, subset_size=10000, n_iterations=4, sigma=0.1624, k=1
+):
+    scores = []
+
+    custom_print('Computing Vendi Score via Subsampling...')
+
+    rng = np.random.default_rng()
+
+    if sigma is None:
+        custom_print(f'Getting {k}-NN distances to compute heuristic sigma...')
+
+        # Randomly subsampling for sigma
+
+        # Picking a subset of the data to compute the heuristic sigma
+        # without repeating
+        indices = rng.choice(feature_matrix.shape[0], size=subset_size, replace=False)
+        X_sub = _to_dense(feature_matrix[indices])
+
+        # Getting distances
+        sub_dists = pdist(X_sub, metric='euclidean')
+
+        # Average distance to k-th neighbor
+        # We need the full matrix to sort rows
+        dist_matrix = squareform(sub_dists)
+
+        # Sort each row to find neighbors.
+        # Column 0 is the point itself (dist=0), Column 1 is 1st NN, etc.
+        # We take the column at index k.
+        knn_distances = np.sort(dist_matrix, axis=1)[:, k]
+
+        sigma = np.mean(knn_distances)
+        custom_print(f'Heuristic (Mean {k}-NN Distance): sigma = {sigma:.4f}')
+    else:
+        custom_print(f'Using provided sigma: {sigma:.4f}')
+
+    # feature_matrix may be sparse; we densify only the subsets below
+    if subset_size > feature_matrix.shape[0]:
+        custom_print(
+            'Subset size larger than dataset size. Computing on full dataset...'
+        )
+
+        # Compute RBF Kernel (Exact)
+        dists = pdist(_to_dense(feature_matrix), metric='euclidean')
+        K_condensed = np.exp(-(dists**2) / (2 * sigma**2))
+        K = squareform(K_condensed)
+        np.fill_diagonal(K, 1.0)
+
+        # Eigenvalues
+        K_norm = K / feature_matrix.shape[0]
+        eigvals = np.linalg.eigvalsh(K_norm)
+        eigvals = np.clip(eigvals, 1e-20, None)
+
+        # Entropy
+        entropy = -np.sum(eigvals * np.log(eigvals))
+        scores = [np.exp(entropy)]
+
+    else:
+        custom_print(
+            f'Computing Vendi Score on {n_iterations} subsets of size {subset_size}...'
+        )
+
+        for i in range(n_iterations):
+            # Subsample
+            rng = np.random.default_rng(i)  # Different seed per iteration
+            indices = rng.choice(
+                feature_matrix.shape[0], size=subset_size, replace=False
+            )
+            X_sub = _to_dense(feature_matrix[indices])
+
+            # Compute RBF Kernel (Exact)
+            dists = pdist(X_sub, metric='euclidean')
+            K_condensed = np.exp(-(dists**2) / (2 * sigma**2))
+            K = squareform(K_condensed)
+            np.fill_diagonal(K, 1.0)
+
+            # Eigenvalues
+            K_norm = K / subset_size
+            eigvals = np.linalg.eigvalsh(K_norm)
+            eigvals = np.clip(eigvals, 1e-20, None)
+
+            # Entropy
+            entropy = -np.sum(eigvals * np.log(eigvals))
+            score = np.exp(entropy)
+
+            scores.append(score)
+            custom_print(f'  Iteration {i + 1}: {score:.2f}')
+
+    mean_score = np.mean(scores)
+    std_score = np.std(scores)
+
+    custom_print(f'Mean Vendi Score: {mean_score:.2f} ± {std_score:.2f}', 'done')
+
+    return scores, mean_score, std_score
 
 
 if __name__ == '__main__':

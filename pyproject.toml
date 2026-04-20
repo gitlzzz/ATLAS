@@ -49,9 +49,12 @@ mace = [
     "mace-torch==0.3.14",
     "torch>=2.5.0,<2.10",
     "torchvision>=0.24.1",
-    "cuequivariance==0.5.1",
-    "cuequivariance-torch==0.5.1",
-    "cuequivariance-ops-torch-cu12==0.5.1",
+    "cuequivariance",
+    "cuequivariance-torch",
+    "cuequivariance-ops-torch-cu12",
+    # "cuequivariance==0.5.1",
+    # "cuequivariance-torch==0.5.1",
+    # "cuequivariance-ops-torch-cu12==0.5.1",
 ]
 
 [project.urls]
@@ -137,7 +140,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.49.3"
+version = "0.50.0"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [

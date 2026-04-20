@@ -651,7 +651,7 @@ def get_optimized_concave_hull(
             f'Points outside: {point_outside.shape[0]}, '
             f'Points total: {total_points}, '
             f'Fraction outside: {frac_outside:.4f}, '
-            f'Area: {shape.area:.4e}, '
+            f'Normalized Area: {shape.area:.4e}, '
             f'Cost: {cost:.5e}',
             'info',
         )
@@ -697,8 +697,8 @@ def get_optimized_concave_hull(
         alpha_shape_arr = exterior_norm * span + min_vals
 
         mdb_cut.custom_print(
-            f'Optimized alpha: {best_alpha:.4f} with area: '
-            f'{final_shape_norm.area:.4e}. '
+            f'Optimized alpha: {best_alpha:.4f} with non-normalized area: '
+            f'{Polygon(alpha_shape_arr).area:.4e}. '
             f'Number of points inside: {total_points}.',
             'done',
         )
@@ -710,6 +710,26 @@ def check_atom_in_domain(
     concave_hull: np.ndarray,
     descriptors: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Check if the generated descriptors are inside the precomputed concave hull.
+
+    Parameters
+    ----------
+    concave_hull : np.ndarray
+        Concave hull of the latent space for the database, corresponding
+        to its convex or concave hull.
+    descriptors : np.ndarray
+        The descriptors to check, typically of shape (N, 2).
+
+    Returns
+    -------
+    np.ndarray
+        Array containing the descriptors that are inside the concave hull.
+    np.ndarray
+        Array containing the descriptors that are outside the concave hull.
+    np.ndarray
+        Array containing boolean values showing if the frame is inside the concave hull.
+    """
     point_inside = []
     point_outside = []
     all_points_in_out = []

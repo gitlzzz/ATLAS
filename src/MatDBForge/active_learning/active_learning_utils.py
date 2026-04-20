@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import io
 import itertools as it
+import logging
+import os
 import tempfile
 import time
 import tomllib as toml
+import warnings
 from collections import Counter
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path, PosixPath
 from uuid import uuid4
 
@@ -50,6 +53,20 @@ from MatDBForge.core.filtering.structure_filters import (
 )
 from MatDBForge.workflows import aiida_utils as mdb_aut
 from MatDBForge.workflows.aiida_utils import can_submit_calculation
+
+# Silencing specific warnings and log messages
+warnings.filterwarnings('ignore', category=UserWarning, message='.*weights_only.*')
+
+# Force third party loggers to only show errors and critical messages
+logging.getLogger('mace').setLevel(logging.ERROR)
+logging.getLogger('e3nn').setLevel(logging.ERROR)
+
+
+@contextmanager
+def suppress_stdout():
+    """Temporarily redirects standard output to the void."""
+    with open(os.devnull, 'w') as devnull, redirect_stdout(devnull):
+        yield
 
 
 def check_mdb_ids(atoms_list: list[Atoms]):
@@ -291,81 +308,67 @@ def generate_descriptors(
 
 
 def calculate_fps_scores_descriptor(
-    init_structure_uuid: str, descriptor_dict: dict
-) -> dict[str, float]:
+    selected_uuids: list[str], descriptor_dict: dict, n_to_select: int
+) -> dict[str, dict]:
     """
-    Calculates a dissimilarity score for each structure using an optimized
-    Farthest Point Sampling algorithm.
-
-    This implementation avoids redundant distance calculations by maintaining an
-    array of minimum distances from each candidate to the set of selected points,
-    achieving O(N^2) complexity.
-
-    The score is calculated as: (Total Structures - Rank) / Total Structures.
-
-    Parameters
-    ----------
-    init_structure_uuid : str
-        The UUID of the initial structure to start the sampling from.
-    descriptor_dict : dict
-        A dictionary where keys are structure UUIDs and values are dictionaries
-        containing at least a 'descriptors' key with a numpy array.
-
-    Returns
-    -------
-    dict[str, float]
-        A dictionary mapping each structure UUID to its calculated FPS score.
+    Calculates FPS scores for candidate structures by finding points farthest
+    from an ALREADY SELECTED subset of structures.
     """
     # Prepare data for vectorized operations
     uuids = list(descriptor_dict.keys())
-    descriptors = np.array([descriptor_dict[uuid]['descriptors'] for uuid in uuids])
 
-    descriptors = descriptors[:, 0]
+    # Stack the descriptors
+    descriptors = np.vstack([descriptor_dict[uuid]['descriptors'] for uuid in uuids])
+
+    # Force the array to be exactly 2D (number of structures, flattened features)
+    # This makes it compatible with MACE (N, 1, 256) while leaving
+    # SOAP (N, 256) unchanged.
+    descriptors = descriptors.reshape(len(uuids), -1)
+
     total_structures = len(uuids)
 
-    # Create a mapping from UUID to index for quick lookups
     uuid_to_idx = {uuid: i for i, uuid in enumerate(uuids)}
 
-    # Initialization
     scores = {}
     selected_indices = np.zeros(total_structures, dtype=bool)
-
-    # Initialize distances to a large value
     min_distances = np.full(total_structures, np.inf, dtype=descriptors.dtype)
 
-    # Select the first point
-    first_idx = uuid_to_idx[init_structure_uuid]
-    selected_indices[first_idx] = True
+    # Initialize distances using the already selected subset
+    # This guarantees new points are far from the existing cluster
+    for uuid in selected_uuids:
+        if uuid in uuid_to_idx:
+            idx = uuid_to_idx[uuid]
+            selected_indices[idx] = True
+            # Update minimum distance array from this established point
+            distances_to_existing = np.linalg.norm(
+                descriptors - descriptors[idx], axis=1
+            )
+            min_distances = np.minimum(min_distances, distances_to_existing)
 
-    # Rank 0 has score 1
-    scores[init_structure_uuid] = {'score': 1.0, 'distance': 0.0}
-    last_selected_idx = first_idx
+    # Prevent already selected points from being picked again
+    min_distances[selected_indices] = -1.0
 
-    # Main FPS loop
-    for rank in range(1, total_structures):
-        # Update distances based on the last selected point
-        # This is the most computationally intensive step pr iteration
-        distances_to_last = np.linalg.norm(
-            descriptors - descriptors[last_selected_idx], axis=1
-        )
-
-        # Update the minimum distance for each candidate
-        min_distances = np.minimum(min_distances, distances_to_last)
-
-        # Find the unselected point that is farthest from the selected set
-        # We set selected points' distances to -1 to ensure they are not chosen
-        min_distances[selected_indices] = -1
+    # 2. Main FPS expansion loop for the NEW structures
+    for rank in range(n_to_select):
+        # Find the unselected point farthest from the established set
         farthest_idx = np.argmax(min_distances)
+        farthest_uuid = uuids[farthest_idx]
 
-        # Record score and update state for the next iteration
-        scores[uuids[farthest_idx]] = {}
-        scores[uuids[farthest_idx]]['score'] = (
-            float(total_structures - rank) / total_structures
-        )
-        scores[uuids[farthest_idx]]['distance'] = min_distances[farthest_idx]
+        # Record score (scaled for consistency) and distance
+        scores[farthest_uuid] = {
+            'score': float(total_structures - rank) / total_structures,
+            'distance': min_distances[farthest_idx],
+        }
 
+        # Mark as selected
         selected_indices[farthest_idx] = True
-        last_selected_idx = farthest_idx
+
+        # Update distances based on this newly selected point
+        distances_to_last = np.linalg.norm(
+            descriptors - descriptors[farthest_idx], axis=1
+        )
+        min_distances = np.minimum(min_distances, distances_to_last)
+        min_distances[selected_indices] = -1.0
 
     return scores
 
@@ -422,74 +425,57 @@ def select_structures_lowest_energy(
 
 
 def select_structures_fps(
-    database: list[Atoms],
+    candidate_db: list[Atoms],
+    selected_db: list[Atoms],  # <--- NEW: Pass the existing subset
     n_structures: int,
     descriptor_settings: dict,
-    initial_structure_method: str = 'lowest_energy',
+    outer_average_mace: bool = False,
+    model_path: str = None,
 ) -> list[Atoms]:
-    """
-    Select n structures using Farthest Point Sampling on descriptors.
+    """Select n structures using Farthest Point Sampling."""
+    if n_structures >= len(candidate_db):
+        return candidate_db.copy()
 
-    Parameters
-    ----------
-    database : list[Atoms]
-        List of ASE Atoms objects to select from.
-    n_structures : int
-        Number of structures to select.
-    descriptor_settings : dict
-        Settings for descriptor calculation.
-    initial_structure_method : str
-        Method to select initial structure: 'lowest_energy' or 'random'.
+    # We need descriptors for BOTH selected and candidates to compute distances
+    combined_db = selected_db + candidate_db
 
-    Returns
-    -------
-    list[Atoms]
-        List of selected structures using FPS.
-    """
-    if n_structures >= len(database):
-        return database.copy()
-
-    # Select initial structure
-    if initial_structure_method == 'lowest_energy':
-        sorted_db = sorted(
-            database, key=lambda x: float(x.info.get('REF_energy', float('inf')))
-        )
-        init_structure_uuid = sorted_db[0].info['mdb_id']
-    else:  # random
-        init_structure_uuid = np.random.choice([s.info['mdb_id'] for s in database])
-
-    # Generate descriptors
     descriptor_type = descriptor_settings.get('descriptor_type', 'soap')
-    descr_dict, _ = generate_descriptors(
-        database=database,
+
+    # (Add your MACE path checks here if needed)
+
+    # Generate descriptors for the combined pool
+    descr_dict, _, _ = generate_descriptors(
+        database=combined_db,
         descriptor_type=descriptor_type,
         descriptor_settings=descriptor_settings.get('descriptor', {}),
+        outer_average_mace=outer_average_mace,
+        model_path=model_path,
+        verbose=False,
     )
 
-    # Calculate FPS scores
+    # Extract the UUIDs of the structures we ALREADY have
+    selected_uuids = [s.info['mdb_id'] for s in selected_db]
+
+    # Calculate FPS scores asking only for 'n_structures' new points
     scores = calculate_fps_scores_descriptor(
-        init_structure_uuid=init_structure_uuid,
+        selected_uuids=selected_uuids,
         descriptor_dict=descr_dict,
+        n_to_select=n_structures,
     )
 
-    # Sort by score and select top n
-    sorted_db = sorted(
-        database,
-        key=lambda x: scores.get(x.info['mdb_id'], {}).get('score', 0.0),
-        reverse=True,
-    )
+    # Extract just the newly selected candidates and apply their scores
+    selected_candidates = []
+    for struct in candidate_db:
+        uuid = struct.info['mdb_id']
+        if uuid in scores:
+            struct.info['fps_score'] = scores[uuid]['score']
+            struct.info['fps_distance'] = scores[uuid]['distance']
+            selected_candidates.append(struct)
 
-    selected_db = sorted_db[:n_structures]
+    # Sort descending by score just to keep them ordered properly
+    selected_candidates.sort(key=lambda x: x.info['fps_score'], reverse=True)
 
-    for struct in selected_db:
-        struct.info['fps_score'] = scores.get(struct.info['mdb_id'], {}).get(
-            'score', 0.0
-        )
-        struct.info['fps_distance'] = scores.get(struct.info['mdb_id'], {}).get(
-            'distance', 0.0
-        )
-
-    return selected_db
+    return selected_candidates[:n_structures]
 
 
 def select_structures_uncertainty(
@@ -744,26 +730,27 @@ def generate_descriptors_mace(
                 ' "mace:mp-small", "mace:off-medium", etc.'
             ) from e
 
-    if is_mp_foundation:
-        from mace.calculators import mace_mp
+    with suppress_stdout():
+        if is_mp_foundation:
+            from mace.calculators import mace_mp
 
-        calculator = mace_mp(
-            model=model_loaded,
-            device=device,
-            default_dtype=dtype,
-        )
-    elif is_off_foundation:
-        from mace.calculators import mace_off
+            calculator = mace_mp(
+                model=model_loaded,
+                device=device,
+                default_dtype=dtype,
+            )
+        elif is_off_foundation:
+            from mace.calculators import mace_off
 
-        calculator = mace_off(
-            model=model_loaded,
-            device=device,
-            default_dtype=dtype,
-        )
-    else:
-        calculator = MACECalculator(
-            models=[model_loaded], device=device, default_dtype=dtype
-        )
+            calculator = mace_off(
+                model=model_loaded,
+                device=device,
+                default_dtype=dtype,
+            )
+        else:
+            calculator = MACECalculator(
+                models=[model_loaded], device=device, default_dtype=dtype
+            )
 
     descriptor_dict = {}
     descriptor_list = []
@@ -771,10 +758,19 @@ def generate_descriptors_mace(
 
     # Getting descriptors for every structure
     tot_num_structures = len(database)
-    for idx, struct in enumerate(database):
-        if verbose and idx % 100 == 0:
-            print(f'MACE: {idx}/{tot_num_structures}', end='\r')
 
+    iterable = (
+        mdb_cut.mdb_show_progress(
+            enumerate(database),
+            total=tot_num_structures,
+            interval=100,
+            prepend='MACE:',
+        )
+        if verbose
+        else enumerate(database)
+    )
+
+    for _, struct in iterable:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         elif struct.info.get('aiida_uuid'):
@@ -843,15 +839,20 @@ def generate_descriptors_soap(
     # Initializing the SOAP calculator
     from dscribe.descriptors import SOAP
 
+    # To avoid modifying the original dict
+    descriptor_settings_copy = descriptor_settings.copy()
     # Setting default SOAP parameters
-    r_cut = descriptor_settings.pop('r_cut', 6.0)
-    n_max = int(descriptor_settings.pop('n_max', 8))
-    l_max = int(descriptor_settings.pop('l_max', 6))
-    periodic = descriptor_settings.pop('periodic', True)
-    average = descriptor_settings.pop('average', 'off')
+    r_cut = descriptor_settings_copy.pop('r_cut', 6.0)
+    n_max = int(descriptor_settings_copy.pop('n_max', 8))
+    l_max = int(descriptor_settings_copy.pop('l_max', 6))
+    periodic = descriptor_settings_copy.pop('periodic', True)
+    average = descriptor_settings_copy.pop('average', 'off')
 
     # Getting the species from the database
-    species = get_species_from_database(database)
+    if 'species' in descriptor_settings:
+        species = descriptor_settings_copy.pop('species')
+    else:
+        species = get_species_from_database(database)
 
     # Setting up the SOAP descriptor
     soap = SOAP(
@@ -861,7 +862,7 @@ def generate_descriptors_soap(
         n_max=n_max,
         average=average,
         l_max=l_max,
-        **descriptor_settings,
+        **descriptor_settings_copy,
     )
 
     descriptor_dict = {}
@@ -871,9 +872,15 @@ def generate_descriptors_soap(
     tot_num_structures = len(database)
 
     # Getting descriptors for every structure
-    for idx, struct in enumerate(database):
-        if verbose and idx % 100 == 0:
-            print(f'SOAP: {idx}/{tot_num_structures}', end='\r')
+    iterable = (
+        mdb_cut.mdb_show_progress(
+            enumerate(database), total=tot_num_structures, interval=100, prepend='SOAP:'
+        )
+        if verbose
+        else enumerate(database)
+    )
+
+    for _, struct in iterable:
         if struct.info.get('mdb_id'):
             struct_key = struct.info.get('mdb_id')
         # elif struct.info.get('aiida_uuid'):
@@ -1659,7 +1666,7 @@ def get_dft_calc_builder_mace_list(
         # Get code and remove from settings dict
         mace_builder.code = orm.load_code(dft_settings['options']['code_string'])
 
-    dft_settings['options'].pop('code_string')
+    dft_settings['options'].pop('code_string', None)
 
     # Load scheduler and resources options
     mace_builder.metadata.options = dft_settings['options']

@@ -15,6 +15,13 @@ from packaging.version import parse as parse_version
 from rich.console import Console
 from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from rich.theme import Theme
 
 from MatDBForge import MDB_ROOT_DIR, __repo__, __version__
@@ -286,6 +293,59 @@ def custom_print(
             logger.log(level=20, msg=message, extra=extra_data)
 
     return logger
+
+
+def mdb_show_progress(
+    iterable, total=None, interval=100, level_tag='[ i ]', prepend='MACE:'
+):
+    """
+    Shows a rich progress bar with a custom format matching MDB logs.
+
+    Parameters
+    ----------
+    iterable : iterable
+        The iterable to wrap.
+    total : int, optional
+        The total number of items in the iterable.
+    interval : int, optional
+        The number of iterations between updates of the timestamp.
+    level_tag : str, optional
+        The logging level tag to display.
+    prepend : str, optional
+        The string to prepend to the progress bar.
+    """
+    import datetime
+
+    progress = Progress(
+        TextColumn('[{task.fields[timestamp]}]'),
+        TextColumn('{task.fields[level_tag]} {task.fields[prepend]}'),
+        BarColumn(),
+        '[progress.percentage]{task.percentage:>3.0f}%',
+        '({task.completed}/{task.total})',
+        TimeElapsedColumn(),
+        '<',
+        TimeRemainingColumn(),
+        console=Console(theme=MDB_THEME),
+        transient=False,
+    )
+    with progress:
+        task_id = progress.add_task(
+            'progress',
+            total=total,
+            timestamp=datetime.datetime.now().strftime('%m/%d/%y %H:%M:%S'),
+            level_tag=level_tag,
+            prepend=prepend,
+        )
+        for i, item in enumerate(iterable):
+            yield item
+            if i % interval == 0:
+                progress.update(
+                    task_id,
+                    advance=1,
+                    timestamp=datetime.datetime.now().strftime('%m/%d/%y %H:%M:%S'),
+                )
+            else:
+                progress.update(task_id, advance=1)
 
 
 def deprecated(reason, since_ver=None):

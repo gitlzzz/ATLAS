@@ -3656,10 +3656,18 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             # Compute FPS to get the scoring
             self.report('Ranking using farthest point sampling...')
+            # Pass the initial structure as a list to 'selected_uuids'
+            # n_to_select is the rest of the database (total length - 1)
             scores = mdb_al_ut.calculate_fps_scores_descriptor(
-                init_structure_uuid=init_structure_uuid,
+                selected_uuids=[init_structure_uuid],
                 descriptor_dict=descr_dict,
+                n_to_select=len(seed_gen_db) - 1,
             )
+
+            # The FPS function only scores the new structures.
+            # We must manually inject the initial structure into the scores dictionary
+            # with the highest possible score (1.0) so it sorts to the very top.
+            scores[init_structure_uuid] = {'score': 1.0, 'distance': 0.0}
             self.report('Ranking completed!')
 
             # Add scores to the structures in the seed generation database

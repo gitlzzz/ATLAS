@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.50.0 (2026-04-20)
+
+### Docs
+
+- **schema**: reformat schema ([#26ee461](https://github.com/pol-sb/MatDBForge/commit/26ee461295f35d2ba6c15cf28625007eb0395dcd))
+
+### Feature
+
+- **domain_validity**: add functions for morphological closing ([#0d220c2](https://github.com/pol-sb/MatDBForge/commit/0d220c2968c9534ba61586c5159bd0ab37d9b01c))
+
+### Fix
+
+- **benchmarks**: improve performance and accuracy of diversity metrics ([#8ac6053](https://github.com/pol-sb/MatDBForge/commit/8ac60534b8e37499b769491b2bcdf1d23e1d9173))
+- **core**: compare FPS with correct structures every step ([#ea4ca0a](https://github.com/pol-sb/MatDBForge/commit/ea4ca0ab0b14c13c71ba88bc33ee016ee7152f4f))
+- **core**: misc fixes ([#9ff9788](https://github.com/pol-sb/MatDBForge/commit/9ff97884c27d19092e0bfdf45933441c24e6f3eb))
+- **core**: avoid use get instead of pop to get descriptor settings ([#89bf678](https://github.com/pol-sb/MatDBForge/commit/89bf6782b3b44873a466cfdd7d36e12de2792712))
+- **core**: update cuequivariance versions to avoid incompatibilities ([#c75eda6](https://github.com/pol-sb/MatDBForge/commit/c75eda611b2be8910f95269319ec0c9aaa1f2596))
+
+### Refactor
+
+- **core**: reduce verbosity of module imports ([#530ccd9](https://github.com/pol-sb/MatDBForge/commit/530ccd9f664b7dbf5855ec9d7c39577201fba2fb))
+- **core**: add progress bar compatible with rich text logs ([#7e05b70](https://github.com/pol-sb/MatDBForge/commit/7e05b7080d5ea4fe4322d4e90931d1d9ca16bda9))
+- **core**: reduce verbosity when importing certain libraries ([#9380048](https://github.com/pol-sb/MatDBForge/commit/938004854ef9c1f3ec5549af844b7239fed10042))
+- **domain_validity**: improve clarity of latent space area normalization ([#17fd530](https://github.com/pol-sb/MatDBForge/commit/17fd53045ddcc44e5da0ce8a0b8a4bcd64195873))
+
 ## 0.49.3 (2026-04-10)
 
 ### Fix

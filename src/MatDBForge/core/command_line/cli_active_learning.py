@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import logging
 import pathlib as pl
 import sys
 import time
@@ -21,7 +22,14 @@ from MatDBForge.core.code_utils import (
 )
 from MatDBForge.core.command_line.command_line_utils import apply_defaults
 
+# Silencing specific warnings and log messages
+warnings.filterwarnings('ignore', category=UserWarning, message='.*weights_only.*')
+warnings.filterwarnings('ignore', category=FutureWarning, message='.*nvidia-ml-py.*')
 warnings.filterwarnings('ignore')
+
+# Force third-party loggers to only show ERROR or CRITICAL messages
+logging.getLogger('mace').setLevel(logging.ERROR)
+logging.getLogger('e3nn').setLevel(logging.ERROR)
 
 
 def create_active_learning_builder(
