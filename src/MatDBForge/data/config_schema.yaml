@@ -1109,7 +1109,15 @@ active_learning:
             type: str
             mandatory: false
             default: "none"
-            choices: ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
+            choices:
+                [
+                    "disabled",
+                    "none",
+                    "basic",
+                    "min-max",
+                    "alpha-shape",
+                    "advanced",
+                ]
         concave_hull:
             name: "concave_hull"
             name_pretty: "Concave Hull Extrapolation Check Settings"
@@ -1606,9 +1614,13 @@ active_learning:
             mandatory: false
             default: false
         metadata:
-            description: "AiiDA metadata and scheduler options for descriptor computation."
+            description: "AiiDA metadata for descriptor computation."
             type: dict
-            mandatory: false
+            mandatory: true
+            options:
+                description: "AiiDA scheduler options for descriptor computation."
+                type: dict
+                mandatory: true
         dtype:
             description: "Data type of descriptor to compute."
             type: str
@@ -1959,7 +1971,12 @@ active_learning:
                     description: "INCAR settings specific to cluster calculations."
                     type: dict
                     mandatory: false
-                    example: { "ldipol": true, "dipol": [0.5, 0.5, 0.5], "idipol": 4 }
+                    example:
+                        {
+                            "ldipol": true,
+                            "dipol": [0.5, 0.5, 0.5],
+                            "idipol": 4,
+                        }
             aiida_vasp:
                 name: "aiida_vasp"
                 name_pretty: "AiiDA-VASP Settings"
@@ -2384,7 +2401,15 @@ latent_space_analysis:
             type: str
             mandatory: false
             default: "none"
-            choices: ["disabled", "none", "basic", "min-max", "alpha-shape", "advanced"]
+            choices:
+                [
+                    "disabled",
+                    "none",
+                    "basic",
+                    "min-max",
+                    "alpha-shape",
+                    "advanced",
+                ]
         concave_hull:
             name: "concave_hull"
             name_pretty: "Concave Hull Extrapolation Check Settings"

@@ -1185,8 +1185,8 @@ Settings for descriptor computation and dimensionality reduction.
   - **Default**: `False`.
 
 - {alt}`metadata`:
-  - **Description**: AiiDA metadata and scheduler options for descriptor computation.
-  - **Type**: `(optional, dict)`
+  - **Description**: AiiDA metadata for descriptor computation.
+  - **Type**: `(dict)`
 
 - {alt}`dtype`:
   - **Description**: Data type of descriptor to compute.
