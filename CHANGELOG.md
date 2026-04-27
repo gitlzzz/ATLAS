@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.50.1 (2026-04-27)
+
+### Fix
+
+- **al_loop**: free up memory after FPS descriptor gathering to prevent memory leak ([#5b59c47](https://github.com/pol-sb/MatDBForge/commit/5b59c47315fc8ae051130847cc5e1fcb89fad714))
+- **core**: add missing scikit-image ([#9fbfb63](https://github.com/pol-sb/MatDBForge/commit/9fbfb637059b7be2fc74e2fb569e52643ca08726))
+
+### Refactor
+
+- **domain_validity**: reduce logging verbosity for autoencoder ([#8958645](https://github.com/pol-sb/MatDBForge/commit/895864518a47f063bcc3ecedc897202e1a5b7314))
+
 ## 0.50.0 (2026-04-20)
 
 ### Docs

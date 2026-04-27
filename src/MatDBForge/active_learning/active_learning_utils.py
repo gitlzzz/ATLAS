@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import gc
 import io
 import itertools as it
 import logging
@@ -67,6 +69,26 @@ def suppress_stdout():
     """Temporarily redirects standard output to the void."""
     with open(os.devnull, 'w') as devnull, redirect_stdout(devnull):
         yield
+
+
+def flush_system_memory():
+    """
+    Forces Python to sweep unreferenced objects and instructs the
+    Linux C-allocator to return freed memory blocks to the OS.
+    Use this only after deleting massive arrays or dataframes.
+    """
+    # Force Python to clean up cyclically isolated objects
+    gc.collect()
+
+    # Force Linux glibc to release the RAM to the OS
+    # This helps freeing up memory after some multiprocessing tasks,
+    # such as SOAP with several jobs.
+    try:
+        libc = ctypes.CDLL('libc.so.6')
+        libc.malloc_trim(0)
+    except Exception as e:
+        # Fails gracefully on Windows/Mac or if libc is unavailable
+        logging.debug(f'malloc_trim unsupported or failed: {e}')
 
 
 def check_mdb_ids(atoms_list: list[Atoms]):
