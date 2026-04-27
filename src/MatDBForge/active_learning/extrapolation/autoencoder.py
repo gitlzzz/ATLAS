@@ -1,12 +1,21 @@
 """Autoencoder model for dimensionality reduction and data reconstruction."""
 
+import logging
 import pathlib as pl
+import warnings
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 from MatDBForge.core.code_utils import custom_print
+
+# Silencing specific warnings and log messages
+warnings.filterwarnings('ignore', category=UserWarning, message='.*weights_only.*')
+
+# Force third party loggers to only show errors and critical messages
+logging.getLogger('mace').setLevel(logging.ERROR)
+logging.getLogger('e3nn').setLevel(logging.ERROR)
 
 
 def locate_standarization_files(autoencoder_path=pl.Path('.')):
