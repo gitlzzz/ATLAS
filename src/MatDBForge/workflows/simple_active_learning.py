@@ -3687,6 +3687,9 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 reverse=True,
             )
 
+            # Freeing up memory
+            mdb_al_ut.flush_system_memory()
+
         elif seed_ranking_algorithm == 'random':
             # If the seed selection algorithm is random, we will select structures
             # at random from the seed generation database, and we will use a 1 as
