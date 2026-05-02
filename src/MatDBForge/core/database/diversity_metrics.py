@@ -568,7 +568,11 @@ def get_vendi_score_subsampling(
 
         # Picking a subset of the data to compute the heuristic sigma
         # without repeating
-        indices = rng.choice(feature_matrix.shape[0], size=subset_size, replace=False)
+        indices = rng.choice(
+            feature_matrix.shape[0],
+            size=min(subset_size, feature_matrix.shape[0]),
+            replace=False,
+        )
         X_sub = _to_dense(feature_matrix[indices])
 
         # Getting distances
