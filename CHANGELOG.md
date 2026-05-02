@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.50.2 (2026-05-03)
+
+### Fix
+
+- **benchmarks**: add floor to size in index selection for Vendi score subsampling ([#03ef705](https://github.com/pol-sb/MatDBForge/commit/03ef70569d1fe4bc0fa9be2903174a40e34d3618))
+- **domain_validity**: improve performance of get_latent_space_autoencoder() ([#661a57e](https://github.com/pol-sb/MatDBForge/commit/661a57edc7803d30f780a56e02fa45eb70ac0e1d))
+- **core**: reduce verbosity and logging duplicates ([#9860c13](https://github.com/pol-sb/MatDBForge/commit/9860c13789843e64aaa584fe53c3e1185eb22f53))
+
+### Performance
+
+- **md**: improve MD safeguard filters ([#75ef7cc](https://github.com/pol-sb/MatDBForge/commit/75ef7cc4f89392175a870ceec4b8aea0ba55ab19))
+
 ## 0.50.1 (2026-04-27)
 
 ### Fix
