@@ -121,16 +121,16 @@ class Autoencoder(nn.Module):
             nn.ReLU(),
             nn.Linear(l1_dim, l2_dim, bias=bias_flag),
             nn.ReLU(),
-            nn.Linear(l2_dim, bottleneck_dim, bias_flag),
+            nn.Linear(l2_dim, bottleneck_dim, bias=bias_flag),
         )
 
         # Decoder: Bottleneck -> Input (reconstruction)
         self.decoder = nn.Sequential(
-            nn.Linear(bottleneck_dim, l2_dim, bias_flag),
+            nn.Linear(bottleneck_dim, l2_dim, bias=bias_flag),
             nn.ReLU(),
-            nn.Linear(l2_dim, l1_dim, bias_flag),
+            nn.Linear(l2_dim, l1_dim, bias=bias_flag),
             nn.ReLU(),
-            nn.Linear(l1_dim, input_dim, bias_flag),
+            nn.Linear(l1_dim, input_dim, bias=bias_flag),
         )
 
     def forward(self, x):
@@ -169,17 +169,24 @@ def load_autoencoder_model(model_path: str, data_arr: np.ndarray = None):
     state_dict = model if isinstance(model, dict) else False
 
     if state_dict:
-        input_dim = data_arr.shape[1]
+        input_dim = state_dict['encoder.0.weight'].shape[1]
         l1_dim = state_dict['encoder.0.weight'].shape[0]
         l2_dim = state_dict['encoder.2.weight'].shape[0]
 
         # Check if the model already exists
         if pl.Path(model_path).exists() and isinstance(model, dict):
-            # model = torch.load(model_path)
+            # Extract bottleneck_dim from the final encoder layer (layer 4)
+            bottleneck_dim = state_dict['encoder.4.weight'].shape[0]
+
+            # Check if bias keys exist in the state dict
+            has_bias = 'encoder.0.bias' in state_dict
+
             model = Autoencoder(
                 input_dim=input_dim,
                 l1_dim=l1_dim,
                 l2_dim=l2_dim,
+                bottleneck_dim=bottleneck_dim,
+                bias_flag=has_bias,
             )
             model.load_state_dict(state_dict)
 
@@ -229,20 +236,24 @@ def get_latent_space_autoencoder(
 
     # No need to compute gradients for inference
     with torch.no_grad():
-        for uuid, descr_dict in descriptor_dict.items():
-            # Get latent space
-            descr_arr = np.array(descr_dict['descriptors'])
+        uuids = list(descriptor_dict.keys())
 
-            if should_standardize and mean_vals is not None and std_vals is not None:
-                # Standardize the data using the loaded mean and std values
-                descr_arr = (descr_arr - mean_vals) / std_vals
+        # Gather all descriptors into a single list
+        all_descrs = [descriptor_dict[u]['descriptors'][0] for u in uuids]
+        descr_tensor = torch.tensor(np.vstack(all_descrs), device=device, dtype=dtype)
 
-            latent_space = model.encoder(
-                torch.Tensor(descr_arr).to(device=device, dtype=dtype)
-            )
+        # Standardize batched data
+        if should_standardize and mean_vals is not None and std_vals is not None:
+            mean_tensor = torch.tensor(mean_vals, device=device, dtype=dtype)
+            std_tensor = torch.tensor(std_vals, device=device, dtype=dtype)
+            descr_tensor = (descr_tensor - mean_tensor) / std_tensor
 
-            # Save latent space
-            descriptor_dict[uuid]['latent_space'] = latent_space.cpu().numpy()
+        # Run the ENTIRE batch through the model at once
+        latent_batch = model.encoder(descr_tensor).cpu().numpy()
+
+        # Map the results back to the dictionary
+        for i, uuid in enumerate(uuids):
+            descriptor_dict[uuid]['latent_space'] = latent_batch[i]
 
     custom_print('Computed latent space!', final_print_type)
     return descriptor_dict
