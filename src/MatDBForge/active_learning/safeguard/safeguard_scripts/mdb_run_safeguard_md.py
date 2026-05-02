@@ -17,6 +17,7 @@ import torch
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryReader, TrajectoryWriter
+from ase.neighborlist import natural_cutoffs
 from mace.calculators import MACECalculator
 from shapely.affinity import scale
 from shapely.geometry import MultiPolygon, Point, Polygon
@@ -410,14 +411,22 @@ if __name__ == '__main__':
             max_T = curr_temp * safe_md_params.get('max_temp_multiplier', 1)
             max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
             remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
+            max_F: float = explod_filt_settings.get('max_F', 25.0)
+            max_V: float = explod_filt_settings.get('max_V', 2.0)
+
+            # Precomputing cutoffs once before the loop
+            base_structure = md_traj[0]
+            base_cutoffs = np.array(natural_cutoffs(base_structure))
+            cutoffs_max_base = base_cutoffs * cov_rad_multiplier_max
+            cutoffs_min_base = base_cutoffs * cov_rad_multiplier_min
 
             # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
                 is_structure_wrong: bool = (
                     mdb_str_filters.apply_filter_exploding_structures(
                         struct=frame,
-                        cov_rad_multiplier_max=cov_rad_multiplier_max,
-                        cov_rad_multiplier_min=cov_rad_multiplier_min,
+                        max_F=max_F,
+                        max_V=max_V,
                         max_T=max_T,
                         T_list=[frame.info.get('md_temperature')],
                         max_T_multiplier=max_T_multiplier,
@@ -445,10 +454,18 @@ if __name__ == '__main__':
             cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
                 'covalent_radius_multiplier', 1.0
             )
+
+            # Precompute the maximum allowed Z-thickness
+            base_structure = md_traj[0]
+            initial_z_thickness = np.ptp(base_structure.positions[:, 2])
+            expansion_buffer = 10.0  # Set your 5-10 Å buffer here
+            max_allowed_thickness = initial_z_thickness + expansion_buffer
+
             # Applying filter for every frame
             for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_str_filters.apply_filter_no_neighbors(
-                    struct=frame, cov_rad_multiplier=cov_rad_mult
+                is_structure_wrong = mdb_str_filters.apply_filter_evaporation(
+                    struct=frame,
+                    max_allowed_thickness=max_allowed_thickness,
                 )
                 if is_structure_wrong:
                     neighbor_r_frames.append(idx)

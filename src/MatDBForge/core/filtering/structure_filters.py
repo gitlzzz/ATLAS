@@ -7,8 +7,11 @@ import numpy as np
 import rich.progress as riprg
 from ase import Atoms, geometry
 from ase import io as aseio
-from ase.md.md import MolecularDynamics
-from ase.neighborlist import NeighborList, NewPrimitiveNeighborList, natural_cutoffs
+from ase.neighborlist import (
+    NeighborList,
+    NewPrimitiveNeighborList,
+    natural_cutoffs,
+)
 from pymatgen.core import Structure as pmg_struct
 from pymatgen.io.ase import AseAtomsAdaptor
 
@@ -275,35 +278,13 @@ def check_disconn_neighbors(
     return has_disconnected_neighbors
 
 
-def apply_filter_no_neighbors(struct, cov_rad_multiplier: float):
+def apply_filter_evaporation(struct, max_allowed_thickness: float) -> bool:
     """
-    Use neighbor list to check if there are any atoms with no neighbors.
-
-    Parameters
-    ----------
-    struct : ase.Atoms
-        structure to check.
-
-    Returns
-    -------
-    bool
-        Returns `True` if there are atoms with no neighbors, `False` if otherwise.
+    Fast geometric check to see if a slab has artificially expanded or
+    an atom has evaporated into the vacuum.
     """
-    if isinstance(struct, pmg_struct):
-        struct = AseAtomsAdaptor().get_atoms(structure=struct)
-
-    # Apply wrapping to structure copy, considering the minimum z value
-    curr_struct = struct.copy()
-    min_z = np.min(curr_struct.positions[:, 2])
-    curr_struct.positions[:, 2] += np.abs(min_z) + np.abs(min_z) * 0.1
-    curr_struct.wrap()
-
-    conn_matr, has_disconnected_atoms, coord_nums = get_coord_nums(
-        curr_struct, cov_rad_multiplier=cov_rad_multiplier
-    )
-    has_disconnected_neighbors = check_disconn_neighbors(conn_matr, coord_nums)
-
-    return has_disconnected_atoms or has_disconnected_neighbors
+    z_thickness = np.ptp(struct.positions[:, 2])
+    return z_thickness > max_allowed_thickness
 
 
 def get_available_filters() -> dict:
@@ -334,213 +315,117 @@ def get_available_filters() -> dict:
 
 
 def apply_filter_exploding_structures(
-    dyn: MolecularDynamics = None,
-    struct: Atoms = None,
-    cov_rad_multiplier_max: float = 10.0,
-    cov_rad_multiplier_min: float = 0.8,
+    dyn=None,
+    struct=None,
+    max_F: float = 25.0,
+    max_V: float = 2.0,
     max_T: float = None,
     max_T_multiplier: float = 10,
     T_list: list[float] = None,
     remove_positive_E: bool = False,
 ) -> bool:
-    """
-    Check if the given structure has an unrealistic structure (explosion).
-
-    Parameters
-    ----------
-    struct : ase.Atoms
-        Structure to check.
-    max_T : float, optional
-        Maximum temperature for the structure, by default None.
-    max_T_multiplier : float, optional
-        Multiplier for the maximum temperature, by default 10.
-    cov_rad_multiplier_max : float, optional
-        Maximum covalent radius multiplier, by default 10.0.
-    cov_rad_multiplier_min : float, optional
-        Minimum covalent radius multiplier, by default 0.8.
-    T_list : list[float], optional
-        List of temperatures for the structure, by default None.
-    remove_positive_E : bool, optional
-        If `True`, structures with positive energy will be removed, by default False.
-
-    Returns
-    -------
-    bool
-        Returns `True` if the structure is exploding, `False` if otherwise.
-    """
+    """Check if the given structure has an unrealistic structure (explosion)."""
     if struct is None and dyn:
-        # Get current structure
         struct = dyn.atoms
 
-    # Get the natural cutoffs and multiply them by the cov_rad_multiplier_max
-    # cutoffs will be used as the minimum and maximum distance between atoms possible
-    # for the structure to be considered stable
-
-    # Maximum possible distance between two atoms. Should be below the maximum cell size
-    # to avoid exploding structures
-    cutoffs_max: np.array = np.array(natural_cutoffs(struct)) * cov_rad_multiplier_max
-
-    # Closest possible distance between two atoms.
-    cutoffs_min: np.array = np.array(natural_cutoffs(struct)) * cov_rad_multiplier_min
-    max_cell_arr = np.repeat(np.max(struct.cell), repeats=len(cutoffs_max))
-
-    # If the cutoffs are smaller than the maximum cell size,
-    # set them to the maximum cell size
-    if np.all(max_cell_arr > cutoffs_max):
-        cutoffs_max = max_cell_arr
-
-    # Get the distances between atoms
-    all_distances = struct.get_all_distances(mic=True)
-
-    # Change all zeros to NaN. Zeros will be there when the
-    # atom is compared to itself
-    all_distances[np.where(all_distances == 0)] = np.nan
-
-    # Get the maximum and minimum distances
-    max_dist = np.nanmax(all_distances, axis=0)
-    min_dist = np.nanmin(all_distances, axis=0)
-
-    # Check if the maximum distance is above the threshold
-    is_exploding = np.any(max_dist > cutoffs_max) or np.any(min_dist < cutoffs_min)
-
-    # Check if any of the previous T are above the threshold
-    if max_T and max_T_multiplier and T_list:
-        T_arr = np.array(T_list)
-        if np.any(T_arr) > (max_T * max_T_multiplier):
-            return True
-        T_list.clear()
-
+    # Check energy first to be able to skip the expensive distance calculations
+    # for high-energy structures
     if remove_positive_E:
         curr_energy = struct.info.get('REF_energy')
-        if curr_energy > 0:
+        if curr_energy is not None and curr_energy > 0:
             return True
 
-    return is_exploding
+    # Check temperature to be able to skip the expensive distance calculations
+    # for high-temperature structures
+    if max_T and max_T_multiplier and T_list:
+        T_arr = np.array(T_list)
+        # The comparison must happen inside the np.any()
+        if np.any(T_arr > (max_T * max_T_multiplier)):
+            return True
+
+    # Check Forces
+    if max_F is not None:
+        try:
+            # In ASE trajectories, this reads pre-calculated forces
+            # from the SinglePointCalculator.
+            # It will NOT trigger a new DFT/empirical calculation.
+            forces = struct.get_forces()
+
+            # np.abs().max() checks the highest single force
+            # component (x, y, or z) on any atom.
+            # This is significantly faster than calculating
+            # the vector magnitude (np.linalg.norm) as in previous versions,
+            # and works for finding anomalies.
+            if np.abs(forces).max() > max_F:
+                return True
+        except Exception:
+            # Failsafe: If the trajectory frame doesn't contain force data, just skip.
+            pass
+
+    # Check Velocities
+    if max_V is not None:
+        velocities = struct.get_velocities()
+        # get_velocities() returns None if velocity data wasn't saved to the trajectory
+        if velocities is not None and np.abs(velocities).max() > max_V:
+            return True
+
+    # If it passed all thermodynamic and kinetic checks, the structure is stable.
+    return False
 
 
-# def dev_apply_filter_exploding_structures(
-#     struct: Atoms,
-#     cov_rad_multiplier_max: float = 10.0,
-#     cov_rad_multiplier_min: float = 0.8,
-#     max_T: float = None,
-#     max_T_multiplier: float = 10,
-#     remove_positive_E: bool = False,
-# ) -> bool:
-#     """
-#     Check if the given structure has an unrealistic structure (explosion).
+def apply_filter_exploding_structures_distances(
+    dyn=None,
+    struct=None,
+    cutoffs_max_base: np.ndarray = None,
+    cutoffs_min_base: np.ndarray = None,
+    max_T: float = None,
+    max_T_multiplier: float = 10,
+    T_list: list[float] = None,
+    remove_positive_E: bool = False,
+) -> bool:
+    """Check if the given structure has an unrealistic structure (explosion)."""
+    if struct is None and dyn:
+        struct = dyn.atoms
 
-#     Parameters
-#     ----------
-#     struct : ase.Atoms
-#         Structure to check.
-#     max_distance : float
-#         Maximum distance between atoms.
-#     min_distance : float
-#         Minimum distance between atoms.
+    # Check energy first to be able to skip the expensive distance calculations
+    # for high-energy structures
+    if remove_positive_E:
+        curr_energy = struct.info.get('REF_energy')
+        if curr_energy is not None and curr_energy > 0:
+            return True
 
-#     Returns
-#     -------
-#     bool
-#         Returns `True` if the structure is exploding, `False` if otherwise.
-#     """
-#     # Get the natural cutoffs and multiply them by the cov_rad_multiplier_max
-#     # cutoffs will be used as the minimum and maximum distance between atoms possible
-#     # for the structure to be considered stable
+    # Check temperature to be able to skip the expensive distance calculations
+    # for high-temperature structures
+    if max_T and max_T_multiplier and T_list:
+        T_arr = np.array(T_list)
+        # The comparison must happen inside the np.any()
+        if np.any(T_arr > (max_T * max_T_multiplier)):
+            return True
 
-#     Maximum possible distance between two atoms. Should be below the maximum cell size
-#     to avoid exploding structures
-#     for
-#     import itertools as it
-#     from ase.build.tools import sort as ase_sort
-#     from ase.data import atomic_numbers, covalent_radii
+    # If the structure passed the quick checks, we do the expensive math.
+    # Calculate cell limits
+    max_cell_val = np.max(struct.cell)
 
-#     ### REMOVE
-#     from ase.io import read as ase_read
+    # Vectorized check to cap cutoffs_max
+    # Assuming cutoffs_max_base was passed in from the outer loop
+    if np.all(max_cell_val > cutoffs_max_base):
+        cutoffs_max = np.full_like(cutoffs_max_base, max_cell_val)
+    else:
+        cutoffs_max = cutoffs_max_base
 
-#     struct_path = '/tmp/90d3-0999-4cf3-b560-09acddb71d3a/curr_structure.xyz'
-#     struct = ase_read(struct_path, format='extxyz')
-#     ####
+    # Get the distances between atoms
+    # This is the O(N^2) bottleneck.
+    all_distances = struct.get_all_distances(mic=True)
 
-#     bond_cutoff_dict = {}
-#     struct = ase_sort(struct)
+    # For max distance, 0 (self-interaction) won't alter the max value,
+    # so we can just compute it directly without masking.
+    max_dist = np.max(all_distances, axis=0)
+    if np.any(max_dist > cutoffs_max):
+        return True
 
-#     # Populate the bond cutoff dictionary with the covalent radii of the elements
-#     possible_bonds = it.combinations_with_replacement(struct.symbols.species(), 2)
-#     possible_bonds = list(possible_bonds)
-#     for bond in possible_bonds:
-#         ele_1 = atomic_numbers[bond[0]]
-#         ele_2 = atomic_numbers[bond[1]]
-#         bond_cutoff_dict[bond] = covalent_radii[ele_1] + covalent_radii[ele_2]
+    # For min distance, we must ignore the diagonal (self-interactions = 0)
+    # np.fill_diagonal is significantly faster than np.where()
+    np.fill_diagonal(all_distances, np.inf)
+    min_dist = np.min(all_distances, axis=0)
 
-#     # Get the distances between atoms
-#     all_distances = struct.get_all_distances(mic=True)
-
-#     # Change all zeros to NaN. Zeros will be there when the
-#     # atom is compared to itself
-#     all_distances[np.where(all_distances == 0)] = np.nan
-
-#     # Get the maximum and minimum distances
-#     # max_dist = np.nanmax(all_distances, axis=0)
-#     # min_dist = np.nanmin(all_distances, axis=0)
-
-#     distances_below_min = []
-#     print('cov_rad_multiplier_min: ', cov_rad_multiplier_min)
-#     d1_list = all_distances.shape[0]
-#     d2_list = all_distances.shape[1]
-#     for d1_idx in range(d1_list):
-#         d1 = all_distances[d1_idx]
-#         distances_below_min.append([])
-#         for d2_idx in range(d1_list):
-#             print('d1: ', d1)
-#             print('d2: ', d2)
-#             breakpoint()
-#             if d1_idx == d2_idx:
-#                 distances_below_min[d1_idx].append(False)
-#                 continue
-
-#             d1_symbol = struct[d1_idx].symbol
-#             d2_symbol = struct[d2_idx].symbol
-
-#             distances_below_min[d1_idx].append(False)
-
-#             curr_bond_set = set((d1_symbol, d2_symbol))
-#             for bond_set in bond_cutoff_dict:
-#                 if curr_bond_set - set(bond_set) == set():
-#                     curr_bond_dist = bond_cutoff_dict[bond_set]
-
-#             if d2 < (curr_bond_dist * cov_rad_multiplier_min):
-#                 distances_below_min[d1_idx][d2_idx] = True
-
-#     print('distance_below_min: ', distances_below_min)
-
-#     breakpoint()
-
-#     cutoffs_max: np.array = np.array(
-#         natural_cutoffs(struct, mult=cov_rad_multiplier_max)
-#     )
-
-#     # Closest possible distance between two atoms.
-#     cutoffs_min: np.array = np.array(
-#         natural_cutoffs(struct, mult=cov_rad_multiplier_min)
-#     )
-#     # max_cell_arr = np.repeat(np.max(struct.cell), repeats=len(cutoffs_max))
-
-#     # If the cutoffs are smaller than the maximum cell size,
-#     # set them to the maximum cell size
-#     # if np.all(max_cell_arr > cutoffs_max):
-#     # cutoffs_max = max_cell_arr
-
-#     # Check if the maximum distance is above the threshold
-#     is_exploding = np.any(max_dist > cutoffs_max) or np.any(min_dist < cutoffs_min)
-
-#     if max_T and max_T_multiplier:
-#         curr_struct_T = struct.info.get('md_temperature', np.nan)
-#         if curr_struct_T > (max_T * max_T_multiplier):
-#             return True
-
-#     if remove_positive_E:
-#         curr_energy = struct.info.get('REF_energy')
-#         if curr_energy > 0:
-#             return True
-
-#     return is_exploding
+    return bool(np.any(min_dist < cutoffs_min_base))

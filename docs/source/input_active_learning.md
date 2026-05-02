@@ -1008,6 +1008,16 @@ Filter for exploding structures based on covalent radius limits.
   - **Type**: `(optional, float)`
   - **Default**: `0.1`.
 
+- {alt}`max_F`:
+  - **Description**: Maximum force component allowed in the structure.
+  - **Type**: `(optional, float)`
+  - **Default**: `25.0`.
+
+- {alt}`max_V`:
+  - **Description**: Maximum velocity component allowed in the structure.
+  - **Type**: `(optional, float)`
+  - **Default**: `2.0`.
+
 #### MD Metadata and Scheduler Options (AiiDA) - `[md.metadata]`
 
 AiiDA metadata and scheduler options for MD simulations.
