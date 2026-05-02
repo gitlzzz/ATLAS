@@ -728,31 +728,32 @@ def generate_descriptors_mace(
     if isinstance(model_path, PosixPath | Path):
         model_path = str(model_path)
 
-    try:
-        # Use torch.load with map_location to ensure model loads on the correct device
-        model_loaded = torch.load(model_path, map_location=torch.device(device))
-    except RuntimeError:
-        model_loaded = torch.load(model_path, map_location=torch.device('cpu'))
-    except FileNotFoundError as e:
-        # Check if the model path indicates a MACE foundation model
-        if 'mace:mp-' in model_path:
-            model_variant = model_path.split('mace:mp-')[-1]
-            if model_variant in ['small', 'medium', 'large', 'medium-mpa-0']:
-                is_mp_foundation = True
-                model_loaded = model_variant
-        elif 'mace:off-' in model_path:
-            model_variant = model_path.split('mace:off-')[-1]
-            if model_variant in ['small', 'medium', 'large']:
-                is_off_foundation = True
-                model_loaded = model_variant
-        else:
-            raise FileNotFoundError(
-                'Model file not found. Please provide a valid model path'
-                'or a mace foundation model name, using the following syntax:'
-                ' "mace:mp-small", "mace:off-medium", etc.'
-            ) from e
-
     with suppress_stdout():
+        try:
+            # Use torch.load with map_location to ensure model
+            # loads on the correct device
+            model_loaded = torch.load(model_path, map_location=torch.device(device))
+        except RuntimeError:
+            model_loaded = torch.load(model_path, map_location=torch.device('cpu'))
+        except FileNotFoundError as e:
+            # Check if the model path indicates a MACE foundation model
+            if 'mace:mp-' in model_path:
+                model_variant = model_path.split('mace:mp-')[-1]
+                if model_variant in ['small', 'medium', 'large', 'medium-mpa-0']:
+                    is_mp_foundation = True
+                    model_loaded = model_variant
+            elif 'mace:off-' in model_path:
+                model_variant = model_path.split('mace:off-')[-1]
+                if model_variant in ['small', 'medium', 'large']:
+                    is_off_foundation = True
+                    model_loaded = model_variant
+            else:
+                raise FileNotFoundError(
+                    'Model file not found. Please provide a valid model path'
+                    'or a mace foundation model name, using the following syntax:'
+                    ' "mace:mp-small", "mace:off-medium", etc.'
+                ) from e
+
         if is_mp_foundation:
             from mace.calculators import mace_mp
 

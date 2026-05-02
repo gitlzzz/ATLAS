@@ -256,6 +256,7 @@ def custom_print(
     # WARNING: Check if this is being repeated
     if not logger:
         logger = logging.getLogger('mdb')
+        logger.propagate = False
 
     # Allows to use the custom print function without initializing
     # the logger first

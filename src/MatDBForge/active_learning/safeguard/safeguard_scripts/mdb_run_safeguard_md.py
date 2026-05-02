@@ -5,6 +5,7 @@ This script is part of MatDBForge's active learning loop, and is used to check
 if the current iteration of the model is robust enough before early stopping.
 """
 
+import logging
 import pathlib as pl
 import pickle
 import tomllib
@@ -26,8 +27,14 @@ from MatDBForge.active_learning.extrapolation.concave_hull import plot_concave_h
 from MatDBForge.core import code_utils as mdb_cut
 from MatDBForge.core.filtering import structure_filters as mdb_str_filters
 
+# Silencing specific warnings and log messages
 warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=UserWarning, message='.*weights_only.*')
 warnings.filterwarnings('ignore')
+
+# Force third party loggers to only show errors and critical messages
+logging.getLogger('mace').setLevel(logging.ERROR)
+logging.getLogger('e3nn').setLevel(logging.ERROR)
 
 
 def check_traj_in_domain(
@@ -419,6 +426,7 @@ if __name__ == '__main__':
                 )
                 if is_structure_wrong:
                     exploding_structs.append(idx)
+
             frames_to_remove.extend(exploding_structs)
 
             mdb_cut.custom_print(
