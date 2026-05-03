@@ -36,7 +36,13 @@ VDW_DATA_PATH = pl.Path(MDB_DATA_DIR / 'vdw-data')
 try:
     load_profile()
 except Exception as e:
-    mdb_cut.custom_print(f"Error loading aiida profile: '{e}'", 'error')
+    # Print error message using custom print function
+    tmp_logger = mdb_cut.custom_print(f"Error loading aiida profile: '{e}'", 'error')
+
+    # Disable added handlers to avoid duplicate messages, since custom_print
+    # instantiates the mdb logger and adds a handle if the logger argument is
+    # not passed.
+    tmp_logger.handlers = []
 
 
 PARSER_DICT = {
