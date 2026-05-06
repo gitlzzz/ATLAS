@@ -329,6 +329,7 @@ def mdb_show_progress(
         console=Console(theme=MDB_THEME),
         refresh_per_second=1,
         transient=False,
+        refresh_per_second=1,
     )
     with progress:
         task_id = progress.add_task(
