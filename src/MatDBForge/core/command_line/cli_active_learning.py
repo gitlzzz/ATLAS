@@ -307,9 +307,13 @@ def resume_al_loop_builder(
             and not should_reset_seed_db
         ):
             seed_db_path = prev_run_dir / 'mdb_seed_db.xyz'
+            custom_print(
+                f"Seed database has been resumed from the file: '{seed_db_path}'. ",
+                'info',
+            )
         else:
             custom_print(
-                'Seed database is intialized as a copy of the training database. '
+                'Seed database has been intialized as a copy of the training database. '
                 "This behavior can be changed using 'active_learning.reset_seed_db'.",
                 'warning',
             )
@@ -767,14 +771,14 @@ def run_active_learning():
             'run_active_learning resume [-h] --dir_resume <PATH> '
             '[--config_file <PATH>]\n\n'
             'Resume a MatDBForge Active Learning Loop.\n'
-            'The resume command allows to continue a stopped '
-            'active learning loop using its results folder.\n'
-            'The code will check for the files in the folder and\n'
-            'restart the last attempted iteration from the beginning.\n'
-            'The training database will be loaded from the results,\n'
-            'folder and the seed database can be loaded from the results\n'
-            'folder or reinitialized from the current training database.\n'
-            'The old_log_path option can be provided to continue the\n'
+            'The resume command allows to continue a stopped active learning loop '
+            "using its results ('.../run_<UUID>') folder.\n\n"
+            'The code will check for the files in the folder and restart the last '
+            'attempted iteration from the beginning.\nThe training database will be'
+            'loaded from the results folder and the seed database can be loaded '
+            "from the \nresults folder ('mdb_seed_db.xyz' will be searched for) "
+            'or reinitialized from the current training database.\n\n'
+            'The old_log_path option can be provided to continue the '
             'logging from the previous run.'
         ),
     )
