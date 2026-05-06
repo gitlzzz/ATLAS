@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.51.0 (2026-05-06)
+
+### Feature
+
+- **init_db**: add database analysis script ([#44ff63b](https://github.com/pol-sb/MatDBForge/commit/44ff63b1ce9a0d66a8ad088703578f932008e72d))
+
+### Fix
+
+- **core**: reduce refresh rate of progress bar ([#8a5ef9e](https://github.com/pol-sb/MatDBForge/commit/8a5ef9e1f8874e3f7c44815104d8cb9d96d0f9f8))
+
+### Refactor
+
+- **al_loop**: improve clarity of seed database loading when resuming active learning ([#feaf7c8](https://github.com/pol-sb/MatDBForge/commit/feaf7c81e61576d97538805763fb70eb2953f41f))
+
 ## 0.50.2 (2026-05-03)
 
 ### Fix
