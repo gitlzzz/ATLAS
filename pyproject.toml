@@ -119,6 +119,7 @@ Homepage = "https://github.com/pol-sb/MatDBForge"
 "mdb_run_dft_database" = "MatDBForge.workflows.dft.vasp.aiida_run_vasp_dft_database:main"
 "mdb_benchmark_mlip" = "MatDBForge.benchmarks.mlip.evaluate_mlip_performance:main"
 "mdb_latent_space_analysis" = "MatDBForge.core.command_line.cli_latent_space_analysis:run_latent_space_analysis"
+"mdb_database_analysis" = "MatDBForge.core.command_line.cli_db_analysis:run_database_analysis"
 
 # package managers are becoming dangerous
 [tool.uv]
