@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.51.1 (2026-05-06)
+
+### Fix
+
+- **core**: remove repeated refresh_per_second ([#e64f5c0](https://github.com/pol-sb/MatDBForge/commit/e64f5c03e196d3d04fc819888044388737aa751b))
+- **core**: clear handlers in mdb logger when loading aiida profile to avoid duplicate log messages ([#04b71b6](https://github.com/pol-sb/MatDBForge/commit/04b71b64b1848329ef1bbb4e927fd08271f6b1a5))
+
+### Refactor
+
+- **core**: reduce refresh_per_second in mdb_show_progress() ([#5b9bc75](https://github.com/pol-sb/MatDBForge/commit/5b9bc75025b4615bc96e9293ad7cb149dd96c640))
+
 ## 0.51.0 (2026-05-06)
 
 ### Feature
