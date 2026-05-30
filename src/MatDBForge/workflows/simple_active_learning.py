@@ -2348,11 +2348,48 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         use_test_db = test_settings.get('use_test_db', False)
         test_db_path = test_settings.get('test_db_path')
         test_db_frac = test_settings.get('test_db_frac')
+
         if use_test_db:
             self.report(
                 'Test database usage enabled. '
                 'Preparing test database to be used during the AL Loop...'
             )
+
+            # Save a copy of the initial database
+            if test_db_path is None:
+                init_db_filename = init_db_path.name
+                test_db_filename = 'mdb_test-db_' + init_db_filename
+                test_db_path = init_db_path.with_name(test_db_filename)
+
+                # We store the updated path in the node's extras. If this WorkChain
+                # crashes, the resume script can gather the test_settings extras.
+                test_settings.base.extras.set('test_db_path', str(test_db_path))
+
+            # We must consider if the workchain is being resumed or not, as this
+            # will affect how the test database is prepared.
+            # If the workchain is being resumed, we check if the test database was
+            # already prepared in the previous run, so we just need to load it and
+            # add it to the context.
+            # If the workchain is not being resumed, we need to prepare the test
+            # database from the initial training database, and then add it to
+            # the context.
+            if self.inputs.resume_dict:
+                self.report(
+                    'Resume mode enabled: '
+                    'Checking for existing test database prepared in previous run...'
+                )
+
+                new_test_db_path = test_settings.base.extras.get(
+                    'test_db_path',
+                )
+
+                if new_test_db_path and Path(new_test_db_path).exists():
+                    test_db_path = Path(new_test_db_path)
+                    self.report(
+                        f'Found existing test database prepared in previous run: '
+                        f"'{test_db_path}'. Loading it and adding to context..."
+                    )
+
             # Create test database, remove structures from Dt and create a
             # SinglefileData node for it.
             test_db_file, test_db_structures, database_training = (
@@ -2362,9 +2399,20 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     training_db=database_training,
                 )
             )
-            test_db_file.store()
+
+            # Only store the file if it hasn't been stored yet
+            if not test_db_file.is_stored:
+                test_db_file.store()
             self.ctx.test_db_file = test_db_file
             self.ctx.use_test_db = orm.Bool(True)
+
+            if not test_db_path.exists():
+                ase_write(
+                    filename=test_db_path,
+                    format='extxyz',
+                    images=test_db_structures,
+                )
+                self.report(f"Saved backup of test database in: '{test_db_path}'")
 
             self.ctx.test_settings = orm.Dict(test_settings)
 
@@ -2676,8 +2724,8 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         # Update the iteration counter if resuming from a previous run
         if self.inputs.resume_dict:
             self.report(
-                'Resuming from previous run , '
-                f'({self.inputs.resume_dict.get("prev_workchain_uuid", "unknown id")}) '
+                'Resuming from previous run, '
+                f'{self.inputs.resume_dict.get("prev_workchain_uuid", "unknown id")} '
                 'stopped at iteration: '
                 f"'{self.inputs.resume_dict['last_iteration']}'."
             )
