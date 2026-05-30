@@ -538,7 +538,12 @@ def get_last_tagged_version_local(repo_dir_path: str = None):
         newest_tag = tags[0] if tags else '0.0.0'
 
         # Get the current commit hash
-        current_hash = sb.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+        try:
+            current_hash = (
+                sb.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+            )
+        except sb.CalledProcessError:
+            current_hash = 'unknown'
 
     finally:
         # Ensure we switch back to the original directory
