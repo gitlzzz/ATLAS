@@ -1,15 +1,15 @@
 # CLI Arguments
 
-This section describes the command line arguments for various scripts provided by the MatDBForge library. These arguments allow users to control the behavior and configuration of active learning loops, database generation, and other features. Each argument is explained along with its usage and default value (if applicable).
+This section describes the command line arguments for various scripts provided by the ATLAS library. These arguments allow users to control the behavior and configuration of active learning loops, database generation, and other features. Each argument is explained along with its usage and default value (if applicable).
 
-## Run Active Learning - `mdb_active_learning`
+## Run Active Learning - `atl_active_learning`
 
-Handles MatDBForge active learning loop runs. Running the `mdb_active_learning` command without any subcommand or the gui subcommand will start a new run.
+Handles ATLAS active learning loop runs. Running the `atl_active_learning` command without any subcommand or the gui subcommand will start a new run.
 In order to do this, users must provide a TOML settings file which can be configured as seen in the [inputs section](input_active_learning.md).
 
 Other available subcommands allow to generate reports or resume loops using files generated from previous runs.
 
-**Usage:** `mdb_active_learning <SUBCOMMAND> <OPTIONS>`
+**Usage:** `atl_active_learning <SUBCOMMAND> <OPTIONS>`
 
 ### General Arguments
 
@@ -20,28 +20,28 @@ Other available subcommands allow to generate reports or resume loops using file
 
 ### Subcommands
 
-Subcommands define the operating mode of the `mdb_active_learning` tool.
+Subcommands define the operating mode of the `atl_active_learning` tool.
 
 #### `report` - Generate reports
 
-Generates different types of reports for a MatDBForge active learning loop or a MatDBForge initial database.
+Generates different types of reports for a ATLAS active learning loop or a ATLAS initial database.
 
-**Usage:** `mdb_active_learning report <REPORT_TYPE> [OPTIONS...]`
+**Usage:** `atl_active_learning report <REPORT_TYPE> [OPTIONS...]`
 
 The `report` command requires specifying a `REPORT_TYPE` as a positional argument, followed by options specific to that report type.
 
 **Available `REPORT_TYPE`s:**
 
-- `init_db`: Generate a report for a MatDBForge initial database.
+- `init_db`: Generate a report for a ATLAS initial database.
 - `al_loop`: Generate a report for an active learning loop by providing an AiiDA PK/UUID or a log file path.
 - `al_loop_batch`: Generate a report for a series of active learning loops, as a way of comparing them.
 - `al_loop_performance`: Generate a performance report for an active learning loop.
 
 ##### Report type: `init_db`
 
-Generates a report for a MatDBForge initial database. This can include plots of energy and force distributions, with options to handle outliers and customize data presentation.
+Generates a report for a ATLAS initial database. This can include plots of energy and force distributions, with options to handle outliers and customize data presentation.
 
-**Usage:** `mdb_active_learning report init_db [-h] --db_path <PATH> [OPTIONS...]`
+**Usage:** `atl_active_learning report init_db [-h] --db_path <PATH> [OPTIONS...]`
 
 - `--db_path <PATH>, -d <PATH>`
   - **Description**: Path to the database file.
@@ -67,14 +67,14 @@ Generates a report for a MatDBForge initial database. This can include plots of 
 
 ##### Report type: `al_loop`
 
-Generates a comprehensive report for a single active learning loop, identified by an AiiDA PK/UUID or a MatDBForge log file path. This report can include plots on database sizes (training and seed), NNP performance metrics, the number of structures added or removed, error analysis plots comparing DFT and NN predictions, and visualization of database evolution in latent space.
+Generates a comprehensive report for a single active learning loop, identified by an AiiDA PK/UUID or a ATLAS log file path. This report can include plots on database sizes (training and seed), NNP performance metrics, the number of structures added or removed, error analysis plots comparing DFT and NN predictions, and visualization of database evolution in latent space.
 
-**Usage:** `mdb_active_learning report al_loop [-h] (--loop_id <ID> | --log_path <PATH>) [OPTIONS...]`
+**Usage:** `atl_active_learning report al_loop [-h] (--loop_id <ID> | --log_path <PATH>) [OPTIONS...]`
 
 - `--loop_id <ID>, -i <ID>`
   - **Description**: AiiDA PK/UUID of the active learning loop. (This or `--log_path` is required).
 - `--log_path <PATH>, -log <PATH>`
-  - **Description**: Path to the MatDBForge log of the active learning loop. (This or `--loop_id` is required).
+  - **Description**: Path to the ATLAS log of the active learning loop. (This or `--loop_id` is required).
 - `--device <DEVICE>, -d <DEVICE>`
   - **Description**: String representing a device to run inference on (e.g., 'cpu', 'cuda:0').
   - **Type**: `str`
@@ -117,8 +117,8 @@ Generates a comprehensive report for a single active learning loop, identified b
 
 Generates a comparative report for a series of active learning loops. This allows for assessing and contrasting the outcomes or behaviors of multiple loops, typically identified by their AiiDA PKs/UUIDs or log file paths.
 
-**Usage:** `mdb_active_learning report al_loop_batch [OPTIONS...]`
-*(Note: The specific command-line options for `al_loop_batch` were not detailed in the provided help snippets. You may need to run `mdb_active_learning report al_loop_batch --help` directly or consult the tool's source for a complete list of options. It is expected to take identifiers for multiple loops, possibly similar to `--loop_ids` in `al_loop_performance`.)*
+**Usage:** `atl_active_learning report al_loop_batch [OPTIONS...]`
+*(Note: The specific command-line options for `al_loop_batch` were not detailed in the provided help snippets. You may need to run `atl_active_learning report al_loop_batch --help` directly or consult the tool's source for a complete list of options. It is expected to take identifiers for multiple loops, possibly similar to `--loop_ids` in `al_loop_performance`.)*
 
 - **Description (from general help)**: "Generate a report for a series of active learning loops, as a way of comparing them by providing an AiiDA PK/UUID or a log file path."
 - **Description (from existing markdown)**: "Generate a report for a series of active learning loops, as a way of comparing them by providing an AiiDA PK."
@@ -129,7 +129,7 @@ Generates a comparative report for a series of active learning loops. This allow
 
 Generates a performance report for an active learning loop, focusing on computational aspects. The plots typically display step durations and computational resource usage, which can be useful for identifying bottlenecks or understanding the efficiency of the loop. Multiple AiiDA PKs/UUIDs can be provided for multi-stage loops (e.g., when a loop was resumed).
 
-**Usage:** `mdb_active_learning report al_loop_performance [-h] (--loop_id <ID> | --log_path <PATH>) [OPTIONS...]`
+**Usage:** `atl_active_learning report al_loop_performance [-h] (--loop_id <ID> | --log_path <PATH>) [OPTIONS...]`
 
 - `--loop_ids <ID> [<ID> ...], -i <ID> [<ID> ...]`
   - **Description**: AiiDA PK/UUIDs of the active learning loop(s). Several IDs can be provided for multi-stage loops (e.g., when using `resume`) or to analyze multiple distinct loops in a performance context. Get IDs from your log or terminal output.
@@ -144,7 +144,7 @@ Generates a performance report for an active learning loop, focusing on computat
 
 Resumes an active learning loop using a results folder. A resumed run will use the settings from the `.toml` file contained in the results folder.
 
-**Usage**: `mdb_active_learning resume [-h] --dir_resume <PATH> [--config_file <PATH>]`
+**Usage**: `atl_active_learning resume [-h] --dir_resume <PATH> [--config_file <PATH>]`
 
 - `--dir_resume, -d` (`<PATH>`)
   - **Description**: Path to the results directory of a previous active learning loop run.
@@ -176,7 +176,7 @@ Launches a dashboard to track the active learning loop.
 
 ## Active Learning Dashboard - `monitor_al_loop`
 
-Monitor a MatDBForge active learning loop using a dashboard.
+Monitor a ATLAS active learning loop using a dashboard.
 
 **Usage:** `monitor_al_loop [-h] [--process_id UUID/PK] [--update_interval n_sec] [--port port] [--debug] [--online]`
 
@@ -199,11 +199,11 @@ Monitor a MatDBForge active learning loop using a dashboard.
   - **Description**: Enable online mode.
   - **Default**: `False`
 
-## Generate Configuration File - `mdb_gen_configuration_file`
+## Generate Configuration File - `atl_gen_configuration_file`
 
-Generates default configuration files for MatDBForge in the TOML format. The generated `.toml` files can be used as a template for active learning runs and initial database generation.
+Generates default configuration files for ATLAS in the TOML format. The generated `.toml` files can be used as a template for active learning runs and initial database generation.
 
-**Usage:** `mdb_gen_configuration_file [-h] -t TYPE [-p PATH] [-o]`
+**Usage:** `atl_gen_configuration_file [-h] -t TYPE [-p PATH] [-o]`
 
 - `-t, --config_type` (`TYPE`)
   - **Description**: Type of the configuration file to be generated. Available types:
@@ -220,22 +220,22 @@ Generates default configuration files for MatDBForge in the TOML format. The gen
   - **Description**: Whether to overwrite the destination file if it already exists.
   - **Default**: `False`
 
-## Generate Initial Database - `mdb_gen_init_db`
+## Generate Initial Database - `atl_gen_init_db`
 
-Generates an initial database for MatDBForge. A `.toml` configuration is required, which is described in the [corresponding inputs section](input_database_generation.md)
+Generates an initial database for atlas. A `.toml` configuration is required, which is described in the [corresponding inputs section](input_database_generation.md)
 
-**Usage:** `mdb_gen_init_db [-h] [-c PATH]`
+**Usage:** `atl_gen_init_db [-h] [-c PATH]`
 
 - `-c, --config_file` (`PATH`)
   - **Description**: Path to a TOML settings file. By default, `database_generation_settings.toml` will be searched in the CWD.
   - **Type**: `Path`
   - **Default**: `./database_generation_settings.toml`
 
-## Run DFT Database - `mdb_run_dft_database`
+## Run DFT Database - `atl_run_dft_database`
 
 Runs VASP DFT calculations for a database of structures using AiiDA-VASP. A .toml configuration file is required to specify the input settings for HPC and VASP. Refer to the [corresponding inputs section](input_dft.md) for more details about the available configuration options.
 
-**Usage**: `mdb_run_dft_database [-h] --db_file FILE --config FILE`
+**Usage**: `atl_run_dft_database [-h] --db_file FILE --config FILE`
 
 - `--db_file FILE, -i FILE`
   - **Description**: Path to the extxyz file containing the database of structures.
@@ -247,12 +247,12 @@ Runs VASP DFT calculations for a database of structures using AiiDA-VASP. A .tom
   - `Type`: `Path`
   - `Required`: Yes
 
-## Autoencoder for Dimensionality Reduction - `mdb_train_autoencoder`
+## Autoencoder for Dimensionality Reduction - `atl_train_autoencoder`
 
 Train an autoencoder model for dimensionality reduction using the generated descriptors.
 The model is trained on descriptors (either `SOAP` or `MACE`) which are provided through a numpy array in the `.npy` format that holds vstacked arrays of atomic descriptors.
 
-**Usage:** `mdb_train_autoencoder [-h] [--device DEVICE] [--dtype DTYPE] [--model_path MODEL_PATH] [--load_model LOAD_MODEL] [--rng_seed RNG_SEED] [--dataset DATASET] [--l1_hidden_dim L1_HIDDEN_DIM] [--l2_hidden_dim L2_HIDDEN_DIM] [--bottleneck_dim BOTTLENECK_DIM] [--num_epochs NUM_EPOCHS] [--batch_size BATCH_SIZE] [--patience PATIENCE] [--lr LR] [--weight_decay WEIGHT_DECAY] [--bias_flag] [--loss LOSS] [--train_frac TRAIN_FRAC] [--valid_frac VALID_FRAC] [--test_frac TEST_FRAC] [--wandb] [--wandb_name WANDB_NAME] [--wandb_project WANDB_PROJECT]`
+**Usage:** `atl_train_autoencoder [-h] [--device DEVICE] [--dtype DTYPE] [--model_path MODEL_PATH] [--load_model LOAD_MODEL] [--rng_seed RNG_SEED] [--dataset DATASET] [--l1_hidden_dim L1_HIDDEN_DIM] [--l2_hidden_dim L2_HIDDEN_DIM] [--bottleneck_dim BOTTLENECK_DIM] [--num_epochs NUM_EPOCHS] [--batch_size BATCH_SIZE] [--patience PATIENCE] [--lr LR] [--weight_decay WEIGHT_DECAY] [--bias_flag] [--loss LOSS] [--train_frac TRAIN_FRAC] [--valid_frac VALID_FRAC] [--test_frac TEST_FRAC] [--wandb] [--wandb_name WANDB_NAME] [--wandb_project WANDB_PROJECT]`
 
 ### Arguments
 
@@ -340,11 +340,11 @@ The model is trained on descriptors (either `SOAP` or `MACE`) which are provided
   - **Description**: Name of the Weights & Biases project.
   - **Type**: `str`
 
-## MLIP Benchmark - `mdb_benchmark_mlip`
+## MLIP Benchmark - `atl_benchmark_mlip`
 
-Evaluates and compares the performance of Machine Learning Interatomic Potentials (MLIPs) using a suite of benchmarks. This tool can load models from `.model` files or from MatDBForge workchains using the AiiDA pk/uuid and run various evaluations, such as molecular dynamics simulations, defect calculations, and surface energy analysis, returning figures and output with results.
+Evaluates and compares the performance of Machine Learning Interatomic Potentials (MLIPs) using a suite of benchmarks. This tool can load models from `.model` files or from ATLAS workchains using the AiiDA pk/uuid and run various evaluations, such as molecular dynamics simulations, defect calculations, and surface energy analysis, returning figures and output with results.
 
-**Usage:** `mdb_benchmark_mlip [OPTIONS]`
+**Usage:** `atl_benchmark_mlip [OPTIONS]`
 
 ### Main Arguments
 

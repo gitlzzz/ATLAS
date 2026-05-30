@@ -8,7 +8,7 @@
 
 ## DFT Calculations
 
-Generate a dft template file using `mdb_gen_configuration_file -t dft`.
+Generate a dft template file using `atl_gen_configuration_file -t dft`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.
@@ -95,12 +95,12 @@ K-point settings.
 
 
 - {alt}`kspacing`:
-  - **Description**: K-spacing in Å⁻¹ for different phases or a single value for all structures. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `MDB_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed.
+  - **Description**: K-spacing in Å⁻¹ for different phases or a single value for all structures. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `ATL_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed.
   - **Type**: `(dict)`
   - **Example**:
 
 ```python
-{'MDB_DEFAULT': 0.15, 'alpha': 0.125}
+{'ATL_DEFAULT': 0.15, 'alpha': 0.125}
 ```
 
 ### Queue - `[queue]`

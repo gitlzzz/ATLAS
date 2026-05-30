@@ -1,0 +1,64 @@
+# Example MLIP Benchmark Configuration
+# This is a minimal example showing how to set up a benchmark run
+
+[general]
+output_dir = "./example_results"
+metal = "Cu"
+device = "cuda"
+dtype = "float64"
+
+[models]
+# Specify at least one model source
+# Example with local model files:
+model_files = [
+    # "/path/to/your/model1.model",
+    # "/path/to/your/model2.model",
+]
+
+# Or use AiiDA workchain PKs:
+aiida_pks = [
+    # 12345,
+    # 67890,
+]
+
+# Or use foundation models:
+foundation_models = [
+    # "mace:small",
+    # "mace:medium",
+]
+
+[slab_generation]
+surface_indices = [1, 1, 1]
+supercell_size = [3, 3, 4]
+vacuum = 10.0
+
+[md_parameters]
+temp = 300.0
+n_steps = 5000  # Reduced for faster testing
+timestep = 2.0
+friction = 0.005
+
+[benchmarks]
+# Enable the benchmarks you want to run
+run_elastic_properties = true
+run_surface_energies = true
+# run_melting_point = true  # This takes longer
+# run_phonon_dispersion = true
+# run_gsfe = true
+
+# Uncomment and configure below if using these benchmarks:
+
+# [test_set]
+# test_set_path = "/path/to/test_set.xyz"
+
+# [magic_cluster]
+# magic_cluster_dft_refs = "/path/to/dft_refs.json"
+# magic_cluster_sizes = [13, 19, 55]
+
+# [surface_energy_benchmark]
+# dft_refs = "/path/to/surface_energies.json"
+
+# [melting_point_benchmark]
+# supercell_size = [6, 6, 6]
+# solid_temp_K = 1100.0
+# liquid_temp_K = 1600.0

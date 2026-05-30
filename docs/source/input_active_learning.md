@@ -8,7 +8,7 @@
 
 ## Active Learning Loop
 
-Generate a active learning template file using `mdb_gen_configuration_file -t active_learning`.
+Generate a active learning template file using `atl_gen_configuration_file -t active_learning`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.
@@ -503,7 +503,7 @@ Settings for active learning safeguard mechanisms. The safeguard will run long M
   - **Default**: `False`.
 
 - {alt}`target_structure_mode`:
-  - **Description**: Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures, after applying lateral expansion controlled with the base_struct_supercell_size option. If `target` is provided, a selection of targeted structures (via paths or mdb_id) must be included through the `struct_target_list` option below.
+  - **Description**: Type of structures to include in the safeguard. Multiple types can be selected. If `base` is provided, the structures labelled as 'base' in the initial database will be used as target structures, after applying lateral expansion controlled with the base_struct_supercell_size option. If `target` is provided, a selection of targeted structures (via paths or atl_id) must be included through the `struct_target_list` option below.
   - **Type**: `(str)`
   - **Default**: `'base'`.
   - Possible values are: `base`, `target`.
@@ -1066,7 +1066,7 @@ Container settings for code execution.
 - {alt}`engine_command`:
   - **Description**: Command template for the container engine.
   - **Type**: `(optional, str)`
-  - **Example**: `'singularity exec --bind .:/mdb_data --nv --contain --writable-tmpfs {image_name}'`.
+  - **Example**: `'singularity exec --bind .:/atl_data --nv --contain --writable-tmpfs {image_name}'`.
 
 - {alt}`prepend_text`:
   - **Description**: Text to prepend to job scripts for container setup.
@@ -1460,12 +1460,12 @@ This section is optional.
   - Possible values are: `bulk`, `surface`, `cluster`.
 
 - {alt}`kspacing`:
-  - **Description**: K-spacing settings for different phases or default value. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `MDB_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed.
+  - **Description**: K-spacing settings for different phases or default value. The k-spacing values will be applied on a per-phase basis, according to the keys added to the dictionary which must match phases in the database. The `ATL_DEFAULT` key can be used to set a default k-spacing value for all phases not explicitly listed.
   - **Type**: `(optional, dict)`
   - **Example**:
 
 ```python
-{'MDB_DEFAULT': 0.15, 'alpha': 0.135}
+{'ATL_DEFAULT': 0.15, 'alpha': 0.135}
 ```
 
 - {alt}`incar`:

@@ -1,0 +1,152 @@
+[database]
+database_name = "cu_only_new"
+min_num_atoms = 24
+max_num_atoms = 256
+min_cell_size = 5.0
+relax_struct_path = ""
+database_path = ""
+rng_seed = 16122024
+overwrite_db = false
+
+[database.composition]
+size = 2000
+
+[database.composition.ratios]
+bulk = 0.5
+surface = 0.5
+cluster = 0.0
+
+[database.plot_db]
+show = true
+format = "png"
+
+[database.plot_db.rc_params]
+"font.family" = "DejaVu Sans"
+"font.size" = 12
+
+[database.show_db_ase]
+show = true
+
+[database.export]
+export = true
+format = "extxyz"
+file_path = ""
+file_name = "cu_db_all_phases"
+
+[phase_diagram]
+material_name = "default_material_name"
+element_list = [
+    "Cu",
+    "Zn",
+]
+base_element = "Cu"
+
+[generation]
+generate_type = [
+    "bulk",
+    "surface",
+]
+
+[generation.bulk]
+num_struct = 25
+num_repeat = 5
+supercell_max_idx = 2
+
+[generation.surface]
+min_miller_index = 1
+max_miller_index = 3
+min_slab_size_ang = 7.0
+min_vacuum_size_ang = 12.0
+get_supercells = true
+fixed_layers = 3
+max_number_supercells = 200
+save_in_db = true
+num_replacements = 20
+num_repeat_replace = 2
+frac_slabs_save = 0.1
+frac_supercells_save = 0.1
+max_slab_num = 15
+n_workers = 12
+
+[deformation]
+lattice_frac_deform_max = 0.05
+lattice_frac_deform_min = 0.01
+num_repeats = 5
+limit_max_num_deformations = 100
+
+[perturbation]
+filter_struct_types = [
+    "bulk",
+    "surface",
+]
+limit_max_num_perturbs = 100
+num_repeats = 7
+
+[adsorbates]
+filter_struct_types = "surface"
+limit_max_num_perturbs = 1700
+num_repeats = 7
+adsorbate_species = [
+    "H",
+    "H2O",
+]
+
+[struct_filters.no_neighbors]
+cov_rad_multiplier = 1.05
+
+[struct_filters.layer_distance]
+max_layer_distance_ang = 3.5
+
+[struct_filters.duplicate_slabs]
+tolerance = 0.2
+
+[vacancies]
+filter_struct_types = [
+    "bulk",
+    "surface",
+]
+limit_max_num_vacancies = 10
+num_repeats = 3
+max_vacancy_percentage = 0.075
+min_vacancy_percentage = 0.025
+element_list = "Cu"
+
+[md_gen]
+filter_struct_types = [
+    "bulk",
+    "surface",
+]
+max_num_frames = 300
+
+[md_gen.md.parameters]
+al_keep_struct_every_n_ps = 2
+temperature_K = 300.0
+max_temp_multiplier = 1.333
+num_steps = 10000
+timestep_duration_ps = 0.003
+langevin_friction_ps-1 = 10
+gather_traj_cnt_lattice = true
+use_kokkos = false
+device = "cuda"
+default_dtype = "float32"
+
+[targeted_modification.central_atom_octahedral]
+filter_phases = [
+    "rutile-sno2",
+    "rutile-nbo2",
+    "rutile-tao2",
+]
+filter_struct_types = [
+    "bulk",
+    "surface",
+]
+central_element = "Ir"
+num_repeats = 3
+limit_max_num_modifications = 200
+max_perturbation_ang = 0.2
+
+[concave_hull]
+gen_concave_hull = true
+descriptor = "SOAP"
+dim_reduction = "autoencoder"
+plot_filename = "descriptors_concave_hull.png"

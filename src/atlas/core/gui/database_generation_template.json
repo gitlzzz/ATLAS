@@ -1,0 +1,1372 @@
+{
+  "database": {
+    "database_name": {
+      "key_name": "database_name",
+      "default_value": "cu_only_new",
+      "type": "str",
+      "description": "Name of the database to be used as filename and for internal reference",
+      "optional": false
+    },
+    "min_num_atoms": {
+      "key_name": "min_num_atoms",
+      "default_value": 24,
+      "type": "int",
+      "description": "minimum number of atoms in the structure",
+      "optional": false
+    },
+    "max_num_atoms": {
+      "key_name": "max_num_atoms",
+      "default_value": 256,
+      "type": "int",
+      "description": "maximum number of atoms in the structure",
+      "optional": false
+    },
+    "min_cell_size": {
+      "key_name": "min_cell_size",
+      "default_value": 5.0,
+      "type": "float",
+      "description": "minimum cell size in Angstrom",
+      "optional": false
+    },
+    "relax_struct_path": {
+      "key_name": "relax_struct_path",
+      "default_value": "",
+      "type": "str",
+      "description": "Path to a folder containing DFT optimized structures",
+      "optional": true
+    },
+    "database_path": {
+      "key_name": "database_path",
+      "default_value": "",
+      "type": "str",
+      "description": "Path for the final database",
+      "optional": false
+    },
+    "rng_seed": {
+      "key_name": "rng_seed",
+      "default_value": 16122024,
+      "type": "int",
+      "description": "Value for the RNG seed",
+      "optional": true
+    },
+    "overwrite_db": {
+      "key_name": "overwrite_db",
+      "default_value": false,
+      "type": "bool",
+      "description": "Allow database overwrite. Default is false. If false, and the database exists, the new database name and folder will include a timestamp.",
+      "optional": true
+    },
+    "composition": {
+      "size": {
+        "key_name": "size",
+        "default_value": 2000,
+        "type": "int",
+        "description": "Maximum number of structures to generate for the database",
+        "optional": false
+      },
+      "ratios": {
+        "bulk": {
+          "key_name": "bulk",
+          "default_value": 0.5,
+          "type": "float",
+          "description": "Fraction of structures that will be bulk",
+          "optional": false
+        },
+        "surface": {
+          "key_name": "surface",
+          "default_value": 0.5,
+          "type": "float",
+          "description": "Fraction of structures that will be surfaces",
+          "optional": false
+        },
+        "cluster": {
+          "key_name": "cluster",
+          "default_value": 0.0,
+          "type": "float",
+          "description": "Fraction of structures that will be clusters",
+          "optional": false
+        }
+      }
+    },
+    "plot_db": {
+      "show": {
+        "key_name": "show",
+        "default_value": true,
+        "type": "bool",
+        "description": "Display database with phase diagram after creation",
+        "optional": true
+      },
+      "format": {
+        "key_name": "format",
+        "default_value": "png",
+        "type": "str",
+        "description": "Format for the figure, such as 'png' or 'svg'. Default is 'png'.",
+        "optional": true
+      },
+      "rc_params": {
+        "font.family": {
+          "key_name": "font.family",
+          "default_value": "DejaVu Sans",
+          "type": "str",
+          "description": "Display options which follow the RCParams of matplotlib",
+          "optional": false
+        },
+        "font.size": {
+          "key_name": "font.size",
+          "default_value": 12,
+          "type": "int",
+          "description": "Display options which follow the RCParams of matplotlib",
+          "optional": false
+        }
+      }
+    },
+    "show_db_ase": {
+      "show": {
+        "key_name": "show",
+        "default_value": true,
+        "type": "bool",
+        "description": "Display database with ASE GUI after creation",
+        "optional": true
+      }
+    },
+    "export": {
+      "export": {
+        "key_name": "export",
+        "default_value": true,
+        "type": "bool",
+        "description": "Export format for the database, such as 'extxyz'. The format must be supported by ASE, see: https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read",
+        "optional": false
+      },
+      "format": {
+        "key_name": "format",
+        "default_value": "extxyz",
+        "type": "str",
+        "description": "The format must be supported by ASE",
+        "optional": false
+      },
+      "file_path": {
+        "key_name": "file_path",
+        "default_value": "",
+        "type": "str",
+        "description": "",
+        "optional": false
+      },
+      "file_name": {
+        "key_name": "file_name",
+        "default_value": "cu_db_all_phases",
+        "type": "str",
+        "description": "",
+        "optional": false
+      }
+    }
+  },
+  "phase_diagram": {
+    "material_name": {
+      "key_name": "material_name",
+      "default_value": "default_material_name",
+      "type": "str",
+      "description": "Internal name for the phase diagram.",
+      "optional": false
+    },
+    "element_list": {
+      "key_name": "element_list",
+      "default_value": [
+        "Cu",
+        "Zn"
+      ],
+      "type": "list",
+      "description": "List of elements in the phase diagram",
+      "optional": false
+    },
+    "base_element": {
+      "key_name": "base_element",
+      "default_value": "Cu",
+      "type": "str",
+      "description": "Symbol of the most abundant element in the phase. It must be one of the elements in the `element_list`",
+      "optional": false
+    },
+    "phase": {
+      "cu": {
+        "name": {
+          "key_name": "name",
+          "default_value": "alpha",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-30",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": false
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": false
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        }
+      },
+      "cu_alpha-la": {
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_alpha-la",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-989695",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": false
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": false
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        }
+      },
+      "cu_mg": {
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_mg",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-989782",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": false
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": false
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        }
+      },
+      "cu_w_td": {
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_w_td",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-1010136",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": false
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": false
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        }
+      },
+      "cu_w_cubic": {
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_w_cubic",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-998890",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": false
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": false
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        }
+      },
+      "cu_pa": {
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_pa",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": false
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-1059259",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": false
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": false
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        }
+      },
+      "cu_p3m1_trigonal": {
+        "optional": true,
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_p3m1_trigonal",
+          "type": "str",
+          "description": "",
+          "optional": true
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": true
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-1120774",
+          "type": "str",
+          "description": "",
+          "optional": true
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": true
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": true
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": true
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": true
+        }
+      },
+      "cu_p2m_monoclinic": {
+        "optional": true,
+        "name": {
+          "key_name": "name",
+          "default_value": "cu_p2m_monoclinic",
+          "type": "str",
+          "description": "",
+          "optional": true
+        },
+        "cluster_element": {
+          "key_name": "cluster_element",
+          "default_value": "Cu",
+          "type": "str",
+          "description": "",
+          "optional": true
+        },
+        "composition": {
+          "Cu": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            }
+          },
+          "Zn": {
+            "min": {
+              "key_name": "min",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            },
+            "max": {
+              "key_name": "max",
+              "default_value": 1,
+              "type": "int",
+              "description": "",
+              "optional": true
+            }
+          }
+        },
+        "prototype": {
+          "key_name": "prototype",
+          "default_value": "mp-1056079",
+          "type": "str",
+          "description": "",
+          "optional": true
+        },
+        "replacements": {
+          "replace": {
+            "key_name": "replace",
+            "default_value": false,
+            "type": "bool",
+            "description": "",
+            "optional": true
+          }
+        },
+        "limit_max_num_structures": {
+          "key_name": "limit_max_num_structures",
+          "default_value": 375,
+          "type": "int",
+          "description": "",
+          "optional": true
+        },
+        "allow_modifications": {
+          "key_name": "allow_modifications",
+          "default_value": true,
+          "type": "bool",
+          "description": "",
+          "optional": true
+        },
+        "use_cache": {
+          "key_name": "use_cache",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  },
+  "generation": {
+    "generate_type": {
+      "key_name": "generate_type",
+      "default_value": [
+        "bulk",
+        "surface"
+      ],
+      "type": "list",
+      "description": "Type of structures to generate. Options: 'bulk', 'surface', 'cluster'",
+      "optional": false
+    },
+    "bulk": {
+      "num_struct": {
+        "key_name": "num_struct",
+        "default_value": 25,
+        "type": "int",
+        "description": "Number of structures to generate",
+        "optional": false
+      },
+      "num_repeat": {
+        "key_name": "num_repeat",
+        "default_value": 5,
+        "type": "int",
+        "description": "Number of repeats for each structure",
+        "optional": false
+      },
+      "supercell_max_idx": {
+        "key_name": "supercell_max_idx",
+        "default_value": 2,
+        "type": "int",
+        "description": "Maximum Miller index for the bulk supercells",
+        "optional": false
+      }
+    },
+    "surface": {
+      "min_miller_index": {
+        "key_name": "min_miller_index",
+        "default_value": 1,
+        "type": "int",
+        "description": "Lowest miller index used to generate structures",
+        "optional": false
+      },
+      "max_miller_index": {
+        "key_name": "max_miller_index",
+        "default_value": 3,
+        "type": "int",
+        "description": "Highest index for the supercell generation. Supercells will be created in the x and y directions",
+        "optional": false
+      },
+      "min_slab_size_ang": {
+        "key_name": "min_slab_size_ang",
+        "default_value": 7,
+        "type": "float",
+        "description": "Minimum slab size in Angstrom",
+        "optional": false
+      },
+      "min_vacuum_size_ang": {
+        "key_name": "min_vacuum_size_ang",
+        "default_value": 12,
+        "type": "float",
+        "description": "Minimum vacuum size in Angstrom",
+        "optional": false
+      },
+      "get_supercells": {
+        "key_name": "get_supercells",
+        "default_value": true,
+        "type": "bool",
+        "description": "Whether to generate supercells",
+        "optional": false
+      },
+      "fixed_layers": {
+        "key_name": "fixed_layers",
+        "default_value": 3,
+        "type": "int",
+        "description": "Number of fixed layers in the slab",
+        "optional": true
+      },
+      "max_number_supercells": {
+        "key_name": "max_number_supercells",
+        "default_value": 200,
+        "type": "int",
+        "description": "Max number of surfaces to generate",
+        "optional": false
+      },
+      "save_in_db": {
+        "key_name": "save_in_db",
+        "default_value": true,
+        "type": "bool",
+        "description": "Whether to save the structures in the current db",
+        "optional": false
+      },
+      "num_replacements": {
+        "key_name": "num_replacements",
+        "default_value": 20,
+        "type": "int",
+        "description": "Number of replacement percentages to generate for each structure",
+        "optional": false
+      },
+      "num_repeat_replace": {
+        "key_name": "num_repeat_replace",
+        "default_value": 2,
+        "type": "int",
+        "description": "Number of repeats for each replacement",
+        "optional": false
+      },
+      "frac_slabs_save": {
+        "key_name": "frac_slabs_save",
+        "default_value": 0.1,
+        "type": "float",
+        "description": "Fraction of slabs to save after generation. This avoids having too many slab structures with the same composition.",
+        "optional": true
+      },
+      "frac_supercells_save": {
+        "key_name": "frac_supercells_save",
+        "default_value": 0.1,
+        "type": "float",
+        "description": "Fraction of unreplaced supercells to save after generation. This avoids having too many slab structures with the same composition.",
+        "optional": true
+      },
+      "max_slab_num": {
+        "key_name": "max_slab_num",
+        "default_value": 15,
+        "type": "int",
+        "description": "Maximum number of slabs to gather from the slab generation. If a larger number of slabs is generated, a random subset of `max_slab_num` slabs will be selected.",
+        "optional": false
+      },
+      "n_workers": {
+        "key_name": "n_workers",
+        "default_value": 12,
+        "type": "int",
+        "description": "Maximum number of workers to use for the ThreadPoolExecutor",
+        "optional": false
+      }
+    }
+  },
+  "deformation": {
+    "lattice_frac_deform_max": {
+      "key_name": "lattice_frac_deform_max",
+      "default_value": 0.05,
+      "type": "float",
+      "description": "Value as a percentage of the lattice side length that will be used as the maximum displacement.",
+      "optional": false
+    },
+    "lattice_frac_deform_min": {
+      "key_name": "lattice_frac_deform_min",
+      "default_value": 0.01,
+      "type": "float",
+      "description": "Value as a percentage of the lattice side length that will be used as the minimum displacement.",
+      "optional": false
+    },
+    "num_repeats": {
+      "key_name": "num_repeats",
+      "default_value": 5,
+      "type": "int",
+      "description": "Number of repeats for each structure. Each repeat will get different random displacements.",
+      "optional": false
+    },
+    "limit_max_num_deformations": {
+      "key_name": "limit_max_num_deformations",
+      "default_value": 100,
+      "type": "int",
+      "description": "Maximum number of lattice displacements to generate.",
+      "optional": false
+    }
+  },
+  "perturbation": {
+    "filter_struct_types": {
+      "key_name": "filter_struct_types",
+      "default_value": [
+        "bulk",
+        "surface"
+      ],
+      "type": "list",
+      "description": "Only apply the perturbation to the following types of structures. valid types: 'bulk', 'surface', 'cluster'",
+      "optional": false
+    },
+    "limit_max_num_perturbs": {
+      "key_name": "limit_max_num_perturbs",
+      "default_value": 100,
+      "type": "int",
+      "description": "Maximum number of perturbations to generate",
+      "optional": false
+    },
+    "num_repeats": {
+      "key_name": "num_repeats",
+      "default_value": 7,
+      "type": "int",
+      "description": "Number of repeats for each structure. Each repeat will get different random perturbations.",
+      "optional": false
+    }
+  },
+  "adsorbates": {
+    "optional": true,
+    "filter_struct_types": {
+      "key_name": "filter_struct_types",
+      "default_value": [
+        "surface"
+      ],
+      "type": "list",
+      "description": "Only apply the perturbation to the following types of structures. valid types: 'bulk', 'surface', 'cluster'",
+      "optional": true
+    },
+    "limit_max_num_perturbs": {
+      "key_name": "limit_max_num_perturbs",
+      "default_value": 1700,
+      "type": "int",
+      "description": "Maximum number of perturbations to generate",
+      "optional": true
+    },
+    "num_repeats": {
+      "key_name": "num_repeats",
+      "default_value": 7,
+      "type": "int",
+      "description": "Number of repeats for each structure. Each repeat will get different random perturbations.",
+      "optional": true
+    },
+    "adsorbate_species": {
+      "key_name": "adsorbate_species",
+      "default_value": [
+        "H",
+        "H2O"
+      ],
+      "type": "list",
+      "description": "List of adsorbate species to consider",
+      "optional": true
+    }
+  },
+  "struct_filters": {
+    "no_neighbors": {
+      "cov_rad_multiplier": {
+        "key_name": "cov_rad_multiplier",
+        "default_value": 1.05,
+        "type": "float",
+        "description": "Multiplier applied to the covalent radii to be used as cutoff radius for the neighbor check. Default is 1.0",
+        "optional": false
+      }
+    },
+    "layer_distance": {
+      "max_layer_distance_ang": {
+        "key_name": "max_layer_distance_ang",
+        "default_value": 3.5,
+        "type": "float",
+        "description": "Maximum accepted distance between layers (in Angstrom).",
+        "optional": false
+      }
+    },
+    "duplicate_slabs": {
+      "tolerance": {
+        "key_name": "tolerance",
+        "default_value": 0.2,
+        "type": "float",
+        "description": "",
+        "optional": true
+      }
+    }
+  },
+  "vacancies": {
+    "filter_struct_types": {
+      "key_name": "filter_struct_types",
+      "default_value": [
+        "bulk",
+        "surface"
+      ],
+      "type": "list",
+      "description": "Only apply the perturbation to the following types of structures. valid types: 'bulk', 'surface', 'cluster'.",
+      "optional": false
+    },
+    "limit_max_num_vacancies": {
+      "key_name": "limit_max_num_vacancies",
+      "default_value": 10,
+      "type": "int",
+      "description": "Maximum number of structures with vacancies to generate.",
+      "optional": false
+    },
+    "num_repeats": {
+      "key_name": "num_repeats",
+      "default_value": 3,
+      "type": "int",
+      "description": "Number of repeats for each structure. Each repeat will get different random vacancies.",
+      "optional": false
+    },
+    "max_vacancy_percentage": {
+      "key_name": "max_vacancy_percentage",
+      "default_value": 0.075,
+      "type": "float",
+      "description": "Max vacancies to generate as a percentage of the total number of atoms. The actual number will be selected randomly between the min and max values.",
+      "optional": false
+    },
+    "min_vacancy_percentage": {
+      "key_name": "min_vacancy_percentage",
+      "default_value": 0.025,
+      "type": "float",
+      "description": "Min vacancies to generate as a percentage of the total number of atoms. The actual number will be selected randomly between the min and max values.",
+      "optional": false
+    },
+    "element_list": {
+      "key_name": "element_list",
+      "default_value": [
+        "Cu"
+      ],
+      "type": "list",
+      "description": "List of elements to consider for the vacancies",
+      "optional": false
+    }
+  },
+  "md_gen": {
+    "filter_struct_types": {
+      "key_name": "filter_struct_types",
+      "default_value": [
+        "bulk",
+        "surface"
+      ],
+      "type": "list",
+      "description": "Only apply the perturbation to the following types of structures. valid types: 'bulk', 'surface', 'cluster'.",
+      "optional": true
+    },
+    "max_num_frames": {
+      "key_name": "max_num_frames",
+      "default_value": 300,
+      "type": "int",
+      "description": "",
+      "optional": false
+    },
+    "md": {
+      "parameters": {
+        "al_keep_struct_every_n_ps": {
+          "key_name": "al_keep_struct_every_n_ps",
+          "default_value": 2,
+          "type": "int",
+          "description": "Every how many ps of MD simulation keep a structure. Influences the total number of energy evaluations and possibly DFT calculations.",
+          "optional": false
+        },
+        "temperature_K": {
+          "key_name": "temperature_K",
+          "default_value": 300.0,
+          "type": "float",
+          "description": "Temperature (in K) to be used for the MD simulation.",
+          "optional": false
+        },
+        "max_temp_multiplier": {
+          "key_name": "max_temp_multiplier",
+          "default_value": 1.333,
+          "type": "float",
+          "description": "",
+          "optional": false
+        },
+        "num_steps": {
+          "key_name": "num_steps",
+          "default_value": 10000,
+          "type": "int",
+          "description": "Total number of timesteps for each MD simulations",
+          "optional": false
+        },
+        "timestep_duration_ps": {
+          "key_name": "timestep_duration_ps",
+          "default_value": 0.003,
+          "type": "float",
+          "description": "Duration of each timestep (in ps).",
+          "optional": false
+        },
+        "langevin_friction_ps-1": {
+          "key_name": "langevin_friction_ps-1",
+          "default_value": 10,
+          "type": "int",
+          "description": "friction coefficient for the Langevin thermostat in ps^-1",
+          "optional": false
+        },
+        "gather_traj_cnt_lattice": {
+          "key_name": "gather_traj_cnt_lattice",
+          "default_value": true,
+          "type": "bool",
+          "description": "Consider constant lattice when gathering trajectories",
+          "optional": false
+        },
+        "use_kokkos": {
+          "key_name": "use_kokkos",
+          "default_value": false,
+          "type": "bool",
+          "description": "",
+          "optional": false
+        },
+        "device": {
+          "key_name": "device",
+          "default_value": "cuda",
+          "type": "str",
+          "description": "",
+          "optional": false
+        },
+        "default_dtype": {
+          "key_name": "default_dtype",
+          "default_value": "float32",
+          "type": "str",
+          "description": "",
+          "optional": false
+        }
+      }
+    }
+  },
+  "targeted_modification": {
+    "optional": true,
+    "central_atom_octahedral": {
+      "optional": true,
+      "filter_phases": {
+        "key_name": "filter_phases",
+        "default_value": [
+          "rutile-sno2",
+          "rutile-nbo2",
+          "rutile-tao2"
+        ],
+        "type": "list",
+        "description": "Only apply the modification to the following phases",
+        "optional": true
+      },
+      "filter_struct_types": {
+        "key_name": "filter_struct_types",
+        "default_value": [
+          "bulk",
+          "surface"
+        ],
+        "type": "list",
+        "description": "Only apply the modification to the following structure types. valid types: 'bulk', 'surface', 'cluster'.",
+        "optional": true
+      },
+      "central_element": {
+        "key_name": "central_element",
+        "default_value": "Ir",
+        "type": "str",
+        "description": "Symbol of the central element of the octahedral site.",
+        "optional": true
+      },
+      "num_repeats": {
+        "key_name": "num_repeats",
+        "default_value": 3,
+        "type": "int",
+        "description": "Number of repeats for each structure. Each repeat will get a different perturbation.",
+        "optional": true
+      },
+      "limit_max_num_modifications": {
+        "key_name": "limit_max_num_modifications",
+        "default_value": 200,
+        "type": "int",
+        "description": "Maximum number of modified structures to generate.",
+        "optional": true
+      },
+      "max_perturbation_ang": {
+        "key_name": "max_perturbation_ang",
+        "default_value": 0.2,
+        "type": "float",
+        "description": "Max perturnbation movement of the central atom in Angstrom",
+        "optional": true
+      }
+    }
+  },
+  "concave_hull": {
+    "gen_concave_hull": {
+      "key_name": "gen_concave_hull",
+      "default_value": true,
+      "type": "bool",
+      "description": "Whether to generate the concave hull of the descriptors for all the structures in the database. false by default, which means the concave hull will not be generated.",
+      "optional": true
+    },
+    "descriptor": {
+      "key_name": "descriptor",
+      "default_value": "SOAP",
+      "type": "str",
+      "description": "Descriptor to use for the concave hull generation. Either one of the following: 'SOAP', 'MACE'. Default is 'SOAP'.",
+      "optional": true
+    },
+    "dim_reduction": {
+      "key_name": "dim_reduction",
+      "default_value": "autoencoder",
+      "type": "str",
+      "description": "Dimensionality reduction method to use for the concave hull generation. Either one of the following: 'PCA', 'autoencoder'. Default is 'autoencoder'.",
+      "optional": true
+    },
+    "plot_filename": {
+      "key_name": "plot_filename",
+      "default_value": "descriptors_concave_hull.png",
+      "type": "str",
+      "description": "Filename for the figure displaying the concave hull.",
+      "optional": true
+    }
+  }
+}

@@ -8,14 +8,14 @@
 
 ## MLIP Benchmarks
 
-The MLIP Benchmarks tool allows you to run a series of benchmarks to evaluate the performance of Machine Learning Interatomic Potentials (MLIPs) trained with MatDBForge.
+The MLIP Benchmarks tool allows you to run a series of benchmarks to evaluate the performance of Machine Learning Interatomic Potentials (MLIPs) trained with atlas.
 These benchmarks include:
 - Accuracy tests on a given dataset.
 - Melting point benchmark via the coexistence method.
 - Monovacancy formation energy calculations.
 - Surface energy calculations for various crystallographic facets.
 
-Generate a mlip benchmarks template file using `mdb_gen_configuration_file -t mlip_benchmarks`.
+Generate a mlip benchmarks template file using `atl_gen_configuration_file -t mlip_benchmarks`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.

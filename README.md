@@ -1,18 +1,18 @@
-# MatDBForge
+# ATLAS
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="media/logo_dark.png">
     <source media="(prefers-color-scheme: light)" srcset="media/logo_light.png">
-    <img alt="MatDBForge: A workflow for materials MLIP generation" src="media/logo_light.png">
+    <img alt="ATLAS: A workflow for materials MLIP generation" src="media/logo_light.png">
   </picture>
 
-[![documentation](https://github.com/pol-sb/MatDBForge/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/MatDBForge/master/index.html)
+[![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/ATLAS/master/index.html)
 
-![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/MatDBForge?label=current%20version)
+![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)
 
 
-MatDBForge is a Python library that aids in the training process for MLIPs (Machine Learning Interatomic Potentials) to be used in heterogeneous catalysis. To do this, it provides tools for data generation, allowing to create and manage databases of structures, and provides a robust active learning framework to efficiently expand the training data, while interacting with workflow tools in order to automate the structure labelling.
+ATLAS is a Python library that aids in the training process for MLIPs (Machine Learning Interatomic Potentials) to be used in heterogeneous catalysis. To do this, it provides tools for data generation, allowing to create and manage databases of structures, and provides a robust active learning framework to efficiently expand the training data, while interacting with workflow tools in order to automate the structure labelling.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ MatDBForge is a Python library that aids in the training process for MLIPs (Mach
 
 ## Installation
 
-To install MatDBForge, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
+To install ATLAS, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
 ### 1. Creating a pyton environment
 
@@ -32,11 +32,11 @@ First, **create a virtual environment** and activate it. This can be done in sev
 #### Option A - `conda`
 
 ```bash
-# Create a conda environment named matdbforge which uses python 3.11
-conda create -n matdbforge python=3.11
+# Create a conda environment named atlas which uses python 3.11
+conda create -n atlas python=3.11
 
 # Activate the environment
-conda activate matdbforge
+conda activate atlas
 ```
 
 #### Option B - `venv`
@@ -48,8 +48,8 @@ An example for an Ubuntu 22.04 system, using python3.11 and venv:
 sudo apt install python3.11 python3.11-venv
 
 # Using python venv - create and activate the environment
-python3 -m venv matdbforge
-source matdbforge/bin/activate
+python3 -m venv atlas
+source atlas/bin/activate
 ```
 
 #### Option C - `uv`
@@ -60,27 +60,27 @@ First, install the `uv` tool. Either as shown below using the standalone install
 wget -qO- https://astral.sh/uv/install.sh | sh
 ```
 
-Once `uv` is isntalled, create an environment named matdbforge specifically with Python 3.11:
+Once `uv` is isntalled, create an environment named atlas specifically with Python 3.11:
 
 ```bash
 # Create the virtual environment
-uv venv matdbforge --python 3.11
+uv venv atlas --python 3.11
 ```
 
 Make sure to navigate to a folder where you would like your python environment to be located, or specify the desired path.
 You can activate the newly created environment as follows:
 
 ```bash
-source matdbforge/bin/activate
+source atlas/bin/activate
 ```
 
 With the environment now activated, the library can be installed.
 
-### 2. Getting the MatDBForge code
+### 2. Getting the ATLAS code
 
 ```bash
 # Clone the reposittory
-git clone https://github.com/pol-sb/MatDBForge.git
+git clone https://github.com/pol-sb/atlas.git
 ```
 
 ### 3. Installing the library in the activated python environment
@@ -93,7 +93,7 @@ There are several installation mechanisms, and several optional dependencies dep
 Optional dependencies are installed using the following syntax:
 
 ```bash
-python3 -m pip install ./MatDBForge['OPTIONAL_DEPENDENCY_NAME']
+python3 -m pip install ./ATLAS['OPTIONAL_DEPENDENCY_NAME']
 ```
 
 Some installation examples follow:
@@ -102,23 +102,23 @@ Some installation examples follow:
 
 ```bash
 # Install the library and the MACE dependencies in the venv using pip
-python3 -m pip install ./MatDBForge['mace']
+python3 -m pip install ./ATLAS['mace']
 ```
 
 #### Using `uv`
 
 ```bash
 # Install the library and the MACE dependencies using uv
-uv pip install ./MatDBForge['mace']
+uv pip install ./ATLAS['mace']
 ```
 
 ### 4. Initialize configuration files
 
-Finally, initialize configuration files by running the **initial configuration command** (`mdb_init_setup`). Then, enter your [Materials Project API key](https://next-gen.materialsproject.org/api) in the path displayed in the output to finish the setup process:
+Finally, initialize configuration files by running the **initial configuration command** (`atl_init_setup`). Then, enter your [Materials Project API key](https://next-gen.materialsproject.org/api) in the path displayed in the output to finish the setup process:
 
 ```shell
 # Run the last setup step - configuration initialization
-mdb_init_setup
+atl_init_setup
 ```
 
 > [!NOTE]
@@ -131,7 +131,7 @@ mdb_init_setup
 
 - The steps required to set up the active learning loop with the simplest AiiDA configuration are the following:
   1. Set up an aiida profile and database with `verdi presto`.
-  2. Create the AiiDA computer and code entries for MatDBForge and aiida-vasp.
+  2. Create the AiiDA computer and code entries for ATLAS and aiida-vasp.
   3. Add the potential datasets for aiida-vasp ([information here](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html)).
 
 ## Usage
@@ -140,23 +140,23 @@ The goal of this library is to provide workflows, functions and utilities for st
 
 During the library installation, several entry points will be added so that the user can easily run the different utilities:
 
-- `mdb_init_setup`: Run initial configuration steps after installing MatDBForge.
-- `mdb_run_dft_database`: Run DFT calculations for a MatDBForge structure database.
-- `mdb_gen_configuration_file`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
-- `mdb_gen_init_db`: Generate a database containing structures for MLIP training.
-- `mdb_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
-- `mdb_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
-- `mdb_benchmark_mlip`: Evaluate and compare the performance of MLIPs using a suite of benchmarks.
+- `atl_init_setup`: Run initial configuration steps after installing atlas.
+- `atl_run_dft_database`: Run DFT calculations for a ATLAS structure database.
+- `atl_gen_configuration_file`: Generate a `.toml` template configuration file to be used in any of the different operation modes of the code.
+- `atl_gen_init_db`: Generate a database containing structures for MLIP training.
+- `atl_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
+- `atl_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
+- `atl_benchmark_mlip`: Evaluate and compare the performance of MLIPs using a suite of benchmarks.
 
 
 All of the entry points provide usage documentation when launched with the `-h`/`--help` argument, e.g.:
 
 ```bash
-$> mdb_gen_configuration_file --help
+$> atl_gen_configuration_file --help
 
->>> usage:  mdb_gen_configuration_file [-h] -t TYPE [-p PATH] [-o]
+>>> usage:  atl_gen_configuration_file [-h] -t TYPE [-p PATH] [-o]
 >>>
->>> Generate MDB default configuration files in the TOML format.
+>>> Generate ATL default configuration files in the TOML format.
 >>>
 >>> options:
 >>>   -h, --help
@@ -172,9 +172,9 @@ $> mdb_gen_configuration_file --help
                         Whether to overwrite the destination file, if existent.
 ```
 
-The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `mdb_gen_configuration_file` to generate a template file which can be customized.
+The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `atl_gen_configuration_file` to generate a template file which can be customized.
 
-A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/MatDBForge/master/source/input.html)  or in the local documentation files: [Input](./docs/source/input.md).
+A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/ATLAS/master/source/input.html)  or in the local documentation files: [Input](./docs/source/input.md).
 
 ## Example: Training a MACE MLIP from scratch
 
@@ -182,18 +182,18 @@ This example will showcase the training of a MACE potential in a pure Cu databas
 
 ### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `mdb_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://pol-sb.github.io/MatDBForge/master/source/input.html#database-generation)
+In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `atl_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://pol-sb.github.io/ATLAS/master/source/input.html#database-generation)
 
 ```bash
 # Generate a configuration file for the database generation.
-mdb_gen_configuration_file -t initial_db
+atl_gen_configuration_file -t initial_db
 ```
 
-After performing any desired changes to the created configuration file, a database can be generated using the `mdb_gen_init_db` with the path to the configuration file:
+After performing any desired changes to the created configuration file, a database can be generated using the `atl_gen_init_db` with the path to the configuration file:
 
 ```bash
 # Generate the initial database
-mdb_gen_init_db -c ./path/to/config_file.toml
+atl_gen_init_db -c ./path/to/config_file.toml
 ```
 
 This database will be generated as an extxyz file. This file must be labelled in order to be suitable for the AL Loop.
@@ -208,26 +208,26 @@ The structures can be labelled automatically with VASP, or as a quick testing us
 mace_eval_configs  --configs ./unlabelled_db.xyz  --model /model/path cu_model_zan.model --output ./labelled_db.xyz --device cpu --batch_size 5
 ```
 
-- In order to use **VASP for structure labelling**, run the `mdb_run_dft_database` command providing a configuration file (can be generated with `mdb_gen_configuration_file -t run_dft_database`) with the input settings and the path of the database:
+- In order to use **VASP for structure labelling**, run the `atl_run_dft_database` command providing a configuration file (can be generated with `atl_gen_configuration_file -t run_dft_database`) with the input settings and the path of the database:
 
 ```bash
-mdb_run_dft_database  --db_file ./database.xyz  -c settings.toml
+atl_run_dft_database  --db_file ./database.xyz  -c settings.toml
 ```
 
 ### 3. Run active learning loop
 
-Generate a settings file, customize it using [the options here](https://pol-sb.github.io/MatDBForge/master/source/input.html#active-learning-loop) and run the active learning loop:
+Generate a settings file, customize it using [the options here](https://pol-sb.github.io/ATLAS/master/source/input.html#active-learning-loop) and run the active learning loop:
 
 ```bash
 # Generate a template file for active learning
-mdb_gen_configuration_file -t active_learning
+atl_gen_configuration_file -t active_learning
 
 # Run the active learning loop, piping its outputs to a file.
 # Without the '-c' option, the program will search for the 'active_learning_settings.toml'
 # in the current directory
 # The gui subcommand will launch a gui interface in the localhost, which can be
 # viewed in a browser.
-mdb_active_learning gui --n_sec 60 2>&1 | tee ./run_mdb_al.log
+atl_active_learning gui --n_sec 60 2>&1 | tee ./run_atl_al.log
 ```
 
 The progress of the AL Loop can be monitored by checking its output, or opening the dashboard running at <http://127.0.0.1:8000>.
@@ -243,10 +243,10 @@ The main functionalities are organized into the following modules:
 - `active_learning`: Contains classes and functions leveraged during the active learning loops.
 - `examples`: Provides example scripts that demonstrate the usage of the library.
 
-The following examples demonstrate the usage of MatDBForge:
+The following examples demonstrate the usage of ATLAS:
 
-- [launch_sp_calcs_db_aiida.py](src/MatDBForge/examples/launch_sp_calcs_db_aiida.py): This example script demonstrates how to launch single-point calculations for a given set of structures and store the results in the database.
-- [create_init_db_new.py](src/MatDBForge/examples/create_init_db_new.py): This example script showcases how to create and initialize a new database with initial data.
+- [launch_sp_calcs_db_aiida.py](src/ATLAS/examples/launch_sp_calcs_db_aiida.py): This example script demonstrates how to launch single-point calculations for a given set of structures and store the results in the database.
+- [create_init_db_new.py](src/ATLAS/examples/create_init_db_new.py): This example script showcases how to create and initialize a new database with initial data.
 
 Please refer to the examples in the examples directory for more details on how to utilize the library for your specific needs.
 
