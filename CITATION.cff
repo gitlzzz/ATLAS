@@ -10,7 +10,7 @@ message: "If you use this software in your work, please cite it using the follow
 title: "ATLAS"
 abstract: "Balancing Diversity and Efficiency in Training Datasets for Robust Machine Learning Potentials"
 type: software
-version: 0.52.0
+version: 0.52.1
 # TODO: Update with the release date
 date-released: 2025-06-20
 repository-code: "https://github.com/pol-sb/ATLAS"

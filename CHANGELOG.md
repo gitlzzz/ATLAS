@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.52.1 (2026-05-31)
+
+### Docs
+
+- **al_loop**: add missing scheduler options to test_db schema ([#d44bcd2](https://github.com/pol-sb/ATLAS/commit/d44bcd2c02e917d537ed6a359a2924f469cc4cc0))
+
+### Misc
+
+- **core**: update github documentation workflow ([#acf1814](https://github.com/pol-sb/ATLAS/commit/acf18148bb778dfcfac84935fe11d3db72c47f6f))
+
+### Refactor
+
+- **core**: ATLAS rebrand continuation ([#c906531](https://github.com/pol-sb/ATLAS/commit/c9065319004657ceea403a38705f4272e8778431))
+
 ## 0.52.0 (2026-05-31)
 
 ### Docs
