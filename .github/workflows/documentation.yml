@@ -43,7 +43,7 @@ jobs:
             - name: Generate API documentation
               run: |
                   rm -rf ./docs/source/*.rst
-                  sphinx-apidoc -o ./docs/source ./src/ATLAS/ "*benchmarks*" "*display_db*" -f
+                  sphinx-apidoc -o ./docs/source ./src/atlas/ "*benchmarks*" "*display_db*" -f
 
             - name: Build all documentation versions
               run: sphinx-multiversion docs _build/html
