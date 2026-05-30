@@ -108,7 +108,7 @@ def extract_boundaries_from_mask(
 
 def process_morphological_closing(
     data_X, data_Y, disk_size=1, figsize=(10, 8), dpi=100, threshold=250, point_size=5
-):
+) -> dict:
     """
     Extract shape and filter points using morphological closing.
 

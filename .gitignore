@@ -11,3 +11,4 @@ src/MatDBForge/devel
 src/MatDBForge/benchmarks/other
 src/MatDBForge/display_db
 *sync-conflict*
+.zed/

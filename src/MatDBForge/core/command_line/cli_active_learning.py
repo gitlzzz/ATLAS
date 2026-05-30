@@ -218,6 +218,10 @@ def create_active_learning_builder(
     ## Start mode
     builder.active_learning.al_start_mode = Str(al_start_mode)
 
+    ## Stop criteria settings
+    stop_criteria_dict = toml_dict.get('stop_conditions')
+    builder.active_learning.stopping_criteria_settings = Dict(stop_criteria_dict)
+
     return builder
 
 
@@ -870,12 +874,18 @@ def run_active_learning():
         from aiida.engine import run, submit
         from aiida.orm import Bool, Str
 
-        if not args.config_file.exists():
-            raise FileNotFoundError(
-                f"The config file '{args.config_file}' does not exist. "
-                'Please make sure that is the correct path, or create one '
-                'by hand, or by using the `mdb_gen_configuration_file` tool.'
-            )
+        # Read toml settings file
+        if not args.config_file or (args.config_file and not args.config_file.exists()):
+            # Read toml from resume dir
+            if args.dir_resume:
+                for toml in pl.Path(args.dir_resume).glob('*.toml'):
+                    args.config_file = toml.resolve()
+            else:
+                raise FileNotFoundError(
+                    f"The config file '{args.config_file}' does not exist. "
+                    'Please make sure that is the correct path, or create one '
+                    'by hand, or by using the `mdb_gen_configuration_file` tool.'
+                )
 
         # Check if TOML file is correct
         errors_found, errors, warnings = validate_config_file(
