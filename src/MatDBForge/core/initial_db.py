@@ -3900,3 +3900,33 @@ def get_database_report(structures: InitialDatabase):
 def output_db_status(database: InitialDatabase):
     shape = database.get_db_shape()
     mdb_cut.custom_print(f'DB Info: {shape[0]} entries, {shape[1]} fields', 'info')
+
+
+def get_struct_idx_from_uuid(
+    database: InitialDatabase | Atoms | list[Atoms], uuid: str
+) -> int | None:
+    match_idx = None
+    if isinstance(database, InitialDatabase):
+        match_idx = None
+    else:
+        for idx, struct in enumerate(database):
+            if struct.info.get('mdb_id') == uuid:
+                return idx
+    return match_idx
+
+
+def get_step_to_structure_mapping(
+    database: Atoms | list[Atoms] | InitialDatabase,
+) -> dict:
+    if isinstance(database, Atoms):
+        database = [database]
+
+    structure_mapping = {}
+    for struct in database:
+        curr_step = struct.info.get('mdb_al_step')
+        if curr_step not in structure_mapping:
+            structure_mapping[curr_step] = []
+
+        structure_mapping[curr_step].append(struct.info.get('mdb_id'))
+
+    return structure_mapping
