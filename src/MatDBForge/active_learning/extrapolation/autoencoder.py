@@ -240,6 +240,7 @@ def get_latent_space_autoencoder(
 
         # Gather all descriptors into a single list
         all_descrs = [descriptor_dict[u]['descriptors'][0] for u in uuids]
+        all_lengths = [descriptor_dict[u]['descriptors'][0].shape[0] for u in uuids]
         descr_tensor = torch.tensor(np.vstack(all_descrs), device=device, dtype=dtype)
 
         # Standardize batched data
@@ -252,8 +253,16 @@ def get_latent_space_autoencoder(
         latent_batch = model.encoder(descr_tensor).cpu().numpy()
 
         # Map the results back to the dictionary
+        ini_posc_desc_list = 0
+        fin_posc_desc_list = 0
         for i, uuid in enumerate(uuids):
-            descriptor_dict[uuid]['latent_space'] = latent_batch[i]
+            curr_struct_length = all_lengths[i]
+            fin_posc_desc_list += curr_struct_length
+
+            descriptor_dict[uuid]['latent_space'] = latent_batch[
+                ini_posc_desc_list:fin_posc_desc_list
+            ]
+            ini_posc_desc_list = fin_posc_desc_list
 
     custom_print('Computed latent space!', final_print_type)
     return descriptor_dict
