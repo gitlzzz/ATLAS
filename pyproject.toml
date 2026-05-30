@@ -3,9 +3,9 @@ requires = ["setuptools", "wheel", "setuptools-git-versioning", 'pip']
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "MatDBForge"
+name = "atlas"
 dynamic = ["version"]
-description = "An automatic workflow for generating data and training NNPs"
+description = "An automatic workflow for streamlining training and data generation for MLIPs via active learning."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -25,7 +25,7 @@ dependencies = [
     "pymatgen==2024.10.3",
     "python-slugify[unidecode]",
     "PyYAML",
-    "rich==13.7.0",
+    "rich>=14.0.0",
     "scipy==1.16.2",
     "seaborn==0.13.2",
     "e3nn==0.4.4",
@@ -34,13 +34,13 @@ dependencies = [
     "aiida-vasp==4.1.0",
     "wonderwords==2.2.0",
     "shapely",
-    "pymatgen",
     "flask",
     "wandb",
     "tomli >= 1.1.0 ; python_version < '3.11'",
     'qrcode',
     "datashader==0.18.2",
     "scikit-image",
+    "dash==4.1.0",
     "tomlkit",
 ]
 
@@ -59,66 +59,67 @@ mace = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pol-sb/MatDBForge"
+Homepage = "https://github.com/pol-sb/ATLAS"
 
 [project.entry-points."aiida.calculations"]
-"mdb-autoencoder-train" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
-"mdb-get-latent-space" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculation"
-"mdb-get-concave-hull" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculation"
-"mdb-descriptors-combined" = "MatDBForge.active_learning.mace_tools_aiida:GetDescriptorsCombinedCalculation"
-"mdb-safeguard-md" = "MatDBForge.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculation"
-"mace-train" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
-"mdb-eval-test" = "MatDBForge.active_learning.mace_tools_aiida:EvalTestDatabaseCalculation"
-"mace-get-descriptors" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
-"mace-eval" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
-"mace-lammps-gpu-md" = "MatDBForge.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE"
-"mace-committee-eval" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommitteeResultsCalculation"
+"mdb-autoencoder-train" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
+"mdb-get-latent-space" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculation"
+"mdb-get-concave-hull" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculation"
+"mdb-descriptors-combined" = "atlas.active_learning.mace_tools_aiida:GetDescriptorsCombinedCalculation"
+"mdb-safeguard-md" = "atlas.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculation"
+"mace-train" = "atlas.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
+"mdb-eval-test" = "atlas.active_learning.mace_tools_aiida:EvalTestDatabaseCalculation"
+"mace-get-descriptors" = "atlas.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
+"mace-eval" = "atlas.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
+"mace-lammps-gpu-md" = "atlas.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE"
+"mace-committee-eval" = "atlas.active_learning.mace_tools_aiida:CheckMACECommitteeResultsCalculation"
 
-"mdb-process-md-seed-struct" = "MatDBForge.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculation"
+"mdb-process-md-seed-struct" = "atlas.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculation"
 
 [project.entry-points."aiida.calculations.monitors"]
-"monitor.davwarning" = "MatDBForge.workflows.monitors:output_monitor"
+"monitor.davwarning" = "atlas.workflows.monitors:output_monitor"
 
 [project.entry-points."aiida.workflows"]
-"mdb-active-learning" = "MatDBForge.workflows.active_learning:ActiveLearningWorkChain"
-"mdb-active-learning-base" = "MatDBForge.workflows.active_learning:ActiveLearningBaseWorkChain"
-"mdb-simple-active-learning" = "MatDBForge.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
-"mdb-simple-active-learning-base" = "MatDBForge.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
+"mdb-active-learning" = "atlas.workflows.active_learning:ActiveLearningWorkChain"
+"mdb-active-learning-base" = "atlas.workflows.active_learning:ActiveLearningBaseWorkChain"
+"mdb-simple-active-learning" = "atlas.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
+"mdb-simple-active-learning-base" = "atlas.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
 
 
 [project.entry-points."aiida.parsers"]
-"mdb-autoencoder-train-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
-"mdb-get-latent-space-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculationParser"
-"mdb-get-concave-hull-parser" = "MatDBForge.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculationParser"
-"mace-training-parser" = "MatDBForge.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
-"mace-descriptors-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
-"mace-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
-"mdb-eval-test-parser" = "MatDBForge.active_learning.mace_tools_aiida:EvalTestDatabaseCalculationParser"
-"mace-committee-eval-parser" = "MatDBForge.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
-"mace-lammps-raw-parser" = "MatDBForge.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
-"mdb-process-md-seed-struct-parser" = "MatDBForge.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculationParser"
-"mdb-descriptors-combined-parser" = "MatDBForge.active_learning.mace_tools_aiida:GetDescriptorsCombinedParser"
-"mdb-safeguard-md-parser" = "MatDBForge.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculationParser"
+"mdb-autoencoder-train-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
+"mdb-get-latent-space-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculationParser"
+"mdb-get-concave-hull-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculationParser"
+"mace-training-parser" = "atlas.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
+"mace-descriptors-parser" = "atlas.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
+"mace-eval-parser" = "atlas.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
+"mdb-eval-test-parser" = "atlas.active_learning.mace_tools_aiida:EvalTestDatabaseCalculationParser"
+"mace-committee-eval-parser" = "atlas.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
+"mace-lammps-raw-parser" = "atlas.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
+"mdb-process-md-seed-struct-parser" = "atlas.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculationParser"
+"mdb-descriptors-combined-parser" = "atlas.active_learning.mace_tools_aiida:GetDescriptorsCombinedParser"
+"mdb-safeguard-md-parser" = "atlas.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculationParser"
 
 [project.entry-points."aiida.data"]
-"mdb.img-png" = "MatDBForge.workflows.datatypes.image_types:ImagePNGData"
-"mdb.mlip-model" = "MatDBForge.workflows.datatypes.mlip:MLIPModelFileData"
+"mdb.img-png" = "atlas.workflows.datatypes.image_types:ImagePNGData"
+"mdb.mlip-model" = "atlas.workflows.datatypes.mlip:MLIPModelFileData"
 
 # CLI entries
 [project.entry-points."aiida.cmdline.data"]
-"mdb.img-png" = "MatDBForge.workflows.datatypes.aiida_cli:cli"
+"mdb.img-png" = "atlas.workflows.datatypes.aiida_cli:cli"
 
 [project.scripts]
-"mdb_active_learning" = "MatDBForge.core.command_line.cli_active_learning:run_active_learning"
-"mdb_gen_configuration_file" = "MatDBForge.core.command_line.cli_generate_configuration_file:gen_default_config"
-"mdb_gen_docs" = "MatDBForge.core.command_line.cli_generate_docs:generate_docs"
-"mdb_monitor_al_loop" = "MatDBForge.core.command_line.cli_dashboard:monitor_al_loop"
-"mdb_gen_init_db" = "MatDBForge.core.command_line.cli_generate_init_db:run_gen_initial_database"
-"mdb_init_setup" = "MatDBForge.core.command_line.cli_run_initial_config:run_initial_config"
-"mdb_train_autoencoder" = "MatDBForge.core.command_line.cli_train_autoencoder:run_train_autoencoder"
-"mdb_run_dft_database" = "MatDBForge.workflows.dft.vasp.aiida_run_vasp_dft_database:main"
-"mdb_benchmark_mlip" = "MatDBForge.benchmarks.mlip.evaluate_mlip_performance:main"
-"mdb_latent_space_analysis" = "MatDBForge.core.command_line.cli_latent_space_analysis:run_latent_space_analysis"
+"atl_active_learning" = "atlas.core.command_line.cli_active_learning:run_active_learning"
+"atl_gen_configuration_file" = "atlas.core.command_line.cli_generate_configuration_file:gen_default_config"
+"atl_gen_docs" = "atlas.core.command_line.cli_generate_docs:generate_docs"
+"atl_monitor_al_loop" = "atlas.core.command_line.cli_dashboard:monitor_al_loop"
+"atl_gen_init_db" = "atlas.core.command_line.cli_generate_init_db:run_gen_initial_database"
+"atl_init_setup" = "atlas.core.command_line.cli_run_initial_config:run_initial_config"
+"atl_train_autoencoder" = "atlas.core.command_line.cli_train_autoencoder:run_train_autoencoder"
+"atl_run_dft_database" = "atlas.workflows.dft.vasp.aiida_run_vasp_dft_database:main"
+"atl_benchmark_mlip" = "atlas.benchmarks.mlip.evaluate_mlip_performance:main"
+"atl_latent_space_analysis" = "atlas.core.command_line.cli_latent_space_analysis:run_latent_space_analysis"
+"atl_database_analysis" = "atlas.core.command_line.cli_db_analysis:run_database_analysis"
 
 # package managers are becoming dangerous
 [tool.uv]
@@ -141,11 +142,11 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.50.1"
+version = "0.52.0"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [
-    "./src/MatDBForge/__init__.py",
+    "./src/ATLAS/__init__.py",
     "./docs/conf.py:release",
     "pyproject.toml:version",
     "VERSION",

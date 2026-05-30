@@ -8,7 +8,7 @@
 
 ## Latent Space Analysis
 
-Generate a latent space analysis template file using `mdb_gen_configuration_file -t latent_space_analysis`.
+Generate a latent space analysis template file using `atl_gen_configuration_file -t latent_space_analysis`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.

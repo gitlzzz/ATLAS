@@ -1,0 +1,83 @@
+# ATLAS MLIP Benchmark Configuration File
+# This file configures the MLIP benchmark suite for evaluating machine learning interatomic potentials
+
+[general]
+# General benchmark settings
+output_dir = "./mlip_evaluation"  # Directory to save benchmark results
+metal = "Cu"                      # Metal symbol for the benchmark systems
+device = "cuda"                   # Device to run calculations on ("cuda" or "cpu")
+dtype = "float64"                 # Data type for calculations ("float32" or "float64")
+no_rich_ui = false               # Disable Rich UI and use plain text output
+
+[models]
+# Model specifications for benchmarking
+# At least one model source must be provided
+model_files = []                 # List of paths to .model files
+                                # Example: ["/path/to/model1.model", "/path/to/model2.model"]
+aiida_pks = []                  # List of AiiDA workchain PKs/UUIDs to load models from
+                                # Example: [12345, 67890]
+foundation_models = []          # List of foundation model specifications
+                                # Format: "library:model_name"
+                                # Example: ["mace:small", "mace:medium", "mace:large"]
+
+[slab_generation]
+# Settings for slab generation in benchmarks
+surface_indices = [1, 1, 1]     # Miller indices for the surface
+supercell_size = [3, 3, 4]      # Size of the supercell (x, y, z)
+vacuum = 10.0                   # Vacuum layer in Angstrom
+
+[md_parameters]
+# Molecular dynamics simulation parameters
+temp = 300.0                    # MD temperature in Kelvin
+n_steps = 10000                 # Number of MD steps
+timestep = 2.0                  # MD timestep in femtoseconds
+friction = 0.005                # Friction coefficient for Langevin dynamics
+
+[benchmarks]
+# Selection of benchmarks to run
+# Set to true to enable a specific benchmark
+run_energy_md = false                    # Run the energy MD benchmark
+run_accuracy_test_set = false            # Run energy and force error benchmark on a test set
+run_elastic_properties = false           # Run elastic properties benchmark
+run_defect_formation_energy = false      # Run defect formation energy benchmark
+run_surface_energies = false             # Run surface energies benchmark
+run_phonon_dispersion = false            # Run phonon dispersion benchmark
+run_high_temp_md = false                 # Run high-temperature MD benchmark
+run_melting_point = false                # Run melting point calculation benchmark
+run_gsfe = false                         # Run Generalized Stacking Fault Energy (GSFE) benchmark
+run_learning_curves = false              # Plot learning curves from AL runs
+run_final_db_size = false                # Compare final database sizes from AL runs
+run_md_count = false                     # Count total MD calculations performed during AL loops
+run_evaluate_database = false            # Evaluate models against a user-provided structure database
+run_magic_cluster = false                # Run magic number cluster benchmark
+
+[test_set]
+# Test set configuration for accuracy benchmarks
+# test_set_path = "/path/to/test_set.xyz"  # Path to the held-out test set
+
+[database_evaluation]
+# Configuration for database evaluation benchmark
+# database_path = "/path/to/database.xyz"  # Path to the structure database file
+
+[magic_cluster]
+# Magic cluster benchmark settings
+# magic_cluster_dft_refs = "/path/to/dft_refs.json"  # Path to JSON file with DFT reference energies
+magic_cluster_sizes = [13, 19, 55, 147, 309, 561]    # List of magic number cluster sizes to test
+
+[surface_energy_benchmark]
+# Surface energy benchmark specific settings
+# dft_refs = "/path/to/surface_energies.json"         # Path to JSON file with DFT reference energies
+# bulk_structure = "/path/to/bulk.xyz"                # Path to DFT-optimized bulk structure file
+
+# Slab structures with surface indices as keys
+# [surface_energy_benchmark.slab_structures]
+# "100" = "/path/to/slab_100.xyz"
+# "110" = "/path/to/slab_110.xyz"
+# "111" = "/path/to/slab_111.xyz"
+
+[melting_point_benchmark]
+# Melting point benchmark settings
+supercell_size = [6, 6, 6]      # Supercell size for melting point calculation (x, y, z)
+solid_temp_K = 1100.0           # Temperature in Kelvin for solid phase
+liquid_temp_K = 1600.0          # Temperature in Kelvin for liquid phase
+nve_initial_T_test_K = 800.0    # Initial temperature in Kelvin for NVE test

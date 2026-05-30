@@ -8,7 +8,7 @@
 
 ## Database Generation
 
-Generate a database generation template file using `mdb_gen_configuration_file -t database_generation`.
+Generate a database generation template file using `atl_gen_configuration_file -t database_generation`.
 
 :::{attention}
 All keys are mandatory unless stated otherwise.
