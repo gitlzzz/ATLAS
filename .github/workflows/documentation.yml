@@ -1,60 +1,62 @@
 name: Build and Deploy Documentation
 
 on:
-  push:
-    branches:
-      - master
-    tags:
-      - "v*.*.*"
-  workflow_dispatch:
+    push:
+        branches:
+            - master
+        tags:
+            - "v*.*.*"
+    workflow_dispatch:
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  docs:
-    runs-on: ubuntu-latest
-    steps:
-      # Free up disk space by removing pre-installed tools
-      - name: Free Disk Space (Ubuntu)
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
+    docs:
+        runs-on: ubuntu-latest
+        steps:
+            # Free up disk space by removing pre-installed tools
+            - name: Free Disk Space (Ubuntu)
+              run: |
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  sudo docker image prune --all --force
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+            - name: Setup Python 3.11
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip setuptools
-          pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
-          pip install .
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip setuptools
+                  pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
+                  pip install .
 
-      - name: Generate API documentation
-        run: sphinx-apidoc -o ./docs/source ./src/ATLAS/ "*benchmarks*" "*display_db*" --remove-old -f
+            - name: Generate API documentation
+              run: |
+                  rm -rf ./docs/source/*.rst
+                  sphinx-apidoc -o ./docs/source ./src/ATLAS/ "*benchmarks*" "*display_db*" -f
 
-      - name: Build all documentation versions
-        run: sphinx-multiversion docs _build/html
+            - name: Build all documentation versions
+              run: sphinx-multiversion docs _build/html
 
-      - name: Create index.html redirect
-        run: |
-          echo '<!DOCTYPE html><html><head><title>Redirecting...</title><meta http-equiv="refresh" content="0; url=./master/index.html"></head></html>' > _build/html/index.html
+            - name: Create index.html redirect
+              run: |
+                  echo '<!DOCTYPE html><html><head><title>Redirecting...</title><meta http-equiv="refresh" content="0; url=./master/index.html"></head></html>' > _build/html/index.html
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        with:
-          publish_branch: gh-pages
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: _build/html/
-          force_orphan: true
+            - name: Deploy to GitHub Pages
+              uses: peaceiris/actions-gh-pages@v4
+              if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+              with:
+                  publish_branch: gh-pages
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  publish_dir: _build/html/
+                  force_orphan: true
