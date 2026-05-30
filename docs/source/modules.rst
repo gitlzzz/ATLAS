@@ -1,7 +1,7 @@
-MatDBForge
-==========
+ATLAS
+=====
 
 .. toctree::
    :maxdepth: 4
 
-   MatDBForge
+   ATLAS

@@ -1,5 +1,5 @@
-MatDBForge package
-==================
+ATLAS package
+=============
 
 Subpackages
 -----------
@@ -7,13 +7,13 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   MatDBForge.core
-   MatDBForge.workflows
+   ATLAS.core
+   ATLAS.workflows
 
 Module contents
 ---------------
 
-.. automodule:: MatDBForge
+.. automodule:: ATLAS
    :members:
    :undoc-members:
    :show-inheritance:

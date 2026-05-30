@@ -1,19 +1,19 @@
-.. MatDBForge documentation master file, created by
+.. ATLAS documentation master file, created by
    sphinx-quickstart on Tue Oct 15 17:21:48 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Intro to MatDBForge
-====================
+Intro to ATLAS
+==============
 
 .. image:: ../media/logo_dark.png
    :width: 400 px
-   :alt: MatDBForge: A workflow for materials NNP generation"
+   :alt: ATLAS: A workflow for materials MLIP generation"
    :align: center
 
 |
 
-MatDBForge is a Python library that aids in the generation of chemical structures databases for training MLIPs (Machine Learning Interatomic Potential) to be used in heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling and active learning procedure.
+ATLAS is a Python library that aids in the generation of chemical structures databases for training MLIPs (Machine Learning Interatomic Potential) to be used in heterogeneous catalysis. It provides tools to create and manage a database of materials structures for training machine learning models, and allows to interact with workflow tools in order to automate the structure labelling and active learning procedure.
 
 
 .. toctree::
