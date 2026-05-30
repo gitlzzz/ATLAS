@@ -5,6 +5,7 @@ This script is part of MatDBForge's active learning loop, and is used to check
 if the current iteration of the model is robust enough before early stopping.
 """
 
+import gc
 import logging
 import pathlib as pl
 import pickle
@@ -17,7 +18,6 @@ import torch
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.io.trajectory import TrajectoryReader, TrajectoryWriter
-from ase.neighborlist import natural_cutoffs
 from mace.calculators import MACECalculator
 from shapely.affinity import scale
 from shapely.geometry import MultiPolygon, Point, Polygon
@@ -75,6 +75,8 @@ def check_traj_in_domain(
         Array containing the descriptors that are outside the concave hull.
     np.ndarray
         Array containing boolean values showing if the frame is inside the concave
+    np.ndarray or list
+        Scaled hull coordinates if hull_scale_factor > 0, otherwise None.
     """
     point_inside = []
     point_outside = []
@@ -113,35 +115,44 @@ def check_traj_in_domain(
             scaled_hull_coords = [np.array(p.exterior.coords) for p in polygon.geoms]
 
     for c_uuid in descriptor_dict:
-        descriptors = descriptor_dict[c_uuid]['latent_space']
+        # Get the [x, y] point directly.
+        # .squeeze() ensures it's a flat 1D array even if the model outputs shape (1, 2)
+        # latent_point.shape: (1, 2) -> (2,)
+        latent_point = np.array(descriptor_dict[c_uuid]['latent_space']).squeeze()
 
-        for _, frame_desc in enumerate(descriptors):
-            c_all_p = []
-            for point in frame_desc:
-                p = Point(point)
-                if polygon.contains(p):
-                    point_inside.append(point)
-                    c_all_p.append(True)
-                else:
-                    point_outside.append(point)
-                    c_all_p.append(False)
+        # Create the Shapely point directly
+        p = Point(latent_point)
 
-            all_points_in_out.append(np.array(c_all_p))
+        # Check if the point is inside the hull
+        if polygon.contains(p):
+            point_inside.append(latent_point)
+            all_points_in_out.append(True)
+        else:
+            point_outside.append(latent_point)
+            all_points_in_out.append(False)
 
+    # array shape: (n_points, 2)
     point_inside = np.array(point_inside)
     point_outside = np.array(point_outside)
+
+    # 1D array of booleans
+    # e.g., array([ True,  False,  True,  False,  True, ...])
     all_points_in_out = np.array(all_points_in_out)
+
     return point_inside, point_outside, all_points_in_out, scaled_hull_coords
 
 
-def limit_md_frames(md_traj, md_params: dict):
+def limit_md_frames(md_traj, frames_to_keep: list, md_params: dict):
     """
     Limit the number of frames in the MD trajectory.
 
     Parameters
     ----------
-    md_traj : ase.Atoms
-        MD trajectory.
+    md_traj : ase.Atoms | TrajectoryReader
+        ASE Atoms object or TrajectoryReader containing the MD trajectory.
+    frames_to_keep : list
+        List containing the indices of the frames that were kept after applying
+        the MD filters.
     md_params : dict
         Dictionary containing the MDB settings for MD.
 
@@ -154,7 +165,7 @@ def limit_md_frames(md_traj, md_params: dict):
     """
     # Limit total number of frames
     total_num_frames = mdb_al_ut.get_total_num_frames(
-        len_traj=len(md_traj),
+        len_traj=len(frames_to_keep),
         md_tstep_duration_ps=md_params['timestep_duration_ps'],
         frame_interval=md_params['al_keep_struct_every_n_ps'],
     )
@@ -187,16 +198,22 @@ def simple_extrapolation_check(
         Updated descriptor dictionary with the extrapolation check applied.
     """
     mdb_cut.custom_print('Applying basic extrapolation check...', 'info')
-    for curr_uuid, val in descriptor_dict.items():
-        structure_uuid = curr_uuid
-        descr_list = val['descriptors']
 
-    for frame_idx, frame_descriptors in enumerate(descr_list):
+    for curr_uuid, val in descriptor_dict.items():
+        # Get the descriptors for this specific frame
+        frame_descriptors = val['descriptors']
+
+        # Check bounds
         below_min = frame_descriptors < curr_it_db_min
         above_max = frame_descriptors > curr_it_db_max
         is_frame_extrapolating = np.any(np.logical_or(below_min, above_max))
+
+        # Assign the boolean directly
         if is_frame_extrapolating:
-            descriptor_dict[structure_uuid]['is_extrapolating'][frame_idx] = True
+            descriptor_dict[curr_uuid]['is_extrapolating'] = True
+        else:
+            descriptor_dict[curr_uuid]['is_extrapolating'] = False
+
     return descriptor_dict
 
 
@@ -302,7 +319,12 @@ if __name__ == '__main__':
         dim_red_settings = settings.get('descriptors', {}).get('pca', {})
 
     # Read the initial structure
-    init_conf_orig = ase_read(prepend_path / 'curr_structure.xyz', format='extxyz')
+    try:
+        init_conf_orig = ase_read(prepend_path / 'curr_structure.xyz', format='extxyz')
+    except Exception as e:
+        mdb_cut.custom_print(
+            f'Error reading initial structure: {e}', 'error', logger=logger
+        )
 
     ## Running MD simulations for given temperatures
     for T_start in T_list:
@@ -350,148 +372,121 @@ if __name__ == '__main__':
         mdb_cut.custom_print(
             f"Checking extrapolating frames for '{curr_traj}'", 'info', logger=logger
         )
-        extrap_frame_idx = []
 
         curr_temp = float(str(curr_traj).split('temp-')[1].split('.traj')[0])
 
         # Read the trajectory
-        md_traj = [frame for frame in TrajectoryReader(curr_traj)]
+        md_traj = TrajectoryReader(curr_traj)
+        # md_traj = [frame for frame in TrajectoryReader(curr_traj)]
+
         orig_md_size = len(md_traj)
         mdb_cut.custom_print(
             f'Trajectory length: {orig_md_size}', 'info', logger=logger
         )
 
-        # Add frame info and overwrite the trajectory
-        for frame_idx, frame in enumerate(md_traj):
-            frame.info['frame_idx'] = frame_idx
-            frame.info['calc_type'] = 'MACE_MD'
-
         # Apply MD filters and removing these frames from the trajectory
-        frames_to_remove = []
-        mdb_cut.custom_print(
-            'Applying MD filters to remove outliers...', 'info', logger=logger
+        layer_dist_enabled = md_filters.get('layer_distance', {}).get('enable', False)
+        explode_enabled = md_filters.get('exploding_structures', {}).get(
+            'enable', False
+        )
+        evap_enabled = md_filters.get('check_atoms_no_neighbor', {}).get(
+            'enable', False
         )
 
-        if md_filters.get('layer_distance', {}).get('enable'):
+        # Precompute values needed for filters
+        if layer_dist_enabled:
             mdb_cut.custom_print(
-                "Running 'layer distance' filter...", 'info', logger=logger
+                'Layer distance filter enabled.', 'info', logger=logger
             )
-            later_distance_r_frames = []
-
-            # Getting max distance from input
             max_dist: float = md_filters['layer_distance']['max_layer_distance_ang']
 
-            for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_str_filters.apply_filter_layer_distance(
-                    struct=frame, max_layer_distance_ang=max_dist
-                )
-                if is_structure_wrong:
-                    later_distance_r_frames.append(idx)
-            frames_to_remove.extend(later_distance_r_frames)
-
-            mdb_cut.custom_print(
-                f'Marked by layer distance filter: {len(later_distance_r_frames)}',
-                'debug',
-            )
-
-        exploding_structs = []
-        if md_filters.get('exploding_structures', {}).get('enable'):
-            mdb_cut.custom_print(
-                "Running 'exploding structures' filter...", 'info', logger=logger
-            )
-
+        if explode_enabled:
             explod_filt_settings = md_filters.get('exploding_structures', {})
-            # Getting multiplier from input
-            cov_rad_multiplier_max: float = explod_filt_settings.get(
-                'cov_rad_multiplier_max', 10.0
-            )
-            cov_rad_multiplier_min: float = explod_filt_settings.get(
-                'cov_rad_multiplier_min', 0.8
-            )
             max_T = curr_temp * safe_md_params.get('max_temp_multiplier', 1)
             max_T_multiplier = explod_filt_settings.get('max_T_multiplier', 10)
             remove_positive_E = explod_filt_settings.get('remove_positive_E', False)
             max_F: float = explod_filt_settings.get('max_F', 25.0)
             max_V: float = explod_filt_settings.get('max_V', 2.0)
 
-            # Precomputing cutoffs once before the loop
-            base_structure = md_traj[0]
-            base_cutoffs = np.array(natural_cutoffs(base_structure))
-            cutoffs_max_base = base_cutoffs * cov_rad_multiplier_max
-            cutoffs_min_base = base_cutoffs * cov_rad_multiplier_min
-
-            # Applying filter for every frame
-            for idx, frame in enumerate(md_traj):
-                is_structure_wrong: bool = (
-                    mdb_str_filters.apply_filter_exploding_structures(
-                        struct=frame,
-                        max_F=max_F,
-                        max_V=max_V,
-                        max_T=max_T,
-                        T_list=[frame.info.get('md_temperature')],
-                        max_T_multiplier=max_T_multiplier,
-                        remove_positive_E=remove_positive_E,
-                    )
-                )
-                if is_structure_wrong:
-                    exploding_structs.append(idx)
-
-            frames_to_remove.extend(exploding_structs)
-
-            mdb_cut.custom_print(
-                f'Marked by exploding structures filter: {len(exploding_structs)}',
-                'debug',
-                logger=logger,
-            )
-
-        if md_filters.get('check_atoms_no_neighbor', {}).get('enable'):
-            neighbor_r_frames = []
-            mdb_cut.custom_print(
-                "Running 'no neighbor' filter...", 'info', logger=logger
-            )
-
-            # Getting multiplier from input
-            cov_rad_mult: float = md_filters.get('check_atoms_no_neighbor', {}).get(
-                'covalent_radius_multiplier', 1.0
-            )
-
-            # Precompute the maximum allowed Z-thickness
-            base_structure = md_traj[0]
-            initial_z_thickness = np.ptp(base_structure.positions[:, 2])
-            expansion_buffer = 10.0  # Set your 5-10 Å buffer here
+        if evap_enabled:
+            initial_z_thickness = np.ptp(md_traj[0].positions[:, 2])
+            expansion_buffer = 10.0
             max_allowed_thickness = initial_z_thickness + expansion_buffer
 
-            # Applying filter for every frame
-            for idx, frame in enumerate(md_traj):
-                is_structure_wrong = mdb_str_filters.apply_filter_evaporation(
-                    struct=frame,
-                    max_allowed_thickness=max_allowed_thickness,
-                )
-                if is_structure_wrong:
-                    neighbor_r_frames.append(idx)
-            frames_to_remove.extend(neighbor_r_frames)
+        # Single loop with early exits, fastest path for each frame
+        mdb_cut.custom_print(
+            'Applying MD filters to remove outliers...', 'info', logger=logger
+        )
+        frames_to_remove = set()
+        explode_count = 0
+        layer_dist_count = 0
+        evap_count = 0
 
-            mdb_cut.custom_print(
-                f'Marked by no neighbor filter: {len(neighbor_r_frames)}',
-                'debug',
-                logger=logger,
-            )
+        iterable = mdb_cut.mdb_show_progress(
+            enumerate(md_traj),
+            total=orig_md_size,
+            interval=1000,
+            prepend='Filter:',
+        )
 
-        # Remove duplicate frames
-        frames_to_remove = list(set(frames_to_remove))
+        for idx, frame in iterable:
+            # Add frame info and overwrite the trajectory
+            # for frame_idx, frame in enumerate(md_traj):
+            frame.info['frame_idx'] = idx
+            frame.info['calc_type'] = 'MACE_MD'
 
-        # Create a new list excluding the frames to remove
-        md_traj_filtered = [
-            frame for i, frame in enumerate(md_traj) if i not in frames_to_remove
-        ]
+            # Check exploding structures first (fast: dict lookups + array ops)
+            if explode_enabled and mdb_str_filters.apply_filter_exploding_structures(
+                struct=frame,
+                max_F=max_F,
+                max_V=max_V,
+                max_T=max_T,
+                T_list=[frame.info.get('md_temperature')],
+                max_T_multiplier=max_T_multiplier,
+                remove_positive_E=remove_positive_E,
+            ):
+                frames_to_remove.add(idx)
+                explode_count += 1
+                continue
+
+            # Check evaporation (fast: np.ptp)
+            if evap_enabled and mdb_str_filters.apply_filter_evaporation(
+                struct=frame,
+                max_allowed_thickness=max_allowed_thickness,
+            ):
+                frames_to_remove.add(idx)
+                evap_count += 1
+                continue
+
+            # Check layer distance (moderate: .copy() + .wrap())
+            if layer_dist_enabled and mdb_str_filters.apply_filter_layer_distance(
+                struct=frame, max_layer_distance_ang=max_dist
+            ):
+                frames_to_remove.add(idx)
+                layer_dist_count += 1
+                continue
 
         mdb_cut.custom_print(
-            f'Trajectory length after MD filters: {len(md_traj_filtered)}',
+            f'Marked by filters - exploding: {explode_count}, '
+            f'layer distance: {layer_dist_count}, no neighbor: {evap_count}',
             'info',
             logger=logger,
         )
 
-        if len(md_traj_filtered) == 0:
+        # Create a new list excluding the frames to remove
+        frames_to_keep = [frame_idx for frame_idx in range(len(md_traj))]
+        frames_to_keep = [
+            frame for frame in frames_to_keep if frame not in frames_to_remove
+        ]
+        # md_traj_filtered = [md_traj[frame] for frame in frames_to_keep]
+
+        mdb_cut.custom_print(
+            f'Trajectory length after MD filters: {len(frames_to_keep)}',
+            'info',
+            logger=logger,
+        )
+
+        if len(frames_to_keep) == 0:
             mdb_cut.custom_print(
                 (
                     'No MD frames left after filtering. '
@@ -538,7 +533,9 @@ if __name__ == '__main__':
         # Limit total number of frames if sampling during md is disabled
         if not safe_md_params.get('sample_frames_during_md'):
             md_traj_short, short_mask = limit_md_frames(
-                md_traj_filtered, safe_md_params
+                md_traj=md_traj,
+                frames_to_keep=frames_to_keep,
+                md_params=safe_md_params,
             )
             mdb_cut.custom_print(
                 f'Limited number of frames to: {len(md_traj_short)}',
@@ -546,7 +543,8 @@ if __name__ == '__main__':
                 logger=logger,
             )
         else:
-            md_traj_short = md_traj_filtered
+            # md_traj_short = md_traj_filtered
+            md_traj_short = [md_traj[frame] for frame in frames_to_keep]
             short_mask = np.arange(len(md_traj_short))
             mdb_cut.custom_print(
                 'Trajectory already shortened during MD by save interval. '
@@ -554,6 +552,10 @@ if __name__ == '__main__':
                 'info',
                 logger=logger,
             )
+
+        # Free the full and filtered trajectories to release memory
+        del md_traj
+        gc.collect()
 
         # # Running evaluation of the energies and forces using each commitee model
         # mdb_cut.custom_print('Running committee evaluation...', 'info', logger=logger)
@@ -591,6 +593,7 @@ if __name__ == '__main__':
                     mdb_al_ut.generate_descriptors_soap(
                         database=md_traj_short,
                         descriptor_settings=settings['descriptors'],
+                        verbose=True,
                     )
                 )
             else:
@@ -599,17 +602,20 @@ if __name__ == '__main__':
                         model_path=prepend_path / 'sampler_model.model',
                         database=md_traj_short,
                         descriptor_settings=settings['descriptors'],
+                        verbose=True,
                     )
                 )
 
             # Add is_extrapolating list which contains boolean values showing
             # if the frame is extrapolating or not
+            # for structure_uuid in descriptor_dict:
+            #     descriptor_dict[structure_uuid]['is_extrapolating'] = np.zeros(
+            #         len(md_traj_short), dtype=bool
+            #     )
+            # Add is_extrapolating boolean showing if the frame is extrapolating
             for structure_uuid in descriptor_dict:
-                descriptor_dict[structure_uuid]['is_extrapolating'] = np.zeros(
-                    len(md_traj_short), dtype=bool
-                )
+                descriptor_dict[structure_uuid]['is_extrapolating'] = False
 
-        print()
         # Advanced extrapolation (concave hull) check
         if extrap_type in ['advanced', 'alpha-shape']:
             mdb_cut.custom_print(
@@ -691,22 +697,38 @@ if __name__ == '__main__':
                 filename=res_folder / f'concave_hull_temp-{curr_temp}.png',
             )
 
-            for idx, frame in enumerate(all_points_in_out):
-                if np.all(frame):
-                    descriptor_dict[structure_uuid]['is_extrapolating'][idx] = False
+            # True means it is INSIDE the domain (NOT extrapolating)
+            # False means it is OUTSIDE the domain (IS extrapolating)
+            for idx, c_uuid in enumerate(uuids):
+                is_inside_hull = all_points_in_out[idx]
+
+                if is_inside_hull:
+                    descriptor_dict[c_uuid]['is_extrapolating'] = False
                 else:
-                    descriptor_dict[structure_uuid]['is_extrapolating'][idx] = True
+                    descriptor_dict[c_uuid]['is_extrapolating'] = True
 
         # Simple extrapolation check (descriptor min/max)
         elif extrap_type in ['basic', 'min-max']:
             # Read the minimum and maximum values for each descriptor
             # for the entire database
-            curr_it_db_max = np.load(prepend_path / 'curr_it_db_max.npy')
-            curr_it_db_min = np.load(prepend_path / 'curr_it_db_min.npy')
+            try:
+                curr_it_db_max = np.load(prepend_path / 'curr_it_db_max.npy')
+            except ValueError:
+                curr_it_db_max = np.fromfile(
+                    '/mdb_data/curr_it_db_min.npy', dtype=np.float32
+                )
+
+            try:
+                curr_it_db_min = np.load(prepend_path / 'curr_it_db_min.npy')
+            except ValueError:
+                curr_it_db_min = np.fromfile(
+                    '/mdb_data/curr_it_db_min.npy', dtype=np.float32
+                )
 
             descriptor_dict = simple_extrapolation_check(
                 curr_it_db_max, curr_it_db_min, descriptor_dict
             )
+
         # Dont apply any further extrapolation check. Use the EF commitee check
         # already applied.
         elif extrap_type in ['none', 'disabled', None]:
@@ -717,15 +739,14 @@ if __name__ == '__main__':
             )
 
         if extrap_type != 'none':
-            for idx, is_extrapolating in enumerate(
-                descriptor_dict[structure_uuid]['is_extrapolating']
-            ):
-                if is_extrapolating:
-                    extrap_frame_idx.append(md_traj_short[idx].info['frame_idx'])
+            extrapol_frames_final = [
+                frame
+                for frame, uuid in zip(md_traj_short, uuids, strict=False)
+                if descriptor_dict[uuid]['is_extrapolating']
+            ]
+        else:
+            extrapol_frames_final = []
 
-        # Saving all the frames that are extrapolating to a file
-        extrap_frame_idx = set(extrap_frame_idx)
-        extrapol_frames_final = [md_traj[i] for i in extrap_frame_idx]
         mdb_cut.custom_print(
             f'Total count of extrapolating frames: {len(extrapol_frames_final)}',
             'info',
