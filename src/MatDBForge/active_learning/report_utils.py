@@ -28,13 +28,11 @@ from MatDBForge.active_learning.active_learning_utils import (
     remove_isolated_atoms,
     simplify_forces_struct,
 )
+from MatDBForge.active_learning.extrapolation import morphological_closing as mdb_morph
 from MatDBForge.active_learning.extrapolation.autoencoder import (
     Autoencoder,
     get_latent_space_autoencoder,
     load_autoencoder_model,
-)
-from MatDBForge.active_learning.extrapolation.concave_hull import (
-    get_concave_hull_python,
 )
 from MatDBForge.active_learning.extrapolation.train_autoencoder import (
     run_training,
@@ -1740,7 +1738,7 @@ def plot_al_loop_report(
             ha='center',
             va='bottom',
             rotation=90,
-            fontweight=700,
+            fontweight='bold',
         )
         ax1.text(
             idx + width,
@@ -1749,7 +1747,7 @@ def plot_al_loop_report(
             ha='center',
             va='bottom',
             rotation=90,
-            fontweight=700,
+            fontweight='bold',
         )
 
     ax2 = ax.figure.add_subplot(ax[0, 1])
@@ -1797,7 +1795,7 @@ def plot_al_loop_report(
             ha='center',
             va='bottom',
             rotation=90,
-            fontweight=700,
+            fontweight='bold',
         )
         ax2.text(
             idx + width,
@@ -1806,7 +1804,7 @@ def plot_al_loop_report(
             ha='center',
             va='bottom',
             rotation=90,
-            fontweight=700,
+            fontweight='bold',
         )
 
     ax2.bar(
@@ -1994,10 +1992,12 @@ def get_latent_spaces_workchain(
                 'info',
             )
             if isinstance(model_path, (str, Path)):
+                # TODO: descriptor info shouldnt be hardcoded
                 descr_dict, arr, uuid_list = generate_descriptors(
+                    descriptor_type='mace',
+                    descriptor_settings={'dtype': 'float32', 'device': device_str},
                     model_path=model_path,
                     database=curr_step_db,
-                    device=device_str,
                     # descriptor_dict=curr_step_db,
                 )
             elif isinstance(model_path, orm.SinglefileData):
@@ -2021,6 +2021,7 @@ def get_latent_spaces_workchain(
                 descriptor_dict=descr_dict,
                 device=device_str,
                 quiet=True,
+                standardize_data=True,
             )
             latent_spaces.append(latent_space_dict)
 
@@ -2064,6 +2065,8 @@ def generate_latent_space_evol(
     ignore_latent_spaces : bool, optional
         Whether to ignore latent spaces, by default False
     """
+    mpl.rcParams['svg.fonttype'] = 'none'
+
     # Try loading pickle file before doing anything else
     if Path('./latent_spaces.pkl').exists():
         with open('latent_spaces.pkl', 'rb') as f:
@@ -2137,7 +2140,6 @@ def generate_latent_space_evol(
 
         # Get number of steps saved
         num_steps_saved = len(latent_spaces)
-        breakpoint()
         # Computing latent space for all structures
         if num_steps_saved == 0:
             if databases:
@@ -2172,7 +2174,7 @@ def generate_latent_space_evol(
                 # to load the model
                 elif isinstance(model_path, orm.SinglefileData):
                     with model_path.as_path() as model_path_load:
-                        get_latent_spaces_workchain(
+                        latent_spaces = get_latent_spaces_workchain(
                             database_path=database_path,
                             model_path=model_path_load,
                             device_str=device_str,
@@ -2222,9 +2224,9 @@ def generate_latent_space_evol(
 
     # Get concave hulls if missing
     if concave_hulls == {}:
-        last_alpha = None
+        # last_alpha = None
         for idx, latent_space in enumerate(latent_spaces):
-            custom_print(f'Computing concave hull for step {idx}...', 'info')
+            custom_print(f'Getting boundary for step {idx}...', 'info')
             latent_space_vals = []
 
             # Different structures for latent_space list when coming from
@@ -2239,24 +2241,49 @@ def generate_latent_space_evol(
 
             # Get concave hull if step is 0
             # Use previous obtained alpha to speed up process.
-            concave_hull, last_alpha = get_concave_hull_python(
-                latent_space_vals, use_alpha=last_alpha
+            # concave_hull, last_alpha = get_concave_hull_python(
+            #     latent_space_vals, use_alpha=last_alpha
+            # )
+
+            boundary_data_dict = mdb_morph.process_morphological_closing(
+                data_X=latent_space_vals[:, 0],
+                data_Y=latent_space_vals[:, 1],
+                disk_size=1,
             )
 
-            # Save concave hulls
-            concave_hulls[idx] = concave_hull.tolist()
+            boundary_array = np.vstack(boundary_data_dict['data_boundaries'])
 
-    for idx, concave_hull in concave_hulls.items():
+            # Save concave hulls
+            # concave_hulls[idx] = concave_hull.tolist()
+            concave_hulls[idx] = boundary_array
+
         # Converting from list to np.array
-        concave_hull = np.array(concave_hull)
+        # concave_hull = np.array(concave_hull)
 
         idx = int(idx)
 
+    # x_max = -0.2
+    # x_min = -5
+    # y_max = 0
+    # y_min = -1
+
+    for idx, hull in concave_hulls.items():
         # Initial concave hull. Do scatter and fill.
+
+        # mask = (
+        #     (hull[:, 0] >= x_min)
+        #     & (hull[:, 0] <= x_max)
+        #     & (hull[:, 1] >= y_min)
+        #     & (hull[:, 1] <= y_max)
+        # )
+
+        # Apply the mask to filter the array
+        # hull = hull[mask]
+
         if idx == 0:
             ax1.plot(
-                concave_hull[:, 0],
-                concave_hull[:, 1],
+                hull[:, 0],
+                hull[:, 1],
                 color='#fb4934',
                 linestyle='solid',
                 # zorder=5,
@@ -2264,15 +2291,15 @@ def generate_latent_space_evol(
                 linewidth=1,
             )
             ax1.scatter(
-                concave_hull[:, 0],
-                concave_hull[:, 1],
+                hull[:, 0],
+                hull[:, 1],
                 s=12,
                 color='#fb4934',
                 alpha=1,
                 linewidth=0.33,
                 edgecolors='#282828',
             )
-            ax1.fill(concave_hull[:, 0], concave_hull[:, 1], '#fb4934', alpha=0.15)
+            ax1.fill(hull[:, 0], hull[:, 1], '#fb4934', alpha=0.15)
 
         # Other steps plotted as scatter points
         else:
@@ -2281,15 +2308,20 @@ def generate_latent_space_evol(
             color = mappable.to_rgba(idx)
             color = mpl_colors.rgb2hex(color)
             ax1.scatter(
-                concave_hull[:, 0],
-                concave_hull[:, 1],
+                hull[:, 0],
+                hull[:, 1],
                 s=12,
                 color=color,
                 alpha=1,
                 linewidth=0.25,
                 edgecolors='#282828',
             )
-            ax1.fill(concave_hull[:, 0], concave_hull[:, 1], color=color, alpha=0.15)
+            ax1.fill(
+                hull[:, 0],
+                hull[:, 1],
+                color=color,
+                alpha=0.15,
+            )
 
         ax1.set_title('Latent Space Evolution')
         ax1.set_xlabel('Reduced dimension 1')
@@ -2309,9 +2341,16 @@ def generate_latent_space_evol(
 
         ax1.legend()
 
+    concave_hulls_list = {}
+    for idx, hull in concave_hulls.items():
+        if isinstance(hull, list):
+            concave_hulls_list[idx] = hull
+        else:
+            concave_hulls_list[idx] = hull.tolist()
+
     # Save concave hulls to json file
     with open('concave_hulls.json', 'w') as f:
-        json.dump({'concave_hulls': concave_hulls}, f)
+        json.dump({'concave_hulls': concave_hulls_list}, f)
 
     # Adding colorbar once all iterations are plotted
     # cax = ax1.inset_axes([1.0, 0.2, 0.5, 1])
@@ -2366,6 +2405,7 @@ def get_latent_spaces_database_files(
             descriptor_dict=descr_dict,
             device=device_str,
             quiet=True,
+            standardize_data=True,
         )
         latent_spaces.append(latent_space_dict)
 
