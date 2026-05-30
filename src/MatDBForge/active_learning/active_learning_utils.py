@@ -8,6 +8,7 @@ import io
 import itertools as it
 import logging
 import os
+import pickle as pkl
 import tempfile
 import time
 import tomllib as toml
@@ -282,7 +283,7 @@ def generate_descriptors(
     database: list[Atoms] | np.ndarray,
     descriptor_type: str,
     descriptor_settings: dict,
-    model_path: str = None,
+    model_path: str | Path | None = None,
     outer_average_mace: bool = False,
     verbose: bool = False,
 ) -> tuple[dict, np.ndarray, list[str]]:
@@ -327,6 +328,25 @@ def generate_descriptors(
             outer_average=outer_average_mace,
             verbose=verbose,
         )
+
+
+def save_descriptors(
+    save_path: str | Path,
+    descriptor_dict: dict,
+    save_format: str = 'pkl',
+):
+    save_path = Path(save_path).with_suffix(f'.{save_format}')
+
+    match save_format:
+        case 'pkl':
+            with open(save_path, 'wb') as f:
+                pkl.dump(descriptor_dict, f)
+        case _:
+            raise ValueError(f'Format {save_format} not supported')
+
+
+# def load_descriptors(descriptor_file_path: str | Path, format: str = 'pkl'):
+#     return descr_dict, descr_arr, uuids
 
 
 def calculate_fps_scores_descriptor(
@@ -448,7 +468,7 @@ def select_structures_lowest_energy(
 
 def select_structures_fps(
     candidate_db: list[Atoms],
-    selected_db: list[Atoms],  # <--- NEW: Pass the existing subset
+    selected_db: list[Atoms],
     n_structures: int,
     descriptor_settings: dict,
     outer_average_mace: bool = False,
