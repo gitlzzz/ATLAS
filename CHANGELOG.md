@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.52.0 (2026-05-31)
+
+### Docs
+
+- **core**: update docs ([#f836db1](https://github.com/pol-sb/MatDBForge/commit/f836db1ccdf25dc2273894aaaff8f64364ba30b6))
+
+### Feature
+
+- **core**: first round of renaming MatDBForge -> ATLAS ([#317d82d](https://github.com/pol-sb/MatDBForge/commit/317d82d62eee00d35f87206ab4bb3ef9c0d32717))
+- **al_loop**: allow saving test set ([#a1e51b1](https://github.com/pol-sb/MatDBForge/commit/a1e51b151603a2a7d8a9c3a6030b85df92e6d09c))
+- **init_db**: add util functions ([#2834c99](https://github.com/pol-sb/MatDBForge/commit/2834c99558497c12894e5ab1bcc30fd598edd3c8))
+
+### Fix
+
+- **core**: improve version check ([#49d7316](https://github.com/pol-sb/MatDBForge/commit/49d731682612c7314216ce11a48ea2a1da678b1c))
+- **benchmarks**: allow several surfaces in run_defect_formation_energy_benchmark ([#969a54a](https://github.com/pol-sb/MatDBForge/commit/969a54a7fcdf381c50a0a8d0b26c6ffab70bb8f8))
+- **md**: allow processing large structures in safeguard ([#5a3c2b6](https://github.com/pol-sb/MatDBForge/commit/5a3c2b6a76df8c1c63319e3f498601b6962d26d4))
+- **core**: update report util to last al version ([#ca127c2](https://github.com/pol-sb/MatDBForge/commit/ca127c26f2d0c4a336aa10be0f5dfa8bb5a656f7))
+- **domain_validity**: fix autoencoder description mapping ([#f0f876e](https://github.com/pol-sb/MatDBForge/commit/f0f876eabd4cdd9a5dffa4781225d75226e2a784))
+
+### Refactor
+
+- misc fixed ([#bb634ba](https://github.com/pol-sb/MatDBForge/commit/bb634ba72d07c44ce4ffdc174fe2806e4a02aca4))
+- **domain_validity**: add save_descriptors() function ([#662c1c5](https://github.com/pol-sb/MatDBForge/commit/662c1c58241f7d5763983b9596095b47c4a160d9))
+
 ## 0.51.1 (2026-05-06)
 
 ### Fix
