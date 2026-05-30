@@ -275,7 +275,7 @@ Settings for the AL seed generation for MD.
 - {alt}`seed_size_frac`:
   - **Description**: Sets total structures in an MD seed as a fraction of the training db size.
   - **Type**: `(float)`
-  - **Default**: `0.01`.
+  - **Default**: `0.1`.
 
 - {alt}`seed_min_num_structs`:
   - **Description**: Minimum number of structures in an MD seed.
