@@ -10,6 +10,7 @@ import time
 import tomllib
 import warnings
 
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 from rich.console import Console
@@ -74,6 +75,10 @@ def adjust_color_brightness(hex_color, brightness_factor):
     str
         Adjusted hex color string
     """
+    if isinstance(hex_color, tuple) and len(hex_color) == 3:
+        # If color is already an RGB tuple, convert to hex first
+        hex_color = mcolors.to_hex(hex_color)
+
     # Remove the '#' if present
     hex_color = hex_color.lstrip('#')
 
@@ -839,6 +844,7 @@ def create_final_multi_panel_plot(args):
 
                             # Color logic
                             base_color = mlip_colors[j]
+
                             adjusted_color = adjust_color_brightness(
                                 base_color, brightness_factors[i]
                             )
@@ -1296,6 +1302,7 @@ def create_final_multi_panel_plot(args):
 
                             rel_val = val - dft_val
                             base_color = mlip_colors[j]
+
                             color = adjust_color_brightness(
                                 base_color, brightness_factors[i]
                             )
@@ -1451,6 +1458,7 @@ def create_final_multi_panel_plot(args):
                                 mlip_idx = model_names.index(model_name)
                                 mlip_colors = get_model_colors_by_names(model_names)
                                 base_color = mlip_colors[mlip_idx]
+
                                 adjusted_color = adjust_color_brightness(
                                     base_color, brightness_factors[i]
                                 )
@@ -2067,6 +2075,7 @@ def create_final_multi_panel_plot(args):
                                     orig_idx = mlip_models.index(name)
                                     base_color = COLORS[orig_idx % len(COLORS)]
                                     # Apply brightness factor to create shades
+
                                     adjusted_color = adjust_color_brightness(
                                         base_color, brightness_factors[i]
                                     )

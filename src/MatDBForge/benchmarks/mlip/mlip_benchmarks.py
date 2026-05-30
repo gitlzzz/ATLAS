@@ -771,7 +771,7 @@ def run_defect_formation_energy_benchmark(args, model_paths: list[pl.Path]):
     # Calculate formation energy for DFT
     results['dft'] = {}
 
-    for _, calculations in calculation_groups.items():
+    for group_name, calculations in calculation_groups.items():
         formation_energy_eV_dft = 0
         for _, calc_data in calculations.items():
             formation_energy_eV_dft += (
