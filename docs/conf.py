@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-import MatDBForge.core.code_utils as mdb_cud
+import atlas.core.code_utils as atl_cud
 
 
 def get_git_commit_hash():
@@ -74,17 +74,17 @@ def get_whitelist_pattern(version_list: list) -> str:
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 
-sys.path.insert(0, pl.Path("../src/MatDBForge").absolute())
+sys.path.insert(0, pl.Path("../src/ATLAS").absolute())
 
 
 # -- Project information -----------------------------------------------------
 
-project = "MatDBForge"
+project = "ATLAS"
 copyright = "2024, Pol Sanz"
 author = "Pol Sanz"
 
 # The full version, including alpha/beta/rc tags
-release = "0.52.0"
+release = "0.52.1"
 
 
 # -- General configuration ---------------------------------------------------
@@ -155,13 +155,13 @@ html_theme_options = {
     "logo_only": True,
     "version_selector": True,
     "display_version": True,
-    "github_url": "https://github.com/pol-sb/MatDBForge",
+    "github_url": "https://github.com/pol-sb/ATLAS",
 }
 
 html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "pol-sb",  # Username
-    "github_repo": "MatDBForge",  # Repo name
+    "github_repo": "ATLAS",  # Repo name
     "github_version": "master",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
     "display_lower_left": True,
@@ -174,10 +174,10 @@ html_context["commit_hash"] = get_git_commit_hash()
 # This will build the 'master' branch AND all tags that
 # start with 'v', while ignoring all other branches.
 
-newest_tag, git_hash = mdb_cud.get_last_tagged_version_local(
-    "/home/runner/work/MatDBForge/MatDBForge"
-)
-tags = mdb_cud.get_list_of_tags("/home/runner/work/MatDBForge/MatDBForge")
+# library_path = '/home/runner/work/ATLAS/ATLAS'
+library_path = '/home/psanz/Documents/phd-iciq/Projects/P2-Cu/initial_db_p2/package'
+newest_tag, git_hash = atl_cud.get_last_tagged_version_local(library_path)
+tags = atl_cud.get_list_of_tags(library_path)
 
 last_10_versions = tags[:10]
 

@@ -1,2 +1,2 @@
-graft src/MatDBForge/data
-include src/MatDBForge/data/*
+graft src/ATLAS/data
+include src/ATLAS/data/*
