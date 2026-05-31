@@ -37,7 +37,7 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip setuptools
-                  pip install sphinx sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
+                  pip install "sphinx<9.0" sphinx_autodoc_typehints sphinx_rtd_theme myst_parser sphinx-multiversion
                   pip install .
 
             - name: Generate API documentation
