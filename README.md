@@ -250,6 +250,8 @@ Please refer to the examples in the examples directory for more details on how t
 
 ## Implementation Details
 
+### Database generation
+
 ### Active Learning
 
 <p align="center">
