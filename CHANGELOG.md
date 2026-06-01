@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.52.2 (2026-06-01)
+
+### Docs
+
+- **core**: update citation file ([#74bc2af](https://github.com/pol-sb/ATLAS/commit/74bc2aff763f7ce6e0193725ad648d5856443f15))
+
+### Refactor
+
+- **core**: rebranding continuation ([#e6add9c](https://github.com/pol-sb/ATLAS/commit/e6add9cd8fd28dfadc570e3857aff91a942322f6))
+- **core**: rebranding continuation ([#008196c](https://github.com/pol-sb/ATLAS/commit/008196ce03371c0eedc1e5b7dbd3654126612b77))
+
 ## 0.52.1 (2026-05-31)
 
 ### Docs
