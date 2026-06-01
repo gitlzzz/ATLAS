@@ -11,7 +11,6 @@
 
 ![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)
 
-
 ATLAS is a Python library that aids in the training process for MLIPs (Machine Learning Interatomic Potentials) to be used in heterogeneous catalysis. To do this, it provides tools for data generation, allowing to create and manage databases of structures, and provides a robust active learning framework to efficiently expand the training data, while interacting with workflow tools in order to automate the structure labelling.
 
 ## Table of Contents
@@ -130,9 +129,9 @@ atl_init_setup
 - DFT calculations with VASP use the [aiida-vasp](https://aiida-vasp.readthedocs.io/en/latest/) plugin, which needs additional configuration. Please, follow the [instructions on their website](https://aiida-vasp.readthedocs.io/en/latest/getting_started/general.html).
 
 - The steps required to set up the active learning loop with the simplest AiiDA configuration are the following:
-  1. Set up an aiida profile and database with `verdi presto`.
-  2. Create the AiiDA computer and code entries for ATLAS and aiida-vasp.
-  3. Add the potential datasets for aiida-vasp ([information here](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html)).
+    1. Set up an aiida profile and database with `verdi presto`.
+    2. Create the AiiDA computer and code entries for ATLAS and aiida-vasp.
+    3. Add the potential datasets for aiida-vasp ([information here](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html)).
 
 ## Usage
 
@@ -147,7 +146,6 @@ During the library installation, several entry points will be added so that the 
 - `atl_active_learning`: Launch an AL loop using a configuration file and a labelled initial database.
 - `atl_monitor_al_loop:` Launch a flask dashboard locally to monitor a running active learning loop. Open <http://127.0.0.1:8000> (or port specified in the launch arguments) in a browser to visualize the dashboard.
 - `atl_benchmark_mlip`: Evaluate and compare the performance of MLIPs using a suite of benchmarks.
-
 
 All of the entry points provide usage documentation when launched with the `-h`/`--help` argument, e.g.:
 
@@ -174,7 +172,7 @@ $> atl_gen_configuration_file --help
 
 The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `atl_gen_configuration_file` to generate a template file which can be customized.
 
-A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/ATLAS/master/source/input.html)  or in the local documentation files: [Input](./docs/source/input.md).
+A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/ATLAS/master/source/input.html) or in the local documentation files: [Input](./docs/source/input.md).
 
 ## Example: Training a MACE MLIP from scratch
 
@@ -254,12 +252,17 @@ Please refer to the examples in the examples directory for more details on how t
 
 ### Active Learning
 
-![Flowchart showing a simplified view of the active learning loop procedure. Steps marked with an asterisk are optional and might be omitted depending on the active learning settings](media/al_loop_architecture.png)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="media/al_loop_architecture_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="media/al_loop_architecture.png">
+    <img alt="Flowchart showing a simplified view of the active learning loop procedure. Steps marked with an asterisk are optional and might be omitted depending on the active learning settings" src="media/al_loop_architecture.png">
+  </picture>
 
 ## Authors and Maintainers
 
-* **[Pol Sanz Berman](github.com/pol.sb)** (Main Developer) - Predoctoral Researcher, ICIQ
-* **[Lulu Li](github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
-* **[Zan Lian](github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Pol Sanz Berman](github.com/pol.sb)** (Main Developer) - Predoctoral Researcher, ICIQ
+- **[Lulu Li](github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Zan Lian](github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
 
 For technical inquiries or collaborations, please open an issue or contact [psanz@iciq.es](mailto:psanz@iciq.es).
