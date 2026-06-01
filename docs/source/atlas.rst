@@ -1,4 +1,4 @@
-ATLAS package
+atlas package
 =============
 
 Subpackages
@@ -7,13 +7,14 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   ATLAS.core
-   ATLAS.workflows
+   atlas.active_learning
+   atlas.core
+   atlas.workflows
 
 Module contents
 ---------------
 
-.. automodule:: ATLAS
+.. automodule:: atlas
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

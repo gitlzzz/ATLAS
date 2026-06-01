@@ -35,10 +35,10 @@ ATL_THEME = Theme(
         'logging.level.[ ✔ ]': 'green bold',
         'logging.level.[ x ]': 'red bold',
         # Message Highlighting
-        'mdb.path': 'magenta italic',
-        'mdb.number': 'cyan bold',
-        'mdb.success': 'green underline',
-        'mdb.failure': 'red bold underline',
+        'atl.path': 'magenta italic',
+        'atl.number': 'cyan bold',
+        'atl.success': 'green underline',
+        'atl.failure': 'red bold underline',
     }
 )
 
@@ -74,7 +74,7 @@ class MdbHighlighter(RegexHighlighter):
     numbers, or specific status keywords.
     """
 
-    base_style = 'mdb.'
+    base_style = 'atl.'
     highlights = [
         r'(?P<path>[\w.\-/]+\.(py|log|txt|json|yaml))',  # File paths
         r'(?P<number>\b\d+\b)',  # Numbers
