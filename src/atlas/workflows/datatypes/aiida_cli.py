@@ -6,17 +6,17 @@ from aiida.cmdline.utils import decorators
 from aiida.plugins import DataFactory
 
 # Load the data class
-ImagePNGData = DataFactory('mdb.img-png')
+ImagePNGData = DataFactory('atl.img-png')
 
 
-@click.group('mdb.img-png')
+@click.group('atl.img-png')
 def cli():
     """PNG format images resulting from the ATLAS workflow."""
     pass
 
 
 @cli.command('show')
-@arguments.NODE(type=types.NodeParamType(sub_classes=('aiida.data:mdb.img-png',)))
+@arguments.NODE(type=types.NodeParamType(sub_classes=('aiida.data:atl.img-png',)))
 @decorators.with_dbenv()
 def show(node):
     """

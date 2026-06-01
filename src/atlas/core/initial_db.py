@@ -19,7 +19,6 @@ from types import SimpleNamespace
 from typing import Self
 
 import ase.io as aseio
-import ATLAS as mdb
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -43,6 +42,7 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from slugify import slugify
 
+import atlas as atl
 import atlas.core.clusters as atl_clust
 import atlas.core.code_utils as atl_cut
 import atlas.core.exceptions as atl_exc
@@ -127,7 +127,7 @@ class InitialDatabase:
         database_path: str | pl.Path = '.',
         create_db=True,
     ) -> None:
-        self.db_version = mdb.__version__
+        self.db_version = atl.__version__
 
         # Name of the database
         self.database_name = database_name

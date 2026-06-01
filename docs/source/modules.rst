@@ -1,7 +1,7 @@
-ATLAS
+atlas
 =====
 
 .. toctree::
    :maxdepth: 4
 
-   ATLAS
+   atlas

@@ -1,4 +1,4 @@
-ATLAS.workflows.dft package
+atlas.workflows.dft package
 ===========================
 
 Subpackages
@@ -7,12 +7,12 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   ATLAS.workflows.dft.vasp
+   atlas.workflows.dft.vasp
 
 Module contents
 ---------------
 
-.. automodule:: ATLAS.workflows.dft
+.. automodule:: atlas.workflows.dft
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
