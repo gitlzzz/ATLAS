@@ -8,11 +8,11 @@ message: "If you use this software in your work, please cite it using the follow
 # CITATION FOR THE SOFTWARE
 # ----------------------------------------------------------------
 title: "ATLAS"
-abstract: "Balancing Diversity and Efficiency in Training Datasets for Robust Machine Learning Potentials"
+abstract: "Balancing Diversity and Efficiency in Training Datasets for Robust Machine Learning Interatomic Potentials"
 type: software
 version: 0.52.1
 # TODO: Update with the release date
-date-released: 2025-06-20
+date-released: 2026-06-01
 repository-code: "https://github.com/pol-sb/ATLAS"
 url: "https://github.com/pol-sb/ATLAS"
 keywords:
@@ -49,7 +49,7 @@ authors:
 # ----------------------------------------------------------------
 preferred-citation:
   type: article
-  title: "Balancing Diversity and Efficiency in Training Datasets for Robust Machine Learning Potentials"
+  title: "Balancing Diversity and Efficiency in Training Datasets for Robust Machine Learning Interatomic Potentials"
   abstract: "Machine learning interatomic potentials (MLIPs) enable atomistic simulations at near first-principles accuracy. As model architectures mature, their reliability is increasingly constrained by training data quality. Here, we introduce ATLAS (Automated Training with Latent-space Aware Sampling), a unified and multifunctional framework based on reversibly compressed latent space and online reliability verification. By co-designing diversity and efficiency criteria with a diversity-aware database generator and a manifold-aware active learning workflow, we steer exploitation toward sparse configurational regions while preventing premature convergence. Validated on metals, alloys, and metal oxides, ATLAS produces compact datasets exceeding foundation model training chemical spaces by orders of magnitude with up to 317 times fewer structures. ATLAS-MLIPs outperform universal MLIPs by up to 425~K in melting point accuracy for CuZn, while surface energy errors for IrO$_x$ drop from 1.21 to 0.04~J/m$^2$. ATLAS provides a principled and transferable strategy for building robust MLIPs across diverse material classes."
 
   # TODO: Uncomment and fill in these details when the paper is published
