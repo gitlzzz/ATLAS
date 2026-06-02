@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.52.3 (2026-06-02)
+
+### Docs
+
+- **core**: update readme ([#f60e526](https://github.com/pol-sb/ATLAS/commit/f60e5265fa0d98807f3e45d274ec963bb7a166b2))
+- **core**: center logos ([#4d519a7](https://github.com/pol-sb/ATLAS/commit/4d519a7a8c8cfe9477bb2bef626d4997a8e88719))
+- **core**: add new logos v1 ([#afdb86f](https://github.com/pol-sb/ATLAS/commit/afdb86f1de442b5f51b1979dba5f53b8c1f65688))
+- **core**: remove old logos ([#450589a](https://github.com/pol-sb/ATLAS/commit/450589aca861b65c3274f70fd6906525298e9db2))
+- **core**: commit test on org repo ([#e1ab304](https://github.com/pol-sb/ATLAS/commit/e1ab304253f6f2b7ecc3a69aa2fa52bbed4977a3))
+- **core**: upload dark version of AL picture to media ([#bc7a6ca](https://github.com/pol-sb/ATLAS/commit/bc7a6cac913f8d195ea7e83c5c1b29b2385ec086))
+- **core**: update README.md ([#ba441c6](https://github.com/pol-sb/ATLAS/commit/ba441c61351c1c14dbdadb13b023e69605298ca3))
+
+### Test
+
+- **core**: added missing test suite ([#02326ad](https://github.com/pol-sb/ATLAS/commit/02326ad8369bb500df30976a9797831bc6ee9f9e))
+
 ## 0.52.2 (2026-06-01)
 
 ### Docs
