@@ -54,7 +54,6 @@ from atlas.core import utils as ut
 
 # from atlas.active_learning.active_learning_utils import AVAILABLE_FILTERS
 from atlas.core.filtering.structure_filters import apply_struct_filters_atl_db
-from atlas.core.structure import Structure as ATLStructure
 
 # Filtering certain warnings
 warnings.filterwarnings('ignore', category=vasp.outputs.UnconvergedVASPWarning)
@@ -308,13 +307,13 @@ class InitialDatabase:
                     atl_struct_list = []
                     for atoms in db_ase_atoms:
                         atl_struct_list.append(
-                            ATLStructure.from_ase_atoms(ase_atoms=atoms)
+                            atl_struct.Structure.from_ase_atoms(ase_atoms=atoms)
                         )
                         phases.append(atoms.info.get('phase', 'unknown'))
                         species = species.union(atoms.symbols.species())
                 else:
                     atl_struct_list = [
-                        ATLStructure.from_ase_atoms(ase_atoms=db_ase_atoms)
+                        atl_struct.Structure.from_ase_atoms(ase_atoms=db_ase_atoms)
                     ]
                     phases.append(db_ase_atoms.info.get('phase', 'unknown'))
                     species = species.union(db_ase_atoms.symbols.species())
@@ -1504,7 +1503,7 @@ class InitialDatabase:
         md_struct_list = []
         for _, entry in target_entries.iterrows():
             # Get ATL structure as ASE atoms
-            init_conf_orig = ATLStructure().from_db_row(
+            init_conf_orig = atl_struct.Structure().from_db_row(
                 row=entry, columns=entry.index.to_list()
             )
             init_conf_orig = init_conf_orig.to_ase_atoms()

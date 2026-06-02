@@ -1,0 +1,96 @@
+"""Shared fixtures for ATLAS tests."""
+
+from unittest.mock import MagicMock
+
+import numpy as np
+import pytest
+from ase import Atoms
+
+
+@pytest.fixture
+def mock_atoms_simple():
+    """Create a minimal ASE Atoms object with atl_id metadata."""
+    atoms = Atoms(
+        symbols='Cu4',
+        positions=[[0, 0, 0], [1.8, 0, 0], [0, 1.8, 0], [0, 0, 1.8]],
+        cell=[4, 4, 4],
+        pbc=True,
+    )
+    atoms.info['atl_id'] = 'test-uuid-0001'
+    atoms.info['struct_name'] = 'test_structure'
+    atoms.info['bulk'] = True
+    atoms.info['phase'] = 'alpha'
+    atoms.info['base'] = True
+    return atoms
+
+
+@pytest.fixture
+def mock_atoms_with_dft():
+    """Create an ASE Atoms object with DFT reference data."""
+    atoms = Atoms(
+        symbols='Cu4',
+        positions=[[0, 0, 0], [1.8, 0, 0], [0, 1.8, 0], [0, 0, 1.8]],
+        cell=[4, 4, 4],
+        pbc=True,
+    )
+    atoms.info['atl_id'] = 'test-uuid-0002'
+    atoms.info['REF_energy'] = -10.5
+    atoms.arrays['REF_forces'] = np.array([
+        [0.1, 0.0, 0.0],
+        [-0.1, 0.0, 0.0],
+        [0.0, 0.1, 0.0],
+        [0.0, -0.1, 0.0],
+    ])
+    atoms.info['REF_stress'] = np.zeros((3, 3))
+    return atoms
+
+
+@pytest.fixture
+def mock_pmg_structure():
+    """Create a simple pymatgen Structure for testing."""
+    from pymatgen.core import Lattice, Structure
+
+    lattice = Lattice.cubic(3.6)
+    return Structure(lattice, ['Cu', 'Cu', 'Cu', 'Cu'],
+                     [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+
+
+@pytest.fixture
+def mock_phase_diagram():
+    """Create a simple binary phase diagram for Cu-Zn."""
+    from atlas.core.phase_diagram import Phase, PhaseDiagram
+
+    phase_alpha = Phase(
+        name='alpha',
+        element_list=['Cu', 'Zn'],
+        composition={'Cu': {'min': 0.6, 'max': 1.0}, 'Zn': {'min': 0.0, 'max': 0.4}},
+        prototype='mp-30',
+        offset=0.02,
+        base_elem='Cu',
+    )
+    phase_gamma = Phase(
+        name='gamma',
+        element_list=['Cu', 'Zn'],
+        composition={'Cu': {'min': 0.45, 'max': 0.6}, 'Zn': {'min': 0.4, 'max': 0.55}},
+        prototype='mp-45',
+        offset=0.02,
+        base_elem='Cu',
+    )
+    return PhaseDiagram('Cu-Zn', ['Cu', 'Zn'], 'Cu', phase_alpha, phase_gamma)
+
+
+@pytest.fixture
+def mock_atom_data():
+    """Return a copy of the ATOM_DATA dictionary for testing."""
+    return {
+        'Cu': {
+            'a': 3.5691940,
+            'dimer_dist': 2.248,
+        }
+    }
+
+
+@pytest.fixture
+def mock_logger():
+    """Return a MagicMock logger."""
+    return MagicMock()

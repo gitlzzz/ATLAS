@@ -33,9 +33,9 @@ from atlas.active_learning import active_learning_utils as atl_al_ut
 from atlas.active_learning import conversion as atl_conv
 from atlas.core.code_utils import (
     ATL_THEME,
+    ATLHighlighter,
+    ATLRichHandler,
     LevelNameFilter,
-    MdbHighlighter,
-    MdbRichHandler,
     get_atl_version_info,
 )
 
@@ -356,9 +356,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
         ):
             # Adding console logger
             console = Console(
-                color_system='truecolor', theme=ATL_THEME, highlighter=MdbHighlighter()
+                color_system='truecolor', theme=ATL_THEME, highlighter=ATLHighlighter()
             )
-            ch = MdbRichHandler(
+            ch = ATLRichHandler(
                 markup=True,
                 show_path=False,
                 log_time_format='[%d/%m/%y %H:%M:%S]',
@@ -2063,10 +2063,10 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
         # Adding console logger
         console = Console(
-            color_system='truecolor', theme=ATL_THEME, highlighter=MdbHighlighter()
+            color_system='truecolor', theme=ATL_THEME, highlighter=ATLHighlighter()
         )
 
-        ch = MdbRichHandler(
+        ch = ATLRichHandler(
             markup=True,
             show_path=False,
             log_time_format='[%d/%m/%y %H:%M:%S]',
