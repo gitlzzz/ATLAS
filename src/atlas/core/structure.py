@@ -390,7 +390,12 @@ class Structure:
     #     return dict_obj
 
     def save_to_db(self, db_obj):
-        phase = self.phase if isinstance(self.phase, str) else self.phase.name
+        if isinstance(self.phase, str):
+            phase = self.phase
+        elif self.phase is not None:
+            phase = self.phase.name
+        else:
+            phase = None
         new_row = pd.Series(
             {
                 'material_id': str(self.material_id),
@@ -445,10 +450,6 @@ class Structure:
 
         struct_df = db_obj.df if is_InitialDatabase else db_obj
 
-        with pd.option_context('future.no_silent_downcasting', True):
-            struct_df = struct_df.fillna(value=False).infer_objects(copy=False)
-        struct_df = struct_df.astype(bool_columns)
-
         # Adding a new row to the database results in a FutureWarning
         # if some columns are empty. This is to be expected in this version
         # of the code, so we suppress the warning until it is gone.
@@ -456,9 +457,12 @@ class Structure:
             warnings.simplefilter('ignore')
 
             # Adding the new row to the database
-            if struct_df.shape[0] == 0:
+            if struct_df.shape[0] == 0 or struct_df.shape[1] == 0:
                 struct_df = new_row
             else:
+                with pd.option_context('future.no_silent_downcasting', True):
+                    struct_df = struct_df.fillna(value=False).infer_objects(copy=False)
+                struct_df = struct_df.astype(bool_columns)
                 struct_df = pd.concat([struct_df, new_row], ignore_index=True)
 
         if is_InitialDatabase:
@@ -509,7 +513,7 @@ class Surface(Structure):
 
         # Converting surface miller to a list of integers
         if isinstance(self.surface_miller, str):
-            self.surface_miller = [int(idx) for idx in self.surface_miller]
+            self.surface_miller = [int(idx) for idx in self.surface_miller.split()]
 
 
 class Cluster(Structure):

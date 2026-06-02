@@ -102,6 +102,8 @@ class BasePhaseDiagram:
             phase.phase_diagram = self
 
         self.phase_dict[phase.name] = phase
+        if phase.name not in self.phase_names:
+            self.phase_names.append(phase.name)
 
     def get_phase(self, phase) -> 'Phase':
         """Get a phase object from the phase diagram."""

@@ -28,7 +28,7 @@ from atlas import ATL_ROOT_DIR, __repo__, __version__
 
 ATL_THEME = Theme(
     {
-        # Level Styling (matches the rewritten names in MdbRichHandler)
+        # Level Styling (matches the rewritten names in ATLRichHandler)
         'logging.level.[ i ]': 'blue',
         'logging.level.[ ! ]': 'yellow',
         'logging.level.[...]': 'white dim',
@@ -66,7 +66,7 @@ def save_qr_to_file(data: str, filename: str = 'qr_code.png'):
     img.save(filename)
 
 
-class MdbHighlighter(RegexHighlighter):
+class ATLHighlighter(RegexHighlighter):
     """
     Apply custom highlighting to log messages using Regex.
 
@@ -83,7 +83,7 @@ class MdbHighlighter(RegexHighlighter):
     ]
 
 
-class MdbRichHandler(RichHandler):
+class ATLRichHandler(RichHandler):
     """
     Custom RichHandler that rewrites logging level names locally.
 
@@ -139,10 +139,10 @@ def get_console_handler() -> tuple[RichHandler, Console]:
         The configured handler and console instance.
     """
     # Create Console with the highlighter
-    console = Console(theme=ATL_THEME, highlighter=MdbHighlighter())
+    console = Console(theme=ATL_THEME, highlighter=ATLHighlighter())
 
     # 3. Create the custom handler
-    ch = MdbRichHandler(
+    ch = ATLRichHandler(
         markup=True,
         show_path=False,
         log_time_format='[%m/%d/%y %H:%M:%S]',
