@@ -6,6 +6,7 @@
     <source media="(prefers-color-scheme: light)" srcset="media/logo_light.png">
     <img alt="ATLAS: A workflow for materials MLIP generation" src="media/logo_light.png">
   </picture>
+</p>
 
 [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/ATLAS/master/index.html)
 
