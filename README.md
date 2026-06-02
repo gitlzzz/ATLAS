@@ -143,6 +143,21 @@ atl_init_setup
     2. Create the AiiDA computer and code entries for ATLAS and aiida-vasp.
     3. Add the potential datasets for aiida-vasp ([information here](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html)).
 
+## Developer Workflow
+
+Install the development dependencies with `pip install -e '.[dev]'`, which adds pre-commit, pytest, commitizen, and ipdb. After cloning, run `pre-commit install` to activate the git hooks.
+
+The project uses **commitizen** (`cz commit`) for structured conventional commits. It prompts for change type (feat/fix/docs/style/refactor/perf/test/chore), scope (al_loop/core/init_db/md/...), and a summary message. This feeds into automated changelog generation and version bumps (`cz bump`).
+
+On every commit, pre-commit runs three stages in sequence:
+
+1. **Schema docs** — Regenerates `docs/source/input.md` when `config_schema.yaml` changes.
+2. **ruff** — Lints all Python files with auto-fix, enforcing pycodestyle, pyflakes, pyupgrade, flake8-bugbear, isort, and numpy-style docstring rules.
+3. **pytest** — Runs the full test suite (`python -m pytest tests/ -x`), stopping at the first failure.
+4. **Miscellaneous** — Fixes trailing newlines, validates YAML/TOML, checks for oversized files.
+
+If any hook fails, the commit is blocked — ruff errors must be resolved manually and tests must pass before proceeding. Run `pre-commit run --all-files` to check everything without committing, or use `cz commit --retry` to retry the last commitizen interaction after fixing issues.
+
 ## Usage
 
 The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (MLIPs) by means of Active Learning (AL) Loops.
