@@ -8,9 +8,20 @@
   </picture>
 </p>
 
-[![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/ATLAS/master/index.html) ![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)
+[![DOI](https://img.shields.io/badge/DOI-10.26434%2Fchemrxiv.15003942%2Fv1-blue)](https://doi.org/10.26434/chemrxiv.15003942/v1) 
+
+![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/pol-sb/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/ATLAS/master/index.html)
+
+![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+![GitHub License](https://img.shields.io/github/license/pol-sb/ATLAS)
 
 ATLAS is a Python library that aids in the training process for MLIPs (Machine Learning Interatomic Potentials) to be used in heterogeneous catalysis. To do this, it provides tools for data generation, allowing to create and manage databases of structures, and provides a robust active learning framework to efficiently expand the training data, while interacting with workflow tools in order to automate the structure labelling.
+
+
+> [!NOTE]
+> **Preprint Available:** The theoretical framework and benchmarking for this project are now available as a working paper on ChemRxiv: [Balancing Diversity and Efficiency in Training Datasets for Robust Machine Learning Potentials](https://doi.org/10.26434/chemrxiv.15003942/v1). 
+
 
 ## Table of Contents
 
