@@ -277,6 +277,13 @@ Please refer to the examples in the examples directory for more details on how t
 
 ### Database generation
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="media/db_gen-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="media/db_gen-dark.png">
+    <img alt="Flowchart showing a simplified view of the active learning loop procedure. Steps marked with an asterisk are optional and might be omitted depending on the active learning settings" src="media/al_loop_architecture.png">
+  </picture>
+
 ### Active Learning
 
 <p align="center">
