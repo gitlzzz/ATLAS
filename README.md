@@ -34,7 +34,7 @@ ATLAS is a Python library that aids in the training process for MLIPs (Machine L
 
 To install ATLAS, you can use pip in a python virtual environment or conda environment. Development has been made with `python3.11` in mind, which can be installed through the OS's package manager or conda.
 
-### 1. Creating a pyton environment
+### 1. Creating a python environment
 
 First, **create a virtual environment** and activate it. This can be done in several ways, but we provide some examples using `conda`, python `venv` or `uv`.
 
