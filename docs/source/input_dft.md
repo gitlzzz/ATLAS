@@ -31,7 +31,7 @@ General settings for the DFT script.
   - **Default**: `'dft_calculation_results'`.
 
 - {alt}`source_db`:
-  - **Description**: Path to the source database file (.extxyz or mdb .xz format).
+  - **Description**: Path to the source database file (.extxyz or ATLAS .xz database format).
   - **Type**: `(optional, str, PosixPath)`
 
 - {alt}`aiida_group_name`:

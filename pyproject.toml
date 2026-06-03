@@ -62,51 +62,51 @@ mace = [
 Homepage = "https://github.com/pol-sb/ATLAS"
 
 [project.entry-points."aiida.calculations"]
-"mdb-autoencoder-train" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
-"mdb-get-latent-space" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculation"
-"mdb-get-concave-hull" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculation"
-"mdb-descriptors-combined" = "atlas.active_learning.mace_tools_aiida:GetDescriptorsCombinedCalculation"
-"mdb-safeguard-md" = "atlas.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculation"
+"atl-autoencoder-train" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"
+"atl-get-latent-space" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculation"
+"atl-get-concave-hull" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculation"
+"atl-descriptors-combined" = "atlas.active_learning.mace_tools_aiida:GetDescriptorsCombinedCalculation"
+"atl-safeguard-md" = "atlas.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculation"
 "mace-train" = "atlas.active_learning.mace_tools_aiida:TrainMACEModelCalculation"
-"mdb-eval-test" = "atlas.active_learning.mace_tools_aiida:EvalTestDatabaseCalculation"
+"atl-eval-test" = "atlas.active_learning.mace_tools_aiida:EvalTestDatabaseCalculation"
 "mace-get-descriptors" = "atlas.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculation"
 "mace-eval" = "atlas.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculation"
 "mace-lammps-gpu-md" = "atlas.active_learning.mace_tools_aiida:RunMDCalculationGPULAMMPSMACE"
 "mace-committee-eval" = "atlas.active_learning.mace_tools_aiida:CheckMACECommitteeResultsCalculation"
 
-"mdb-process-md-seed-struct" = "atlas.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculation"
+"atl-process-md-seed-struct" = "atlas.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculation"
 
 [project.entry-points."aiida.calculations.monitors"]
 "monitor.davwarning" = "atlas.workflows.monitors:output_monitor"
 
 [project.entry-points."aiida.workflows"]
-"mdb-active-learning" = "atlas.workflows.active_learning:ActiveLearningWorkChain"
-"mdb-active-learning-base" = "atlas.workflows.active_learning:ActiveLearningBaseWorkChain"
-"mdb-simple-active-learning" = "atlas.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
-"mdb-simple-active-learning-base" = "atlas.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
+"atl-active-learning" = "atlas.workflows.active_learning:ActiveLearningWorkChain"
+"atl-active-learning-base" = "atlas.workflows.active_learning:ActiveLearningBaseWorkChain"
+"atl-simple-active-learning" = "atlas.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
+"atl-simple-active-learning-base" = "atlas.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
 
 
 [project.entry-points."aiida.parsers"]
-"mdb-autoencoder-train-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
-"mdb-get-latent-space-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculationParser"
-"mdb-get-concave-hull-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculationParser"
+"atl-autoencoder-train-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculationParser"
+"atl-get-latent-space-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetLatentSpaceAutoencoderCalculationParser"
+"atl-get-concave-hull-parser" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:GetConcaveHullCalculationParser"
 "mace-training-parser" = "atlas.active_learning.mace_tools_aiida:TrainMACEModelCalculationParser"
 "mace-descriptors-parser" = "atlas.active_learning.mace_tools_aiida:GetMACEDescriptorsCalculationParser"
 "mace-eval-parser" = "atlas.active_learning.mace_tools_aiida:EvaluateMACEConfigsCalculationParser"
-"mdb-eval-test-parser" = "atlas.active_learning.mace_tools_aiida:EvalTestDatabaseCalculationParser"
+"atl-eval-test-parser" = "atlas.active_learning.mace_tools_aiida:EvalTestDatabaseCalculationParser"
 "mace-committee-eval-parser" = "atlas.active_learning.mace_tools_aiida:CheckMACECommiteeResultsCalculationParser"
 "mace-lammps-raw-parser" = "atlas.active_learning.mace_tools_aiida:LAMMPSMACERawParser"
-"mdb-process-md-seed-struct-parser" = "atlas.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculationParser"
-"mdb-descriptors-combined-parser" = "atlas.active_learning.mace_tools_aiida:GetDescriptorsCombinedParser"
-"mdb-safeguard-md-parser" = "atlas.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculationParser"
+"atl-process-md-seed-struct-parser" = "atlas.active_learning.mace_tools_aiida:ProcessMDSeedStructCalculationParser"
+"atl-descriptors-combined-parser" = "atlas.active_learning.mace_tools_aiida:GetDescriptorsCombinedParser"
+"atl-safeguard-md-parser" = "atlas.active_learning.safeguard.safeguard_utils:RunMDSafeguardCalculationParser"
 
 [project.entry-points."aiida.data"]
-"mdb.img-png" = "atlas.workflows.datatypes.image_types:ImagePNGData"
-"mdb.mlip-model" = "atlas.workflows.datatypes.mlip:MLIPModelFileData"
+"atl.img-png" = "atlas.workflows.datatypes.image_types:ImagePNGData"
+"atl.mlip-model" = "atlas.workflows.datatypes.mlip:MLIPModelFileData"
 
 # CLI entries
 [project.entry-points."aiida.cmdline.data"]
-"mdb.img-png" = "atlas.workflows.datatypes.aiida_cli:cli"
+"atl.img-png" = "atlas.workflows.datatypes.aiida_cli:cli"
 
 [project.scripts]
 "atl_active_learning" = "atlas.core.command_line.cli_active_learning:run_active_learning"

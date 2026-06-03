@@ -41,6 +41,7 @@ def run_initial_config():
 
     # Get cache directory
     cache_path = atl_cut.get_cache_path()
+    cache_dir = cache_path / 'mdb'
 
     # Create an mdb folder inside the ~/.cache directory
     cache_dir = atl_cut.init_cache_dir(cache_path)

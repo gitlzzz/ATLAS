@@ -32,7 +32,7 @@ ATLAS includes a custom `ImagePNGData` class that wraps AiiDA's `SinglefileData`
 To visualize an image, get the PK/UUID of a ImagePNGData node and run:
 
 ```bash
-verdi data mdb.img-png show <PK/UUID>
+verdi data atl.img-png show <PK/UUID>
 ```
 
 This will display the image using the default program for the `image/png` mimetype. You can check the default by running:
