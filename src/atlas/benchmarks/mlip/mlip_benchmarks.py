@@ -157,7 +157,7 @@ def run_final_db_size_benchmark(args, model_paths: list[pl.Path]):
         for name in run_names:
             data = results[name]
             atl_b_ut.custom_print(
-                f'  {name}: {data["seed_db_size"]} → {data["final_db_size"]} '
+                f'  {name}: {data["seed_db_size"]} -> {data["final_db_size"]} '
                 f'(+{data["structures_added"]} structures)',
                 'empty',
             )

@@ -89,7 +89,7 @@ def gather_secrets():
     dict
         object containing the api key
     """
-    config_path = get_config_path() / 'mdb'
+    config_path = get_config_path() / 'atl'
 
     if pathlib.Path('secrets.json').exists():
         with open('secrets.json') as f:

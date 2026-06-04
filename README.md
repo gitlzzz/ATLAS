@@ -151,12 +151,12 @@ The project uses **commitizen** (`cz commit`) for structured conventional commit
 
 On every commit, pre-commit runs three stages in sequence:
 
-1. **Schema docs** — Regenerates `docs/source/input.md` when `config_schema.yaml` changes.
-2. **ruff** — Lints all Python files with auto-fix, enforcing pycodestyle, pyflakes, pyupgrade, flake8-bugbear, isort, and numpy-style docstring rules.
-3. **pytest** — Runs the full test suite (`python -m pytest tests/ -x`), stopping at the first failure.
-4. **Miscellaneous** — Fixes trailing newlines, validates YAML/TOML, checks for oversized files.
+1. **Schema docs**: Regenerates `docs/source/input.md` when `config_schema.yaml` changes.
+2. **ruff**: Lints all Python files with auto-fix, enforcing pycodestyle, pyflakes, pyupgrade, flake8-bugbear, isort, and numpy-style docstring rules.
+3. **pytest**: Runs the full test suite (`python -m pytest tests/ -x`), stopping at the first failure.
+4. **Miscellaneous**: Fixes trailing newlines, validates YAML/TOML, checks for oversized files.
 
-If any hook fails, the commit is blocked — ruff errors must be resolved manually and tests must pass before proceeding. Run `pre-commit run --all-files` to check everything without committing, or use `cz commit --retry` to retry the last commitizen interaction after fixing issues.
+If any hook fails, the commit is blocked and ruff errors must be resolved manually and tests must pass before proceeding. Run `pre-commit run --all-files` to check everything without committing, or use `cz commit --retry` to retry the last commitizen interaction after fixing issues.
 
 ## Usage
 

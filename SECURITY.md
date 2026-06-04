@@ -10,7 +10,7 @@ ATLAS is currently in active development under the `0.x` semantic versioning ran
 | All Older Versions   | :x:                |
 
 
-> 📌 **Note on Versioning:** This support policy applies during the initial development phase (`0.x`). Once ATLAS reaches its first major stable release (`1.0.0`), a formal Long-Term Support (LTS) schedule and version matrix will be established here.
+> **Note on Versioning:** This support policy applies during the initial development phase (`0.x`). Once ATLAS reaches its first major stable release (`1.0.0`), a formal Long-Term Support (LTS) schedule and version matrix will be established here.
 
 ## Reporting a Vulnerability
 
