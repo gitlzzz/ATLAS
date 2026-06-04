@@ -57,9 +57,9 @@ def create_active_learning_builder(
 
     # Getting builder for workchain
     if complete:
-        al_calculation = WorkflowFactory('mdb-active-learning-base')
+        al_calculation = WorkflowFactory('atl-active-learning-base')
     else:
-        al_calculation = WorkflowFactory('mdb-simple-active-learning-base')
+        al_calculation = WorkflowFactory('atl-simple-active-learning-base')
     builder = al_calculation.get_builder()
 
     ## General AL settings

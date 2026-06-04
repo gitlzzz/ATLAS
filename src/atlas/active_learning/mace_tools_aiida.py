@@ -25,7 +25,7 @@ from atlas.active_learning import active_learning_utils as atl_al_ut
 from atlas.workflows.datatypes import image_types as atl_img
 
 
-# mdb-process-md-seed-struct
+# atl-process-md-seed-struct
 class ProcessMDSeedStructCalculation(CalcJob):
     """
     Launch a calculation to process a structure in an AL Loop step.
@@ -1286,7 +1286,7 @@ class CheckMACECommiteeResultsCalculationParser(Parser):
         self.out('forces_result_dict', orm.Dict(result_model_forces))
 
 
-# mdb-descriptors-combined-parser
+# atl-descriptors-combined-parser
 class GetDescriptorsCombinedParser(Parser):
     """
     Parser for a descriptor and extrapolation gathering job.
@@ -1377,7 +1377,7 @@ class GetDescriptorsCombinedParser(Parser):
             self.out('autoencoder_model', autoencoder_model)
 
 
-# mdb-eval-test-parser
+# atl-eval-test-parser
 class EvalTestDatabaseCalculationParser(Parser):
     """
     Parser for a descriptor and extrapolation gathering job.
@@ -1452,7 +1452,7 @@ class EvalTestDatabaseCalculationParser(Parser):
             return self.exit_codes.ERROR_OUTPUT_NOT_FOUND
 
 
-# entry-point: mdb-eval-test
+# entry-point: atl-eval-test
 class EvalTestDatabaseCalculation(CalcJob):
     """CalcJob to evaluate the test database using the sampler model (M0).
 
@@ -1652,7 +1652,7 @@ class EvalTestDatabaseCalculation(CalcJob):
         return calcinfo
 
 
-# entry-point: mdb-descriptors-combined
+# entry-point: atl-descriptors-combined
 class GetDescriptorsCombinedCalculation(CalcJob):
     """CalcJob to gather the descriptors for the training database of an AL Loop.
 
