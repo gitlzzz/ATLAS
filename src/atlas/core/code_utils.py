@@ -3,7 +3,7 @@
 import functools
 import logging
 import os
-import pathlib
+import pathlib as pl
 import subprocess as sb
 import tempfile
 import warnings
@@ -185,7 +185,7 @@ def init_logger(
     if not log_path:
         _, filename = tempfile.mkstemp(prefix=f'atl_{source}_', suffix='.log')
     else:
-        log_path_dir = pathlib.Path(log_path)
+        log_path_dir = pl.Path(log_path)
         _, filename = tempfile.mkstemp(
             prefix=f'atl_{source}_', suffix='.log', dir=log_path_dir
         )
@@ -383,18 +383,18 @@ def deprecated(reason, since_ver=None):
     return decorator
 
 
-def get_config_path() -> pathlib.Path:
+def get_config_path() -> pl.Path:
     """Get the path to ATLAS's the configuration directory."""
     # Try to get XDG_CONFIG_HOME, if it doesn't exist, return None
     config_path = os.environ.get('XDG_CONFIG_HOME', None)
 
     # Check if $HOME/.config exists and if it does, return the path
     if not config_path:
-        config_folder = pathlib.Path().home() / '.config'
+        config_folder = pl.Path().home() / '.config'
         if config_folder.exists():
             config_path = config_folder
 
-    return pathlib.Path(config_path)
+    return pl.Path(config_path)
 
 
 def init_config_dir(config_dir, config_file: str):
@@ -420,18 +420,18 @@ def init_config_dir(config_dir, config_file: str):
         return False, config_dir
 
 
-def get_cache_path() -> pathlib.Path:
+def get_cache_path() -> pl.Path:
     """Get the path to ATLAS's the cacheuration directory."""
     # Try to get XDG_cache_HOME, if it doesn't exist, return None
     cache_path = os.environ.get('$XDG_CACHE_HOME', None)
 
     # Check if $HOME/.cache exists and if it does, return the path
     if not cache_path:
-        cache_folder = pathlib.Path().home() / '.cache'
+        cache_folder = pl.Path().home() / '.cache'
         if cache_folder.exists():
             cache_path = cache_folder
 
-    return pathlib.Path(cache_path)
+    return pl.Path(cache_path)
 
 
 def init_cache_dir(cache_dir):
@@ -521,7 +521,7 @@ def get_last_tagged_version_local(repo_dir_path: str = None):
     cwd = os.getcwd()
 
     # Use the default ATLAS root directory if no path is provided
-    if not repo_dir_path or not pathlib.Path(repo_dir_path).exists():
+    if not repo_dir_path or not pl.Path(repo_dir_path).exists():
         repo_dir_path = ATL_ROOT_DIR
 
     try:
@@ -552,7 +552,9 @@ def get_last_tagged_version_local(repo_dir_path: str = None):
     return newest_tag, current_hash
 
 
-def get_list_of_tags(repo_path: str = None) -> list[Version]:
+def get_list_of_tags(
+    repo_path: str | pl.Path | None = None,
+) -> list[Version]:
     """
     Get a list of tags from the git repository in the CWD.
 
