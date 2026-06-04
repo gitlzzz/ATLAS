@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.52.4 (2026-06-04)
+
+### Docs
+
+- **core**: cleaning up documentation ([#04457fa](https://github.com/pol-sb/ATLAS/commit/04457fa83367a9ab57b8444dbc9c1618a845f044))
+- **core**: add CONTRIBUTING.md ([#9d57e25](https://github.com/pol-sb/ATLAS/commit/9d57e251d3e206fc43e5ea300cec6f4442103719))
+- **core**: add security policy ([#16b28d3](https://github.com/pol-sb/ATLAS/commit/16b28d331c7280897a655516565305887bd25272))
+- **core**: fix typo in README.md ([#9cb30e6](https://github.com/pol-sb/ATLAS/commit/9cb30e61fcd146e618e6be7afcb8a2e377466260))
+- **core**: add images to README.md ([#da0f144](https://github.com/pol-sb/ATLAS/commit/da0f14424ee704655e4bfc61f85f2dc23e60f40b))
+- **core**: update readme ([#9e5e922](https://github.com/pol-sb/ATLAS/commit/9e5e92225753009340cd0720fafcc0e5d59a1120))
+- **core**: update readme ([#6b09ada](https://github.com/pol-sb/ATLAS/commit/6b09ada86fa0dbe3611fc00f135ae45df749bd73))
+
+### Fix
+
+- **core**: correct paths for versioning and documentation generation ([#532ee30](https://github.com/pol-sb/ATLAS/commit/532ee30880fb0e81dd46316556adb0a9c55f0bd7))
+- **core**: display info panel during setup script and hide password entry ([#adb9fe4](https://github.com/pol-sb/ATLAS/commit/adb9fe48698353a3384b9c076527cf99dab7d049))
+
+### Refactor
+
+- **core**: missing atlas rebrand ([#2de61cf](https://github.com/pol-sb/ATLAS/commit/2de61cf2756b4ad5558a80b92a6c8f70c4e6dc3a))
+
+### Style
+
+- **core**: docstrings and comments formatting ([#c99ebad](https://github.com/pol-sb/ATLAS/commit/c99ebad52e9b82d35ea2a9aaf5af3f8358401371))
+- **core**: change import names ([#5f6b427](https://github.com/pol-sb/ATLAS/commit/5f6b427274d8f4bc0c410afcac5b41b01c2200fb))
+
 ## 0.52.3 (2026-06-02)
 
 ### Docs
