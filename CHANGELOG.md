@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.52.5 (2026-06-04)
+
+### Docs
+
+- **core**: update main description ([#de9ebb6](https://github.com/pol-sb/ATLAS/commit/de9ebb64a484ffaee6c3b4e402ac3491ea96b122))
+- **core**: update main description ([#4f06464](https://github.com/pol-sb/ATLAS/commit/4f06464d4c11c88a304da3ffc8c392ece7aa5539))
+
+### Fix
+
+- **core**: update all entry points from mdb- to atl- ([#04f73c4](https://github.com/pol-sb/ATLAS/commit/04f73c4d1b746473a10bacaf489a77b34c8b98bd))
+
 ## 0.52.4 (2026-06-04)
 
 ### Docs
