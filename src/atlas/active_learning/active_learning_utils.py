@@ -390,7 +390,7 @@ def calculate_fps_scores_descriptor(
     # Prevent already selected points from being picked again
     min_distances[selected_indices] = -1.0
 
-    # 2. Main FPS expansion loop for the NEW structures
+    # Main FPS expansion loop for the NEW structures
     for rank in range(n_to_select):
         # Find the unselected point farthest from the established set
         farthest_idx = np.argmax(min_distances)

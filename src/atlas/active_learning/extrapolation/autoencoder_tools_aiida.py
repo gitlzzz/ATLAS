@@ -12,7 +12,7 @@ from aiida.parsers.parser import Parser
 from atlas.workflows.datatypes import image_types as atl_img
 
 
-# entry point: mdb-autoencoder-train-parser
+# entry point: atl-autoencoder-train-parser
 class TrainAutoencoderCalculationParser(Parser):
     """Parser for the retrieved files from an Autoencoder training calculation job."""
 
@@ -42,7 +42,7 @@ class TrainAutoencoderCalculationParser(Parser):
         self.out('training_log', training_log)
 
 
-# entry point: mdb-autoencoder-train
+# entry point: atl-autoencoder-train
 class TrainAutoencoderCalculation(CalcJob):
     """Implementation of a CalcJob to perform an Autoencoder training using
     a settings dir.
@@ -152,7 +152,7 @@ class TrainAutoencoderCalculation(CalcJob):
         return calcinfo
 
 
-# mdb-get-latent-space-parser
+# atl-get-latent-space-parser
 class GetLatentSpaceAutoencoderCalculationParser(Parser):
     """Parser for the retrieved files from a MACE descriptors job."""
 
@@ -193,7 +193,7 @@ class GetLatentSpaceAutoencoderCalculationParser(Parser):
         self.out('descriptors_file', descriptor_arr_file)
 
 
-# mdb-get-latent-space
+# atl-get-latent-space
 class GetLatentSpaceAutoencoderCalculation(CalcJob):
     """Calculation to train an autoencoder and use it to get the latent space
     for the descriptors of a structure database.
@@ -341,7 +341,7 @@ class GetLatentSpaceAutoencoderCalculation(CalcJob):
         return calcinfo
 
 
-# mdb-get-concave-hull-parser
+# atl-get-concave-hull-parser
 class GetConcaveHullCalculationParser(Parser):
     """Parser for the retrieved files from a MACE descriptors job."""
 
@@ -369,7 +369,7 @@ class GetConcaveHullCalculationParser(Parser):
         self.out('concave_hull_plot', concave_hull_plot)
 
 
-# mdb-get-concave-hull
+# atl-get-concave-hull
 class GetConcaveHullCalculation(CalcJob):
     """Calculation to get the concave hull of the latent space
     of a set of descriptors for a structure database.

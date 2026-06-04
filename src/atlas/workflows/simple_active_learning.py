@@ -869,7 +869,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         self.report('Preparing test database evaluation...')
 
         # Get builder for evaluation calculation
-        eval_calc = CalculationFactory('mdb-eval-test')
+        eval_calc = CalculationFactory('atl-eval-test')
         eval_calc_builder = eval_calc.get_builder()
 
         # Passing inputs and metadata
@@ -913,7 +913,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             num_threads=num_threads,
             executable_name='eval_test_db.py',
             code_path=test_db_eval_code_path,
-            portable_code_label='mdb-eval-test',
+            portable_code_label='atl-eval-test',
             builder=eval_calc_builder,
         )
         eval_calc_builder.code = code
@@ -923,7 +923,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Load scheduler and resources options
         eval_calc_builder.metadata.options = mace_eval_aiida_settings_dict
-        eval_calc_builder.metadata.options.parser_name = 'mdb-eval-test-parser'
+        eval_calc_builder.metadata.options.parser_name = 'atl-eval-test-parser'
 
         # Submit evaluation calculation
         future = self.submit(eval_calc_builder)
@@ -1008,7 +1008,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             return
 
         # Get builder for training calculation
-        desc_calc = CalculationFactory('mdb-descriptors-combined')
+        desc_calc = CalculationFactory('atl-descriptors-combined')
         desc_builder = desc_calc.get_builder()
 
         # Add current iteration to the process label
@@ -1091,7 +1091,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             num_threads=num_threads,
             executable_name='atl_check_descr_combined.py',
             code_path=descriptor_code_path,
-            portable_code_label='mdb-descriptors-combined',
+            portable_code_label='atl-descriptors-combined',
             builder=desc_builder,
         )
         desc_builder.code = code
@@ -1101,7 +1101,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Load scheduler and resources options
         desc_builder.metadata.options = mace_eval_aiida_settings_dict
-        desc_builder.metadata.options.parser_name = 'mdb-descriptors-combined-parser'
+        desc_builder.metadata.options.parser_name = 'atl-descriptors-combined-parser'
 
         # Get the calculation limit, from the computer metadata set to 0
         # if not present.
@@ -1209,7 +1209,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         calc_count = 0
         for _, curr_structure in enumerate(current_md_seed_structs):
             # Run training and save new model file
-            proc_seed = CalculationFactory('mdb-process-md-seed-struct')
+            proc_seed = CalculationFactory('atl-process-md-seed-struct')
             proc_seed_builder = proc_seed.get_builder()
 
             # Input committee models to `commitee_models` namespace as a dict like:
@@ -1408,7 +1408,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Load scheduler and resources options
             proc_seed_builder.metadata.options = options_dict
             proc_seed_builder.metadata.options.parser_name = (
-                'mdb-process-md-seed-struct-parser'
+                'atl-process-md-seed-struct-parser'
             )
 
             # Get the calculation limit, from the computer metadata set to 0
@@ -3282,7 +3282,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         calc_count = 0
         for target_struct in target_md_structs:
             # Creating builder for safeguard code
-            safeguard_calc = CalculationFactory('mdb-safeguard-md')
+            safeguard_calc = CalculationFactory('atl-safeguard-md')
             sg_builder = safeguard_calc.get_builder()
             sg_builder.code = code
 
@@ -3295,7 +3295,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
 
             sg_builder.metadata.options = options_dict
-            sg_builder.metadata.options.parser_name = 'mdb-safeguard-md-parser'
+            sg_builder.metadata.options.parser_name = 'atl-safeguard-md-parser'
 
             sg_builder.settings_file_pth = self.ctx.inputs.toml_file
 
