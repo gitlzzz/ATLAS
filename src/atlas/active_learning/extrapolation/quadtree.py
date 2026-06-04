@@ -477,7 +477,8 @@ def visualize_quadtree(
                 ax.text(
                     cx,
                     cy,
-                    f'α={alpha_val:.2f}\nIn:{item["frac_inside_hull"] * 100:.1f}%',
+                    f'alpha = {alpha_val:.2f}\n'
+                    'In:{item["frac_inside_hull"] * 100:.1f}%',
                     color='#cc241d',
                     fontsize=9,
                     ha='center',

@@ -175,8 +175,8 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     points : (N, 2) array-like
         Input coordinates.
     alpha : float
-        Inverse length scale.  Smaller alpha ⟶ coarser (more concave) hull.
-        A good starting point is alpha ≈ 1 / (average edge length).
+        Inverse length scale.  Smaller alpha -> coarser (more concave) hull.
+        A good starting point is alpha ~ 1 / (average edge length).
     only_outer : bool, default True
         If True, return only the outer boundary.  If False, keep holes.
 

@@ -28,9 +28,9 @@ def _edges_from_triangles(tris):
     edges = set()
     for t0, t1, t2 in tris:
         for i, j in ((t0, t1), (t1, t2), (t2, t0)):
-            if (j, i) in edges:  # internal edge → remove
+            if (j, i) in edges:  # internal edge -> remove
                 edges.remove((j, i))
-            else:  # external edge → add
+            else:  # external edge -> add
                 edges.add((i, j))
     return edges
 
@@ -44,8 +44,8 @@ def alpha_shape(points, alpha: float, only_outer: bool = True):
     points : (N, 2) array-like
         Input coordinates.
     alpha : float
-        Inverse length scale.  Smaller alpha ⟶ coarser (more concave) hull.
-        A good starting point is alpha ≈ 1 / (average edge length).
+        Inverse length scale.  Smaller alpha -> coarser (more concave) hull.
+        A good starting point is alpha ~ 1 / (average edge length).
     only_outer : bool, default True
         If True, return only the outer boundary.  If False, keep holes.
 

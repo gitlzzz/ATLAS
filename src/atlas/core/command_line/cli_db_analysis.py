@@ -270,7 +270,7 @@ def run_database_analysis():
         curr_db = read(str(dataset_path), format='extxyz', index=':')
         custom_print(f"Loaded '{len(curr_db)}' frames.", 'info')
 
-        # Resolve selected_steps — "all" means every step present in the dataset
+        # Resolve selected_steps, "all" means every step present in the dataset
         if args.selected_steps.strip().lower() == 'all':
             all_steps = sorted(
                 {struct.info.get('atl_al_step', 0) for struct in curr_db}
@@ -278,7 +278,7 @@ def run_database_analysis():
             selected_steps = all_steps
             custom_print(
                 f'Using all {len(selected_steps)} steps '
-                f'({selected_steps[0]}–{selected_steps[-1]}).',
+                f'({selected_steps[0]}-{selected_steps[-1]}).',
                 'info',
             )
         else:
