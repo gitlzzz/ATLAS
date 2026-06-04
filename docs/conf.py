@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 import atlas.core.code_utils as atl_cud
+from atlas import ATL_ROOT_DIR
 
 
 def get_git_commit_hash():
@@ -174,8 +175,8 @@ html_context['commit_hash'] = get_git_commit_hash()
 # This will build the 'master' branch AND all tags that
 # start with 'v', while ignoring all other branches.
 
-library_path = '/home/runner/work/ATLAS/ATLAS'
-# library_path = '/home/psanz/Documents/phd-iciq/Projects/P2-Cu/initial_db_p2/package'
+library_path = ATL_ROOT_DIR
+
 newest_tag, git_hash = atl_cud.get_last_tagged_version_local(library_path)
 tags = atl_cud.get_list_of_tags(library_path)
 

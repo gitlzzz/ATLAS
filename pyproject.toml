@@ -146,7 +146,7 @@ version = "0.52.3"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [
-    "./src/ATLAS/__init__.py",
+    "./src/atlas/__init__.py",
     "./docs/conf.py:release",
     "pyproject.toml:version",
     "VERSION",

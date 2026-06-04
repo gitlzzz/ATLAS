@@ -3,8 +3,8 @@
 import pathlib as pl
 
 # Version of the package (managed with commitizen)
-__version__ = '0.51.1'
-__repo__ = "git@github.com:pol-sb/atlas.git"
+__version__ = '0.52.3'
+__repo__ = 'https://github.com/LopezGroup-ICIQ/ATLAS.git'
 
 # Root of package
 ATL_ROOT_DIR = (pl.Path(__file__).parent).resolve()
