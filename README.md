@@ -97,7 +97,7 @@ git clone https://github.com/pol-sb/atlas.git
 
 ### 3. Installing the library in the activated python environment
 
-There are several installation mechanisms, and several optional dependencies depending on what packages you want to use. Check the list and details of optional dependencies in the [pyproject.toml](../../pyproject.toml). Currently, the following are available:
+There are several installation mechanisms, and several optional dependencies depending on what packages you want to use. Check the list and details of optional dependencies in the [pyproject.toml](pyproject.toml). Currently, the following are available:
 
 - `mace`
 - `dev`
