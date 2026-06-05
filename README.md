@@ -1,7 +1,7 @@
 # ATLAS
 
 > [!WARNING]
-> Under Development: This library is still under active development and may contain bugs or undergo breaking changes. Use with caution in production or critical research workflows. Please report any bugs or issues using the [Issues tab](https://github.com/pol-sb/ATLAS/issues).
+> **Under Development:** This library is still under active development and may contain bugs or undergo breaking changes. Use with caution in production or critical research workflows. Please report any bugs or issues using the [Issues tab](https://github.com/pol-sb/ATLAS/issues).
 
 <p align="center">
   <picture>
@@ -13,7 +13,7 @@
 
 [![DOI](https://img.shields.io/badge/DOI-10.26434%2Fchemrxiv.15003942%2Fv1-blue)](https://doi.org/10.26434/chemrxiv.15003942/v1) 
 
-![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/pol-sb/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/ATLAS/master/index.html)
+![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/pol-sb/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://lopezgroup-iciq.github.io/ATLAS/master/index.html)
 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -101,7 +101,7 @@ git clone https://github.com/pol-sb/atlas.git
 
 ### 3. Installing the library in the activated python environment
 
-There are several installation mechanisms, and several optional dependencies depending on what packages you want to use. Check the list and details of optional dependencies in the [pyproject.toml](../../pyproject.toml). Currently, the following are available:
+There are several installation mechanisms, and several optional dependencies depending on what packages you want to use. Check the list and details of optional dependencies in the [pyproject.toml](pyproject.toml). Currently, the following are available:
 
 - `mace`
 - `dev`
@@ -204,7 +204,7 @@ $> atl_gen_configuration_file --help
 
 The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `atl_gen_configuration_file` to generate a template file which can be customized.
 
-A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/ATLAS/master/source/input.html) or in the local documentation files: [Input](./docs/source/input.md).
+A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://lopezgroup-iciq.github.io/ATLAS/master/source/input.html) or in the local documentation files: [Input](./docs/source/input.md).
 
 ## Example: Training a MACE MLIP from scratch
 
@@ -212,7 +212,7 @@ This example will showcase the training of a MACE potential in a pure Cu databas
 
 ### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `atl_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://pol-sb.github.io/ATLAS/master/source/input.html#database-generation)
+In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `atl_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://lopezgroup-iciq.github.io/ATLAS/master/source/input.html#database-generation)
 
 ```bash
 # Generate a configuration file for the database generation.
@@ -246,7 +246,7 @@ atl_run_dft_database  --db_file ./database.xyz  -c settings.toml
 
 ### 3. Run active learning loop
 
-Generate a settings file, customize it using [the options here](https://pol-sb.github.io/ATLAS/master/source/input.html#active-learning-loop) and run the active learning loop:
+Generate a settings file, customize it using [the options here](https://lopezgroup-iciq.github.io/ATLAS/master/source/input.html#active-learning-loop) and run the active learning loop:
 
 ```bash
 # Generate a template file for active learning
@@ -302,8 +302,8 @@ Please refer to the examples in the examples directory for more details on how t
 
 ## Authors and Maintainers
 
-- **[Pol Sanz Berman](github.com/pol.sb)** (Main Developer) - Predoctoral Researcher, ICIQ
-- **[Lulu Li](github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
-- **[Zan Lian](github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Pol Sanz Berman](https://github.com/pol-sb)** (Main Developer) - Predoctoral Researcher, ICIQ
+- **[Lulu Li](https://github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Zan Lian](https://github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
 
 For technical inquiries or collaborations, please open an issue or contact [psanz@iciq.es](mailto:psanz@iciq.es).
