@@ -13,7 +13,7 @@
 
 [![DOI](https://img.shields.io/badge/DOI-10.26434%2Fchemrxiv.15003942%2Fv1-blue)](https://doi.org/10.26434/chemrxiv.15003942/v1) 
 
-![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/pol-sb/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://pol-sb.github.io/ATLAS/master/index.html)
+![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/pol-sb/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://lopezgroup-iciq.github.io/ATLAS/master/index.html)
 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -200,7 +200,7 @@ $> atl_gen_configuration_file --help
 
 The utilities for generation and running the AL loop use inputs in the TOML format. Users are advised to use `atl_gen_configuration_file` to generate a template file which can be customized.
 
-A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://pol-sb.github.io/ATLAS/master/source/input.html) or in the local documentation files: [Input](./docs/source/input.md).
+A description of all the possible options and parameters is available in the documentation for the input files: [documentation](https://lopezgroup-iciq.github.io/ATLAS/master/source/input.html) or in the local documentation files: [Input](./docs/source/input.md).
 
 ## Example: Training a MACE MLIP from scratch
 
@@ -208,7 +208,7 @@ This example will showcase the training of a MACE potential in a pure Cu databas
 
 ### 1. Initial database generation
 
-In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `atl_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://pol-sb.github.io/ATLAS/master/source/input.html#database-generation)
+In order to generate the database, parameters for generation need to be listed in a .toml configuration file. Use the `atl_gen_configuration_file` command to generate a template file with instructions that can be customized easily. [Click here to see a list and description of the available options.](https://lopezgroup-iciq.github.io/ATLAS/master/source/input.html#database-generation)
 
 ```bash
 # Generate a configuration file for the database generation.
@@ -242,7 +242,7 @@ atl_run_dft_database  --db_file ./database.xyz  -c settings.toml
 
 ### 3. Run active learning loop
 
-Generate a settings file, customize it using [the options here](https://pol-sb.github.io/ATLAS/master/source/input.html#active-learning-loop) and run the active learning loop:
+Generate a settings file, customize it using [the options here](https://lopezgroup-iciq.github.io/ATLAS/master/source/input.html#active-learning-loop) and run the active learning loop:
 
 ```bash
 # Generate a template file for active learning
