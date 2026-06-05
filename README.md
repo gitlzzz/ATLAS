@@ -29,9 +29,12 @@ ATLAS (Automated Training with Latent-space Aware Sampling) is a unified Python 
 ## Table of Contents
 
 - [Installation](#installation)
+- [Developer Workflow](#developer-workflow)
 - [Usage](#usage)
-- [Example](#example-training-a-mace-mlip-from-scratch)
+- [Example: Training a MACE MLIP from scratch](#example-training-a-mace-mlip-from-scratch)
 - [Package Structure](#package-structure)
+- [Implementation Details](#implementation-details)
+- [Authors and Maintainers](#authors-and-maintainers)
 
 ## Installation
 
