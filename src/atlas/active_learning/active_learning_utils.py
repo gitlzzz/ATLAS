@@ -1586,6 +1586,21 @@ def get_dft_calc_builder_vasp(
     return builder
 
 
+def _clean_stress_info_for_mace(atoms: Atoms) -> None:
+    """Clean the stress information from ase, which leads in error for mace."""
+    if hasattr(atoms, 'stress'):
+        try:
+            delattr(atoms, 'stress')
+        except Exception:
+            pass
+    for key in ("stress", "REF_stress"):
+        if key in atoms.info:
+            try:
+                del atoms.info[key]
+            except Exception:
+                pass
+
+
 def sampler_populate_E_and_F_list(
     structure_list: list[Atoms],
     model_file: orm.SinglefileData,
@@ -1600,26 +1615,31 @@ def sampler_populate_E_and_F_list(
     mace_model = torch.load(model_file_io)
     calc = MACECalculator(models=[mace_model])
 
+    updated_struct_list = []
+
     # Calculating energies and forces for all structures
     # in the structure list using the current iteration
     # of the MLIP
     for struct in structure_list:
         # Convert from aiida-serialized dict to ASE Atoms if needed
         if isinstance(struct, dict):
-            try:
-                struct = Atoms.fromdict(struct)
-            except Exception as e:
-                print('Error while converting dict to Atoms: ', e)
-                struct = aiida_serialized_ase_dict_to_atoms(struct)
+            atoms = aiida_serialized_ase_dict_to_atoms(struct)
+        else:
+            atoms = struct
+
+        atoms_for_mace = atoms.copy()
+        _clean_stress_info_for_mace(atoms_for_mace)
 
         # Attach the calculator and compute E and F
-        struct.calc = calc
-        E_nn = struct.get_potential_energy()
-        F_nn = struct.get_forces()
-        struct.info['curr_model_energy'] = E_nn
-        struct.arrays['curr_model_forces'] = F_nn
+        atoms_for_mace.calc = calc
+        E_nn = atoms_for_mace.get_potential_energy()
+        F_nn = atoms_for_mace.get_forces()
+        atoms.info['curr_model_energy'] = E_nn
+        atoms.arrays['curr_model_forces'] = F_nn
 
-    return structure_list
+        updated_struct_list.append(atoms)
+
+    return updated_struct_list
 
 
 def get_dft_calc_builder_mace_list(

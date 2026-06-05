@@ -72,7 +72,7 @@ pre-commit run --all-files
 
 ### Commit Convention
 
-ATLAS uses [commitizen](https://commitizen-tools.github.io/commitizen/) with conventional commits. Use `cz run` (or `cz bump` for releases) to guide commit messages.
+ATLAS uses [commitizen](https://commitizen-tools.github.io/commitizen/) with conventional commits. Use `cz commit` to guide commit messages.
 
 Commit format: `<type>(<scope>): <summary>`
 
