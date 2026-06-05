@@ -1,7 +1,7 @@
 # ATLAS
 
 > [!WARNING]
-> Under Development: This library is still under active development and may contain bugs or undergo breaking changes. Use with caution in production or critical research workflows. Please report any bugs or issues using the [Issues tab](https://github.com/pol-sb/ATLAS/issues).
+> **Under Development:** This library is still under active development and may contain bugs or undergo breaking changes. Use with caution in production or critical research workflows. Please report any bugs or issues using the [Issues tab](https://github.com/pol-sb/ATLAS/issues).
 
 <p align="center">
   <picture>
