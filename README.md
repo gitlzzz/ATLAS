@@ -298,8 +298,8 @@ Please refer to the examples in the examples directory for more details on how t
 
 ## Authors and Maintainers
 
-- **[Pol Sanz Berman](github.com/pol.sb)** (Main Developer) - Predoctoral Researcher, ICIQ
-- **[Lulu Li](github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
-- **[Zan Lian](github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Pol Sanz Berman](https://github.com/pol-sb)** (Main Developer) - Predoctoral Researcher, ICIQ
+- **[Lulu Li](https://github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Zan Lian](https://github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
 
 For technical inquiries or collaborations, please open an issue or contact [psanz@iciq.es](mailto:psanz@iciq.es).
