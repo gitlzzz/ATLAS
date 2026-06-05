@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.52.6 (2026-06-05)
+
+### Docs
+
+- **core**: update readme ([#a389742](https://github.com/pol-sb/ATLAS/commit/a389742458d400be4c6e31bf97e6e7f5abfc7d38))
+- **core**: fix author links in README.md ([#9f63a5e](https://github.com/pol-sb/ATLAS/commit/9f63a5ed75f8f0453a87658e30e90730977d9451))
+- **core**: update broken pyproject.toml link ([#6424d39](https://github.com/pol-sb/ATLAS/commit/6424d3972bc2c5c1bb18c216b75a5d44c0ba6890))
+- **core**: update readme ([#aba07d9](https://github.com/pol-sb/ATLAS/commit/aba07d98bbc59e5a050533264a9d8aead8f363d8))
+- **core**: updated broken links in README.md ([#9f42665](https://github.com/pol-sb/ATLAS/commit/9f42665a78397bb3e9e376a58211348df0f1cfbd))
+- **core**: update README ([#bac6f2d](https://github.com/pol-sb/ATLAS/commit/bac6f2df0ef2eb5faa5c11ee54d73c405c67463e))
+
+### Fix
+
+- **core**: rename missing executables from rebrand ([#07331ee](https://github.com/pol-sb/ATLAS/commit/07331eeec340d3383e2e55fc17279254aeaff588))
+- **al_loop**: In the DFT stage, update vasp-dft output information before comparing them with mace results ([#f05965f](https://github.com/pol-sb/ATLAS/commit/f05965fffe6392b19d523932a141957e5aa7d158))
+
 ## 0.52.5 (2026-06-04)
 
 ### Docs
