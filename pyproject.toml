@@ -213,6 +213,7 @@ choices = [
     { value = "init_db", name = "init_db: 💾 Changes to the initial database, structures and phase diagrams." },
     { value = "domain_validity", name = "domain_validity: 📉 Changes to interpolation, extrapolation, dim. reduction..." },
     { value = "benchmarks", name = "benchmarks: 📊 Changes to MLIP benchmarks and model testing..." },
+    { value = "gui", name = "gui: Additions and changes to the GUI." },
 ]
 message = "What is the scope of this change? (component)"
 
