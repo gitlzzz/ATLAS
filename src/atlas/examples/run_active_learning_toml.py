@@ -26,7 +26,7 @@ def create_builder(toml_dict: dict):
         an ActiveLearningWorkChain.
     """
     # Getting builder for workchain
-    al_calculation = WorkflowFactory('mdb-active-learning-base')
+    al_calculation = WorkflowFactory('atl-active-learning-base')
     builder = al_calculation.get_builder()
 
     # General AL settings

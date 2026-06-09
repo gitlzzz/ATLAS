@@ -14,7 +14,7 @@ import time
 import tomllib as toml
 import warnings
 from collections import Counter
-from contextlib import contextmanager, redirect_stdout
+from contextlib import contextmanager, redirect_stdout, suppress
 from pathlib import Path, PosixPath
 from uuid import uuid4
 
@@ -1589,16 +1589,12 @@ def get_dft_calc_builder_vasp(
 def _clean_stress_info_for_mace(atoms: Atoms) -> None:
     """Clean the stress information from ase, which leads in error for mace."""
     if hasattr(atoms, 'stress'):
-        try:
+        with suppress(Exception):
             delattr(atoms, 'stress')
-        except Exception:
-            pass
-    for key in ("stress", "REF_stress"):
+    for key in ('stress', 'REF_stress'):
         if key in atoms.info:
-            try:
+            with suppress(Exception):
                 del atoms.info[key]
-            except Exception:
-                pass
 
 
 def sampler_populate_E_and_F_list(

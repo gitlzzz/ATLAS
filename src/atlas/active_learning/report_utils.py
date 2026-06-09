@@ -695,13 +695,13 @@ def get_mace_eval_results(
             curr_node = orm.load_node(al_loop_node[0])
         else:
             curr_node = al_loop_node[0]
-        if curr_node.process_type == 'aiida.workflows:mdb-simple-active-learning-base':
+        if curr_node.process_type == 'aiida.workflows:atl-simple-active-learning-base':
             al_loop_node = al_loop_node[0].called
     # Cases with multiple resumes in a single node
     elif (
         len(al_loop_node) > 1
         and al_loop_node[-1].process_type
-        == 'aiida.workflows:mdb-simple-active-learning-base'
+        == 'aiida.workflows:atl-simple-active-learning-base'
     ):
         al_loop_node = al_loop_node[-1].called
 
@@ -712,8 +712,8 @@ def get_mace_eval_results(
             all_iters = [
                 stp
                 for stp in al_loop_node
-                if stp.process_type == 'aiida.workflows:mdb-active-learning'
-                or stp.process_type == 'aiida.workflows:mdb-simple-active-learning'
+                if stp.process_type == 'aiida.workflows:atl-active-learning'
+                or stp.process_type == 'aiida.workflows:atl-simple-active-learning'
             ]
             last_iter = all_iters[-1]
         except AttributeError:
@@ -2104,9 +2104,9 @@ def generate_latent_space_evol(
                     [
                         stp
                         for stp in node.called
-                        if stp.process_type == 'aiida.workflows:mdb-active-learning'
+                        if stp.process_type == 'aiida.workflows:atl-active-learning'
                         or stp.process_type
-                        == 'aiida.workflows:mdb-simple-active-learning'
+                        == 'aiida.workflows:atl-simple-active-learning'
                     ]
                 )
 
@@ -2116,7 +2116,7 @@ def generate_latent_space_evol(
                 for substep in node.called:
                     if (
                         substep.process_type
-                        == 'aiida.calculations:mdb-descriptors-combined'
+                        == 'aiida.calculations:atl-descriptors-combined'
                     ):
                         auto_steps.append(substep)
 

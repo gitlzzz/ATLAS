@@ -475,7 +475,7 @@ class ActiveLearningWorkChain(WorkChain):
             'dimensionality_reduction_method'
         )
         if dimensionality_reduction_method == 'autoencoder':
-            descr_calc = CalculationFactory('mdb-get-latent-space')
+            descr_calc = CalculationFactory('atl-get-latent-space')
             self.report(
                 f"Generating descriptors using model '{self.ctx.best_model_name}'"
                 f' and latent space using autoencoder...'
@@ -547,7 +547,7 @@ class ActiveLearningWorkChain(WorkChain):
                 filepath_executable='atl_autoencoder_get_latent_space.py',
                 prepend_text=prepend_text,
             )
-            code_builder.metadata.options.parser_name = 'mdb-get-latent-space-parser'
+            code_builder.metadata.options.parser_name = 'atl-get-latent-space-parser'
             code_builder.metadata.label = self.ctx.best_model_name + '_latent_space'
 
         # Get descriptors coming directly from MACE.
@@ -642,7 +642,7 @@ class ActiveLearningWorkChain(WorkChain):
 
     def get_concave_hull(self):
         self.report('Getting concave hull...')
-        descr_calc = CalculationFactory('mdb-get-concave-hull')
+        descr_calc = CalculationFactory('atl-get-concave-hull')
 
         code_builder = descr_calc.get_builder()
 
@@ -677,7 +677,7 @@ class ActiveLearningWorkChain(WorkChain):
             filepath_executable='atl_get_concave_hull.py',
             prepend_text=prepend_text,
         )
-        code_builder.metadata.options.parser_name = 'mdb-get-concave-hull-parser'
+        code_builder.metadata.options.parser_name = 'atl-get-concave-hull-parser'
         code_builder.metadata.label = self.ctx.best_model_name + '_concave_hull'
 
         code_builder.code = code
@@ -1479,7 +1479,7 @@ class ActiveLearningWorkChain(WorkChain):
         )
 
         if dimensionality_reduction_method == 'autoencoder':
-            descr_calc = CalculationFactory('mdb-get-latent-space')
+            descr_calc = CalculationFactory('atl-get-latent-space')
             self.report(
                 'Getting latent space of descriptors for MD generated structures...'
             )
@@ -1562,7 +1562,7 @@ class ActiveLearningWorkChain(WorkChain):
                     prepend_text=prepend_text,
                 )
                 code_builder.metadata.options.parser_name = (
-                    'mdb-get-latent-space-parser'
+                    'atl-get-latent-space-parser'
                 )
                 code_builder.metadata.label = self.ctx.best_model_name + '_latent_space'
 

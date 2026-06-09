@@ -266,3 +266,58 @@ def get_latent_space_autoencoder(
 
     custom_print('Computed latent space!', final_print_type)
     return descriptor_dict
+
+
+def evaluate_reconstruction(
+    autoencoder_model,
+    descriptor_dict: dict,
+    device: str | None = None,
+    dtype=torch.float32,
+    standardize_data: bool = False,
+    autoencoder_path: str | pl.Path | None = None,
+):
+    """Evaluates the autoencoder by computing reconstruction MAE and RMSE."""
+    if not device:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    autoencoder_model.to(device)
+    autoencoder_model.eval()
+
+    should_standardize = standardize_data and (autoencoder_path is not None)
+
+    with torch.no_grad():
+        uuids = list(descriptor_dict.keys())
+        all_descrs = [descriptor_dict[u]['descriptors'][0] for u in uuids]
+
+        # Original ground truth matrix
+        original_np = np.vstack(all_descrs)
+        descr_tensor = torch.tensor(original_np, device=device, dtype=dtype)
+
+        # Apply standardization to input if required
+        if should_standardize:
+            mean_vals, std_vals = locate_standarization_files(pl.Path(autoencoder_path))
+            mean_tensor = torch.tensor(mean_vals, device=device, dtype=dtype)
+            std_tensor = torch.tensor(std_vals, device=device, dtype=dtype)
+            descr_tensor = (descr_tensor - mean_tensor) / std_tensor
+
+        # Pass through the full model (encoder + decoder)
+        reconstructed_tensor = autoencoder_model(descr_tensor)
+
+        # Invert standardization on the output to calculate errors in the original scale
+        if should_standardize and mean_vals is not None and std_vals is not None:
+            reconstructed_tensor = (reconstructed_tensor * std_tensor) + mean_tensor
+
+        reconstructed_np = reconstructed_tensor.cpu().numpy()
+
+    # Calculate Global Metrics
+    mae = np.mean(np.abs(original_np - reconstructed_np))
+    rmse = np.sqrt(np.mean((original_np - reconstructed_np) ** 2))
+
+    custom_print(f'Reconstruction Metrics -> MAE: {mae:.4f} | RMSE: {rmse:.4f}', 'done')
+
+    return {
+        'mae': mae,
+        'rmse': rmse,
+        'predictions': reconstructed_np,
+        'targets': original_np,
+    }

@@ -13,7 +13,7 @@ from aiida.parsers.parser import Parser
 from atlas.workflows.datatypes import image_types as atl_img
 
 
-# mdb-safeguard-md
+# atl-safeguard-md
 class RunMDSafeguardCalculation(CalcJob):
     """
     CalcJob to run MD simulations for safeguard checking during active learning loops.
@@ -318,7 +318,7 @@ class RunMDSafeguardCalculation(CalcJob):
         return calcinfo
 
 
-# mdb-safeguard-md-parser
+# atl-safeguard-md-parser
 class RunMDSafeguardCalculationParser(Parser):
     """Parser for the retrieved files from a safeguard calculation job."""
 
