@@ -169,7 +169,7 @@ class LauncherDialog(QDialog):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         logo_path = os.path.join(
-            os.path.dirname(__file__), '..', '..', 'assets', 'atlas_logo_light.png'
+            os.path.dirname(__file__), '..', 'assets', 'atlas_logo_light.png'
         )
         if os.path.exists(logo_path):
             logo_label = QLabel()
