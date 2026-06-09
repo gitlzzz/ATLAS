@@ -13,4 +13,3 @@ src/ATLAS/display_db
 *sync-conflict*
 .zed/
 docs/api/*
-uv.lock
