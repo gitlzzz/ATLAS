@@ -620,7 +620,7 @@ unidecode==1.3.8
     # via python-slugify
 upf-to-json==0.9.5
     # via aiida-core
-urllib3==2.3.0
+urllib3==2.7.0
     # via
     #   botocore
     #   requests
