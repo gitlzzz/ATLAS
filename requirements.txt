@@ -121,7 +121,7 @@ future==1.0.0
     # via seekpath
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.44
+gitpython==3.1.50
     # via wandb
 graphviz==0.20.3
     # via aiida-core
