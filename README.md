@@ -13,11 +13,11 @@
 
 [![DOI](https://img.shields.io/badge/DOI-10.26434%2Fchemrxiv.15003942%2Fv1-blue)](https://doi.org/10.26434/chemrxiv.15003942/v1) 
 
-![GitHub Tag](https://img.shields.io/github/v/tag/pol-sb/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/pol-sb/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://lopezgroup-iciq.github.io/ATLAS/master/index.html)
+![GitHub Tag](https://img.shields.io/github/v/tag/LopezGroup-ICIQ/ATLAS?label=current%20version)  ![GitHub last commit](https://img.shields.io/github/last-commit/LopezGroup-ICIQ/ATLAS) [![documentation](https://github.com/pol-sb/ATLAS/actions/workflows/documentation.yml/badge.svg)](https://lopezgroup-iciq.github.io/ATLAS/master/index.html)
 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-![GitHub License](https://img.shields.io/github/license/pol-sb/ATLAS)
+![GitHub License](https://img.shields.io/github/license/LopezGroup-ICIQ/ATLAS)
 
 ATLAS (Automated Training with Latent-space Aware Sampling) is a unified Python framework for building robust machine learning interatomic potentials (MLIPs). It combines a diversity-aware database generator with a manifold-aware active learning workflow to produce compact, high-quality training datasets. ATLAS supports structure generation for bulk, surface, cluster, and isolated atom configurations across single-, binary-, and ternary (WIP) phase diagrams, with perturbations, vacancies, deformations, and adsorbates. 
 
