@@ -28,6 +28,19 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
         Database or list of structures to be filtered.
     config_dict : dict
         Dictionary containing user-defined filter settings from TOML.
+
+    Returns
+    -------
+    dict
+        Dictionary with filtered structure UUIDs and breakdown by phase,
+        type, modification, and filter trigger:
+        {
+            'filtered_uuids': list[str],
+            'by_phase': {'phase_name': count, ...},
+            'by_type': {'bulk': count, 'surface': count, ...},
+            'by_modification': {'perturb': count, 'vacancy': count, ...},
+            'by_filter': {'filter_name': count, ...},
+        }
     """
     if 'struct_filters' in config_dict:
         filter_settings = config_dict.get('struct_filters', {})
@@ -54,6 +67,15 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
 
         # Apply each filter to the structures
         filtered_uuids = []
+        by_phase = {}
+        by_type = {'bulk': 0, 'surface': 0, 'cluster': 0, 'isolated_atom': 0, 'md': 0}
+        by_modification = {'perturb': 0, 'vacancy': 0, 'deformation': 0, 'none': 0}
+        by_filter = {}
+
+        def _get_phase_key(phase):
+            if hasattr(phase, 'name'):
+                return phase.name
+            return phase
 
         # Reformat structures to have similar structure as in the database
         if isinstance(structures, list):
@@ -70,6 +92,7 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
                 continue
 
             struct_filter_results = []
+            triggered_filter = None
             for filt_name, filt_params in filter_settings.items():
                 # Retrieve function and apply it
                 filter_func = available_filters[filt_name]
@@ -80,16 +103,51 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
                         surface_miller = (0, 0, 1)
                     filt_params['miller_index'] = surface_miller
 
+                if filt_name == 'layer_distance' and (
+                    row[1].cluster or not row[1].surface
+                ):
+                    continue
+
                 # Apply filter function
                 try:
                     result = filter_func(structure, **filt_params)
                 except Exception:
                     print(f"'{filt_name}' failed for structure '{row[0]}'. Skipping...")
+                    continue
                 if result:
+                    if triggered_filter is None:
+                        triggered_filter = filt_name
                     struct_filter_results.append(result)
 
             if any(struct_filter_results):
                 filtered_uuids.append(row[1].unique_id)
+
+                # Track removal metadata
+                phase_key = _get_phase_key(row[1].phase)
+                by_phase[phase_key] = by_phase.get(phase_key, 0) + 1
+
+                if row[1].bulk:
+                    by_type['bulk'] += 1
+                elif row[1].surface:
+                    by_type['surface'] += 1
+                elif row[1].cluster:
+                    by_type['cluster'] += 1
+                elif row[1].isolated_atom:
+                    by_type['isolated_atom'] += 1
+                elif row[1].init_md:
+                    by_type['md'] += 1
+
+                if row[1].perturb:
+                    by_modification['perturb'] += 1
+                if row[1].vacancy:
+                    by_modification['vacancy'] += 1
+                if row[1].deformation:
+                    by_modification['deformation'] += 1
+                if not row[1].perturb and not row[1].vacancy and not row[1].deformation:
+                    by_modification['none'] += 1
+
+                if triggered_filter:
+                    by_filter[triggered_filter] = by_filter.get(triggered_filter, 0) + 1
 
         # Get filtered structures from structures.df
         filtered_structs = [
@@ -103,7 +161,16 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
 
         # Removing filtered structures
         structures.df = structures.df[~structures.df['unique_id'].isin(filtered_uuids)]
-        return filtered_uuids
+
+        removal_data = {
+            'filtered_uuids': filtered_uuids,
+            'by_phase': by_phase,
+            'by_type': by_type,
+            'by_modification': by_modification,
+            'by_filter': by_filter,
+        }
+
+        return removal_data
 
 
 def get_max_layer_distance(struct: Atoms) -> float:
@@ -177,6 +244,9 @@ def apply_filter_layer_distance(struct: Atoms, max_layer_distance_ang: float) ->
     """
     is_structure_wrong = False
 
+    if struct.info.get('cluster', False) or not struct.info.get('surface', False):
+        return is_structure_wrong
+
     if isinstance(struct, pmg_struct):
         struct = AseAtomsAdaptor().get_atoms(structure=struct)
 
@@ -224,8 +294,6 @@ def apply_filter_duplicate_slabs(struct, tolerance: float, miller_index: tuple |
 
     # Check if there are repeated layer spacings
     if len(layer_distances) > 1:
-        print('layer_distances: ', layer_distances)
-        print('layer_distances[0]: ', layer_distances[0])
         repeated_spacing = np.isclose(
             layer_distances, layer_distances[0], atol=tolerance
         )

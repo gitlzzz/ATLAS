@@ -1,5 +1,11 @@
 """Shared fixtures for ATLAS tests."""
 
+import os
+
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ['QT_NO_DBUS'] = '1'
+os.environ['XDG_SESSION_TYPE'] = 'tty'
+
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -35,12 +41,14 @@ def mock_atoms_with_dft():
     )
     atoms.info['atl_id'] = 'test-uuid-0002'
     atoms.info['REF_energy'] = -10.5
-    atoms.arrays['REF_forces'] = np.array([
-        [0.1, 0.0, 0.0],
-        [-0.1, 0.0, 0.0],
-        [0.0, 0.1, 0.0],
-        [0.0, -0.1, 0.0],
-    ])
+    atoms.arrays['REF_forces'] = np.array(
+        [
+            [0.1, 0.0, 0.0],
+            [-0.1, 0.0, 0.0],
+            [0.0, 0.1, 0.0],
+            [0.0, -0.1, 0.0],
+        ]
+    )
     atoms.info['REF_stress'] = np.zeros((3, 3))
     return atoms
 
@@ -51,8 +59,11 @@ def mock_pmg_structure():
     from pymatgen.core import Lattice, Structure
 
     lattice = Lattice.cubic(3.6)
-    return Structure(lattice, ['Cu', 'Cu', 'Cu', 'Cu'],
-                     [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    return Structure(
+        lattice,
+        ['Cu', 'Cu', 'Cu', 'Cu'],
+        [[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]],
+    )
 
 
 @pytest.fixture

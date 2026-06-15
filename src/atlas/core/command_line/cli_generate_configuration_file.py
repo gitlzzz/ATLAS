@@ -158,7 +158,7 @@ def generate_toml_recursive(
             )
             lines.append('#' * 80)
             generate_toml_recursive(
-                content.get('schema', {}),
+                content.get('schema_under_dynamic_keys', {}),
                 path_parts + [name, 'EXAMPLE_KEY'],
                 lines,
                 section_mandatory=is_section_mandatory,

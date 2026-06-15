@@ -88,7 +88,7 @@ class BasePhaseDiagram:
         for phase in self.phases:
             self.phase_names.append(phase.name)
 
-        self.alloy_set = set(element_list)
+        self.alloy_set = set(self.element_list)
 
     def add_phase(self, phase):
         """Add a phase to the phase diagram."""
@@ -295,7 +295,7 @@ class BinaryPhaseDiagram(BasePhaseDiagram):
         # Add complimentar elements to the x-axis
         secax = ax.twiny()
         secax.set_xlabel(
-            f'Composition at. % {list(self.alloy_set - {str(self.base_elem)})[0]}'
+            f'Composition at. % {list(self.alloy_set - {self.base_elem})[0]}'
         )
         secax.set_xlim(105, -5)
 

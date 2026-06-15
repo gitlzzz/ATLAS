@@ -1,6 +1,7 @@
 """Tests for the Phase and PhaseDiagram classes."""
 
 import pytest
+from pymatgen.core import Element
 from pymatgen.core import Structure as pmg_struct
 
 # Import atlas first to resolve circular imports
@@ -221,7 +222,7 @@ class TestSinglePhaseDiagram:
             element_list=['Cu'],
             base_elem='Cu',
         )
-        assert spd.alloy_set == {'Cu'}
+        assert spd.alloy_set == {Element('Cu')}
 
     def test_single_phase_diagram_with_phases_in_init(self):
         phase = atl_pd.Phase(
@@ -300,7 +301,7 @@ class TestBinaryPhaseDiagram:
             element_list=['Cu', 'Zn'],
             base_elem='Cu',
         )
-        assert bpd.alloy_set == {'Cu', 'Zn'}
+        assert bpd.alloy_set == {Element('Cu'), Element('Zn')}
 
     def test_binary_phase_diagram_add_phase_wrong_elements_raises(self):
         """Adding phase with wrong element list raises error."""
@@ -369,7 +370,7 @@ class TestTernaryPhaseDiagram:
             element_list=['Cu', 'Zn', 'Ni'],
             base_elem='Cu',
         )
-        assert tpd.alloy_set == {'Cu', 'Zn', 'Ni'}
+        assert tpd.alloy_set == {Element('Cu'), Element('Zn'), Element('Ni')}
 
 
 class TestPhaseDiagramFactory:

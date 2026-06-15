@@ -1028,9 +1028,11 @@ def run_dataframe_vasp_aiida_queue(
     kspacing_dict: dict | float = config_dict.get('kpoints', {}).get('kspacing')
     dry_run: bool = config_dict.get('general', {}).get('dry_run', False)
     max_batch: int = config_dict.get('general', {}).get('max_batch', 1)
-    sel_structures_type: str = config_dict.get('general', {}).get(
+    sel_structures_type = config_dict.get('general', {}).get(
         'selected_structure_type'
     )
+    if isinstance(sel_structures_type, str):
+        sel_structures_type = [sel_structures_type]
     start_on_struct_idx: int = config_dict.get('general', {}).get(
         'start_on_struct_idx', 0
     )
@@ -1081,14 +1083,16 @@ def run_dataframe_vasp_aiida_queue(
 
     # Getting the selected structures dataframe
     if sel_structures_type and isinstance(initial_db, atl_indb.InitialDatabase):
-        sel_struct_db = initial_db.df[initial_db.df[sel_structures_type]]
+        mask = initial_db.df[sel_structures_type].any(axis=1)
+        sel_struct_db = initial_db.df[mask]
     elif not sel_structures_type and isinstance(initial_db, atl_indb.InitialDatabase):
         sel_struct_db = initial_db.df
     elif not sel_structures_type and isinstance(initial_db, list):
         sel_struct_db = initial_db
     elif sel_structures_type and isinstance(initial_db, list):
         sel_struct_db = [
-            struct for struct in initial_db if struct.info[sel_structures_type]
+            struct for struct in initial_db
+            if any(struct.info.get(st) for st in sel_structures_type)
         ]
     else:
         raise ValueError('Initial database type not recognized.')

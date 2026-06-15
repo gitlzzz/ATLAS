@@ -232,8 +232,17 @@ def similarity_check_list(
     )
 
     # Checking for similarity after replacement
+    soap_kwargs = {'l_max': 2, 'n_max': 2}
+    if r_cut is not None:
+        soap_kwargs['r_cut'] = r_cut
+    if n_max is not None:
+        soap_kwargs['n_max'] = n_max
+    if l_max is not None:
+        soap_kwargs['l_max'] = l_max
     uuid_list = _check_repeat_struct_list(
-        replaced_structures, r_cut=r_cut, l_max=2, n_max=2
+        replaced_structures,
+        alloy_set=db_obj.phase_diagram.alloy_set,
+        **soap_kwargs,
     )
     print('uuid_list: ', len(uuid_list))
 
@@ -272,10 +281,10 @@ def gauss_perturb(structure: Structure, center: float = 0.04):
     return new_structure
 
 
-def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
+def _check_repeat_struct_list(structure_list, alloy_set, r_cut=6, n_max=8, l_max=6):
     print('r_cut: ', r_cut)
 
-    species_list = [el.Z for el in atl_indb.CuZnInitialDatabase.ALLOY_SET]
+    species_list = [el.Z for el in alloy_set]
 
     # Setting up the SOAP descriptor
     soap = SOAP(
@@ -536,6 +545,8 @@ def apply_filters_db(
     # Applying filters. Filter lists are column names, that select all rows
     # that have a True value in that column, applied with an OR logic.
     if filters:
+        if isinstance(filters, str):
+            filters = [filters]
         appl_filter_db_list = []
         for filt in filters:
             appl_filt = filtered_df.loc[filtered_df[filt]]
@@ -647,7 +658,7 @@ def apply_replacement(
     # although this results in more randomness.
     base_elem = phase.base_elem
     if len(phase_diagram.alloy_set) > 1:
-        (other_elem,) = phase_diagram.alloy_set - {base_elem.symbol}
+        (other_elem,) = phase_diagram.alloy_set - {base_elem}
     else:
         other_elem = list(phase_diagram.alloy_set)[0]
 
@@ -979,6 +990,7 @@ def _apply_perturbation_atl_struct(center, row, per_idx):
         'deformation',
         'unique_id',
         'to_ase_atoms',
+        'from_ase_atoms',
     ]:
         if func_name in row_kwargs_dict:
             row_kwargs_dict.pop(func_name)

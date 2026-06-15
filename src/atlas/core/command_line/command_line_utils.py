@@ -659,6 +659,7 @@ def validate_section_recursive(
             value, param_key, param_schema, path, root_config_data
         )
 
+        errors.extend(param_errors)
         warnings.extend(param_warnings)
 
         if len(param_errors) == 0:
@@ -830,7 +831,7 @@ def validate_section_recursive(
                     )
                     validate_section_recursive(
                         config_data=config_value,
-                        schema_dict=section_schema.get('schema', {}),
+                        schema_dict=section_schema.get('schema_under_dynamic_keys', {}),
                         path=new_path,
                         errors=errors,
                         warnings=warnings,

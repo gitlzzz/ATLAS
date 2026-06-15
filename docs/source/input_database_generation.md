@@ -359,6 +359,90 @@ Surface structure generation settings.
   - **Description**: Maximum number of workers for parallel processing.
   - **Type**: `(optional, int)`
 
+#### Cluster - `[generation.cluster]`
+
+Cluster structure generation settings.
+
+:::{attention}
+This section is optional.
+:::
+
+
+- {alt}`size_range`:
+  - **Description**: List of cluster sizes (number of atoms) to generate.
+  - **Type**: `(list[int])`
+  - **Default**: `[10, 20, 30, 40, 50, 60]`.
+
+- {alt}`add_dimer`:
+  - **Description**: Whether to add a 2-atom dimer structure.
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+- {alt}`save_in_db`:
+  - **Description**: Whether to save generated clusters in the database.
+  - **Type**: `(optional, bool)`
+  - **Default**: `True`.
+
+- {alt}`get_replacements`:
+  - **Description**: Whether to generate replacement clusters (substitute atoms).
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+- {alt}`get_perturbed`:
+  - **Description**: Whether to generate perturbed clusters (Gaussian displacement).
+  - **Type**: `(optional, bool)`
+  - **Default**: `False`.
+
+- {alt}`num_struct`:
+  - **Description**: Number of replacement/perturbation structures to generate per base cluster.
+  - **Type**: `(optional, int)`
+  - **Default**: `2`.
+
+- {alt}`num_repeat`:
+  - **Description**: Number of repeats for each replacement/perturbation.
+  - **Type**: `(optional, int)`
+  - **Default**: `2`.
+
+- {alt}`limit_max_num_structures`:
+  - **Description**: Maximum number of cluster structures to generate in total.
+  - **Type**: `(optional, int)`
+  - **Default**: `100`.
+
+- {alt}`perturbation_ang`:
+  - **Description**: Gaussian perturbation magnitude in Angstroms.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.04`.
+
+- {alt}`cluster_method`:
+  - **Description**: Method for initial cluster geometry. 'wulff' uses Wulff construction (FCC/BCC, falls back to spherical for HCP). 'spherical' uses random spherical packing.
+  - **Type**: `(optional, str)`
+  - **Default**: `'wulff'`.
+
+- {alt}`basin_hopping`:
+  - **Description**: Whether to relax clusters via basin hopping with a Lennard-Jones potential.
+  - **Type**: `(optional, bool)`
+  - **Default**: `True`.
+
+- {alt}`bh_totalsteps`:
+  - **Description**: Number of basin hopping steps for cluster relaxation.
+  - **Type**: `(optional, int)`
+  - **Default**: `10`.
+
+- {alt}`bh_fmax`:
+  - **Description**: Force convergence criterion (eV/Angstrom) for basin hopping.
+  - **Type**: `(optional, float)`
+  - **Default**: `0.05`.
+
+- {alt}`lj_sigma`:
+  - **Description**: Lennard-Jones sigma parameter (Angstrom) for basin hopping.
+  - **Type**: `(optional, float)`
+  - **Default**: `1.0`.
+
+- {alt}`lj_epsilon`:
+  - **Description**: Lennard-Jones epsilon parameter (eV) for basin hopping.
+  - **Type**: `(optional, float)`
+  - **Default**: `1.0`.
+
 ### Deformation - `[deformation]`
 
 Lattice deformation settings.
@@ -594,7 +678,7 @@ This section is optional.
 
 ### Concave_Hull - `[concave_hull]`
 
-Settings for descriptors and concave hull generation.
+Settings for descriptors and boundary determination.
 
 :::{attention}
 This section is optional.
@@ -602,23 +686,44 @@ This section is optional.
 
 
 - {alt}`gen_concave_hull`:
-  - **Description**: Whether to generate the concave hull of the descriptors for all structures in the database.
+  - **Description**: Whether to generate the boundary of the descriptors for all structures in the database.
   - **Type**: `(optional, bool)`
   - **Default**: `False`.
 
+- {alt}`boundary_method`:
+  - **Description**: Algorithm for boundary determination.
+  - **Type**: `(optional, str)`
+  - **Default**: `'concave_hull'`.
+  - Possible values are: `concave_hull`, `morphological_closing`.
+
 - {alt}`descriptor`:
-  - **Description**: Descriptor to use for the concave hull generation.
+  - **Description**: Descriptor to use for the boundary generation.
   - **Type**: `(optional, str)`
   - **Default**: `'SOAP'`.
   - Possible values are: `SOAP`, `MACE`.
 
 - {alt}`dim_reduction`:
-  - **Description**: Dimensionality reduction method for the concave hull generation.
+  - **Description**: Dimensionality reduction method for the boundary generation.
   - **Type**: `(optional, str)`
   - **Default**: `'autoencoder'`.
   - Possible values are: `PCA`, `autoencoder`.
 
 - {alt}`plot_filename`:
-  - **Description**: Filename for the figure displaying the concave hull.
+  - **Description**: Filename for the figure displaying the boundary.
   - **Type**: `(optional, str)`
   - **Default**: `'descriptors_concave_hull.png'`.
+
+- {alt}`morph_disk_size`:
+  - **Description**: Disk size for morphological closing structuring element. Larger values bridge wider gaps between points.
+  - **Type**: `(optional, int)`
+  - **Default**: `10`.
+
+- {alt}`morph_threshold`:
+  - **Description**: Grayscale intensity threshold (0-255) for point detection in morphological closing.
+  - **Type**: `(optional, int)`
+  - **Default**: `250`.
+
+- {alt}`morph_dpi`:
+  - **Description**: DPI of the internal rasterisation used by morphological closing. Higher values give finer boundaries.
+  - **Type**: `(optional, int)`
+  - **Default**: `100`.

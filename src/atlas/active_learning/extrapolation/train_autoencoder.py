@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 
 import atlas.active_learning.extrapolation.autoencoder as ae
 import atlas.core.code_utils as atl_cut
+from atlas.core.code_utils import custom_print
 
 
 def train_loop(data_loader, model, loss_fn, optimizer, device):
@@ -84,18 +85,18 @@ def _load_dataset_as_point_array(data: np.ndarray | str | pl.Path) -> np.ndarray
     # with the key 'arr_0' or 'descriptor'
     if isinstance(descr_data, np.lib.npyio.NpzFile):
         # New name
-        point_arr = descr_data.get('descriptor')
+        point_arr = descr_data.get("descriptor")
 
         # Old name fallback
         if point_arr is None:
-            point_arr = descr_data.get('arr_0')
+            point_arr = descr_data.get("arr_0")
 
         if point_arr is None:
-            raise ValueError('No array found in the npz file.')
+            raise ValueError("No array found in the npz file.")
     elif isinstance(descr_data, np.ndarray):
         point_arr = descr_data
     else:
-        raise ValueError('Invalid data type. Expected np.ndarray or npz file.')
+        raise ValueError("Invalid data type. Expected np.ndarray or npz file.")
     return point_arr
 
 
@@ -104,7 +105,7 @@ def safe_to_gpu(arrays, target_dtype, device):
     Checks if there is enough VRAM to move an array to the GPU.
     Returns True if safe, False if it will likely OOM.
     """
-    if torch.device(device).type != 'cuda':
+    if torch.device(device).type != "cuda":
         return True  # CPU RAM limits apply instead
 
     # Calculate required memory
@@ -118,17 +119,17 @@ def safe_to_gpu(arrays, target_dtype, device):
     free_bytes, total_bytes = torch.cuda.mem_get_info(device)
     free_gb = free_bytes / (1024**3)
 
-    atl_cut.custom_print(f'Target Tensor Size: {required_gb:.3f} GB', 'debug')
-    atl_cut.custom_print(f'Available VRAM:     {free_gb:.3f} GB', 'debug')
+    atl_cut.custom_print(f"Target Tensor Size: {required_gb:.3f} GB", "debug")
+    atl_cut.custom_print(f"Available VRAM:     {free_gb:.3f} GB", "debug")
 
     # Leave a safety margin (e.g., 500 MB) for PyTorch context and operations
     safety_margin = 500 * (1024**2)
 
     if (required_bytes + safety_margin) < free_bytes:
-        atl_cut.custom_print('It is safe to store tensors on GPU.', 'debug')
+        atl_cut.custom_print("It is safe to store tensors on GPU.", "debug")
         return True
     else:
-        print('Tensors will likely cause OOM on GPU.', 'warning')
+        print("Tensors will likely cause OOM on GPU.", "warning")
         return False
 
 
@@ -142,7 +143,7 @@ def split_dataset(
     dtype=torch.float32,
 ):
     if not device:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Set the RNG seed for reproducibility
     if not rng_seed:
@@ -186,10 +187,10 @@ def split_dataset(
     valid_data = torch.Tensor(valid_arr).to(device=device, dtype=dtype)
     test_data = torch.Tensor(test_arr).to(device=device, dtype=dtype)
 
-    atl_cut.custom_print('Data loaded:', 'info')
-    atl_cut.custom_print(f'  Training data array shape: {train_data.shape}', 'clean')
-    atl_cut.custom_print(f'  Validation data array shape: {valid_data.shape}', 'clean')
-    atl_cut.custom_print(f'  Test data array shape: {test_data.shape}', 'clean')
+    atl_cut.custom_print("Data loaded:", "info")
+    atl_cut.custom_print(f"  Training data array shape: {train_data.shape}", "clean")
+    atl_cut.custom_print(f"  Validation data array shape: {valid_data.shape}", "clean")
+    atl_cut.custom_print(f"  Test data array shape: {test_data.shape}", "clean")
     print()
 
     return train_data, valid_data, test_data
@@ -218,6 +219,12 @@ def return_dataset_loader(
     test_size = total_size - train_size - valid_size
 
     # Automatically split the dataset (this handles the random seed safely)
+    if not rng_seed:
+        rng_seed = np.random.randint(1, int(1e15))
+        custom_print(
+            f"No RNG seed provided. Generated random seed: {rng_seed}.", "warning"
+        )
+
     split_generator = torch.Generator().manual_seed(rng_seed)
     train_ds, valid_ds, test_ds = random_split(
         full_dataset, [train_size, valid_size, test_size], generator=split_generator
@@ -290,14 +297,14 @@ def run_training(args):
         Autoencoder model trained for dimensionality reduction.
     """
     # Set device if no device is given
-    if not hasattr(args, 'device') or args.device == 'auto':
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if not hasattr(args, "device") or args.device == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = args.device
-    atl_cut.custom_print(f"Running on device: '{device}'", 'info')
+    atl_cut.custom_print(f"Running on device: '{device}'", "info")
 
     # Setting verbosity
-    if 'verbose' in vars(args):
+    if "verbose" in vars(args):
         match args.verbose:
             case True:
                 args.verbose = True
@@ -307,26 +314,27 @@ def run_training(args):
         args.verbose = True
 
     # Setting dtype
-    if not hasattr(args, 'dtype'):
+    if not hasattr(args, "dtype"):
         args.dtype = torch.float32
     else:
         match args.dtype:
-            case 'float32':
+            case "float32":
                 args.dtype = torch.float32
-            case 'float64':
+            case "float64":
                 args.dtype = torch.float64
             case _:
                 args.dtype = torch.float32
-    atl_cut.custom_print(f"Using dtype: '{args.dtype}'", 'info')
+    atl_cut.custom_print(f"Using dtype: '{args.dtype}'", "info")
 
     # If no seed is given, generate a random seed
-    if not hasattr(args, 'rng_seed'):
+    if not hasattr(args, "rng_seed"):
         args.rng_seed = np.random.randint(1, int(1e15))
-    atl_cut.custom_print(f"Using RNG seed: '{args.rng_seed}'.", 'info')
+    atl_cut.custom_print(f"Using RNG seed: '{args.rng_seed}'.", "info")
 
     # Optionally normalizing data
     # Z-score standardization
-    if hasattr(args, 'standardize_data') and args.standardize_data is True:
+    if hasattr(args, "standardize_data") and args.standardize_data is True:
+        atl_cut.custom_print("Standardization enabled. Normalizing data...", "info")
         if isinstance(args.model_path, str):
             model_path = pl.Path(args.model_path).resolve()
         else:
@@ -340,10 +348,10 @@ def run_training(args):
         # Check if standardization files already exist (mean and std values)
         mean_vals, std_vals = ae.locate_standarization_files(model_path)
 
-        if mean_vals and std_vals:
-            atl_cut.custom_print('Loaded standardized values.')
+        if mean_vals is not None and std_vals is not None:
+            atl_cut.custom_print("Loaded standardized values.")
         else:
-            atl_cut.custom_print('Carrying out data standarization...')
+            atl_cut.custom_print("Carrying out data standarization...")
             mean_vals = dataset.mean(axis=0)
             std_vals = dataset.std(axis=0)
 
@@ -352,8 +360,8 @@ def run_training(args):
             std_vals[std_vals == 0] = 1.0
 
         # Save them alongside model
-        np.save(model_path.parent / 'ae_mean_vals.npy', mean_vals)
-        np.save(model_path.parent / 'ae_std_vals.npy', std_vals)
+        np.save(model_path.parent / "ae_mean_vals.npy", mean_vals)
+        np.save(model_path.parent / "ae_std_vals.npy", std_vals)
 
         # Apply standardization to the dataset
         dataset = (dataset - mean_vals) / std_vals
@@ -390,32 +398,42 @@ def run_training(args):
     elif isinstance(dataset, np.ndarray):
         input_dim = dataset.shape[1]
     else:
-        raise ValueError(f'Unexpected dataset type: {type(dataset)}')
+        raise ValueError(f"Unexpected dataset type: {type(dataset)}")
 
     # Start a new wandb run to track this script
-    if hasattr(args, 'wandb') and args.wandb is True:
+    if hasattr(args, "wandb") and args.wandb is True:
         wandb.init(
             # set the wandb project where this run will be logged
             project=args.wandb_project,
             # set the name of the run
             name=args.wandb_name,
             # track hyperparameters and run metadata
-            config={
-                'learning_rate': args.lr,
-                'bias_flag': args.bias_flag,
-                'dataset': args.dataset,
-                'num_epochs': args.num_epochs,
-                'batch_size': args.batch_size,
-                'patience': args.patience,
-                'train_frac': args.train_frac,
-                'valid_frac': args.valid_frac,
-                'test_frac': args.test_frac,
-                'l1_hidden_dim': args.l1_hidden_dim,
-                'l2_hidden_dim': args.l2_hidden_dim,
-                'weight_decay': args.weight_decay,
-                'device': device,
-            },
+            config=vars(args),
         )
+
+        # Override for sweeps.
+        # Sweep data is found on wandb.config, otherwise it is empty.
+        # If wandb.config is created, then try to get the   key actually exists.
+        # If it doesn't exist (no sweep), it falls back to the original args values.
+        for key, value in wandb.config.items():
+            if hasattr(args, key):
+                setattr(args, key, value)
+
+        if isinstance(args.dtype, str):
+            match args.dtype:
+                case "float64":
+                    args.dtype = torch.float64
+                case _:
+                    args.dtype = torch.float32
+
+        # We want to ensure that the l2_hidden_dim is always smaller than the
+        # l1_hidden_dim for a valid autoencoder architecture.
+        if args.l2_hidden_dim >= args.l1_hidden_dim:
+            args.l2_hidden_dim = args.l1_hidden_dim // 4
+            # Log the updated dimension back to wandb so charts are accurate
+            wandb.config.update(
+                {"l2_hidden_dim": args.l2_hidden_dim}, allow_val_change=True
+            )
 
     # Model initialization
     model = ae.Autoencoder(
@@ -425,15 +443,16 @@ def run_training(args):
         bottleneck_dim=args.bottleneck_dim,
         bias_flag=args.bias_flag,
     )
+
     model.to(device=device, dtype=args.dtype)
 
     match args.loss:
         # Define loss function as MSE (Mean Squared Error)
-        case 'mse':
+        case "mse":
             criterion = nn.MSELoss()
 
         # Alternative loss function that penalizes small errors more heavily
-        case 'weighted_mse':
+        case "weighted_mse":
 
             def weighted_mse_loss(output, target, weight=10):
                 diff = (output - target) ** 2
@@ -452,14 +471,14 @@ def run_training(args):
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer=optimizer,
-        mode='min',
+        mode="min",
         factor=0.5,
         patience=args.patience,
         # threshold=1e-3,
     )
 
     atl_cut.custom_print(
-        f'Starting autoencoder training for {args.num_epochs} epochs...', 'info'
+        f"Starting autoencoder training for {args.num_epochs} epochs...", "info"
     )
 
     for epoch in range(args.num_epochs):
@@ -489,24 +508,26 @@ def run_training(args):
             )
             if args.verbose:
                 atl_cut.custom_print(
-                    {
-                        'Epoch': epoch,
-                        'Train Avg. MSE': train_avg_loss,
-                        'Validation Avg. MSE': val_loss,
-                        'Test Avg. MSE': test_loss,
-                        'lr': scheduler.get_last_lr()[0],
-                    },
-                    'none',
+                    str(
+                        {
+                            "Epoch": epoch,
+                            "Train Avg. MSE": train_avg_loss,
+                            "Validation Avg. MSE": val_loss,
+                            "Test Avg. MSE": test_loss,
+                            "lr": scheduler.get_last_lr()[0],
+                        }
+                    ),
+                    "none",
                 )
             # log metrics to wandb
-            if hasattr(args, 'wandb') and args.wandb:
+            if hasattr(args, "wandb") and args.wandb:
                 wandb.log(
                     {
-                        'epoch': epoch,
-                        'train_loss': train_avg_loss,
-                        'val_loss': val_loss,
-                        'test_loss': val_loss,
-                        'lr': scheduler.get_last_lr()[0],
+                        "epoch": epoch,
+                        "train_loss": train_avg_loss,
+                        "val_loss": val_loss,
+                        "test_loss": test_loss,
+                        "lr": scheduler.get_last_lr()[0],
                     }
                 )
         # Log metrics for normal epoch
@@ -514,36 +535,36 @@ def run_training(args):
             if args.verbose:
                 atl_cut.custom_print(
                     {
-                        'Epoch': epoch,
-                        'Train Avg. MSE': train_avg_loss,
-                        'Validation Avg. MSE': val_loss,
-                        'lr': scheduler.get_last_lr()[0],
+                        "Epoch": epoch,
+                        "Train Avg. MSE": train_avg_loss,
+                        "Validation Avg. MSE": val_loss,
+                        "lr": scheduler.get_last_lr()[0],
                     },
-                    'none',
+                    "none",
                 )
             # log metrics to wandb
-            if hasattr(args, 'wandb') and args.wandb:
+            if hasattr(args, "wandb") and args.wandb:
                 wandb.log(
                     {
-                        'epoch': epoch,
-                        'train_loss': train_avg_loss,
-                        'val_loss': val_loss,
-                        'lr': scheduler.get_last_lr()[0],
+                        "epoch": epoch,
+                        "train_loss": train_avg_loss,
+                        "val_loss": val_loss,
+                        "lr": scheduler.get_last_lr()[0],
                     }
                 )
 
         scheduler.step(metrics=val_loss)
 
-    atl_cut.custom_print('Training complete!', 'done')
+    atl_cut.custom_print("Training complete!", "done")
 
-    if hasattr(args, 'model_path'):
+    if hasattr(args, "model_path"):
         # Save the model
         # torch.save(model.state_dict(), args.model_path)
         save_path = pl.Path(args.model_path).absolute()
         torch.save(model, save_path)
 
-        atl_cut.custom_print(f"Autoencoder model saved to '{save_path}'.", 'info')
+        atl_cut.custom_print(f"Autoencoder model saved to '{save_path}'.", "info")
     else:
-        atl_cut.custom_print('Autoencoder model not saved.', 'warning')
+        atl_cut.custom_print("Autoencoder model not saved.", "warning")
 
     return model

@@ -1,26 +1,11 @@
 repos:
-    - repo: local
-      hooks:
-          - id: update-docs-from-schema
-            name: Update documentation from config schema
-            entry: python -m MatDBForge.core.command_line.cli_generate_docs --overwrite
-            language: system
-            files: ^src/MatDBForge/data/config_schema\.yaml$
-            pass_filenames: false
-            description: "Regenerate docs/source/input.md when config_schema.yaml changes"
-          - id: run-tests
-            name: Run pytest tests
-            entry: python -m pytest tests/ -x
-            language: system
-            pass_filenames: false
-            always_run: true
     - repo: https://github.com/astral-sh/ruff-pre-commit
       # Ruff version.
       rev: v0.11.9
       hooks:
           # Run the linter.
           - id: ruff
-            exclude: ^src/MatDBForge/data/
+            exclude: ^src/atlas/data/
             args: [--fix, --show-fixes]
             types_or: [python, pyi]
           # Run the formatter.
@@ -31,10 +16,25 @@ repos:
       rev: v5.0.0
       hooks:
           # - id: trailing-whitespace
-          #   exclude: ^src/MatDBForge/data/
           - id: end-of-file-fixer
-            exclude: ^src/MatDBForge/data/
+            exclude: ^src/atlas/data/
           - id: check-yaml
           - id: check-added-large-files
             args: ["--maxkb=2048"]
           - id: check-toml
+    - repo: local
+      hooks:
+          - id: update-docs-from-schema
+            name: Update documentation from config schema
+            entry: python -m atlas.core.command_line.cli_generate_docs --overwrite
+            language: system
+            files: ^src/atlas/data/config_schema\.yaml$
+            pass_filenames: false
+            description: "Regenerate docs/source/input.md when config_schema.yaml changes"
+          - id: run-tests
+            name: Run pytest tests
+            # Added --setup-show and -vv to trace the exact hang
+            entry: python -m pytest tests/ -x --tb=short
+            language: system
+            pass_filenames: false
+            always_run: true

@@ -3,6 +3,7 @@
 import logging
 import pathlib as pl
 import warnings
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -238,9 +239,15 @@ def get_latent_space_autoencoder(
     with torch.no_grad():
         uuids = list(descriptor_dict.keys())
 
-        # Gather all descriptors into a single list
-        all_descrs = [descriptor_dict[u]['descriptors'][0] for u in uuids]
-        all_lengths = [descriptor_dict[u]['descriptors'][0].shape[0] for u in uuids]
+        # Gather all descriptors — handle both per-atom (2D) and averaged (1D)
+        all_descrs = []
+        all_lengths = []
+        for u in uuids:
+            d = descriptor_dict[u]['descriptors']
+            if d.ndim == 1:
+                d = d.reshape(1, -1)
+            all_descrs.append(d)
+            all_lengths.append(d.shape[0])
         descr_tensor = torch.tensor(np.vstack(all_descrs), device=device, dtype=dtype)
 
         # Standardize batched data
@@ -309,15 +316,64 @@ def evaluate_reconstruction(
 
         reconstructed_np = reconstructed_tensor.cpu().numpy()
 
-    # Calculate Global Metrics
+    # Calculate global metrics
     mae = np.mean(np.abs(original_np - reconstructed_np))
-    rmse = np.sqrt(np.mean((original_np - reconstructed_np) ** 2))
+    mse = np.mean((original_np - reconstructed_np) ** 2)
+    rmse = np.sqrt(mse)
 
-    custom_print(f'Reconstruction Metrics -> MAE: {mae:.4f} | RMSE: {rmse:.4f}', 'done')
+    # Calculate relative reconstruction error (scaled by total descriptor variance)
+    data_variance = np.var(original_np)
+    relative_error = mse / data_variance if data_variance > 0 else 0.0
+
+    custom_print(
+        f'Reconstruction Metrics -> MAE: {mae:.4f} | RMSE: {rmse:.4f} | '
+        f'Rel_Err: {relative_error:.4f}',
+        'done',
+    )
 
     return {
         'mae': mae,
+        'mse': mse,
         'rmse': rmse,
+        'relative_error': relative_error,
         'predictions': reconstructed_np,
         'targets': original_np,
     }
+
+
+@dataclass
+class AutoencoderSettings:
+    """Configuration settings for Autoencoder training."""
+
+    # Environment & Hardware
+    device: str = 'cpu'
+    dtype: str = 'float32'
+    rng_seed: int | None = None
+
+    # Data & Paths
+    dataset: str = 'all_descriptors.npz'
+    model_path: str = 'autoencoder_model.pth'
+    load_model: bool = False
+    train_frac: float = 0.8
+    valid_frac: float = 0.1
+    test_frac: float = 0.1
+    standardize_data: bool = True
+
+    # Model Architecture
+    l1_hidden_dim: int = 256
+    l2_hidden_dim: int = 32
+    bottleneck_dim: int = 2
+    bias_flag: bool = True
+
+    # Hyperparameters & Training
+    num_epochs: int = 50
+    batch_size: int = 4096
+    patience: int = 5
+    lr: float = 0.001
+    weight_decay: float = 1e-5
+    loss: str = 'mse'
+
+    # Weights & Biases Logging
+    wandb: bool = False
+    wandb_name: str | None = None
+    wandb_project: str | None = None

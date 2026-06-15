@@ -31,7 +31,7 @@ General settings for the DFT script.
   - **Default**: `'dft_calculation_results'`.
 
 - {alt}`source_db`:
-  - **Description**: Path to the source database file (.extxyz or ATLAS .xz database format).
+  - **Description**: Path to the source database file (.extxyz or mdb .xz format).
   - **Type**: `(optional, str, PosixPath)`
 
 - {alt}`aiida_group_name`:
@@ -60,8 +60,8 @@ General settings for the DFT script.
   - **Default**: `False`.
 
 - {alt}`selected_structure_type`:
-  - **Description**: If specified, only structures of this type will be processed.
-  - **Type**: `(optional, str)`
+  - **Description**: Structure types to process. If empty, all types are included.
+  - **Type**: `(optional, list[str])`
   - Possible values are: `bulk`, `surface`, `cluster`.
 
 ### Calculation - `[calculation]`
