@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.53.0 (2026-06-16)
+
+### Docs
+
+- **core**: update readme ([#e3c125b](https://github.com/pol-sb/ATLAS/commit/e3c125b2ceb996171241d8bbb82df2ece11b9839))
+
+### Feature
+
+- **gui**: add improve initial setup and wizard ([#89964ae](https://github.com/pol-sb/ATLAS/commit/89964ae58c23b2f699379bdd83d30f11519c7abc))
+- **gui**: add first version of gui ([#f5fde84](https://github.com/pol-sb/ATLAS/commit/f5fde8452e473a894636f389e816bf23886fa78b))
+- **core**: big batch of improvements: db gen, cluster, dft, gui ([#bf063d7](https://github.com/pol-sb/ATLAS/commit/bf063d76961f97b2105e8a8d3b043d61e3f65fa1))
+
+### Fix
+
+- **core**: update missed references to mdb ([#3b035f2](https://github.com/pol-sb/ATLAS/commit/3b035f2c0d87210efed24852f50eff80781bef8f))
+
+### Misc
+
+- **core**: update .gitignore ([#8d11ef3](https://github.com/pol-sb/ATLAS/commit/8d11ef3334df38643bdbd18b2b5de8c7092452cc))
+- **core**: add uv-related files ([#e536671](https://github.com/pol-sb/ATLAS/commit/e5366719d1c734a403c5e8c97cbce520297e8b09))
+
+### Refactor
+
+- **gui**: updated internal paths for GUI, logos and added scope in pyproject.toml ([#eb782ac](https://github.com/pol-sb/ATLAS/commit/eb782ac75270ca327883ec3040de5b100e2dfe61))
+
 ## 0.52.6 (2026-06-05)
 
 ### Docs
