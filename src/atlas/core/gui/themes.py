@@ -620,6 +620,15 @@ QTabBar::tab:hover:!selected {{
     color: {fg};
 }}
 
+/* ── Page-level (outer) tab bar ── */
+QTabWidget#pageTab > QTabBar::tab {{
+    padding: 9px 18px;
+    font-weight: 600;
+}}
+QTabWidget#pageTab::pane {{
+    border-top: 2px solid {border};
+}}
+
 /* ====== Buttons ====== */
 QPushButton {{
     background-color: {btn_bg};

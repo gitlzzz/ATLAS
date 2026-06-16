@@ -1081,20 +1081,24 @@ def limit_num_structures_phase(
     # Getting the current phase structures (df_filtered)
     df_filtered = db_obj.df.loc[db_obj.df['phase'] == phase.name]
 
-    # Gathering the base structures incldued in the current phase
+    # Gathering the base structures included in the current phase
     df_filt_base = df_filtered.loc[df_filtered.base]
+    df_filt_non_base = df_filtered.loc[~df_filtered.base]
 
     # Getting the remaining structures after selecting
     # the phase (df_remaining)
     df_remaining = db_obj.df.loc[db_obj.df['phase'] != phase.name]
 
-    # Getting a num_limit size random sample of the structures from
-    # the current phase (df_filt_sample)
-    num_limit = np.min([num_limit, df_filtered.shape[0]])
-    df_filt_sampl_idx = rng.choice(
-        range(df_filtered.shape[0]), num_limit, replace=False
-    )
-    df_filt_sampl = df_filtered.iloc[df_filt_sampl_idx]
+    # Reserve slots for base structures, sample the rest from non-base
+    n_base = df_filt_base.shape[0]
+    n_sample = max(0, min(num_limit, df_filtered.shape[0]) - n_base)
+    n_sample = min(n_sample, df_filt_non_base.shape[0])
+
+    if n_sample > 0:
+        sampl_idx = rng.choice(df_filt_non_base.shape[0], n_sample, replace=False)
+        df_filt_sampl = df_filt_non_base.iloc[sampl_idx]
+    else:
+        df_filt_sampl = df_filt_non_base.iloc[:0]
 
     # Adding df_filt_sample to the df_remaining
     df_remaining = pd.concat([df_remaining, df_filt_sampl, df_filt_base], axis=0)

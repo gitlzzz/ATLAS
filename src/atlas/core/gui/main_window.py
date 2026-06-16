@@ -116,6 +116,10 @@ class MainWindow(QMainWindow):
         self._build_log_dock()
         self._build_central_widget()
 
+        self._log_timing('Applying theme...')
+        self._progress(25, 'Applying theme...')
+        self._apply_app_theme(self._current_theme)
+
         self._log_timing('Loading pages...')
         self._progress(30, 'Loading pages...')
         self._build_pages()
@@ -127,9 +131,6 @@ class MainWindow(QMainWindow):
         self._build_status_bar()
         self._build_tray_icon()
 
-        self._log_timing('Applying theme...')
-        self._progress(95, 'Applying theme...')
-        self._apply_app_theme(self._current_theme)
         self.sidebar.setCurrentRow(0)
 
         self._log_timing('Ready')

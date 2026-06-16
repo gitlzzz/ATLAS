@@ -87,6 +87,7 @@ class InitDbPage(WorkflowPage):
         self._manage_panel.database_deleted.connect(self._on_db_deleted)
 
         self.tabs = QTabWidget()
+        self.tabs.setObjectName('pageTab')
         self.tabs.addTab(self.config_panel, 'Config')
         self.tabs.addTab(self.structures_panel, 'Outputs — Database')
         self.tabs.addTab(self.table_panel, 'Table View')

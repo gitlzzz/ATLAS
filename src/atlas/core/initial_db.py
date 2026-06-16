@@ -1674,14 +1674,16 @@ class InitialDatabase:
 
         # Limiting number of structures
         if limit_num_structures:
-            limit_num_structures = min(limit_num_structures // repeat, self.df.shape[0])
+            limit_num_structures = min(
+                limit_num_structures // repeat, target_entries.shape[0]
+            )
             atl_cut.custom_print(
                 f'Limiting number of deformations to  {limit_num_structures}', 'debug'
             )
             rng_idxs = rng.choice(
-                self.df.shape[0], size=limit_num_structures, replace=False
+                target_entries.shape[0], size=limit_num_structures, replace=False
             )
-            target_entries = self.df.iloc[rng_idxs]
+            target_entries = target_entries.iloc[rng_idxs]
 
         # Applying deformation to all perturbed structures
         for _, entry in target_entries.iterrows():

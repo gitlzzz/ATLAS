@@ -84,19 +84,12 @@ class SettingsPage(WorkflowPage):
 
         self._profile_combo = QComboBox()
         self._profile_combo.setMinimumWidth(250)
-        self._populate_aiida_profiles()
         self._profile_combo.currentTextChanged.connect(self._on_profile_changed)
         aiida_form.addRow('AiiDA profile', self._profile_combo)
 
         self._profile_status = QLabel()
         self._profile_status.setWordWrap(True)
         aiida_form.addRow('', self._profile_status)
-
-        if not _current_aiida_profile():
-            profiles, default = _list_aiida_profiles()
-            if default:
-                self._on_profile_changed(default)
-        self._update_profile_status()
 
         refresh_row = QHBoxLayout()
         refresh_btn = QPushButton('Refresh profiles')
@@ -116,7 +109,6 @@ class SettingsPage(WorkflowPage):
         self._api_key_edit.setEchoMode(QLineEdit.Password)
         self._api_key_edit.setPlaceholderText('Enter your MP API key')
         self._api_key_edit.setMinimumWidth(350)
-        self._load_api_key()
         mp_form.addRow('API key', self._api_key_edit)
 
         key_buttons = QHBoxLayout()
@@ -135,7 +127,6 @@ class SettingsPage(WorkflowPage):
         self._api_key_source = QLabel()
         self._api_key_source.setStyleSheet('color: palette(mid);')
         key_buttons.addWidget(self._api_key_source)
-        self._update_key_source_label()
 
         mp_form.addRow('', key_buttons)
         outer.addWidget(mp_group)
@@ -152,6 +143,10 @@ class SettingsPage(WorkflowPage):
         self._load_api_key()
         self._update_key_source_label()
         self._populate_aiida_profiles()
+        if not _current_aiida_profile():
+            profiles, default = _list_aiida_profiles()
+            if default:
+                self._on_profile_changed(default)
         self._update_profile_status()
         self._setup_status.refresh()
 

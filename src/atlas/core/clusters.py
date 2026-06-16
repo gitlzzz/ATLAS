@@ -13,7 +13,9 @@ from ase.cluster.wulff import wulff_construction
 from ase.data import atomic_numbers, covalent_radii, reference_states
 from ase.io import read as ase_read
 from ase.optimize.minimahopping import MinimaHopping
-from pymatgen.core import Element, Lattice, Structure
+from pymatgen.core.lattice import Lattice
+from pymatgen.core.periodic_table import Element
+from pymatgen.core.structure import Structure
 
 import atlas.core.initial_db as atl_indb
 import atlas.core.phase_diagram as atl_phase

@@ -932,8 +932,6 @@ class SetupStatusPanel(QGroupBox):
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
-        self.refresh()
-
     def refresh(self) -> None:
         rows = []
         key = _read_mp_key()

@@ -100,6 +100,7 @@ class ActiveLearningPage(WorkflowPage):
         self._outputs_panel = AlOutputsPanel(project)
 
         self.tabs = QTabWidget()
+        self.tabs.setObjectName('pageTab')
         self.tabs.addTab(config_tab, 'Config')
         self.tabs.addTab(self._monitor_panel, 'Monitor')
         self.tabs.addTab(self._outputs_panel, 'Outputs')
@@ -126,7 +127,6 @@ class ActiveLearningPage(WorkflowPage):
 
         self._pending_run_id: int | None = None
         self._update_prereq_banner()
-        self._refresh_setup_banner()
         self._refresh_suggestions()
         self._preflight.run_checks()
 

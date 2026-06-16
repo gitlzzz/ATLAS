@@ -43,6 +43,7 @@ class ReportsPage(WorkflowPage):
         self._gallery_panel = LatentSpaceGallery(project)
 
         self.tabs = QTabWidget()
+        self.tabs.setObjectName('pageTab')
         self.tabs.addTab(self._training_panel, 'Training Report')
         self.tabs.addTab(self._error_panel, 'Error Analysis')
         self.tabs.addTab(self._gallery_panel, 'Latent Space')
