@@ -39,8 +39,9 @@ ATLASDIR_SUFFIX = '.atlas'
 # The non-trivial mappings preserve CLI default-filename lookup behaviour.
 CONFIG_FILENAMES: dict[str, str] = {
     'database_generation': 'database_generation_settings.toml',
-    'active_learning': 'active_learning_settings.toml',
     'dft': 'dft_settings.toml',
+    'dft_benchmark': 'dft_benchmark_settings.toml',
+    'active_learning': 'active_learning_settings.toml',
 }
 
 # Subdirectories created inside the .atlas/ sibling.

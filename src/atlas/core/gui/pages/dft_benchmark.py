@@ -1,23 +1,22 @@
-"""DFT batch run page (``atl_run_dft_database``)."""
+"""DFT parameter benchmark page (``atl_dft_benchmark``)."""
 
 from __future__ import annotations
 
 import os
-import uuid as _uuid
-from datetime import UTC, datetime
+from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
-    QHeaderView,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
+    QScrollArea,
     QTabWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -32,22 +31,22 @@ from atlas.core.gui.project import Project
 from atlas.core.gui.widgets.preflight_panel import Check, PreflightPanel
 from atlas.core.gui.widgets.prereq_banner import PrereqBanner
 
-CANONICAL_CONFIG = 'dft_settings.toml'
+CANONICAL_CONFIG = 'dft_benchmark_settings.toml'
 
-DFT_TABS: list[tuple[str, list[str]]] = [
-    ('General', ['general']),
+BENCHMARK_TABS: list[tuple[str, list[str]]] = [
+    ('General & Database', ['general', 'database']),
     ('Calculation & K-points', ['calculation', 'kpoints']),
     ('Queue & HPC', ['queue']),
-    ('AiiDA-VASP', ['aiida_vasp']),
     ('INCAR', ['incar']),
+    ('Benchmarks', ['benchmark']),
 ]
 
 
-class DftPage(WorkflowPage):
-    """Configure and launch a DFT labelling run on an ATLAS database."""
+class DftBenchmarkPage(WorkflowPage):
+    """Configure and launch DFT parameter benchmarks."""
 
-    DISPLAY_NAME = 'DFT Labelling'
-    NAVIGATION_KEY = 'dft'
+    DISPLAY_NAME = 'DFT Benchmark'
+    NAVIGATION_KEY = 'dft_benchmark'
 
     def __init__(
         self,
@@ -71,7 +70,8 @@ class DftPage(WorkflowPage):
 
         self.config_panel = self._build_config_panel()
         self.run_button = QPushButton(
-            self._themed_icon('play_arrow'), ' Submit DFT Run'
+            self._themed_icon('play_arrow'),
+            ' Run Benchmark',
         )
         self.run_button.clicked.connect(self.run)
         self.cancel_button = self._make_cancel_button()
@@ -92,17 +92,12 @@ class DftPage(WorkflowPage):
         config_layout.addWidget(self._preflight)
         config_layout.addWidget(self.config_panel, 1)
 
-        self._queue_panel = _DftQueuePanel(project)
-
-        from atlas.core.gui.widgets.dft_outputs_panel import DftOutputsPanel
-
-        self._outputs_panel = DftOutputsPanel(project)
+        self._results_panel = _BenchmarkResultsPanel(project)
 
         self.tabs = QTabWidget()
         self.tabs.setObjectName('pageTab')
         self.tabs.addTab(config_tab, 'Config')
-        self.tabs.addTab(self._outputs_panel, 'Outputs')
-        self.tabs.addTab(self._queue_panel, 'Queue')
+        self.tabs.addTab(self._results_panel, 'Results')
         self._mark_output_tabs(1)
 
         self._setup_banner = PrereqBanner(
@@ -114,8 +109,8 @@ class DftPage(WorkflowPage):
 
         self.prereq_banner = PrereqBanner(
             message=(
-                'DFT labelling needs an initial database first. '
-                'Generate one in the previous step before submitting.'
+                'DFT benchmarking needs an initial database first. '
+                'Generate one in the Initial DB step before running.'
             ),
             action_label='Go to Initial DB',
             on_action=lambda: self._navigate('init_db'),
@@ -140,17 +135,16 @@ class DftPage(WorkflowPage):
         self._try_reconnect_detached()
         self._refresh_suggestions()
         self._preflight.run_checks()
-        self._queue_panel.refresh()
-        self._outputs_panel.refresh()
+        self._results_panel.refresh()
 
     def _try_reconnect_detached(self) -> None:
         if self.worker is not None and self.worker.isRunning():
             return
         logs_dir = self.project.dir / 'logs'
-        info = find_detached_process(logs_dir, 'atl_run_dft_database')
+        info = find_detached_process(logs_dir, 'atl_dft_benchmark')
         if info is None:
             return
-        self._log(f'🔄 Found running DFT process (PID {info["pid"]}), reconnecting…')
+        self._log(f'🔄 Found running benchmark (PID {info["pid"]}), reconnecting…')
         self._set_running(self.run_button, self.cancel_button)
         self.worker = DetachedProcessMonitor(
             pid=info['pid'],
@@ -158,9 +152,7 @@ class DftPage(WorkflowPage):
             pid_file=info['pid_file'],
         )
         self.worker.log_message.connect(self._log)
-        self.worker.process_finished.connect(
-            lambda rc: self._on_finished(rc, None),
-        )
+        self.worker.process_finished.connect(self._on_finished)
         self.worker.start()
 
     def _update_prereq_banner(self) -> None:
@@ -176,7 +168,7 @@ class DftPage(WorkflowPage):
             self._setup_banner.set_message(
                 'ATLAS initial setup is incomplete: '
                 + '; '.join(problems)
-                + '. Open Settings to run the setup wizard.'
+                + '. Open Settings to run the setup wizard.',
             )
             self._setup_banner.setVisible(True)
         else:
@@ -187,8 +179,8 @@ class DftPage(WorkflowPage):
 
         return ConfigPanel(
             schema_data=self._schema_data,
-            section_key='dft',
-            sub_section_tabs=DFT_TABS,
+            section_key='dft_benchmark',
+            sub_section_tabs=BENCHMARK_TABS,
             project=self.project,
             application_font=self._application_font,
         )
@@ -210,29 +202,22 @@ class DftPage(WorkflowPage):
             parsed, _ = self.config_panel.parsed_config()
             val = (parsed or {}).get('queue', {}).get('code_string', '')
             if not val:
-                return (
-                    'Missing code_string in Queue & HPC tab (e.g. "vasp@my_cluster").'
-                )
+                return 'Missing code_string in Queue & HPC tab.'
             try:
                 from aiida import orm
 
                 orm.load_code(val)
             except Exception:
-                return f'Code "{val}" not found in AiiDA — check the label.'
+                return f'Code "{val}" not found in AiiDA.'
             return None
 
         def _check_potential_family() -> str | None:
             parsed, _ = self.config_panel.parsed_config()
             val = (
-                (parsed or {})
-                .get('calculation', {})
-                .get(
-                    'aiida_potential_family',
-                    '',
-                )
+                (parsed or {}).get('calculation', {}).get('aiida_potential_family', '')
             )
             if not val:
-                return 'Missing aiida_potential_family in Calculation & K-points tab.'
+                return 'Missing aiida_potential_family in Calculation tab.'
             try:
                 from aiida import orm
 
@@ -244,7 +229,7 @@ class DftPage(WorkflowPage):
         def _check_db_file() -> str | None:
             path = self.db_path_edit.text().strip()
             if not path:
-                return 'Select a database file in the picker above the config panel.'
+                return 'Select a database file in the picker above.'
             if not os.path.exists(path):
                 return f'File not found: {path}'
             return None
@@ -300,7 +285,7 @@ class DftPage(WorkflowPage):
     def run(self) -> None:
         db_path = self.db_path_edit.text().strip()
         if not db_path or not os.path.exists(db_path):
-            self._log('❌ Provide an existing database file before running DFT.')
+            self._log('❌ Provide an existing database file before running.')
             return
 
         if not self.config_panel.save_to_project(label='run'):
@@ -312,21 +297,14 @@ class DftPage(WorkflowPage):
             self._log(f'❌ Cannot run: {err or "empty configuration"}')
             return
 
-        problems = _preflight_check(parsed)
-        if problems:
-            for p in problems:
-                self._log(f'❌ {p}')
-            return
-
         self._preflight.run_checks()
         preflight_warn = self._preflight.failing_summary()
         if preflight_warn:
             answer = QMessageBox.warning(
                 self,
                 'Pre-flight checks failed',
-                'Some pre-flight checks are not passing:\n\n'
-                f'{preflight_warn}\n\n'
-                'Do you want to proceed anyway?',
+                f'Some pre-flight checks are not passing:\n\n{preflight_warn}'
+                '\n\nDo you want to proceed anyway?',
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -336,110 +314,184 @@ class DftPage(WorkflowPage):
         if (
             QMessageBox.question(
                 self,
-                'Confirm DFT Run',
-                'Submit DFT labelling with the current configuration?',
+                'Confirm Benchmark',
+                'Run DFT parameter benchmark with the current configuration?',
                 QMessageBox.Yes | QMessageBox.No,
             )
             != QMessageBox.Yes
         ):
             return
 
-        # Record in project DB
-        calc_uuid = str(_uuid.uuid4())
-        try:
-            self.project.record_dft_submission(
-                calc_uuid=calc_uuid,
-                aiida_pk=None,
-                atl_id=None,
-                queue=parsed.get('queue', {}).get('code_string'),
-                status='submitted',
-            )
-            self._log(f'📒 Recorded DFT run {calc_uuid[:8]}… in the project.')
-        except Exception as exc:
-            self._log(f'⚠ Could not record DFT run: {exc}')
+        # Inject db_path into the saved config
+        config_path = self.project.config_path('dft_benchmark')
+        self._inject_db_path(config_path, db_path)
 
-        command = [
-            'atl_run_dft_database',
-            '--db_file',
-            db_path,
-            '-c',
-            CANONICAL_CONFIG,
-        ]
+        command = ['atl_dft_benchmark', '-c', CANONICAL_CONFIG]
         self._set_running(self.run_button, self.cancel_button)
-        self._pending_calc_uuid = calc_uuid
         self.worker = ProcessRunner(
             command,
             cwd=self.project.cwd(),
-            log_file=self.project.log_path('atl_run_dft_database'),
+            log_file=self.project.log_path('atl_dft_benchmark'),
             detached=True,
         )
         self.worker.log_message.connect(self._log)
-        self.worker.process_finished.connect(
-            lambda rc: self._on_finished(rc, calc_uuid),
-        )
+        self.worker.process_finished.connect(self._on_finished)
         self.worker.start()
 
-    def _on_finished(self, return_code: int, calc_uuid: str | None) -> None:
+    def _inject_db_path(self, config_path: Path, db_path: str) -> None:
+        """Write the selected db_path into the saved TOML config."""
+        try:
+            import tomli
+            import tomli_w
+
+            with open(config_path, 'rb') as f:
+                data = tomli.load(f)
+            data.setdefault('database', {})['db_path'] = db_path
+            with open(config_path, 'wb') as f:
+                tomli_w.dump(data, f)
+        except Exception:
+            pass
+
+    def _on_finished(self, return_code: int) -> None:
         self._log(
-            f'\n✅ atl_run_dft_database finished with exit code: {return_code}\n',
+            f'\n✅ atl_dft_benchmark finished with exit code: {return_code}\n',
         )
-        self._set_idle(self.run_button, self.cancel_button, 'Submit DFT Run')
-        self._notification('DFT Labelling', return_code == 0)
-
-        if calc_uuid is None:
-            calc_uuid = getattr(self, '_pending_calc_uuid', None)
-
-        if calc_uuid is not None:
-            new_status = 'finished' if return_code == 0 else 'failed'
-            try:
-                now = datetime.now(tz=UTC).isoformat()
-                with self.project.conn:
-                    self.project.conn.execute(
-                        'UPDATE dft_runs SET status = ?, finished_at = ? '
-                        'WHERE calc_uuid = ?',
-                        (new_status, now, calc_uuid),
-                    )
-            except Exception as exc:
-                self._log(f'⚠ Could not update DFT run status: {exc}')
-
-        if return_code == 0:
-            try:
-                count = self.project.refresh_structures_index()
-                if count:
-                    self._log(f'📦 Re-indexed {count} structures.')
-            except Exception as exc:
-                self._log(f'⚠ Failed to re-index structures: {exc}')
-
-        self._queue_panel.refresh()
-        self._outputs_panel.refresh()
+        self._set_idle(self.run_button, self.cancel_button, 'Run Benchmark')
+        self._notification('DFT Benchmark', return_code == 0)
+        self._results_panel.refresh()
         self.workflow_state_changed.emit()
 
 
-# ================================================================ helpers
+# ============================================================= results panel
 
 
-def _preflight_check(parsed: dict) -> list[str]:
-    """Return a list of problems; empty if ready to submit."""
-    problems: list[str] = []
+class _BenchmarkResultsPanel(QWidget):
+    """Displays convergence plots and recommended settings from a benchmark run."""
 
-    calc = parsed.get('calculation', {})
-    if not calc.get('aiida_potential_family'):
-        problems.append('Missing calculation.aiida_potential_family.')
+    def __init__(self, project: Project, parent=None):
+        super().__init__(parent)
+        self._project = project
 
-    queue = parsed.get('queue', {})
-    if not queue.get('code_string'):
-        problems.append(
-            'Missing queue.code_string — set the AiiDA code label '
-            '(e.g. "vasp@my_cluster").'
+        self._summary = QLabel('No benchmark results yet.')
+        self._summary.setStyleSheet('padding: 8px; color: #495057;')
+
+        refresh_btn = QPushButton('Refresh')
+        refresh_btn.setFixedWidth(100)
+        refresh_btn.clicked.connect(self.refresh)
+
+        top = QHBoxLayout()
+        top.addWidget(self._summary, stretch=1)
+        top.addWidget(refresh_btn)
+
+        # Scrollable area for plots
+        self._plots_container = QWidget()
+        self._plots_layout = QVBoxLayout(self._plots_container)
+        self._plots_layout.setContentsMargins(8, 8, 8, 8)
+        self._plots_layout.setSpacing(16)
+        self._plots_layout.addStretch()
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self._plots_container)
+
+        # Recommended settings text area
+        self._toml_label = QLabel('Recommended settings:')
+        self._toml_label.setStyleSheet('font-weight: bold; padding: 4px;')
+        self._toml_label.hide()
+
+        self._toml_view = QTextEdit()
+        self._toml_view.setReadOnly(True)
+        self._toml_view.setMaximumHeight(200)
+        self._toml_view.setStyleSheet('font-family: monospace; font-size: 12px;')
+        self._toml_view.hide()
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(top)
+        layout.addWidget(scroll, stretch=1)
+        layout.addWidget(self._toml_label)
+        layout.addWidget(self._toml_view)
+
+    def refresh(self) -> None:
+        # Clear previous plots
+        while self._plots_layout.count() > 1:
+            item = self._plots_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        output_dir = self._find_output_dir()
+        if output_dir is None:
+            self._summary.setText('No benchmark results yet.')
+            self._toml_label.hide()
+            self._toml_view.hide()
+            return
+
+        # Load convergence plots
+        png_files = sorted(output_dir.glob('convergence_*.png'))
+        if not png_files:
+            self._summary.setText(f'Output dir found ({output_dir}) but no plots yet.')
+            return
+
+        self._summary.setText(
+            f'{len(png_files)} convergence plot(s) from {output_dir.name}',
         )
 
-    if not _aiida_available():
-        problems.append(
-            'AiiDA is not loaded or not available in this environment. '
-            'DFT submission requires a running AiiDA daemon.'
-        )
+        for png in png_files:
+            pix = QPixmap(str(png))
+            if pix.isNull():
+                continue
+            label = QLabel()
+            scaled = pix.scaledToWidth(
+                min(800, pix.width()),
+                Qt.SmoothTransformation,
+            )
+            label.setPixmap(scaled)
+            label.setAlignment(Qt.AlignCenter)
 
-    return problems
+            title = QLabel(png.stem.replace('convergence_', '').upper())
+            title.setStyleSheet('font-weight: bold; font-size: 13px; padding: 2px;')
+            title.setAlignment(Qt.AlignCenter)
+
+            idx = self._plots_layout.count() - 1
+            self._plots_layout.insertWidget(idx, title)
+            self._plots_layout.insertWidget(idx + 1, label)
+
+        # Load recommended settings
+        toml_path = output_dir / 'recommended_settings.toml'
+        if toml_path.exists():
+            self._toml_label.show()
+            self._toml_view.show()
+            self._toml_view.setPlainText(toml_path.read_text(encoding='utf-8'))
+        else:
+            self._toml_label.hide()
+            self._toml_view.hide()
+
+    def _find_output_dir(self) -> Path | None:
+        """Find the benchmark output directory from the active config."""
+        config_path = self._project.config_path('dft_benchmark')
+        if config_path.exists():
+            try:
+                import tomli
+
+                with open(config_path, 'rb') as f:
+                    data = tomli.load(f)
+                rel = data.get('benchmark', {}).get(
+                    'output_dir',
+                    './dft_benchmark_results',
+                )
+                candidate = (self._project.cwd() / rel).resolve()
+                if candidate.is_dir():
+                    return candidate
+            except Exception:
+                pass
+
+        # Fallback: check default name
+        default = self._project.cwd() / 'dft_benchmark_results'
+        if default.is_dir():
+            return default
+        return None
+
+
+# ============================================================= helpers
 
 
 def _aiida_available() -> bool:
@@ -450,124 +502,3 @@ def _aiida_available() -> bool:
         return profile is not None
     except Exception:
         return False
-
-
-# ============================================================= queue panel
-
-
-class _DftQueuePanel(QWidget):
-    """Shows DFT run records from the project database."""
-
-    def __init__(self, project: Project, parent=None):
-        super().__init__(parent)
-        self._project = project
-
-        self._summary = QLabel()
-        self._summary.setStyleSheet('padding: 8px; color: #495057;')
-
-        self._table = QTableWidget()
-        self._table.setColumnCount(5)
-        self._table.setHorizontalHeaderLabels(
-            [
-                'UUID',
-                'Status',
-                'Submitted',
-                'Finished',
-                'Notes',
-            ]
-        )
-        self._table.horizontalHeader().setStretchLastSection(True)
-        self._table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeToContents,
-        )
-        self._table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setAlternatingRowColors(True)
-
-        self._sync_btn = QPushButton('Sync from AiiDA')
-        self._sync_btn.setFixedWidth(130)
-        self._sync_btn.setToolTip('Query AiiDA for current DFT calculation statuses')
-        self._sync_btn.clicked.connect(self._on_sync_aiida)
-
-        refresh_btn = QPushButton('Refresh')
-        refresh_btn.setFixedWidth(100)
-        refresh_btn.clicked.connect(self.refresh)
-
-        top = QHBoxLayout()
-        top.addWidget(self._summary, stretch=1)
-        top.addWidget(self._sync_btn)
-        top.addWidget(refresh_btn)
-
-        layout = QVBoxLayout(self)
-        layout.addLayout(top)
-        layout.addWidget(self._table, stretch=1)
-
-        self.refresh()
-
-    def refresh(self) -> None:
-        counts = self._project.dft_run_counts()
-        parts = []
-        for status in ('submitted', 'running', 'finished', 'failed'):
-            n = counts.get(status, 0)
-            if n:
-                parts.append(f'{n} {status}')
-        total = sum(counts.values())
-        if total == 0:
-            self._summary.setText('No DFT runs recorded yet.')
-        else:
-            self._summary.setText(f'DFT runs: {", ".join(parts)} ({total} total)')
-
-        rows = self._project.list_dft_runs()
-        self._table.setRowCount(len(rows))
-        for i, row in enumerate(rows):
-            self._table.setItem(i, 0, _item(row.get('calc_uuid', '')[:12]))
-            status = row.get('status', '')
-            status_item = _item(status)
-            if status == 'finished':
-                status_item.setForeground(Qt.darkGreen)
-            elif status == 'failed':
-                status_item.setForeground(Qt.red)
-            self._table.setItem(i, 1, status_item)
-            self._table.setItem(i, 2, _item(row.get('submitted_at', '')))
-            self._table.setItem(i, 3, _item(row.get('finished_at', '') or '—'))
-            self._table.setItem(i, 4, _item(row.get('notes', '') or ''))
-
-    def _on_sync_aiida(self) -> None:
-        if hasattr(self, '_sync_worker') and self._sync_worker.isRunning():
-            return
-        self._sync_btn.setEnabled(False)
-        self._sync_btn.setText('Syncing…')
-        self._sync_worker = _DftSyncWorker(self._project)
-        self._sync_worker.finished_signal.connect(self._on_sync_done)
-        self._sync_worker.start()
-
-    def _on_sync_done(self, summary: str, errors: str) -> None:
-        self._sync_btn.setEnabled(True)
-        self._sync_btn.setText('Sync from AiiDA')
-        if errors:
-            QMessageBox.warning(self, 'AiiDA sync', errors)
-        self.refresh()
-
-
-class _DftSyncWorker(QThread):
-    finished_signal = Signal(str, str)
-
-    def __init__(self, project, parent=None):
-        super().__init__(parent)
-        self._project = project
-
-    def run(self):
-        try:
-            from atlas.core.gui.project.aiida_sync import sync_dft_runs
-
-            result = sync_dft_runs(self._project)
-            errors = '\n'.join(result.errors) if result.errors else ''
-            self.finished_signal.emit(result.summary, errors)
-        except Exception as exc:
-            self.finished_signal.emit('', str(exc))
-
-
-def _item(text: str) -> QTableWidgetItem:
-    item = QTableWidgetItem(text)
-    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-    return item

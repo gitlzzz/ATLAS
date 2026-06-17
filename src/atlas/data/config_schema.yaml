@@ -811,6 +811,148 @@ dft:
             type: dict
             mandatory: false
 
+dft_benchmark:
+    description: "Settings for DFT parameter benchmarking (kspacing, ENCUT, ISPIN, ...)."
+    general:
+        description: "General settings for the benchmark."
+        log_path:
+            description: "Path where the logs will be stored."
+            type: str, PosixPath
+            mandatory: true
+            default: "/tmp/"
+        aiida_group_name:
+            description: "Name of the AiiDA group for benchmark calculations."
+            type: str
+            mandatory: true
+            default: "dft_benchmark"
+        max_batch:
+            description: "Maximum number of calculations in the queue at once."
+            type: int
+            mandatory: true
+            default: 50
+        queue_check_interval_seconds:
+            description: "Interval in seconds to check the queue."
+            type: int
+            mandatory: true
+            default: 240
+        dry_run:
+            description: "If True, list calculations without submitting."
+            type: bool
+            mandatory: false
+            default: false
+    database:
+        description: "Database settings."
+        db_path:
+            description: "Path to the initial database (extxyz format)."
+            type: str, PosixPath
+            mandatory: true
+    calculation:
+        description: "DFT calculation settings."
+        calc_type:
+            description: "Type of calculation (benchmarks use static)."
+            type: str
+            mandatory: true
+            default: "static"
+            choices: ["static"]
+        aiida_potential_family:
+            description: "AiiDA potential family name."
+            type: str
+            mandatory: true
+            example: "vasp-5.4-PBE-2023"
+            suggestions: "aiida_potential_families"
+        potential_mapping:
+            description: "Mapping of elements to specific potential labels."
+            type: dict
+            mandatory: false
+    kpoints:
+        description: "Base k-point settings (used as reference for non-kspacing benchmarks)."
+        kspacing:
+            description: "K-spacing in Å⁻¹. Use ATL_DEFAULT for a single value."
+            type: dict
+            mandatory: true
+            example: { "ATL_DEFAULT": 0.05 }
+    queue:
+        description: "Queue settings for HPC schedulers."
+        code_string:
+            description: "Name of the code as defined in AiiDA."
+            type: str
+            mandatory: true
+            suggestions: "aiida_codes"
+        account:
+            description: "Account to be used for the calculations."
+            type: str
+            mandatory: false
+        qos:
+            description: "Quality of service parameter."
+            type: str
+            mandatory: false
+        node_cpus:
+            description: "Number of CPUs per node."
+            type: int
+            mandatory: false
+        max_wallclock_seconds:
+            description: "Maximum wallclock time in seconds."
+            type: int
+            mandatory: true
+            default: 16200
+        max_memory_kb:
+            description: "Maximum memory per node in KB."
+            type: int
+            mandatory: false
+        multiple:
+            description: "Whether to use multiple nodes."
+            type: int
+            mandatory: false
+        custom_scheduler_commands:
+            description: "Custom scheduler commands."
+            type: str
+            mandatory: false
+        options_resources:
+            description: "Scheduler resource options."
+            tot_num_mpiprocs:
+                description: "Total number of MPI processes."
+                type: int
+                mandatory: true
+                default: 24
+            parallel_env:
+                description: "Parallel environment."
+                type: str
+                mandatory: true
+                default: " "
+    incar:
+        description: "Base INCAR settings (only bulk needed for benchmarks)."
+        bulk:
+            description: "Base INCAR settings for bulk structures."
+            type: dict
+            mandatory: false
+    benchmark:
+        description: "Benchmark sweep configuration. Each sub-key defines a parameter to test."
+        threshold_meV:
+            description: "Energy convergence threshold in meV per atom."
+            type: float
+            mandatory: true
+            default: 1.0
+        output_dir:
+            description: "Output directory for plots and recommended settings."
+            type: str, PosixPath
+            mandatory: false
+            default: "./dft_benchmark_results"
+        dynamic_keys: true
+        schema_under_dynamic_keys:
+            values:
+                description: "List of parameter values to test."
+                type: list
+                mandatory: true
+            reference_value:
+                description: "Explicit reference value (overrides auto-detection)."
+                type: float
+                mandatory: false
+            direction:
+                description: "Which end is tightest: 'min' (smallest) or 'max' (largest)."
+                type: str
+                mandatory: false
+                choices: ["min", "max"]
+
 active_learning:
     description: "Settings for the active learning loop."
     active_learning:

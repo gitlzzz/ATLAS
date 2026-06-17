@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 
 from atlas.core.gui.pages.active_learning import ActiveLearningPage
 from atlas.core.gui.pages.dft import DftPage
+from atlas.core.gui.pages.dft_benchmark import DftBenchmarkPage
 from atlas.core.gui.pages.init_db import InitDbPage
 from atlas.core.gui.pages.overview import OverviewPage
 from atlas.core.gui.pages.reports import ReportsPage
@@ -50,6 +51,7 @@ PAGE_ICON_NAMES = {
     'overview': 'dashboard',
     'init_db': 'database',
     'dft': 'science',
+    'dft_benchmark': 'tune',
     'al': 'sync',
     'reports': 'assessment',
     'settings': 'settings',
@@ -191,6 +193,7 @@ class MainWindow(QMainWindow):
             OverviewPage,
             InitDbPage,
             DftPage,
+            DftBenchmarkPage,
             ActiveLearningPage,
             ReportsPage,
             SettingsPage,
@@ -199,6 +202,7 @@ class MainWindow(QMainWindow):
             'Overview',
             'Initial DB',
             'DFT Labelling',
+            'DFT Benchmark',
             'Active Learning',
             'Reports',
             'Settings',

@@ -625,6 +625,16 @@ QTabWidget#pageTab > QTabBar::tab {{
     padding: 9px 18px;
     font-weight: 600;
 }}
+QTabWidget#pageTab > QTabBar::tab:disabled {{
+    min-width: 0px;
+    max-width: 2px;
+    padding: 4px 0px;
+    margin-left: 6px;
+    margin-right: 6px;
+    background-color: {border};
+    border: none;
+    border-radius: 1px;
+}}
 QTabWidget#pageTab::pane {{
     border-top: 2px solid {border};
 }}
@@ -913,6 +923,8 @@ def theme_colors(name: str) -> dict[str, str]:
             'surface': '#f5f5f5',
             'border': '#d0d4db',
             'axes_bg': '#ffffff',
+            'muted': '#888888',
+            'primary': '#4a90d9',
         }
     is_dark = t.variant == 'dark'
     bg = t.background
@@ -921,6 +933,7 @@ def theme_colors(name: str) -> dict[str, str]:
     border = _mix(bg, fg, 0.15) if is_dark else _mix(bg, fg, 0.12)
     axes_bg = _mix(bg, fg, 0.03) if is_dark else '#ffffff'
     muted = _mix(bg, fg, 0.45)
+    primary = t.c05 if not is_dark else t.c13
     return {
         'bg': bg,
         'fg': fg,
@@ -928,6 +941,7 @@ def theme_colors(name: str) -> dict[str, str]:
         'border': border,
         'axes_bg': axes_bg,
         'muted': muted,
+        'primary': primary,
     }
 
 
