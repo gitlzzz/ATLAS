@@ -15,9 +15,34 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QPixmap
-from PySide6.QtWidgets import (
+from atlas.core.gui.app_params import ApplicationParameters
+from atlas.core.gui.hub import HubDialog
+from atlas.core.gui.main_window import MainWindow
+from atlas.core.gui.themes import apply_theme_to_app, saved_global_theme
+
+
+def _isolate_pyside6_qt():
+    """Re-exec with PySide6's bundled Qt libs to avoid system Qt conflicts."""
+    if os.environ.get('_ATLAS_QT_ISOLATED'):
+        return
+    try:
+        import PySide6
+
+        qt_lib = os.path.join(os.path.dirname(PySide6.__file__), 'Qt', 'lib')
+        if not os.path.isdir(qt_lib):
+            return
+    except ImportError:
+        return
+    os.environ['LD_LIBRARY_PATH'] = qt_lib
+    os.environ['_ATLAS_QT_ISOLATED'] = '1'
+    os.execvp(sys.executable, [sys.executable] + sys.argv)
+
+
+_isolate_pyside6_qt()
+
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtGui import QFont, QPixmap  # noqa: E402
+from PySide6.QtWidgets import (  # noqa: E402
     QApplication,
     QDialog,
     QLabel,
@@ -25,11 +50,6 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
 )
-
-from atlas.core.gui.app_params import ApplicationParameters
-from atlas.core.gui.hub import HubDialog
-from atlas.core.gui.main_window import MainWindow
-from atlas.core.gui.themes import apply_theme_to_app, saved_global_theme
 
 ASSETS_DIR = Path(__file__).resolve().parent / 'assets'
 

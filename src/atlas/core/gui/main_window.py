@@ -558,6 +558,7 @@ class MainWindow(QMainWindow):
         if needs_first_run_wizard():
             wizard = SetupWizard(self)
             wizard.exec()
+            self._broadcast_workflow_refresh()
 
     # ======================================================= close
 

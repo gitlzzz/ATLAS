@@ -78,6 +78,7 @@ database_generation:
                     min: 0.0
                     max: 1.0
         plot_db:
+            gui_hidden: true
             description: "Display and Export Options for the phase diagram plot."
             show:
                 description: "Whether to display the database with a phase diagram after creation."
@@ -103,6 +104,7 @@ database_generation:
                     mandatory: true
                     default: 14
         show_db_ase:
+            gui_hidden: true
             description: "ASE GUI display options."
             mandatory: false
             show:
@@ -111,6 +113,7 @@ database_generation:
                 mandatory: false
                 default: false
         export:
+            gui_hidden: true
             description: "Export options for the database."
             export:
                 description: "Whether to export the database."
@@ -589,6 +592,8 @@ database_generation:
         mandatory: false
         description: "Settings for descriptors and boundary determination."
         gen_concave_hull:
+            gui_hidden: true
+            gui_section_toggle: true
             description: "Whether to generate the boundary of the descriptors for all structures in the database."
             type: bool
             mandatory: false

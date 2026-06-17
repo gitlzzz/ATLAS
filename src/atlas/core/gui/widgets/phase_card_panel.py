@@ -7,8 +7,8 @@ phase opens a dialog with all the fields.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -302,19 +302,43 @@ class PhaseEditDialog(QDialog):
         form.setContentsMargins(8, 8, 8, 8)
         form.setSpacing(8)
 
-        # Key field
-        key_edit = QLineEdit(key)
-        key_edit.setFont(field_font)
-        key_edit.setPlaceholderText('Unique phase identifier (used in TOML)')
-        key_edit.textChanged.connect(lambda t: self.setWindowTitle(f'Phase — {t}'))
-        self._key_edit = key_edit
-        lbl = QLabel('Phase Key *')
+        # Phase name (auto-generates key via slugify)
+        name_edit = QLineEdit()
+        name_edit.setFont(field_font)
+        name_edit.setPlaceholderText('e.g. Alpha Cu2O')
+        self._name_input = name_edit
+
+        self._key_preview = QLabel()
+        self._key_preview.setStyleSheet(
+            'color: palette(mid); font-size: 11px; padding-left: 2px;'
+        )
+
+        name_container = QWidget()
+        name_layout = QVBoxLayout(name_container)
+        name_layout.setContentsMargins(0, 0, 0, 0)
+        name_layout.setSpacing(2)
+        name_layout.addWidget(name_edit)
+        name_layout.addWidget(self._key_preview)
+
+        if key and key != 'new_phase':
+            existing_name = data.get('name', key)
+            name_edit.setText(str(existing_name))
+            self._original_key = key
+        else:
+            self._original_key = None
+
+        name_edit.textChanged.connect(self._on_name_changed)
+        self._on_name_changed(name_edit.text())
+
+        lbl = QLabel('Phase Name *')
         lbl.setStyleSheet('font-weight: bold;')
-        form.addRow(lbl, key_edit)
+        form.addRow(lbl, name_container)
 
         # Build fields from template
         for field_key, field_def in template.items():
             if not isinstance(field_def, dict):
+                continue
+            if field_key == 'name':
                 continue
 
             if field_key == 'composition':
@@ -330,8 +354,19 @@ class PhaseEditDialog(QDialog):
             if 'type' not in field_def:
                 continue
 
-            widget = self._make_field(field_def)
-            if field_key in data:
+            if field_key == 'cluster_element' and self._element_list:
+                widget = QComboBox()
+                widget.setEditable(True)
+                widget.addItem('')
+                for e in self._element_list:
+                    widget.addItem(e)
+                if field_key in data and data[field_key]:
+                    widget.setCurrentText(str(data[field_key]))
+            else:
+                widget = self._make_field(field_def)
+            if field_key in data and not (
+                field_key == 'cluster_element' and self._element_list
+            ):
                 self._set_value(widget, data[field_key], field_def.get('type', 'str'))
 
             is_mandatory = field_def.get('mandatory', False)
@@ -339,7 +374,41 @@ class PhaseEditDialog(QDialog):
             label = QLabel(f'{label_text} *' if is_mandatory else label_text)
             if is_mandatory:
                 label.setStyleSheet('font-weight: bold;')
-            form.addRow(label, widget)
+
+            if field_key == 'prototype':
+                row_widget = QWidget()
+                row_layout = QHBoxLayout(row_widget)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                row_layout.addWidget(widget, 1)
+                mp_link = QLabel(
+                    '<a href="https://next-gen.materialsproject.org/materials">'
+                    'Materials Explorer</a>'
+                )
+                mp_link.setOpenExternalLinks(False)
+                mp_link.setTextFormat(Qt.RichText)
+
+                def _update_mp_link(text, lbl=mp_link):
+                    import re as _re
+
+                    if _re.match(r'^mp-\d+$', text.strip()):
+                        url = f'https://next-gen.materialsproject.org/materials/{text.strip()}'
+                        lbl.setText(f'<a href="{url}">View on MP</a>')
+                    else:
+                        lbl.setText(
+                            '<a href="https://next-gen.materialsproject.org/materials">'
+                            'Materials Explorer</a>'
+                        )
+
+                if isinstance(widget, QLineEdit):
+                    widget.textChanged.connect(_update_mp_link)
+                    _update_mp_link(widget.text())
+                mp_link.linkActivated.connect(
+                    lambda url: QDesktopServices.openUrl(QUrl(url))
+                )
+                row_layout.addWidget(mp_link)
+                form.addRow(label, row_widget)
+            else:
+                form.addRow(label, widget)
             self._widgets[field_key] = (widget, field_def)
 
         scroll.setWidget(form_container)
@@ -357,8 +426,25 @@ class PhaseEditDialog(QDialog):
         btn_row.addWidget(save_btn)
         outer.addLayout(btn_row)
 
+    def _slugify(self, text: str) -> str:
+        import re
+
+        slug = text.strip().lower()
+        slug = re.sub(r'[^a-z0-9]+', '_', slug)
+        return slug.strip('_')
+
+    def _on_name_changed(self, text: str) -> None:
+        slug = self._slugify(text)
+        self.setWindowTitle(f'Phase — {text}' if text else 'Phase — new')
+        if slug:
+            self._key_preview.setText(f'Key: {slug}')
+        else:
+            self._key_preview.setText('Key: (enter a name)')
+
     def collected_data(self) -> dict:
-        result: dict = {'_key': self._key_edit.text().strip()}
+        name = self._name_input.text().strip()
+        key = self._original_key or self._slugify(name)
+        result: dict = {'_key': key, 'name': name}
         for field_key, (widget, field_def) in self._widgets.items():
             val = self._get_value(widget, field_def.get('type', 'str'))
             if val is not None and val != '':
@@ -375,9 +461,17 @@ class PhaseEditDialog(QDialog):
         return result
 
     def _on_save(self) -> None:
-        key = self._key_edit.text().strip()
+        name = self._name_input.text().strip()
+        if not name:
+            QMessageBox.warning(self, 'Missing Name', 'Phase name is required.')
+            return
+        key = self._slugify(name)
         if not key:
-            QMessageBox.warning(self, 'Missing Key', 'Phase key is required.')
+            QMessageBox.warning(
+                self,
+                'Invalid Name',
+                'Name must contain at least one alphanumeric character.',
+            )
             return
 
         problems = self._validate_composition()
@@ -472,10 +566,11 @@ class PhaseEditDialog(QDialog):
         remove_btn = QPushButton('x')
         remove_btn.setFixedWidth(28)
 
+        min_spin.setPrefix('min: ')
+        max_spin.setPrefix('max: ')
+
         row_layout.addWidget(elem_widget)
-        row_layout.addWidget(QLabel('min:'))
         row_layout.addWidget(min_spin)
-        row_layout.addWidget(QLabel('max:'))
         row_layout.addWidget(max_spin)
         row_layout.addWidget(remove_btn)
 
@@ -609,7 +704,12 @@ class PhaseEditDialog(QDialog):
                 w.setValue(float(default))
             return w
 
-        w = QLineEdit(str(default) if default and default != 'None' else '')
+        w = QLineEdit()
+        example = field_def.get('example') or (
+            str(default) if default and default != 'None' else ''
+        )
+        if example:
+            w.setPlaceholderText(str(example))
         return w
 
     @staticmethod

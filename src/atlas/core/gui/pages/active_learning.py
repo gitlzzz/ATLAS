@@ -105,6 +105,7 @@ class ActiveLearningPage(WorkflowPage):
         self.tabs.addTab(self._monitor_panel, 'Monitor')
         self.tabs.addTab(self._outputs_panel, 'Outputs')
         self.tabs.addTab(self._runs_panel, 'Runs')
+        self._mark_output_tabs(1)
 
         self._setup_banner = PrereqBanner(
             'ATLAS initial setup is incomplete.',

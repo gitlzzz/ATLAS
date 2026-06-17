@@ -9,9 +9,13 @@ import os
 import pathlib
 import re
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QSyntaxHighlighter, QTextCharFormat
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -21,6 +25,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
     QWizard,
@@ -95,9 +100,10 @@ def _list_computers() -> list[str]:
     try:
         from aiida import orm
 
-        return sorted(
-            c.label for c in orm.QueryBuilder().append(orm.Computer).all(flat=True)
-        )
+        qb = orm.QueryBuilder()
+        qb.append(orm.Computer, project=['label'])
+        qb.distinct()
+        return sorted(row[0] for row in qb.all())
     except Exception:
         return []
 
@@ -106,9 +112,10 @@ def _list_codes() -> list[str]:
     try:
         from aiida import orm
 
-        return sorted(
-            c.full_label for c in orm.QueryBuilder().append(orm.Code).all(flat=True)
-        )
+        qb = orm.QueryBuilder()
+        qb.append(orm.Code, project=['label'])
+        qb.distinct()
+        return sorted(row[0] for row in qb.all())
     except Exception:
         return []
 
@@ -117,9 +124,10 @@ def _list_potential_families() -> list[str]:
     try:
         from aiida import orm
 
-        return sorted(
-            g.label for g in orm.QueryBuilder().append(orm.Group).all(flat=True)
-        )
+        qb = orm.QueryBuilder()
+        qb.append(orm.Group, project=['label'])
+        qb.distinct()
+        return sorted(row[0] for row in qb.all())
     except Exception:
         return []
 
@@ -172,6 +180,56 @@ def check_setup_problems() -> list[str]:
     return problems
 
 
+# ── Helpers ────────────────────────────────────────────────────────
+
+
+class _BashHighlighter(QSyntaxHighlighter):
+    """Minimal bash syntax highlighter for prepend/append text editors."""
+
+    _KEYWORDS = (
+        'module',
+        'export',
+        'source',
+        'load',
+        'unload',
+        'if',
+        'then',
+        'else',
+        'fi',
+        'for',
+        'do',
+        'done',
+        'echo',
+        'cd',
+        'set',
+    )
+
+    def highlightBlock(self, text: str) -> None:
+        comment_fmt = QTextCharFormat()
+        comment_fmt.setForeground(Qt.darkGreen)
+        keyword_fmt = QTextCharFormat()
+        keyword_fmt.setForeground(Qt.darkBlue)
+        keyword_fmt.setFontWeight(700)
+
+        stripped = text.lstrip()
+        if stripped.startswith('#'):
+            self.setFormat(0, len(text), comment_fmt)
+            return
+
+        for word in self._KEYWORDS:
+            idx = 0
+            while True:
+                idx = text.find(word, idx)
+                if idx < 0:
+                    break
+                end = idx + len(word)
+                before_ok = idx == 0 or not text[idx - 1].isalnum()
+                after_ok = end >= len(text) or not text[end].isalnum()
+                if before_ok and after_ok:
+                    self.setFormat(idx, len(word), keyword_fmt)
+                idx = end
+
+
 # ── Wizard pages ───────────────────────────────────────────────────
 
 
@@ -207,11 +265,17 @@ class _MpKeyPage(QWizardPage):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle('Materials Project API Key')
-        self.setSubTitle(
-            'Enter your MP API key for querying crystal structures.\n'
-            'Get one at: https://next-gen.materialsproject.org/api'
-        )
+        self.setSubTitle('Enter your MP API key for querying crystal structures.')
         layout = QFormLayout(self)
+
+        link = QLabel(
+            'Get one at: '
+            '<a href="https://next-gen.materialsproject.org/api">'
+            'next-gen.materialsproject.org/api</a>'
+        )
+        link.setOpenExternalLinks(True)
+        link.setTextFormat(Qt.RichText)
+        layout.addRow('', link)
 
         self._key_edit = QLineEdit()
         self._key_edit.setEchoMode(QLineEdit.Password)
@@ -298,8 +362,26 @@ class _AiidaProfilePage(QWizardPage):
         refresh_btn.setFixedWidth(80)
         refresh_btn.clicked.connect(self._refresh)
         btn_row.addWidget(refresh_btn)
+
+        presto_btn = QPushButton('Quick Setup (verdi presto)')
+        presto_btn.setToolTip(
+            'Create a basic AiiDA profile using "verdi presto".\n'
+            'Good for getting started quickly with a local setup.'
+        )
+        presto_btn.clicked.connect(self._run_verdi_presto)
+        btn_row.addWidget(presto_btn)
+
         btn_row.addStretch()
         layout.addLayout(btn_row)
+
+        docs_link = QLabel(
+            'For advanced setups, see the '
+            '<a href="https://aiida.readthedocs.io/projects/aiida-core/en/latest/'
+            'installation/guide_quick.html">AiiDA documentation</a>.'
+        )
+        docs_link.setOpenExternalLinks(True)
+        docs_link.setTextFormat(Qt.RichText)
+        layout.addWidget(docs_link)
 
         layout.addWidget(self._status)
         self._refresh()
@@ -329,6 +411,41 @@ class _AiidaProfilePage(QWizardPage):
         else:
             self._status.setText('No profile loaded')
             self._status.setStyleSheet('color: palette(mid);')
+
+    def _run_verdi_presto(self) -> None:
+        import subprocess
+
+        self._status.setText('Running "verdi presto"...')
+        self._status.setStyleSheet('color: palette(mid);')
+        self._status.repaint()
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.processEvents()
+
+        try:
+            result = subprocess.run(
+                ['verdi', 'presto'],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode == 0:
+                self._status.setText('Profile created successfully.')
+                self._status.setStyleSheet('color: #4caf50;')
+                self._refresh()
+            else:
+                msg = result.stderr.strip() or result.stdout.strip()
+                QMessageBox.critical(self, 'verdi presto', msg or 'Unknown error.')
+                self._status.setText('Profile creation failed.')
+                self._status.setStyleSheet('color: #ef5350;')
+        except FileNotFoundError:
+            QMessageBox.critical(
+                self,
+                'verdi presto',
+                '"verdi" command not found.\nIs aiida-core installed?',
+            )
+        except subprocess.TimeoutExpired:
+            QMessageBox.critical(self, 'verdi presto', 'Command timed out (2 min).')
 
     def validatePage(self) -> bool:
         if self._combo is None:
@@ -401,24 +518,44 @@ class _ComputerPage(QWizardPage):
         self._form = QFormLayout()
         self._label_edit = QLineEdit()
         self._label_edit.setPlaceholderText('e.g. my_cluster')
+        self._label_edit.setToolTip('A unique name to identify this computer in AiiDA.')
         self._form.addRow('Label', self._label_edit)
 
         self._hostname_edit = QLineEdit()
         self._hostname_edit.setPlaceholderText('e.g. login.cluster.edu')
+        self._hostname_edit.setToolTip(
+            'The hostname or IP address of the remote machine.'
+        )
         self._form.addRow('Hostname', self._hostname_edit)
 
         self._transport_combo = QComboBox()
         self._transport_combo.addItems(self.TRANSPORT_CHOICES)
+        self._transport_combo.setToolTip(
+            'How AiiDA connects to the computer.\n'
+            'Use "core.ssh" for remote machines, "core.local" for localhost.'
+        )
         self._form.addRow('Transport', self._transport_combo)
 
         self._scheduler_combo = QComboBox()
         self._scheduler_combo.addItems(self.SCHEDULER_CHOICES)
+        self._scheduler_combo.setToolTip(
+            'The job scheduler on the remote machine.\n'
+            'Common choices: core.slurm (Slurm), core.sge (SGE), core.pbspro (PBS).'
+        )
         self._form.addRow('Scheduler', self._scheduler_combo)
 
         self._workdir_edit = QLineEdit(f'/scratch/{getpass.getuser()}/aiida/')
+        self._workdir_edit.setToolTip(
+            'Remote directory where AiiDA will run calculations.\n'
+            'Must be writable by your user on the remote machine.'
+        )
         self._form.addRow('Work directory', self._workdir_edit)
 
         self._mpirun_edit = QLineEdit('mpirun -np {tot_num_mpiprocs}')
+        self._mpirun_edit.setToolTip(
+            'Command to launch MPI processes.\n'
+            '{tot_num_mpiprocs} is replaced by the number of MPI processes at runtime.'
+        )
         self._form.addRow('mpirun command', self._mpirun_edit)
 
         content_layout.addLayout(self._form)
@@ -577,23 +714,54 @@ class _CodePage(QWizardPage):
 
         self._label_edit = QLineEdit()
         self._label_edit.setPlaceholderText('e.g. vasp')
+        self._label_edit.setToolTip('A unique name for this code in AiiDA.')
         self._form.addRow('Code label', self._label_edit)
 
         self._computer_combo = QComboBox()
         self._computer_combo.setEditable(True)
+        self._computer_combo.setToolTip(
+            'The computer where this code is installed.\n'
+            'Must be configured in the previous step.'
+        )
         self._form.addRow('Computer', self._computer_combo)
 
         self._plugin_edit = QLineEdit()
         self._plugin_edit.setPlaceholderText('e.g. vasp.vasp')
+        self._plugin_edit.setToolTip(
+            'The AiiDA CalcJob plugin that knows how to run this code.\n'
+            'For VASP use "vasp.vasp", for LAMMPS use "lammps.raw".'
+        )
         self._form.addRow('CalcJob plugin', self._plugin_edit)
 
         self._exec_edit = QLineEdit()
         self._exec_edit.setPlaceholderText('e.g. /opt/vasp/bin/vasp_std')
+        self._exec_edit.setToolTip(
+            'Absolute path to the executable on the remote machine.\n'
+            'You can find it by running "which vasp_std" on the cluster.'
+        )
         self._form.addRow('Executable path', self._exec_edit)
 
-        self._prepend_edit = QLineEdit()
-        self._prepend_edit.setPlaceholderText('e.g. module load vasp/6.4.1')
-        self._form.addRow('Prepend text', self._prepend_edit)
+        self._prepend_text = ''
+        self._prepend_btn = QPushButton('Edit Prepend Text...')
+        self._prepend_btn.setToolTip(
+            'Shell commands to run before the executable.\n'
+            'Typically used for "module load" commands.'
+        )
+        self._prepend_btn.clicked.connect(
+            lambda: self._open_text_editor('Prepend Text', '_prepend_text')
+        )
+        self._form.addRow('Prepend text', self._prepend_btn)
+
+        self._append_text = ''
+        self._append_btn = QPushButton('Edit Append Text...')
+        self._append_btn.setToolTip(
+            'Shell commands to run after the executable.\n'
+            'Use for cleanup commands or environment teardown.'
+        )
+        self._append_btn.clicked.connect(
+            lambda: self._open_text_editor('Append Text', '_append_text')
+        )
+        self._form.addRow('Append text', self._append_btn)
 
         content_layout.addLayout(self._form)
 
@@ -629,6 +797,37 @@ class _CodePage(QWizardPage):
         if existing:
             self._status.setText(f'Existing codes: {", ".join(existing)}')
             self._status.setStyleSheet('color: palette(mid);')
+
+    def _open_text_editor(self, title: str, attr: str) -> None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.setMinimumSize(500, 300)
+        layout = QVBoxLayout(dlg)
+
+        editor = QTextEdit()
+        editor.setPlainText(getattr(self, attr, ''))
+        editor.setStyleSheet('font-family: monospace; font-size: 12px;')
+        _BashHighlighter(editor.document())
+        layout.addWidget(editor)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        if dlg.exec() == QDialog.Accepted:
+            setattr(self, attr, editor.toPlainText())
+            text = getattr(self, attr)
+            btn = self._prepend_btn if attr == '_prepend_text' else self._append_btn
+            if text.strip():
+                first_line = text.strip().splitlines()[0]
+                btn.setText(
+                    f'{title}: {first_line[:40]}...'
+                    if len(first_line) > 40
+                    else f'{title}: {first_line}'
+                )
+            else:
+                btn.setText(f'Edit {title}...')
 
     def _on_preset_changed(self, name: str) -> None:
         if name not in self.PRESETS:
@@ -666,7 +865,8 @@ class _CodePage(QWizardPage):
                 computer=computer,
                 filepath_executable=filepath,
                 default_calc_job_plugin=plugin or None,
-                prepend_text=self._prepend_edit.text().strip(),
+                prepend_text=self._prepend_text.strip(),
+                append_text=self._append_text.strip(),
             ).store()
             self._status.setText(f'Code created: {code.full_label}')
             self._status.setStyleSheet('color: #4caf50;')
@@ -715,10 +915,14 @@ class _PotcarPage(QWizardPage):
         self._path_edit.setMinimumWidth(350)
         path_row = QHBoxLayout()
         path_row.addWidget(self._path_edit)
-        browse_btn = QPushButton('Browse...')
-        browse_btn.setFixedWidth(80)
-        browse_btn.clicked.connect(self._browse)
-        path_row.addWidget(browse_btn)
+        browse_file_btn = QPushButton('Browse File...')
+        browse_file_btn.setFixedWidth(100)
+        browse_file_btn.clicked.connect(self._browse_file)
+        path_row.addWidget(browse_file_btn)
+        browse_dir_btn = QPushButton('Browse Folder...')
+        browse_dir_btn.setFixedWidth(110)
+        browse_dir_btn.clicked.connect(self._browse_folder)
+        path_row.addWidget(browse_dir_btn)
         self._form.addRow('POTCAR path', path_row)
 
         self._name_edit = QLineEdit('PBE.54')
@@ -752,7 +956,7 @@ class _PotcarPage(QWizardPage):
         self._content.setEnabled(not checked)
         self._opacity.setOpacity(0.35 if checked else 1.0)
 
-    def _browse(self) -> None:
+    def _browse_file(self) -> None:
         from PySide6.QtWidgets import QFileDialog
 
         path, _ = QFileDialog.getOpenFileName(
@@ -763,6 +967,146 @@ class _PotcarPage(QWizardPage):
         )
         if path:
             self._path_edit.setText(path)
+
+    def _browse_folder(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        path = QFileDialog.getExistingDirectory(
+            self,
+            'Select POTCAR folder',
+            str(pathlib.Path.home()),
+        )
+        if path:
+            self._path_edit.setText(path)
+            self._auto_detect_family(pathlib.Path(path))
+
+    _ELEMENT_SYMBOLS = {
+        'H',
+        'He',
+        'Li',
+        'Be',
+        'B',
+        'C',
+        'N',
+        'O',
+        'F',
+        'Ne',
+        'Na',
+        'Mg',
+        'Al',
+        'Si',
+        'P',
+        'S',
+        'Cl',
+        'Ar',
+        'K',
+        'Ca',
+        'Sc',
+        'Ti',
+        'V',
+        'Cr',
+        'Mn',
+        'Fe',
+        'Co',
+        'Ni',
+        'Cu',
+        'Zn',
+        'Ga',
+        'Ge',
+        'As',
+        'Se',
+        'Br',
+        'Kr',
+        'Rb',
+        'Sr',
+        'Y',
+        'Zr',
+        'Nb',
+        'Mo',
+        'Tc',
+        'Ru',
+        'Rh',
+        'Pd',
+        'Ag',
+        'Cd',
+        'In',
+        'Sn',
+        'Sb',
+        'Te',
+        'I',
+        'Xe',
+        'Cs',
+        'Ba',
+        'La',
+        'Ce',
+        'Pr',
+        'Nd',
+        'Pm',
+        'Sm',
+        'Eu',
+        'Gd',
+        'Tb',
+        'Dy',
+        'Ho',
+        'Er',
+        'Tm',
+        'Yb',
+        'Lu',
+        'Hf',
+        'Ta',
+        'W',
+        'Re',
+        'Os',
+        'Ir',
+        'Pt',
+        'Au',
+        'Hg',
+        'Tl',
+        'Pb',
+        'Bi',
+        'Po',
+        'At',
+        'Rn',
+        'Fr',
+        'Ra',
+        'Ac',
+        'Th',
+        'Pa',
+        'U',
+        'Np',
+        'Pu',
+        'Am',
+        'Cm',
+        'Bk',
+        'Cf',
+    }
+
+    def _auto_detect_family(self, folder: pathlib.Path) -> None:
+        """Try to detect potential family name from folder structure."""
+        element_dirs = set()
+        for child in folder.iterdir():
+            if not child.is_dir():
+                continue
+            name_base = child.name.split('_')[0]
+            if name_base in self._ELEMENT_SYMBOLS:
+                element_dirs.add(name_base)
+                continue
+            for sub in child.iterdir():
+                if sub.is_dir():
+                    sub_base = sub.name.split('_')[0]
+                    if sub_base in self._ELEMENT_SYMBOLS:
+                        element_dirs.add(sub_base)
+
+        if element_dirs:
+            family_name = folder.name
+            for prefix in ('potpaw_', 'potcar_', 'pot_'):
+                if family_name.lower().startswith(prefix):
+                    family_name = family_name[len(prefix) :]
+                    break
+            self._name_edit.setText(family_name)
+            self._desc_edit.setText(f'{family_name} PAW potentials')
+            self._status.setText(f'Detected {len(element_dirs)} element(s) in folder.')
+            self._status.setStyleSheet('color: #4caf50;')
 
     def validatePage(self) -> bool:
         if self._form is None or self._skip_check.isChecked():
@@ -784,6 +1128,9 @@ class _PotcarPage(QWizardPage):
         self._status.setText('Uploading... this may take a minute.')
         self._status.setStyleSheet('color: palette(mid);')
         self._status.repaint()
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.processEvents()
 
         try:
             result = subprocess.run(
@@ -904,6 +1251,10 @@ class SetupWizard(QWizard):
 class SetupStatusPanel(QGroupBox):
     """Compact panel showing current ATLAS setup status with a re-run button."""
 
+    from PySide6.QtCore import Signal as _Signal
+
+    setup_completed = _Signal()
+
     def __init__(self, parent=None):
         super().__init__('Setup Status', parent)
         layout = QVBoxLayout(self)
@@ -965,3 +1316,4 @@ class SetupStatusPanel(QGroupBox):
         wizard = SetupWizard(self)
         wizard.exec()
         self.refresh()
+        self.setup_completed.emit()

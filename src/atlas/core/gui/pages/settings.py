@@ -135,6 +135,7 @@ class SettingsPage(WorkflowPage):
         from atlas.core.gui.widgets.setup_wizard import SetupStatusPanel
 
         self._setup_status = SetupStatusPanel()
+        self._setup_status.setup_completed.connect(self.workflow_state_changed)
         outer.addWidget(self._setup_status)
 
         outer.addStretch()

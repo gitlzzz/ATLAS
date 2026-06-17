@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMessageBox, QPushButton, QWidget
 
 from atlas.core.gui.process.runner import DetachedProcessMonitor, ProcessRunner
@@ -120,9 +120,41 @@ class WorkflowPage(QWidget):
             return
         self.worker.stop()
 
+    def _mark_output_tabs(self, first_output_index: int) -> None:
+        sep_idx = first_output_index
+        self.tabs.insertTab(sep_idx, QWidget(), '')
+        self.tabs.setTabEnabled(sep_idx, False)
+        self._sep_tab_index = sep_idx
+        self._first_output_index = first_output_index + 1
+        self._apply_output_tab_icons()
+
+    def _apply_output_tab_icons(self) -> None:
+        idx = getattr(self, '_first_output_index', None)
+        if idx is None:
+            return
+        from atlas.core.gui.themes import saved_global_theme, theme_colors
+
+        color = QColor(theme_colors(saved_global_theme())['primary'])
+        dot = self._make_dot_icon(color, 8)
+        for i in range(idx, self.tabs.count()):
+            self.tabs.setTabIcon(i, dot)
+
+    @staticmethod
+    def _make_dot_icon(color: QColor, size: int = 8) -> QIcon:
+        pix = QPixmap(size, size)
+        pix.fill(Qt.transparent)
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setBrush(color)
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(0, 0, size, size)
+        painter.end()
+        return QIcon(pix)
+
     def set_theme(self, theme_name: str) -> None:
         if self.config_panel is not None:
             self.config_panel.set_theme(theme_name)
+        self._apply_output_tab_icons()
 
     def on_shown(self) -> None:
         """Hook called when the sidebar switches to this page. No-op by default."""

@@ -197,6 +197,12 @@ class SchemaForm(QWidget):
         if sub_keys is not None:
             schema_section = {k: v for k, v in schema_section.items() if k in sub_keys}
 
+        self._hidden_sections = {
+            k: v
+            for k, v in schema_section.items()
+            if isinstance(v, dict) and v.get('gui_hidden')
+        }
+
         self._reset_container()
         self._build_widgets_recursively(
             self.container, schema_section, self.widgets_map, 0, []
@@ -210,6 +216,7 @@ class SchemaForm(QWidget):
         self.container = new_container
         self.widgets_map = {}
         self.dynamic_widgets = {}
+        self._section_toggle_fields: dict[str, list[str]] = {}
 
     def clear(self) -> None:
         self._reset_container()
@@ -236,6 +243,8 @@ class SchemaForm(QWidget):
 
         for key, item in config_level.items():
             if not isinstance(item, dict):
+                continue
+            if item.get('gui_hidden'):
                 continue
 
             current_path = path_prefix + [key]
@@ -321,6 +330,14 @@ class SchemaForm(QWidget):
                                 gb, checked
                             )
                         )
+
+                    toggle_fields = [
+                        k
+                        for k, v in item.items()
+                        if isinstance(v, dict) and v.get('gui_section_toggle')
+                    ]
+                    if toggle_fields:
+                        self._section_toggle_fields[key] = toggle_fields
 
                     widget_storage[key] = {'_group': group_box}
                     self._build_widgets_recursively(
@@ -499,7 +516,25 @@ class SchemaForm(QWidget):
         """Walk the form and return a nested dict of current values."""
         if not self.widgets_map:
             return {}
-        return self._collect_data_recursively(self.widgets_map)
+        data = self._collect_data_recursively(self.widgets_map)
+        for key, section in getattr(self, '_hidden_sections', {}).items():
+            data.setdefault(key, self._extract_defaults(section))
+        return data
+
+    @staticmethod
+    def _extract_defaults(section: dict) -> dict:
+        """Extract default values from a schema section."""
+        defaults = {}
+        for k, v in section.items():
+            if not isinstance(v, dict):
+                continue
+            if 'type' in v and 'default' in v:
+                defaults[k] = v['default']
+            elif 'description' in v:
+                sub = SchemaForm._extract_defaults(v)
+                if sub:
+                    defaults[k] = sub
+        return defaults
 
     def populate_from_data(self, data: dict) -> None:
         if not self.widgets_map:
@@ -515,7 +550,10 @@ class SchemaForm(QWidget):
                 if group_box.isCheckable() and not group_box.isChecked():
                     continue
                 sub_data_widgets = {k: v for k, v in item.items() if k != '_group'}
-                data[key] = self._collect_data_recursively(sub_data_widgets)
+                sub_data = self._collect_data_recursively(sub_data_widgets)
+                for toggle_field in self._section_toggle_fields.get(key, []):
+                    sub_data[toggle_field] = True
+                data[key] = sub_data
             elif isinstance(item, dict) and '__dyn_ref__' in item:
                 dyn_key = item['__dyn_ref__']
                 if dyn_key in self.dynamic_widgets:
@@ -573,7 +611,13 @@ class SchemaForm(QWidget):
 
     @staticmethod
     def _set_widget_value(widget, value):
-        if isinstance(widget, (KspacingWidget, IncarWidget)):
+        from atlas.core.gui.widgets.periodic_table_widget import (
+            ElementPickerField,
+        )
+
+        if isinstance(widget, ElementPickerField):
+            widget.set_elements(value if isinstance(value, list) else [])
+        elif isinstance(widget, (KspacingWidget, IncarWidget)):
             widget.set_value(value)
         elif isinstance(widget, _CheckBoxGroup):
             widget.set_checked(value if isinstance(value, list) else [])
@@ -632,6 +676,17 @@ class SchemaForm(QWidget):
             if default_value is not None:
                 widget.setCurrentText(str(default_value))
             widget.setProperty('suggestions_key', suggestions)
+        elif 'list' in widget_type_str and key == 'element_list':
+            from atlas.core.gui.widgets.periodic_table_widget import (
+                ElementPickerField,
+            )
+
+            widget = ElementPickerField()
+            if default_value:
+                widget.set_elements(
+                    default_value if isinstance(default_value, list) else []
+                )
+            widget.elements_changed.connect(self._emit_data_changed)
         elif 'list' in widget_type_str:
             widget = QLineEdit(', '.join(map(str, default_value or [])))
         elif 'bool' in widget_type_str:
@@ -671,8 +726,14 @@ class SchemaForm(QWidget):
 
     @staticmethod
     def _get_widget_value(widget):
+        from atlas.core.gui.widgets.periodic_table_widget import (
+            ElementPickerField,
+        )
+
         value_type = widget.property('value_type') or ''
 
+        if isinstance(widget, ElementPickerField):
+            return widget.elements()
         if isinstance(widget, KspacingWidget):
             return widget.get_value()
         if isinstance(widget, IncarWidget):
