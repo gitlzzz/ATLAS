@@ -78,7 +78,7 @@ class TestMakeCleanCluster:
     def _make_mock_phase(self, symbol='Cu'):
         from unittest.mock import Mock
 
-        from pymatgen.core.periodic_table import Element
+        from pymatgen.core import Element
 
         mock_phase = Mock()
 
