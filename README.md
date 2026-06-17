@@ -19,9 +19,9 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![GitHub License](https://img.shields.io/github/license/LopezGroup-ICIQ/ATLAS)
 
-ATLAS (Automated Training with Latent-space Aware Sampling) is a unified Python framework for building robust machine learning interatomic potentials (MLIPs). It combines a diversity-aware database generator with a manifold-aware active learning workflow to produce compact, high-quality training datasets. ATLAS supports structure generation for bulk, surface, cluster, and isolated atom configurations across single-, binary-, and ternary (WIP) phase diagrams, as well as user-defined element space, with perturbations, vacancies, deformations, and adsorbates. 
+ATLAS (Automated Training with Latent-space Aware Sampling) is a unified Python framework for building robust machine learning interatomic potentials (MLIPs). It combines a diversity-aware database generator with a manifold-aware active learning workflow to produce compact, high-quality training datasets. Its latent-space awareness enables applicability checking during application. ATLAS supports structure generation for bulk, surface, cluster, and isolated atom configurations across single-, binary-, and ternary (WIP) phase diagrams, as well as user-defined element space, with perturbations, vacancies, deformations, and adsorbates. 
 
-The active learning engine iteratively trains MACE models, runs molecular dynamics simulations, detects extrapolating structures via descriptor-based or latent-space methods (autoencoder + concave hull), and submits them for DFT labelling, all orchestrated through AiiDA. Additional capabilities include data reduction mode, safeguard checks to prevent premature convergence, test database evaluation, diversity metrics (Vendi Score, Circles Metric), an interactive monitoring dashboard, a desktop GUI (in development), MLIP benchmarking, and comprehensive reporting of model performance and resource usage. 
+The active learning engine iteratively trains MACE models, runs molecular dynamics simulations, detects extrapolating structures via descriptor-based or latent-space methods (autoencoder + concave hull), and submits them for DFT labelling, all orchestrated through AiiDA. Additional capabilities include data reduction mode, safeguard checks to prevent premature termination during dataset generation, test database evaluation, diversity metrics (Vendi Score, Circles Metric), an interactive monitoring dashboard, a desktop GUI (in development), MLIP benchmarking, and comprehensive reporting of model performance and resource usage. 
 
 Validated on metals, alloys, and metal oxides, ATLAS produces datasets that exceed foundation model training chemical spaces by orders of magnitude while using up to x300 fewer structures.
 
@@ -307,6 +307,6 @@ Please refer to the examples in the examples directory for more details on how t
 
 - **[Pol Sanz Berman](https://github.com/pol-sb)** (Main Developer) - Predoctoral Researcher, ICIQ
 - **[Lulu Li](https://github.com/lll0606)** (Contributor) - Postdoctoral Researcher, ICIQ
-- **[Zan Lian](https://github.com/gitlzzz)** (Contributor) - Postdoctoral Researcher, ICIQ
+- **[Zan Lian](https://github.com/gitlzzz)** (Contributor, Supervisor) - Postdoctoral Researcher, ICIQ
 
 For technical inquiries or collaborations, please open an issue or contact [psanz@iciq.es](mailto:psanz@iciq.es).
