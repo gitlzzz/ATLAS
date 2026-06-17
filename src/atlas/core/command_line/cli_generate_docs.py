@@ -245,6 +245,7 @@ def generate_tool_section(schema, tool_name, tool_config):
         'active_learning': 'Active Learning Loop',
         'mlip_benchmarks': 'MLIP Benchmarks',
         'latent_space_analysis': 'Latent Space Analysis',
+        'dft_benchmark': 'DFT Parameter Benchmark',
     }
 
     # Tool command mapping
@@ -254,6 +255,7 @@ def generate_tool_section(schema, tool_name, tool_config):
         'active_learning': 'active_learning',
         'mlip_benchmarks': 'mlip_benchmarks',
         'latent_space_analysis': 'latent_space_analysis',
+        'dft_benchmark': 'dft_benchmark',
     }
 
     header = tool_headers.get(tool_name, tool_name.replace('_', ' ').title())
@@ -280,6 +282,18 @@ def generate_tool_section(schema, tool_name, tool_config):
             '- Melting point benchmark via the coexistence method.\n'
             '- Monovacancy formation energy calculations.\n'
             '- Surface energy calculations for various crystallographic facets.\n'
+        )
+    if tool_name == 'dft_benchmark':
+        lines.append(
+            'The DFT Parameter Benchmark tool tests VASP parameters '
+            '(kspacing, ENCUT, ISPIN, …) per crystallographic phase to find '
+            'optimal settings that satisfy a given convergence threshold.\n'
+            'For each parameter sweep it:\n'
+            '- Selects one representative bulk structure per phase.\n'
+            '- Submits calculations via AiiDA for each parameter value.\n'
+            '- Analyses convergence and recommends the cheapest settings '
+            'within the threshold.\n'
+            '- Generates convergence plots and a copy-pasteable TOML snippet.\n'
         )
     lines.append(
         f'Generate a {tool_name.replace("_", " ")} template file using '
@@ -315,6 +329,7 @@ def generate_full_documentation(schema, args):
         'active_learning',
         'mlip_benchmarks',
         'latent_space_analysis',
+        'dft_benchmark',
     ]:
         if tool_name in schema:
             tool_lines = generate_tool_section(schema, tool_name, schema[tool_name])
