@@ -45,6 +45,34 @@ except Exception as e:
     tmp_logger.handlers = []
 
 
+def get_or_create_portable_code(
+    label: str,
+    filepath_files,
+    filepath_executable: str,
+    prepend_text: str = '',
+) -> orm.PortableCode:
+    """Return an existing PortableCode with the given label, or create one."""
+    qb = orm.QueryBuilder()
+    qb.append(
+        orm.PortableCode,
+        filters={'label': label},
+        project='*',
+    )
+    qb.order_by({orm.PortableCode: {'ctime': 'desc'}})
+    qb.limit(1)
+    results = qb.all(flat=True)
+
+    if results:
+        return results[0]
+
+    return orm.PortableCode(
+        label=label,
+        filepath_files=filepath_files,
+        filepath_executable=filepath_executable,
+        prepend_text=prepend_text,
+    )
+
+
 PARSER_DICT = {
     'parser_settings': {
         'add_misc': [
@@ -1028,9 +1056,7 @@ def run_dataframe_vasp_aiida_queue(
     kspacing_dict: dict | float = config_dict.get('kpoints', {}).get('kspacing')
     dry_run: bool = config_dict.get('general', {}).get('dry_run', False)
     max_batch: int = config_dict.get('general', {}).get('max_batch', 1)
-    sel_structures_type = config_dict.get('general', {}).get(
-        'selected_structure_type'
-    )
+    sel_structures_type = config_dict.get('general', {}).get('selected_structure_type')
     if isinstance(sel_structures_type, str):
         sel_structures_type = [sel_structures_type]
     start_on_struct_idx: int = config_dict.get('general', {}).get(
@@ -1091,7 +1117,8 @@ def run_dataframe_vasp_aiida_queue(
         sel_struct_db = initial_db
     elif sel_structures_type and isinstance(initial_db, list):
         sel_struct_db = [
-            struct for struct in initial_db
+            struct
+            for struct in initial_db
             if any(struct.info.get(st) for st in sel_structures_type)
         ]
     else:
