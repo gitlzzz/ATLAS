@@ -588,8 +588,10 @@ def apply_replacement_cluster_db(
     ) + phase.base_elem_comp_min
     (other_elem,) = db_obj.phase_diagram.alloy_set - {phase.cluster_elem}
 
-    # Selecting only non-replaced structures
+    # Selecting only non-replaced structures from the current phase
     base_clusters = db_obj.df.loc[db_obj.df['replacement'] == False]  # noqa: E712
+    if phase is not None:
+        base_clusters = base_clusters.loc[base_clusters['phase'] == phase.name]
 
     _stop = False
     for _row_idx, row in riprg.track(
@@ -703,6 +705,7 @@ def apply_gauss_perturb_db(
     db_obj,
     center: float = 0.04,
     max_structures=None,
+    phase: 'atl_phase.Phase' = None,
 ):
     perturbed_clusters = []
 
@@ -712,12 +715,17 @@ def apply_gauss_perturb_db(
             f'database object, not a {type(db_obj)}.'
         )
 
-    # Iterating over all database rows to get the unperturbed clusters
-    atl_utils.custom_print(f'Perturbation db_obj shape: {db_obj.df.shape}', 'debug')
+    # Filter to current phase to avoid re-perturbing structures from other phases
+    if phase is not None:
+        df_iter = db_obj.df.loc[db_obj.df['phase'] == phase.name]
+    else:
+        df_iter = db_obj.df
+
+    atl_utils.custom_print(f'Perturbation db_obj shape: {df_iter.shape}', 'debug')
     _stop = False
     for _, row in riprg.track(
-        db_obj.df.iterrows(),
-        total=len(db_obj.df),
+        df_iter.iterrows(),
+        total=len(df_iter),
         description='Cluster perturbations...',
     ):
         if _stop:

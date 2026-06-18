@@ -2560,6 +2560,10 @@ class InitialDatabase:
             ]
             att_dict = {att: getattr(structure, att) for att in attr_list}
 
+            # Normalize phase to string for consistent DataFrame comparisons
+            if 'phase' in att_dict and hasattr(att_dict['phase'], 'name'):
+                att_dict['phase'] = att_dict['phase'].name
+
             new_row = pd.Series(att_dict)
 
         new_row_df = new_row.to_frame().T
@@ -3815,6 +3819,7 @@ def cli_run_gen_initial_database(
                                 gen_dict['cluster'].get('perturbation_ang', 0.04)
                             ),
                             max_structures=_remaining,
+                            phase=phase,
                         )
 
             added_structs = len(structures) - ini_n_structs
@@ -3933,11 +3938,15 @@ def cli_run_gen_initial_database(
                 'info',
             )
             ini_n_structs = len(structures)
+            _stratify = phase_diagram_dict['phase'][phase.original_name].get(
+                'stratify_by_size', False
+            )
             structures = ut.limit_num_structures_phase(
                 structures,
                 phase,
                 lim_phas_structs,
                 rng_seed,
+                stratify_by_size=_stratify,
             )
             added_structs = len(structures) - ini_n_structs
             report_completed_step(phase, structures, added_structs, step_name=step_name)

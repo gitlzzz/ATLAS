@@ -1074,6 +1074,7 @@ def limit_num_structures_phase(
     phase: 'atl_pd.Phase',
     num_limit: int,
     rng_seed: int,
+    stratify_by_size: bool = False,
 ):
     # Instantiating RNG
     rng = np.random.default_rng(seed=rng_seed)
@@ -1095,8 +1096,13 @@ def limit_num_structures_phase(
     n_sample = min(n_sample, df_filt_non_base.shape[0])
 
     if n_sample > 0:
-        sampl_idx = rng.choice(df_filt_non_base.shape[0], n_sample, replace=False)
-        df_filt_sampl = df_filt_non_base.iloc[sampl_idx]
+        if stratify_by_size:
+            df_filt_sampl = _stratified_sample_by_size(
+                df_filt_non_base, n_sample, rng
+            )
+        else:
+            sampl_idx = rng.choice(df_filt_non_base.shape[0], n_sample, replace=False)
+            df_filt_sampl = df_filt_non_base.iloc[sampl_idx]
     else:
         df_filt_sampl = df_filt_non_base.iloc[:0]
 
@@ -1104,6 +1110,39 @@ def limit_num_structures_phase(
     df_remaining = pd.concat([df_remaining, df_filt_sampl, df_filt_base], axis=0)
     db_obj.df = df_remaining
     return db_obj
+
+
+def _stratified_sample_by_size(df, n_sample, rng):
+    """Sample structures proportionally across atom-count bins."""
+    atom_counts = df.apply(lambda row: len(row.structure.species), axis=1)
+
+    n_unique = atom_counts.nunique()
+    n_bins = min(n_unique, max(1, n_sample // 5))
+
+    bin_labels = pd.cut(atom_counts, bins=n_bins, labels=False)
+    groups = list(df.groupby(bin_labels))
+    n_groups = len(groups)
+
+    base_quota = n_sample // n_groups
+    remainder = n_sample % n_groups
+
+    sampled_indices = []
+    for bin_idx, (_, group) in enumerate(groups):
+        quota = base_quota + (1 if bin_idx < remainder else 0)
+        quota = min(quota, len(group))
+        if quota > 0:
+            chosen = rng.choice(len(group), quota, replace=False)
+            sampled_indices.extend(group.index[chosen])
+
+    # Top up if under-filled bins left us short
+    if len(sampled_indices) < n_sample:
+        remaining_pool = df.index.difference(sampled_indices)
+        shortfall = min(n_sample - len(sampled_indices), len(remaining_pool))
+        if shortfall > 0:
+            extra = rng.choice(remaining_pool.values, shortfall, replace=False)
+            sampled_indices.extend(extra)
+
+    return df.loc[sampled_indices]
 
 
 def add_adsorbates(
