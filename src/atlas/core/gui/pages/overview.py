@@ -180,6 +180,7 @@ class OverviewPage(WorkflowPage):
         self._cards: dict[str, dict] = {}
 
         outer = QVBoxLayout(self)
+        outer.setContentsMargins(12, 12, 12, 12)
 
         self._setup_banner = PrereqBanner(
             'ATLAS initial setup is incomplete.',

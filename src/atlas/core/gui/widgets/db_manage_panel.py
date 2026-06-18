@@ -20,6 +20,22 @@ from PySide6.QtWidgets import (
 
 from atlas.core.gui.project import Project
 
+_BOUNDARY_PATTERNS = (
+    'concave_hull*.png',
+    'comp_plot*.png',
+    'descriptors_concave_hull*.png',
+)
+
+
+def _remove_boundary_files(directory: Path) -> None:
+    """Remove latent-space boundary artifacts from a single directory."""
+    npz = directory / 'latent_space.npz'
+    if npz.is_file():
+        npz.unlink()
+    for pattern in _BOUNDARY_PATTERNS:
+        for f in directory.glob(pattern):
+            f.unlink()
+
 
 class DbManagePanel(QWidget):
     """Delete or export the project's initial database."""
@@ -174,6 +190,11 @@ class DbManagePanel(QWidget):
             log_dir = db_dir / 'logs'
             if log_dir.is_dir():
                 shutil.rmtree(log_dir)
+
+            # Clean up boundary output files (latent_space.npz and hull plots)
+            # Search both databases/ and project root to mirror BoundaryPanel.
+            _remove_boundary_files(db_dir)
+            _remove_boundary_files(self._project.dir)
         except OSError as exc:
             QMessageBox.critical(
                 self, 'Delete Failed', f'Could not delete database: {exc}'

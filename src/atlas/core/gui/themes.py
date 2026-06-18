@@ -954,7 +954,7 @@ def theme_colors(name: str) -> dict[str, str]:
     fg = t.foreground
     surface = _mix(bg, fg, 0.07) if is_dark else _mix(bg, fg, 0.04)
     border = _mix(bg, fg, 0.15) if is_dark else _mix(bg, fg, 0.12)
-    axes_bg = _mix(bg, fg, 0.03) if is_dark else '#ffffff'
+    axes_bg = _mix(bg, fg, 0.03) if is_dark else _mix(bg, fg, 0.02)
     muted = _mix(bg, fg, 0.45)
     primary = t.c05 if not is_dark else t.c13
     return {

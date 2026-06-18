@@ -242,12 +242,14 @@ class _ElementPill(QFrame):
         self.symbol = symbol
         self.setFrameShape(QFrame.StyledPanel)
 
-        elem_map = {e[1]: e for e in ELEMENTS}
-        cat = elem_map.get(symbol, (0, '', '', 0, 0, 'nonmetal'))[5]
-        bg = CATEGORY_COLORS.get(cat, '#DDD')
+        from atlas.core.gui.themes import saved_global_theme, theme_colors
+
+        colors = theme_colors(saved_global_theme())
+        bg = colors.get('surface', '#f5f5f5')
+        border = colors.get('border', '#aaa')
         self.setStyleSheet(
             f'QFrame {{ background-color: {bg}; border-radius: 10px;'
-            f' border: 1px solid #aaa; padding: 1px 4px; }}'
+            f' border: 1px solid {border}; padding: 1px 4px; }}'
         )
 
         layout = QHBoxLayout(self)
@@ -322,13 +324,9 @@ class ElementPickerField(QWidget):
             self.set_elements(dlg.selected_elements())
 
     def _rebuild_pills(self) -> None:
-        while self._pill_layout.count():
-            item = self._pill_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
+        self._pill_layout.clear_all()
         for symbol in self._elements:
-            pill = _ElementPill(symbol)
+            pill = _ElementPill(symbol, parent=self._pill_bar)
             pill.removed.connect(self._remove_element)
             self._pill_layout.addWidget(pill)
 
@@ -344,29 +342,38 @@ class _FlowLayout(QVBoxLayout):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._items: list[QWidget] = []
-        self._row_layout: QHBoxLayout | None = None
-        self._ensure_row()
-
-    def _ensure_row(self) -> None:
-        self._row_layout = QHBoxLayout()
-        self._row_layout.setSpacing(4)
-        self._row_layout.setContentsMargins(0, 0, 0, 0)
-        self._row_layout.addStretch()
-        super().addLayout(self._row_layout)
+        self._widgets: list[QWidget] = []
 
     def addWidget(self, widget: QWidget) -> None:
-        if self._row_layout is None:
-            self._ensure_row()
-        idx = self._row_layout.count() - 1
-        self._row_layout.insertWidget(idx, widget)
-        self._items.append(widget)
+        self._widgets.append(widget)
+        self._relayout()
 
     def count(self) -> int:
-        return len(self._items)
+        return len(self._widgets)
 
-    def takeAt(self, index: int):
-        if 0 <= index < len(self._items):
-            widget = self._items.pop(index)
-            return type('LayoutItem', (), {'widget': lambda self=widget: self})()
-        return None
+    def clear_all(self) -> None:
+        for w in self._widgets:
+            w.setParent(None)
+            w.deleteLater()
+        self._widgets.clear()
+        self._clear_rows()
+
+    def _clear_rows(self) -> None:
+        while super().count():
+            item = super().takeAt(0)
+            if item.layout():
+                sub = item.layout()
+                while sub.count():
+                    sub.takeAt(0)
+
+    def _relayout(self) -> None:
+        self._clear_rows()
+        if not self._widgets:
+            return
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        row.setContentsMargins(0, 0, 0, 0)
+        for w in self._widgets:
+            row.addWidget(w)
+        row.addStretch()
+        super().addLayout(row)

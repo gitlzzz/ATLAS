@@ -197,16 +197,14 @@ class SchemaForm(QWidget):
         if sub_keys is not None:
             schema_section = {k: v for k, v in schema_section.items() if k in sub_keys}
 
-        self._hidden_sections = {
-            k: v
-            for k, v in schema_section.items()
-            if isinstance(v, dict) and v.get('gui_hidden')
-        }
+        self._hidden_sections: dict[tuple[str, ...], dict] = {}
+        self._scan_hidden_sections(schema_section, ())
 
         self._reset_container()
         self._build_widgets_recursively(
             self.container, schema_section, self.widgets_map, 0, []
         )
+        self._wire_checkbox_section_toggles(self.widgets_map)
         self.section_changed.emit(key)
         self.data_changed.emit()
 
@@ -217,6 +215,57 @@ class SchemaForm(QWidget):
         self.widgets_map = {}
         self.dynamic_widgets = {}
         self._section_toggle_fields: dict[str, list[str]] = {}
+
+    def _wire_checkbox_section_toggles(self, widgets: dict) -> None:
+        """Connect _CheckBoxGroup items to matching sibling QGroupBox sections.
+
+        When a checkbox list (e.g. generate_type = [bulk, surface, cluster])
+        has choices that match sibling section keys, checking/unchecking a
+        choice enables/disables the corresponding section group box.
+        """
+        for _key, section in widgets.items():
+            if not isinstance(section, dict) or '_group' not in section:
+                continue
+            checkbox_groups: list[tuple[str, _CheckBoxGroup]] = []
+            sub_sections: dict[str, QGroupBox] = {}
+            for sub_key, sub_val in section.items():
+                if sub_key == '_group':
+                    continue
+                if isinstance(sub_val, _CheckBoxGroup):
+                    checkbox_groups.append((sub_key, sub_val))
+                elif isinstance(sub_val, dict) and '_group' in sub_val:
+                    sub_sections[sub_key] = sub_val['_group']
+
+            for _cb_key, cb_group in checkbox_groups:
+                matched = {}
+                for cb in cb_group.findChildren(QCheckBox):
+                    label = cb.text()
+                    if label in sub_sections:
+                        matched[label] = sub_sections[label]
+                if not matched:
+                    continue
+                for cb in cb_group.findChildren(QCheckBox):
+                    if cb.text() in matched:
+                        gb = matched[cb.text()]
+                        gb.setEnabled(cb.isChecked())
+                        self._update_optional_style(gb, cb.isChecked())
+                        cb.toggled.connect(
+                            lambda checked, g=gb: (
+                                g.setEnabled(checked),
+                                self._update_optional_style(g, checked),
+                            )
+                        )
+
+    def _scan_hidden_sections(
+        self, schema: dict, prefix: tuple[str, ...]
+    ) -> None:
+        for k, v in schema.items():
+            if not isinstance(v, dict):
+                continue
+            if v.get('gui_hidden'):
+                self._hidden_sections[prefix + (k,)] = v
+            elif 'description' in v and 'type' not in v:
+                self._scan_hidden_sections(v, prefix + (k,))
 
     def clear(self) -> None:
         self._reset_container()
@@ -262,7 +311,9 @@ class SchemaForm(QWidget):
                     label.setFont(font)
                 label.setFont(QFont(self._field_font))
 
-                widget = self._create_widget(item, key, current_path)
+                widget = self._create_widget(
+                    item, key, current_path, widget_storage,
+                )
                 widget.installEventFilter(self)
                 layout.addRow(label, widget)
                 widget_storage[key] = widget
@@ -512,13 +563,24 @@ class SchemaForm(QWidget):
 
     # ========================================================== data I/O
 
+    _GUI_HIDDEN_OVERRIDES: dict[tuple[str, ...], dict] = {
+        ('database', 'plot_db'): {'show': False},
+        ('database', 'show_db_ase'): {'show': False},
+        ('database', 'export'): {'file_path': 'databases'},
+    }
+
     def collect_data(self) -> dict:
         """Walk the form and return a nested dict of current values."""
         if not self.widgets_map:
             return {}
         data = self._collect_data_recursively(self.widgets_map)
-        for key, section in getattr(self, '_hidden_sections', {}).items():
-            data.setdefault(key, self._extract_defaults(section))
+        for path, section in getattr(self, '_hidden_sections', {}).items():
+            target = data
+            for part in path[:-1]:
+                target = target.setdefault(part, {})
+            defaults = self._extract_defaults(section)
+            defaults.update(self._GUI_HIDDEN_OVERRIDES.get(path, {}))
+            target.setdefault(path[-1], defaults)
         return data
 
     @staticmethod
@@ -637,19 +699,43 @@ class SchemaForm(QWidget):
 
     # ===================================================== widget factory
 
-    def _create_widget(self, item_def, key='', path=None):
+    def _create_widget(self, item_def, key='', path=None, siblings=None):
         widget_type_str = item_def.get('type', 'str')
         default_value = item_def.get('default')
         choices = item_def.get('choices') or item_def.get('allowed')
         suggestions = item_def.get('suggestions')
         full_path = '.'.join(path) if path else key
+        siblings = siblings or {}
 
         default_font = QFont()
 
         if default_value == 'None':
             default_value = None
 
-        if widget_type_str == 'dict' and 'kspacing' in key:
+        if key == 'base_element' and 'element_list' in siblings:
+            from atlas.core.gui.widgets.periodic_table_widget import (
+                ElementPickerField,
+            )
+
+            picker = siblings['element_list']
+            widget = QComboBox()
+            widget.setEditable(True)
+            widget.setInsertPolicy(QComboBox.NoInsert)
+            widget.lineEdit().setPlaceholderText(
+                item_def.get('example', 'e.g. Cu')
+            )
+            if isinstance(picker, ElementPickerField):
+                for el in picker.elements():
+                    widget.addItem(el)
+                picker.elements_changed.connect(
+                    lambda elems, cb=widget: (
+                        cb.clear(),
+                        [cb.addItem(e) for e in elems],
+                    )
+                )
+            if default_value is not None:
+                widget.setCurrentText(str(default_value))
+        elif widget_type_str == 'dict' and 'kspacing' in key:
             widget = KspacingWidget()
             if isinstance(default_value, dict):
                 widget.set_value(default_value)
