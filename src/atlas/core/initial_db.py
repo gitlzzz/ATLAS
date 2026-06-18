@@ -1665,7 +1665,7 @@ class InitialDatabase:
         if only_use_base:
             # Getting all relaxed structures.
             target_entries = self.df.loc[self.df.base]
-        elif not only_use_base and filters or use_phase:
+        elif (not only_use_base) and (filters or use_phase):
             # Filtering structures to perturb.
             target_entries, _, _ = ut.apply_filters_db(self, filters, use_phase)
         else:

@@ -593,20 +593,24 @@ def apply_replacement_cluster_db(
     if phase is not None:
         base_clusters = base_clusters.loc[base_clusters['phase'] == phase.name]
 
+    # Ratio-first loop order ensures the replacement budget is distributed
+    # evenly across all base cluster sizes instead of being exhausted by the
+    # first few clusters in DataFrame order.
+    base_rows = list(base_clusters.iterrows())
     _stop = False
-    for _row_idx, row in riprg.track(
-        base_clusters.iterrows(),
-        total=len(base_clusters),
+    for repl_ind, ratio in riprg.track(
+        enumerate(rnd_ratios),
+        total=len(rnd_ratios),
         description='Cluster replacements...',
     ):
         if _stop:
             break
-        cluster = row.structure
-        structure_len = len(cluster.species)
-
-        for repl_ind, ratio in enumerate(rnd_ratios):
+        for _row_idx, row in base_rows:
             if _stop:
                 break
+            cluster = row.structure
+            structure_len = len(cluster.species)
+
             for repeat_ind in range(num_repeat):
                 n_replace = int(structure_len * ratio)
                 if n_replace == 0:
