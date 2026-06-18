@@ -1922,7 +1922,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     The loop will only be restarted from the beginning of the last step.
 
-    Check `ActiveLearningWorkChain` for information on what is done in each step.
+    Check `SimpleActiveLearningWorkChain` for information on what is done in each step.
     """
 
     _process_class = SimpleActiveLearningWorkChain
@@ -2552,7 +2552,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
 
         self.logger.log(
-            15, f"ActiveLearningWorkChain to gather results from: '{node.uuid}'"
+            15, f"SimpleActiveLearningWorkChain to gather results from: '{node.uuid}'"
         )
 
         # TODO: Gather outputs manually, instead of using __attach_outputs

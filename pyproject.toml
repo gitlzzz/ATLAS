@@ -78,8 +78,6 @@ Homepage = "https://github.com/pol-sb/ATLAS"
 "monitor.davwarning" = "atlas.workflows.monitors:output_monitor"
 
 [project.entry-points."aiida.workflows"]
-"atl-active-learning" = "atlas.workflows.active_learning:ActiveLearningWorkChain"
-"atl-active-learning-base" = "atlas.workflows.active_learning:ActiveLearningBaseWorkChain"
 "atl-simple-active-learning" = "atlas.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
 "atl-simple-active-learning-base" = "atlas.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
 

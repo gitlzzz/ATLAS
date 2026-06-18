@@ -127,7 +127,6 @@ exclude_patterns = [
     'devel/*',
     'display_db/*',
     '*sync-conflict*',
-    'active_learning.py',
 ]
 
 # -- Options for HTML output -------------------------------------------------
