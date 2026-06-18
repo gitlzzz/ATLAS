@@ -558,6 +558,28 @@ class _ComputerPage(QWizardPage):
         )
         self._form.addRow('mpirun command', self._mpirun_edit)
 
+        self._prepend_text = ''
+        self._prepend_btn = QPushButton('Edit Prepend Text...')
+        self._prepend_btn.setToolTip(
+            'Shell commands run before every job on this computer.\n'
+            'Typically used for "module load" commands.'
+        )
+        self._prepend_btn.clicked.connect(
+            lambda: self._open_text_editor('Prepend Text', '_prepend_text')
+        )
+        self._form.addRow('Prepend text', self._prepend_btn)
+
+        self._append_text = ''
+        self._append_btn = QPushButton('Edit Append Text...')
+        self._append_btn.setToolTip(
+            'Shell commands run after every job on this computer.\n'
+            'Use for cleanup commands or environment teardown.'
+        )
+        self._append_btn.clicked.connect(
+            lambda: self._open_text_editor('Append Text', '_append_text')
+        )
+        self._form.addRow('Append text', self._append_btn)
+
         content_layout.addLayout(self._form)
 
         self._status = QLabel()
@@ -582,6 +604,37 @@ class _ComputerPage(QWizardPage):
     def _on_skip_toggled(self, checked: bool) -> None:
         self._content.setEnabled(not checked)
         self._opacity.setOpacity(0.35 if checked else 1.0)
+
+    def _open_text_editor(self, title: str, attr: str) -> None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.setMinimumSize(500, 300)
+        layout = QVBoxLayout(dlg)
+
+        editor = QTextEdit()
+        editor.setPlainText(getattr(self, attr, ''))
+        editor.setStyleSheet('font-family: monospace; font-size: 12px;')
+        _BashHighlighter(editor.document())
+        layout.addWidget(editor)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        if dlg.exec() == QDialog.Accepted:
+            setattr(self, attr, editor.toPlainText())
+            text = getattr(self, attr)
+            btn = self._prepend_btn if attr == '_prepend_text' else self._append_btn
+            if text.strip():
+                first_line = text.strip().splitlines()[0]
+                btn.setText(
+                    f'{title}: {first_line[:40]}...'
+                    if len(first_line) > 40
+                    else f'{title}: {first_line}'
+                )
+            else:
+                btn.setText(f'Edit {title}...')
 
     def _on_ssh_selected(self, alias: str) -> None:
         if alias == '(manual entry)' or alias not in self._ssh_hosts:
@@ -627,6 +680,10 @@ class _ComputerPage(QWizardPage):
                 workdir=self._workdir_edit.text().strip(),
             )
             computer.set_mpirun_command(self._mpirun_edit.text().split())
+            if self._prepend_text.strip():
+                computer.set_prepend_text(self._prepend_text.strip())
+            if self._append_text.strip():
+                computer.set_append_text(self._append_text.strip())
             computer.store()
 
             # Configure transport
