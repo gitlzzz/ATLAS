@@ -192,8 +192,8 @@ class MainWindow(QMainWindow):
         page_classes = (
             OverviewPage,
             InitDbPage,
-            DftPage,
             DftBenchmarkPage,
+            DftPage,
             ActiveLearningPage,
             ReportsPage,
             SettingsPage,
@@ -201,8 +201,8 @@ class MainWindow(QMainWindow):
         page_names = (
             'Overview',
             'Initial DB',
-            'DFT Labelling',
             'DFT Benchmark',
+            'DFT Labelling',
             'Active Learning',
             'Reports',
             'Settings',
