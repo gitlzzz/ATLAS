@@ -646,12 +646,17 @@ class SchemaForm(QWidget):
         return dyn_data
 
     def _populate_widgets_recursively(self, widget_level, data_level):
+        if not isinstance(data_level, dict):
+            return
+
         for key, item in widget_level.items():
             if key not in data_level:
                 continue
 
             value = data_level[key]
             if isinstance(item, dict) and '_group' in item:
+                if not isinstance(value, dict):
+                    continue
                 group_box = item['_group']
                 if group_box.isCheckable():
                     group_box.setChecked(True)

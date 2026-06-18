@@ -26,6 +26,40 @@ _BOUNDARY_PATTERNS = (
     'descriptors_concave_hull*.png',
 )
 
+_EXPORT_PATTERNS = (
+    'export_db_filename_structures_*.extxyz',
+)
+
+
+def _collect_database_files(db_path: Path, db_dir: Path) -> list[Path]:
+    """Collect all files that should be deleted when the database is removed.
+
+    Operates only within the databases/ directory to avoid affecting the
+    project root.
+    """
+    files: list[Path] = [db_path]
+
+    for pattern in _EXPORT_PATTERNS:
+        for f in db_dir.glob(pattern):
+            if f not in files:
+                files.append(f)
+
+    # Catch export files named after the database (e.g.
+    # <db_name>_structures_<ts>.extxyz).
+    db_stem = db_path.stem
+    if db_stem.endswith('.xz'):
+        db_stem = db_stem[:-3]
+    for f in db_dir.glob(f'{db_stem}_structures_*.extxyz'):
+        if f not in files:
+            files.append(f)
+
+    # Filtered-structures log from structure_filters.
+    filtered = db_dir / 'filtered_structures.xyz'
+    if filtered.is_file() and filtered not in files:
+        files.append(filtered)
+
+    return files
+
 
 def _remove_boundary_files(directory: Path) -> None:
     """Remove latent-space boundary artifacts from a single directory."""
@@ -161,32 +195,26 @@ class DbManagePanel(QWidget):
         if not db_path.exists():
             return
 
+        db_dir = db_path.parent
+        files = _collect_database_files(db_path, db_dir)
+
+        file_list = '\n'.join(f'  - {f.name}' for f in files)
         answer = QMessageBox.warning(
             self,
             'Delete Database',
-            f'Are you sure you want to permanently delete:\n\n'
-            f'{db_path}\n\n'
-            'This action cannot be undone.',
+            f'This will permanently remove the following files:\n\n'
+            f'{file_list}\n\n'
+            'This action cannot be undone. Proceed?',
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
         if answer != QMessageBox.Yes:
             return
 
-        confirm = QMessageBox.warning(
-            self,
-            'Confirm Deletion',
-            'This will permanently remove the database file. Proceed?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if confirm != QMessageBox.Yes:
-            return
-
         try:
-            db_path.unlink()
+            for f in files:
+                f.unlink()
             self._project.clear_structures_index()
-            db_dir = db_path.parent
             log_dir = db_dir / 'logs'
             if log_dir.is_dir():
                 shutil.rmtree(log_dir)
