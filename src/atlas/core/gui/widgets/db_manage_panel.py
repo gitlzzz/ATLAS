@@ -26,9 +26,7 @@ _BOUNDARY_PATTERNS = (
     'descriptors_concave_hull*.png',
 )
 
-_EXPORT_PATTERNS = (
-    'export_db_filename_structures_*.extxyz',
-)
+_EXPORT_PATTERNS = ('export_db_filename_structures_*.extxyz',)
 
 
 def _collect_database_files(db_path: Path, db_dir: Path) -> list[Path]:
@@ -58,6 +56,18 @@ def _collect_database_files(db_path: Path, db_dir: Path) -> list[Path]:
     if filtered.is_file() and filtered not in files:
         files.append(filtered)
 
+    return files
+
+
+def _collect_boundary_files(directory: Path) -> list[Path]:
+    """Return all boundary artifact files in a single directory."""
+    files: list[Path] = []
+    npz = directory / 'latent_space.npz'
+    if npz.is_file():
+        files.append(npz)
+    for pattern in _BOUNDARY_PATTERNS:
+        for f in directory.glob(pattern):
+            files.append(f)
     return files
 
 
@@ -196,13 +206,36 @@ class DbManagePanel(QWidget):
             return
 
         db_dir = db_path.parent
-        files = _collect_database_files(db_path, db_dir)
+        project_dir = self._project.dir
 
-        file_list = '\n'.join(f'  - {f.name}' for f in files)
+        files = _collect_database_files(db_path, db_dir)
+        boundary_db = _collect_boundary_files(db_dir)
+        boundary_proj = _collect_boundary_files(project_dir)
+        log_dir = db_dir / 'logs'
+
+        all_files = (
+            [f for f in files if f not in boundary_db] + boundary_db + boundary_proj
+        )
+        has_logs = log_dir.is_dir()
+
+        rel_paths = []
+        for f in all_files:
+            try:
+                rel_paths.append(str(f.relative_to(project_dir)))
+            except ValueError:
+                rel_paths.append(f.name)
+        if has_logs:
+            try:
+                rel_paths.append(str(log_dir.relative_to(project_dir)))
+            except ValueError:
+                rel_paths.append(log_dir.name)
+
+        file_list = '\n'.join(f'  - {p}' for p in rel_paths)
         answer = QMessageBox.warning(
             self,
             'Delete Database',
-            f'This will permanently remove the following files:\n\n'
+            f'This will permanently remove the following files'
+            f' from the project directory:\n\n'
             f'{file_list}\n\n'
             'This action cannot be undone. Proceed?',
             QMessageBox.Yes | QMessageBox.No,
@@ -212,17 +245,11 @@ class DbManagePanel(QWidget):
             return
 
         try:
-            for f in files:
+            for f in all_files:
                 f.unlink()
             self._project.clear_structures_index()
-            log_dir = db_dir / 'logs'
-            if log_dir.is_dir():
+            if has_logs:
                 shutil.rmtree(log_dir)
-
-            # Clean up boundary output files (latent_space.npz and hull plots)
-            # Search both databases/ and project root to mirror BoundaryPanel.
-            _remove_boundary_files(db_dir)
-            _remove_boundary_files(self._project.dir)
         except OSError as exc:
             QMessageBox.critical(
                 self, 'Delete Failed', f'Could not delete database: {exc}'
