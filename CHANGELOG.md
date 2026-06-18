@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.54.0 (2026-06-18)
+
+### Docs
+
+- **core**: add docs for DFT benchmark ([#c2d3cbc](https://github.com/pol-sb/ATLAS/commit/c2d3cbc5eb2efbba9c0006cbcd89ff0484afa778))
+
+### Feature
+
+- **dft**: re-add DFT benchmark suite ([#ecf3593](https://github.com/pol-sb/ATLAS/commit/ecf35933e4b4f23b4f4d62294d9b2e0d232bbea3))
+
+### Fix
+
+- **gui**: improve delete dialog and toml parsing robustness ([#62d0f8e](https://github.com/pol-sb/ATLAS/commit/62d0f8e6897e903a04273e720c3ca829d55caa50))
+- **init_db**: rearrange order of operations to ensure continuous structure size distribution ([#72442ee](https://github.com/pol-sb/ATLAS/commit/72442eee47a8b30e257a539eb891b4737e784190))
+- **gui**: fixes to phasediagram creation and config editor ([#6737bb9](https://github.com/pol-sb/ATLAS/commit/6737bb9a706faddfdd2fa12b7c72c7567ed46498))
+- **init_db**: fix phase generation in databases ([#8ec5667](https://github.com/pol-sb/ATLAS/commit/8ec5667ccdde49fa3a5579a1e1450eda2ddcdb59))
+- **gui**: improve gui setup wizard ([#b216507](https://github.com/pol-sb/ATLAS/commit/b216507aa260b689da13a25f77222d0eccb8d5fd))
+- **gui**: change order of DFT benchmark and labelling in side panel ([#52955c3](https://github.com/pol-sb/ATLAS/commit/52955c36413292e1c5d7255cc7d888c59e39daae))
+- **gui**: gui improvements, refactors and fixes ([#1a9b247](https://github.com/pol-sb/ATLAS/commit/1a9b2472db025c7a4b032787296be503d2bbffc3))
+- **core**: fix imports ([#2de7a9d](https://github.com/pol-sb/ATLAS/commit/2de7a9d168e99617bbfdc8fbf2e6b5b03b280e22))
+- **al_loop**: create only a single instance of portable code ([#c31afcd](https://github.com/pol-sb/ATLAS/commit/c31afcd3d87a5c32a2c694a47465eb49f6b8545e))
+- **core**: ensure compatibility of requirements ([#623c70a](https://github.com/pol-sb/ATLAS/commit/623c70aa860d75db72a90f4767c0435a52ce5a05))
+- **gui**: address slowdowns on settings tab (i) ([#7640967](https://github.com/pol-sb/ATLAS/commit/7640967be4a3475bcd6bbe7d04748b8b2b79d1bb))
+
+### Misc
+
+- **core**: update repository-related files ([#a6cad8c](https://github.com/pol-sb/ATLAS/commit/a6cad8c1877a09e2523af7b6a4a19a2d94bf211d))
+
+### Refactor
+
+- **al_loop**: remove deprecated active learning workchain ([#b5f203f](https://github.com/pol-sb/ATLAS/commit/b5f203f7a607503d3e58f4a88ae3ec1d65d34a75))
+
 ## 0.53.0 (2026-06-16)
 
 ### Docs
