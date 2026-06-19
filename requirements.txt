@@ -121,7 +121,7 @@ future==1.0.0
     # via seekpath
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.44
+gitpython==3.1.50
     # via wandb
 graphviz==0.20.3
     # via aiida-core
@@ -430,7 +430,7 @@ pymatgen==2024.10.3
     #   mp-api
 pymongo==4.10.1
     # via maggma
-pymysql==0.9.3
+pymysql==1.1.1
     # via aiida-core
 pynacl==1.5.0
     # via paramiko
@@ -620,7 +620,7 @@ unidecode==1.3.8
     # via python-slugify
 upf-to-json==0.9.5
     # via aiida-core
-urllib3==2.3.0
+urllib3==2.7.0
     # via
     #   botocore
     #   requests
