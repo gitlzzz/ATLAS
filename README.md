@@ -99,7 +99,7 @@ With the environment now activated, the library can be installed.
 
 ```bash
 # Clone the reposittory
-git clone https://github.com/pol-sb/atlas.git
+git clone https://github.com/LopezGroup-ICIQ/ATLAS.git
 ```
 
 ### 3. Installing the library in the activated python environment
