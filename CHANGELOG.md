@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.54.1 (2026-06-19)
+
+### Fix
+
+- **gui**: added workflow view, and fixes and additions to the gui ([#7a26331](https://github.com/pol-sb/ATLAS/commit/7a26331d655226cfc5f4d6f30b21199c3ea31289))
+- **init_db**: prevent unphysical distances during cluster generation using spherical method ([#9e506a4](https://github.com/pol-sb/ATLAS/commit/9e506a4ec8733cf30b64aa2de56f955c2a74fcf2))
+- **gui**: improve init db deletion dialog clarity ([#76d8126](https://github.com/pol-sb/ATLAS/commit/76d81268cc07d30d3c8dadb2f0861b4a2987e408))
+
 ## 0.54.0 (2026-06-18)
 
 ### Docs
