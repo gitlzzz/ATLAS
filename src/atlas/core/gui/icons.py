@@ -17,10 +17,16 @@ ICONS_DIR = Path(__file__).resolve().parent / 'assets' / 'icons'
 ASSETS_DIR = Path(__file__).resolve().parent / 'assets'
 
 _arrow_cache: dict[str, Path] = {}
+_icon_cache: dict[tuple[str, str, int], QIcon] = {}
 
 
 def themed_icon(name: str, color: str, size: int = 24) -> QIcon:
     """Return a ``QIcon`` for *name* recoloured to *color*."""
+    key = (name, color, size)
+    cached = _icon_cache.get(key)
+    if cached is not None:
+        return cached
+
     svg_path = ICONS_DIR / f'{name}.svg'
     if not svg_path.exists():
         return QIcon()
@@ -31,7 +37,9 @@ def themed_icon(name: str, color: str, size: int = 24) -> QIcon:
     painter = QPainter(pixmap)
     renderer.render(painter)
     painter.end()
-    return QIcon(pixmap)
+    icon = QIcon(pixmap)
+    _icon_cache[key] = icon
+    return icon
 
 
 def app_icon() -> QIcon:

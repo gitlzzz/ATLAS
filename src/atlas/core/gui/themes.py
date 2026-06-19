@@ -826,6 +826,19 @@ QDockWidget::title {{
     border-bottom: 1px solid {border};
 }}
 
+/* ====== Log Toggle Bar ====== */
+QWidget#logToggleBar {{
+    background-color: {surface};
+    border-top: 1px solid {border};
+    padding: 4px 8px;
+}}
+QWidget#logToggleBar:hover {{
+    background-color: {hover};
+}}
+QWidget#logToggleBar:pressed {{
+    background-color: {btn_pressed};
+}}
+
 /* ====== Scrollbars ====== */
 QScrollBar:vertical {{
     background: {scrollbar_bg};
@@ -968,10 +981,20 @@ def theme_colors(name: str) -> dict[str, str]:
     }
 
 
-def apply_theme_to_app(theme_name: str, *, force: bool = False) -> None:
+def apply_theme_to_app(
+    theme_name: str, *, force: bool = False, verbose: bool = False,
+) -> None:
     """Apply theme QSS to QApplication and set OS color scheme hint."""
+    import time
+
     from PySide6.QtCore import QSettings, Qt
     from PySide6.QtWidgets import QApplication
+
+    def _t(label: str, t0: float) -> float:
+        now = time.perf_counter()
+        if verbose:
+            print(f'[ATLAS] theme:   {label} {(now - t0) * 1000:.1f}ms')
+        return now
 
     app = QApplication.instance()
     if app is None:
@@ -981,8 +1004,12 @@ def apply_theme_to_app(theme_name: str, *, force: bool = False) -> None:
     if not force and settings.value('app_theme') == theme_name and app.styleSheet():
         return
 
+    t0 = time.perf_counter()
     qss = build_stylesheet(theme_name)
+    t0 = _t('build_stylesheet', t0)
+
     app.setStyleSheet(qss)
+    t0 = _t('app.setStyleSheet', t0)
 
     settings.setValue('app_theme', theme_name)
 
@@ -999,6 +1026,7 @@ def apply_theme_to_app(theme_name: str, *, force: bool = False) -> None:
         palette.setColor(QPalette.ColorRole.Base, QColor(t.background))
         palette.setColor(QPalette.ColorRole.Text, QColor(t.foreground))
         app.setPalette(palette)
+    t0 = _t('app.setPalette', t0)
 
     # Qt 6.8+ exposes an explicit color scheme hint for title bars.
     try:
@@ -1006,6 +1034,7 @@ def apply_theme_to_app(theme_name: str, *, force: bool = False) -> None:
         app.styleHints().setColorScheme(scheme)
     except AttributeError:
         pass
+    _t('setColorScheme', t0)
 
 
 def saved_global_theme() -> str:

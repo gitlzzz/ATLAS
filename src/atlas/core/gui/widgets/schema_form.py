@@ -699,6 +699,12 @@ class SchemaForm(QWidget):
         elif isinstance(widget, QLineEdit):
             if isinstance(value, list):
                 widget.setText(', '.join(map(str, value)))
+            elif value is None:
+                vtype = widget.property('value_type') or ''
+                if 'float' in vtype or 'int' in vtype:
+                    widget.setText('')
+                else:
+                    widget.setText(str(value))
             else:
                 widget.setText(str(value))
 
@@ -785,20 +791,32 @@ class SchemaForm(QWidget):
             if default_value is not None:
                 widget.setChecked(bool(default_value))
         elif 'int' in widget_type_str:
-            widget = _NoScrollSpinBox()
-            lo = int(item_def['min']) if 'min' in item_def else -1_000_000
-            hi = int(item_def['max']) if 'max' in item_def else 1_000_000_000
-            widget.setRange(lo, hi)
-            if default_value is not None:
-                widget.setValue(int(default_value))
+            if default_value is None:
+                widget = QLineEdit()
+                widget.setPlaceholderText(
+                    str(item_def.get('example', f'Optional {widget_type_str}'))
+                )
+            else:
+                widget = _NoScrollSpinBox()
+                lo = int(item_def['min']) if 'min' in item_def else -1_000_000
+                hi = int(item_def['max']) if 'max' in item_def else 1_000_000_000
+                widget.setRange(lo, hi)
+                if default_value is not None:
+                    widget.setValue(int(default_value))
         elif 'float' in widget_type_str:
-            widget = _NoScrollDoubleSpinBox()
-            lo = float(item_def['min']) if 'min' in item_def else -1e9
-            hi = float(item_def['max']) if 'max' in item_def else 1e9
-            widget.setRange(lo, hi)
-            widget.setDecimals(5)
-            if default_value is not None:
-                widget.setValue(float(default_value))
+            if default_value is None:
+                widget = QLineEdit()
+                widget.setPlaceholderText(
+                    str(item_def.get('example', f'Optional {widget_type_str}'))
+                )
+            else:
+                widget = _NoScrollDoubleSpinBox()
+                lo = float(item_def['min']) if 'min' in item_def else -1e9
+                hi = float(item_def['max']) if 'max' in item_def else 1e9
+                widget.setRange(lo, hi)
+                widget.setDecimals(5)
+                if default_value is not None:
+                    widget.setValue(float(default_value))
         else:
             widget = QLineEdit(str(default_value or ''))
 
@@ -850,6 +868,8 @@ class SchemaForm(QWidget):
         if isinstance(widget, QLineEdit):
             text = widget.text().strip()
             if not text:
+                return None
+            if text == 'None' and ('float' in value_type or 'int' in value_type):
                 return None
 
             if 'list' in value_type:

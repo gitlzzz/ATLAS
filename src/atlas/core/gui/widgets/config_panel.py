@@ -36,7 +36,9 @@ from PySide6.QtWidgets import (
 from atlas.core.command_line import command_line_utils as cli_utils
 from atlas.core.gui.app_params import ApplicationParameters
 from atlas.core.gui.widgets.schema_form import SchemaForm
+from atlas.core.gui.widgets.side_panel import SidePanel
 from atlas.core.gui.widgets.toml_editor import TomlEditor
+from atlas.core.gui.widgets.workflow_view import WorkflowStep, WorkflowView
 
 
 class ConfigPanel(QWidget):
@@ -61,6 +63,7 @@ class ConfigPanel(QWidget):
     data_changed = Signal()
     validated = Signal(bool, list)
     save_succeeded = Signal()
+    workflow_step_clicked = Signal(str)
 
     def __init__(
         self,
@@ -77,6 +80,7 @@ class ConfigPanel(QWidget):
         self._project = project
         self._sub_forms: list[SchemaForm] = []
         self._sub_section_tabs = sub_section_tabs or []
+        self._workflow_active: bool = False
 
         outer = QVBoxLayout(self)
 
@@ -101,7 +105,7 @@ class ConfigPanel(QWidget):
             self._sub_forms.append(self.schema_form)
             splitter.addWidget(self.schema_form)
 
-        # --- Right panes ---
+        # --- Middle pane: description ---
         description_group = QGroupBox('Description')
         description_layout = QVBoxLayout(description_group)
         self.description_viewer = QTextEdit()
@@ -115,6 +119,18 @@ class ConfigPanel(QWidget):
         description_layout.addWidget(self.description_viewer)
         splitter.addWidget(description_group)
 
+        # --- Right pane: switchable side panel ---
+        self.side_panel = SidePanel()
+
+        self._workflow_view = WorkflowView()
+        self._workflow_view.step_clicked.connect(self.workflow_step_clicked)
+        workflow_group = QGroupBox('Workflow Overview')
+        workflow_group_layout = QVBoxLayout(workflow_group)
+        workflow_group_layout.addWidget(self._workflow_view)
+        self._workflow_view_idx = self.side_panel.add_view(
+            'workflow', 'Workflow Overview', workflow_group, visible=False
+        )
+
         toml_group = QGroupBox('Live TOML Preview')
         toml_layout = QVBoxLayout(toml_group)
         self.toml_editor = TomlEditor(
@@ -122,7 +138,12 @@ class ConfigPanel(QWidget):
         )
         self.toml_editor.user_edited.connect(self._on_toml_user_edited)
         toml_layout.addWidget(self.toml_editor)
-        splitter.addWidget(toml_group)
+        self._toml_view_idx = self.side_panel.add_view(
+            'code', 'Live TOML Preview', toml_group
+        )
+
+        self.side_panel.set_current_view(self._toml_view_idx)
+        splitter.addWidget(self.side_panel)
 
         splitter.setSizes([600, 300, 400])
 
@@ -270,8 +291,25 @@ class ConfigPanel(QWidget):
             form.populate_from_data(data)
         self.refresh_toml_preview()
 
+    def set_workflow_steps(
+        self,
+        steps: list[WorkflowStep],
+        num_phases: int = 1,
+        total_estimate: int | None = None,
+    ) -> None:
+        """Populate the workflow diagram and make it the default view."""
+        self._workflow_view.set_steps(steps, num_phases, total_estimate)
+        self.side_panel.show_view(self._workflow_view_idx)
+        if not self._workflow_active:
+            self._workflow_active = True
+            self.side_panel.set_current_view(self._workflow_view_idx)
+
     def set_theme(self, theme_name: str) -> None:
         self.toml_editor.set_theme(theme_name)
+
+    def set_app_theme(self, theme_name: str) -> None:
+        self.side_panel.set_theme(theme_name)
+        self._workflow_view.set_theme(theme_name)
 
     def populate_suggestions(self, suggestions: dict[str, list[str]]) -> None:
         """Forward AiiDA suggestions to every sub-form's editable combos."""

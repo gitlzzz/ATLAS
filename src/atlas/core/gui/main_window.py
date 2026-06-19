@@ -1,10 +1,10 @@
-"""Main ATLAS GUI window with sidebar navigation and log dock.
+"""Main ATLAS GUI window with sidebar navigation and collapsible log panel.
 
 Layout
 ------
 * Left: ``QListWidget`` sidebar listing each workflow page.
 * Centre: ``QStackedWidget`` holding one page per sidebar entry.
-* Bottom: ``QDockWidget`` log viewer shared by all pages.
+* Bottom: collapsible ``CollapsibleLogPanel`` with toggle bar and badge.
 * Top: standard menu bar (File / Edit / Format / Help).
 """
 
@@ -17,9 +17,17 @@ from functools import partial
 
 import yaml
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QActionGroup, QFont, QIcon, QKeySequence
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QFont,
+    QIcon,
+    QKeySequence,
+    QTextDocument,
+)
 from PySide6.QtWidgets import (
-    QDockWidget,
+    QFrame,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -29,7 +37,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QStackedWidget,
     QSystemTrayIcon,
-    QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -37,6 +45,7 @@ from atlas.core.gui.pages.active_learning import ActiveLearningPage
 from atlas.core.gui.pages.dft import DftPage
 from atlas.core.gui.pages.dft_benchmark import DftBenchmarkPage
 from atlas.core.gui.pages.init_db import InitDbPage
+from atlas.core.gui.pages.logs import LogsPage
 from atlas.core.gui.pages.overview import OverviewPage
 from atlas.core.gui.pages.reports import ReportsPage
 from atlas.core.gui.pages.settings import SettingsPage
@@ -55,6 +64,7 @@ PAGE_ICON_NAMES = {
     'al': 'sync',
     'reports': 'assessment',
     'settings': 'settings',
+    'logs': 'terminal',
 }
 
 SIDEBAR_STYLE = """
@@ -115,7 +125,7 @@ class MainWindow(QMainWindow):
 
         self._log_timing('Building interface...')
         self._progress(20, 'Building interface...')
-        self._build_log_dock()
+        self._build_collapsible_log()
         self._build_central_widget()
 
         self._log_timing('Applying theme...')
@@ -133,7 +143,7 @@ class MainWindow(QMainWindow):
         self._build_status_bar()
         self._build_tray_icon()
 
-        self.sidebar.setCurrentRow(0)
+        self._sidebar_set_current(0)
 
         self._log_timing('Ready')
         self._progress(100, 'Ready')
@@ -159,34 +169,125 @@ class MainWindow(QMainWindow):
 
     # ========================================================== layout
 
-    def _build_log_dock(self) -> None:
-        self.log_viewer = QTextEdit()
-        self.log_viewer.setReadOnly(True)
-        self.log_viewer.setPlaceholderText('Process logs and status messages.')
+    def _build_collapsible_log(self) -> None:
+        from atlas.core.gui.widgets.collapsible_log_panel import CollapsibleLogPanel
 
-        dock = QDockWidget('Logs & Output', self)
-        dock.setAllowedAreas(Qt.BottomDockWidgetArea | Qt.TopDockWidgetArea)
-        dock.setWidget(self.log_viewer)
-        self.addDockWidget(Qt.BottomDockWidgetArea, dock)
-        self.log_dock = dock
+        self._log_document = QTextDocument()
+        self.log_panel = CollapsibleLogPanel(
+            shared_doc=self._log_document,
+            parent=self,
+        )
+        self.log_viewer = self.log_panel.viewer()
+        self.log_panel.toggled.connect(self._on_log_panel_toggled)
+        self.log_panel.unread_count_changed.connect(self._update_logs_sidebar_badge)
+
+    # Number of pages in the main (top) sidebar list.
+    _SIDEBAR_MAIN_COUNT = 6
 
     def _build_central_widget(self) -> None:
-        splitter = QSplitter(Qt.Horizontal)
+        v_splitter = QSplitter(Qt.Vertical)
+
+        h_splitter = QSplitter(Qt.Horizontal)
+
+        # -- composite sidebar widget --
+        sidebar_container = QWidget()
+        sidebar_container.setMaximumWidth(200)
+        sidebar_layout = QVBoxLayout(sidebar_container)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
 
         self.sidebar = QListWidget()
-        self.sidebar.setMaximumWidth(200)
         self.sidebar.setStyleSheet(SIDEBAR_STYLE)
-        splitter.addWidget(self.sidebar)
+        sidebar_layout.addWidget(self.sidebar, 1)
+
+        self._sidebar_sep = QWidget()
+        self._sidebar_sep.setFixedHeight(9)
+        sep_layout = QHBoxLayout(self._sidebar_sep)
+        sep_layout.setContentsMargins(20, 4, 20, 4)
+        self._sidebar_sep_line = QFrame()
+        self._sidebar_sep_line.setFrameShape(QFrame.NoFrame)
+        self._sidebar_sep_line.setFixedHeight(1)
+        sep_layout.addWidget(self._sidebar_sep_line)
+        sidebar_layout.addWidget(self._sidebar_sep)
+
+        self._sidebar_bottom = QListWidget()
+        self._sidebar_bottom.setStyleSheet(SIDEBAR_STYLE)
+        self._sidebar_bottom.setFixedHeight(0)
+        sidebar_layout.addWidget(self._sidebar_bottom, 0)
+
+        h_splitter.addWidget(sidebar_container)
 
         self.stack = QStackedWidget()
-        splitter.addWidget(self.stack)
+        h_splitter.addWidget(self.stack)
 
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setSizes([180, 1420])
+        h_splitter.setStretchFactor(0, 0)
+        h_splitter.setStretchFactor(1, 1)
+        h_splitter.setSizes([180, 1420])
 
-        self.sidebar.currentRowChanged.connect(self._on_sidebar_changed)
-        self.setCentralWidget(splitter)
+        self.sidebar.currentRowChanged.connect(self._on_main_sidebar_changed)
+        self._sidebar_bottom.currentRowChanged.connect(
+            self._on_bottom_sidebar_changed,
+        )
+
+        v_splitter.addWidget(h_splitter)
+        v_splitter.addWidget(self.log_panel)
+        v_splitter.setStretchFactor(0, 1)
+        v_splitter.setStretchFactor(1, 0)
+        v_splitter.setSizes([870, 26])
+
+        self.setCentralWidget(v_splitter)
+
+    def _on_log_panel_toggled(self, expanded: bool) -> None:
+        pass
+
+    # -- sidebar selection helpers --
+
+    def _sidebar_set_current(self, idx: int) -> None:
+        """Select a page by global index across both sidebar lists."""
+        mc = self._SIDEBAR_MAIN_COUNT
+        if idx < mc:
+            self._sidebar_bottom.blockSignals(True)
+            self._sidebar_bottom.setCurrentRow(-1)
+            self._sidebar_bottom.blockSignals(False)
+            self.sidebar.setCurrentRow(idx)
+        else:
+            self.sidebar.blockSignals(True)
+            self.sidebar.setCurrentRow(-1)
+            self.sidebar.blockSignals(False)
+            self._sidebar_bottom.setCurrentRow(idx - mc)
+
+    def _sidebar_current_row(self) -> int:
+        """Return global page index from whichever list has a selection."""
+        row = self.sidebar.currentRow()
+        if row >= 0:
+            return row
+        brow = self._sidebar_bottom.currentRow()
+        if brow >= 0:
+            return self._SIDEBAR_MAIN_COUNT + brow
+        return -1
+
+    def _on_main_sidebar_changed(self, idx: int) -> None:
+        if idx < 0:
+            return
+        self._sidebar_bottom.blockSignals(True)
+        self._sidebar_bottom.setCurrentRow(-1)
+        self._sidebar_bottom.blockSignals(False)
+        self._on_sidebar_changed(idx)
+
+    def _on_bottom_sidebar_changed(self, idx: int) -> None:
+        if idx < 0:
+            return
+        self.sidebar.blockSignals(True)
+        self.sidebar.setCurrentRow(-1)
+        self.sidebar.blockSignals(False)
+        self._on_sidebar_changed(self._SIDEBAR_MAIN_COUNT + idx)
+
+    def _update_logs_sidebar_badge(self, count: int) -> None:
+        item = self._logs_sidebar_item
+        if count > 0:
+            item.setText(f'Logs ({min(count, 999)})')
+        else:
+            item.setText('Logs')
 
     def _build_pages(self) -> None:
         page_classes = (
@@ -197,6 +298,7 @@ class MainWindow(QMainWindow):
             ActiveLearningPage,
             ReportsPage,
             SettingsPage,
+            LogsPage,
         )
         page_names = (
             'Overview',
@@ -206,6 +308,7 @@ class MainWindow(QMainWindow):
             'Active Learning',
             'Reports',
             'Settings',
+            'Logs',
         )
         self.pages: list = []
         self._page_index_by_key: dict[str, int] = {}
@@ -213,7 +316,7 @@ class MainWindow(QMainWindow):
             pct = 30 + int(50 * idx / len(page_classes))
             self._log_timing(f'  Loading page: {page_names[idx]}...')
             self._progress(pct, f'Loading page: {page_names[idx]}...')
-            page = page_cls(
+            kwargs = dict(
                 project=self.project,
                 schema_data=self._schema_data,
                 application_font=self._application_font,
@@ -221,6 +324,9 @@ class MainWindow(QMainWindow):
                 navigate=self.navigate_to,
                 notification=self._show_tray_notification,
             )
+            if page_cls is LogsPage:
+                kwargs['shared_doc'] = self._log_document
+            page = page_cls(**kwargs)
             self.pages.append(page)
             self._page_index_by_key[page.NAVIGATION_KEY] = idx
             self.stack.addWidget(page)
@@ -229,7 +335,14 @@ class MainWindow(QMainWindow):
             icon_name = PAGE_ICON_NAMES.get(page.NAVIGATION_KEY)
             if icon_name:
                 item.setIcon(self._themed_sidebar_icon(icon_name))
-            self.sidebar.addItem(item)
+            if idx < self._SIDEBAR_MAIN_COUNT:
+                self.sidebar.addItem(item)
+            else:
+                self._sidebar_bottom.addItem(item)
+
+            # Store a reference to the Logs sidebar item for the badge.
+            if page.NAVIGATION_KEY == 'logs':
+                self._logs_sidebar_item = item
 
             page.workflow_state_changed.connect(self._broadcast_workflow_refresh)
             page.process_running_changed.connect(self._on_process_running_changed)
@@ -241,8 +354,17 @@ class MainWindow(QMainWindow):
                     )
                 )
 
+        # Size the bottom list to fit its items exactly.
+        bcount = self._sidebar_bottom.count()
+        if bcount:
+            h = sum(
+                self._sidebar_bottom.sizeHintForRow(i) for i in range(bcount)
+            )
+            h += 2 * self._sidebar_bottom.frameWidth() + 12
+            self._sidebar_bottom.setFixedHeight(h)
+
         # Settings page broadcasts theme changes; route them to every page.
-        settings_page = self.pages[-1]
+        settings_page = self.pages[len(page_classes) - 2]
         settings_page.theme_changed.connect(self._apply_theme)
         settings_page.app_theme_changed.connect(self._apply_app_theme)
 
@@ -256,12 +378,16 @@ class MainWindow(QMainWindow):
         """Switch the active page by ``NAVIGATION_KEY``."""
         idx = self._page_index_by_key.get(key)
         if idx is not None:
-            self.sidebar.setCurrentRow(idx)
+            self._sidebar_set_current(idx)
 
     def _on_sidebar_changed(self, idx: int) -> None:
         self.stack.setCurrentIndex(idx)
         if 0 <= idx < len(self.pages):
             self.pages[idx].on_shown()
+            if self.pages[idx].NAVIGATION_KEY == 'logs':
+                self.log_panel._unread_count = 0
+                self.log_panel._badge.hide()
+                self._update_logs_sidebar_badge(0)
         self._update_status_bar()
 
     # ====================================================== status bar
@@ -339,7 +465,7 @@ class MainWindow(QMainWindow):
         for i in range(min(9, len(self.pages))):
             action = QAction(f'Page {i + 1}', self)
             action.setShortcut(QKeySequence(f'Ctrl+{i + 1}'))
-            action.triggered.connect(partial(self.sidebar.setCurrentRow, i))
+            action.triggered.connect(partial(self._sidebar_set_current, i))
             self.addAction(action)
 
     # ========================================================== menu bar
@@ -386,12 +512,15 @@ class MainWindow(QMainWindow):
             theme_menu.addAction(action)
 
         view_menu = menu_bar.addMenu('&View')
-        view_menu.addAction(self.log_dock.toggleViewAction())
+        toggle_log_action = QAction('Show/Hide Logs', self)
+        toggle_log_action.setShortcut(QKeySequence('Ctrl+`'))
+        toggle_log_action.triggered.connect(self.log_panel.toggle)
+        view_menu.addAction(toggle_log_action)
 
     # =========================================================== helpers
 
     def _current_page(self) -> QWidget | None:
-        idx = self.sidebar.currentRow()
+        idx = self._sidebar_current_row()
         if idx < 0 or idx >= len(self.pages):
             return None
         return self.pages[idx]
@@ -425,16 +554,57 @@ class MainWindow(QMainWindow):
             page.set_theme(theme_name)
 
     def _apply_app_theme(self, theme_name: str) -> None:
-        from atlas.core.gui.themes import DEFAULT_THEME, apply_theme_to_app
+        from atlas.core.gui.themes import (
+            DEFAULT_THEME,
+            apply_theme_to_app,
+            theme_colors,
+        )
 
+        def _t(label: str, t0: float) -> float:
+            now = time.perf_counter()
+            if self._verbose:
+                print(f'[ATLAS] theme: {label} {(now - t0) * 1000:.1f}ms')
+            return now
+
+        if self._verbose:
+            print(
+                f'[ATLAS] theme: Changing from '
+                f'"{self._current_theme}" to "{theme_name}"'
+            )
+
+        t0 = time.perf_counter()
         self._current_theme = theme_name
-        apply_theme_to_app(theme_name)
+        self.setUpdatesEnabled(False)
+        try:
+            apply_theme_to_app(theme_name, verbose=self._verbose)
+        finally:
+            self.setUpdatesEnabled(True)
+        t0 = _t('apply_theme_to_app', t0)
+
         if theme_name == DEFAULT_THEME:
             self.sidebar.setStyleSheet(SIDEBAR_STYLE)
+            self._sidebar_bottom.setStyleSheet(SIDEBAR_STYLE)
         else:
             self.sidebar.setStyleSheet('')
+            self._sidebar_bottom.setStyleSheet('')
+        colors = theme_colors(theme_name)
+        self._sidebar_sep_line.setStyleSheet(
+            f'background: {colors["border"]};'
+        )
+        t0 = _t('sidebar styles', t0)
+
         self._update_matplotlib_style(theme_name)
+        t0 = _t('matplotlib rcParams', t0)
+
         self._refresh_sidebar_icons()
+        t0 = _t('sidebar icons', t0)
+
+        self.log_panel.set_theme(colors['fg'])
+        t0 = _t('log panel', t0)
+
+        for page in getattr(self, 'pages', ()):
+            page.set_app_theme(theme_name)
+        _t('page.set_app_theme (all)', t0)
 
     @staticmethod
     def _update_matplotlib_style(theme_name: str) -> None:
@@ -465,7 +635,7 @@ class MainWindow(QMainWindow):
         )
 
     def log(self, message: str) -> None:
-        self.log_viewer.append(message)
+        self.log_panel.append(message)
 
     # ================================================== task notification
 
@@ -518,10 +688,18 @@ class MainWindow(QMainWindow):
         return themed_icon(name, color, size=20)
 
     def _refresh_sidebar_icons(self) -> None:
+        mc = self._SIDEBAR_MAIN_COUNT
         for i in range(self.sidebar.count()):
             item = self.sidebar.item(i)
             if i < len(self.pages):
                 icon_name = PAGE_ICON_NAMES.get(self.pages[i].NAVIGATION_KEY)
+                if icon_name:
+                    item.setIcon(self._themed_sidebar_icon(icon_name))
+        for i in range(self._sidebar_bottom.count()):
+            item = self._sidebar_bottom.item(i)
+            page_idx = mc + i
+            if page_idx < len(self.pages):
+                icon_name = PAGE_ICON_NAMES.get(self.pages[page_idx].NAVIGATION_KEY)
                 if icon_name:
                     item.setIcon(self._themed_sidebar_icon(icon_name))
 

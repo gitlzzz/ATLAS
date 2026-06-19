@@ -156,5 +156,15 @@ class WorkflowPage(QWidget):
             self.config_panel.set_theme(theme_name)
         self._apply_output_tab_icons()
 
+    def set_app_theme(self, theme_name: str) -> None:
+        if self.config_panel is not None:
+            self.config_panel.set_app_theme(theme_name)
+        from atlas.core.gui.widgets.prereq_banner import PrereqBanner, SuccessBanner
+
+        for banner in self.findChildren(PrereqBanner) + self.findChildren(
+            SuccessBanner
+        ):
+            banner.restyle()
+
     def on_shown(self) -> None:
         """Hook called when the sidebar switches to this page. No-op by default."""
