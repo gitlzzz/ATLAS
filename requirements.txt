@@ -430,7 +430,7 @@ pymatgen==2024.10.3
     #   mp-api
 pymongo==4.10.1
     # via maggma
-pymysql==1.1.1
+pymysql==0.9.3
     # via aiida-core
 pynacl==1.5.0
     # via paramiko
