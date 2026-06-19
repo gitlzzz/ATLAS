@@ -2856,7 +2856,7 @@ class InitialDatabase:
         basin_hopping: bool = False,
         bh_totalsteps: int = 50,
         bh_fmax: float = 0.05,
-        lj_sigma: float = 1.0,
+        lj_sigma: float | None = None,
         lj_epsilon: float = 1.0,
     ):
         if phase is None:
@@ -3770,7 +3770,9 @@ def cli_run_gen_initial_database(
                 basin_hopping=gen_dict['cluster'].get('basin_hopping', False),
                 bh_totalsteps=int(gen_dict['cluster'].get('bh_totalsteps', 50)),
                 bh_fmax=float(gen_dict['cluster'].get('bh_fmax', 0.05)),
-                lj_sigma=float(gen_dict['cluster'].get('lj_sigma', 1.0)),
+                lj_sigma=float(gen_dict['cluster']['lj_sigma'])
+                if 'lj_sigma' in gen_dict['cluster']
+                else None,
                 lj_epsilon=float(gen_dict['cluster'].get('lj_epsilon', 1.0)),
             )
 

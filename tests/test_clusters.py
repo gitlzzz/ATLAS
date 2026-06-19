@@ -39,6 +39,22 @@ class TestGetElementConstants:
             atl_clusters.get_element_constants('Xx')
 
 
+class TestGetNearestNeighborDistance:
+    """Tests for _get_nearest_neighbor_distance."""
+
+    def test_cu_fcc_nn_distance(self):
+        nn = atl_clusters._get_nearest_neighbor_distance('Cu')
+        assert 2.5 < nn < 2.6  # Cu FCC: a/sqrt(2) ≈ 2.556
+
+    def test_fe_bcc_nn_distance(self):
+        nn = atl_clusters._get_nearest_neighbor_distance('Fe')
+        assert 2.4 < nn < 2.5  # Fe BCC: a*sqrt(3)/2 ≈ 2.482
+
+    def test_returns_positive(self):
+        nn = atl_clusters._get_nearest_neighbor_distance('Au')
+        assert nn > 0
+
+
 class TestGenerateWulffCluster:
     """Tests for _generate_wulff_cluster."""
 
@@ -61,15 +77,14 @@ class TestGenerateSphericalCluster:
         assert len(atoms) == 30
 
     def test_minimum_distance_respected(self):
-        from ase.data import atomic_numbers, covalent_radii
-
         atoms = atl_clusters._generate_spherical_cluster('Cu', 20)
         positions = atoms.get_positions()
-        min_dist = covalent_radii[atomic_numbers['Cu']] * 1.5
+        nn_dist = atl_clusters._get_nearest_neighbor_distance('Cu')
+        expected_min = nn_dist * 0.85
         for i in range(len(positions)):
             for j in range(i + 1, len(positions)):
                 dist = np.linalg.norm(positions[i] - positions[j])
-                assert dist >= min_dist * 0.99  # small tolerance for float precision
+                assert dist >= expected_min * 0.99
 
 
 class TestMakeCleanCluster:

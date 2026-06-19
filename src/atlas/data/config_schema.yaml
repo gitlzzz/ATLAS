@@ -388,7 +388,7 @@ database_generation:
                 description: "Whether to relax clusters via basin hopping with a Lennard-Jones potential."
                 type: bool
                 mandatory: false
-                default: true
+                default: false
             bh_totalsteps:
                 description: "Number of basin hopping steps for cluster relaxation."
                 type: int
@@ -400,10 +400,10 @@ database_generation:
                 mandatory: false
                 default: 0.05
             lj_sigma:
-                description: "Lennard-Jones sigma parameter (Angstrom) for basin hopping."
+                description: "Lennard-Jones sigma parameter (Angstrom) for basin hopping. When omitted, sigma is auto-derived from the element's bulk nearest-neighbor distance."
                 type: float
                 mandatory: false
-                default: 1.0
+                default: None
             lj_epsilon:
                 description: "Lennard-Jones epsilon parameter (eV) for basin hopping."
                 type: float

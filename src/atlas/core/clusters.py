@@ -79,6 +79,32 @@ def get_element_constants(element_symbol: str) -> dict:
 # Maximum vacuum thickness, in Angs.
 MAX_VAC = 12
 
+# LJ equilibrium factor: r_eq = 2^(1/6) * sigma
+_LJ_EQUILIBRIUM_FACTOR = 2 ** (1 / 6)
+
+
+def _get_nearest_neighbor_distance(symbol: str) -> float:
+    """Return the bulk nearest-neighbor distance (Å) for an element."""
+    z = atomic_numbers[symbol]
+    ref = reference_states[z]
+    if ref is None:
+        return covalent_radii[z] * 2.0
+
+    a = ref.get('a', None)
+    symmetry = ref.get('symmetry', '').lower()
+
+    if a is None:
+        return covalent_radii[z] * 2.0
+
+    if symmetry == 'fcc':
+        return a / np.sqrt(2)
+    elif symmetry == 'bcc':
+        return a * np.sqrt(3) / 2
+    elif symmetry == 'hcp' or symmetry in ('sc', 'diamond'):
+        return float(a)
+    else:
+        return covalent_radii[z] * 2.0
+
 
 def _get_crystal_structure(symbol: str) -> str:
     """Return the crystal structure string ('fcc', 'bcc', 'hcp') for an element."""
@@ -150,7 +176,9 @@ def _generate_wulff_cluster(symbol: str, num_atoms: int) -> Atoms:
         del atoms[furthest[: current_count - num_atoms].tolist()]
 
     elif current_count < num_atoms:
-        r_nn = covalent_radii[atomic_numbers[symbol]] * 2.0
+        nn_dist = _get_nearest_neighbor_distance(symbol)
+        r_nn = max(covalent_radii[atomic_numbers[symbol]] * 2.0, nn_dist)
+        min_sep = r_nn * 0.8
         positions = atoms.get_positions()
         added = []
         for pos in positions:
@@ -162,10 +190,29 @@ def _generate_wulff_cluster(symbol: str, num_atoms: int) -> Atoms:
                 direction /= norm
             new_pos = pos + direction * r_nn
             all_pos = positions if len(added) == 0 else np.vstack([positions, added])
-            if not np.any(np.linalg.norm(all_pos - new_pos, axis=1) < (r_nn * 0.8)):
+            if not np.any(np.linalg.norm(all_pos - new_pos, axis=1) < min_sep):
                 added.append(new_pos)
-        while len(added) < num_atoms - len(atoms):
-            added.append(positions[-1] + np.array([r_nn * (len(added) + 1), 0, 0]))
+        rng = np.random.default_rng()
+        cluster_radius = np.max(np.linalg.norm(positions - com, axis=1)) + r_nn
+        fallback_attempts = 0
+        while len(added) < num_atoms - len(atoms) and fallback_attempts < 10_000:
+            fallback_attempts += 1
+            direction = rng.standard_normal(3)
+            direction /= np.linalg.norm(direction)
+            radius = rng.uniform(0, cluster_radius)
+            new_pos = com + direction * radius
+            all_pos = np.vstack([positions] + ([added] if added else []))
+            if not np.any(np.linalg.norm(all_pos - new_pos, axis=1) < min_sep):
+                added.append(new_pos)
+        if len(added) < num_atoms - len(atoms):
+            logger.warning(
+                'Could only place %d of %d extra atoms for %s cluster '
+                'while respecting minimum distance of %.2f Å.',
+                len(added),
+                num_atoms - len(atoms),
+                symbol,
+                min_sep,
+            )
         extra = Atoms(symbols=[symbol] * len(added), positions=added)
         atoms.extend(extra)
 
@@ -173,20 +220,19 @@ def _generate_wulff_cluster(symbol: str, num_atoms: int) -> Atoms:
 
 
 def _generate_spherical_cluster(
-    symbol: str, num_atoms: int, packing_efficiency: float = 0.74
+    symbol: str, num_atoms: int, packing_efficiency: float = 0.35
 ) -> Atoms:
     """Generate a cluster by random packing inside a sphere sized by bulk density."""
     z = atomic_numbers[symbol]
     r_cov = covalent_radii[z]
-    min_dist = r_cov * 1.5
+    nn_dist = _get_nearest_neighbor_distance(symbol)
+    min_dist = max(nn_dist * 0.85, r_cov * 1.5)
 
-    ref = reference_states[z]
-    if ref is not None and 'volume' in ref:
-        vol_per_atom = ref['volume']
-    else:
-        vol_per_atom = (4 / 3) * np.pi * (r_cov**3) / packing_efficiency
-
-    sphere_radius = (3 * num_atoms * vol_per_atom / (4 * np.pi)) ** (1 / 3)
+    half_min = min_dist / 2.0
+    vol_per_atom = (4 / 3) * np.pi * half_min**3
+    sphere_radius = (
+        3 * num_atoms * vol_per_atom / (4 * np.pi * packing_efficiency)
+    ) ** (1 / 3)
 
     rng = np.random.default_rng()
     positions = []
@@ -222,11 +268,40 @@ def _relax_basin_hopping(
     atoms: Atoms,
     totalsteps: int = 50,
     fmax: float = 0.05,
-    lj_sigma: float = 1.0,
+    lj_sigma: float | None = None,
     lj_epsilon: float = 1.0,
 ) -> Atoms:
-    """Relax a cluster toward a global minimum using basin hopping with LJ potential."""
+    """Relax a cluster toward a global minimum using basin hopping with LJ potential.
+
+    When lj_sigma is None, it is derived from the element's nearest-neighbor
+    distance so that the LJ equilibrium matches real interatomic spacing.
+    """
     atoms = atoms.copy()
+
+    symbol = atoms.get_chemical_symbols()[0]
+    nn_dist = _get_nearest_neighbor_distance(symbol)
+
+    if lj_sigma is None:
+        lj_sigma = nn_dist / _LJ_EQUILIBRIUM_FACTOR
+        logger.info(
+            'Auto-derived LJ sigma=%.3f Å for %s (NN distance=%.3f Å).',
+            lj_sigma,
+            symbol,
+            nn_dist,
+        )
+    else:
+        lj_equilibrium = lj_sigma * _LJ_EQUILIBRIUM_FACTOR
+        if lj_equilibrium < nn_dist * 0.5:
+            logger.warning(
+                'LJ sigma=%.3f Å gives equilibrium distance %.3f Å, '
+                'far below %s NN distance %.3f Å. Consider removing '
+                'lj_sigma from config to auto-derive a physical value.',
+                lj_sigma,
+                lj_equilibrium,
+                symbol,
+                nn_dist,
+            )
+
     box_size = np.ptp(atoms.get_positions()) + 15.0
     atoms.set_cell([box_size, box_size, box_size])
     atoms.center()
@@ -301,7 +376,7 @@ def make_clean_cluster(
     basin_hopping: bool = False,
     bh_totalsteps: int = 50,
     bh_fmax: float = 0.05,
-    lj_sigma: float = 1.0,
+    lj_sigma: float | None = None,
     lj_epsilon: float = 1.0,
 ):
     elem = phase.cluster_elem.symbol
@@ -324,6 +399,22 @@ def make_clean_cluster(
             lj_sigma=lj_sigma,
             lj_epsilon=lj_epsilon,
         )
+
+    if len(atoms) > 1:
+        dists = atoms.get_all_distances(mic=False)
+        np.fill_diagonal(dists, np.inf)
+        min_dist = dists.min()
+        r_cov = covalent_radii[atomic_numbers[elem]]
+        threshold = r_cov * 1.4
+        if min_dist < threshold:
+            logger.warning(
+                'Cluster %s (%d atoms) has minimum interatomic distance '
+                '%.3f Å, below threshold %.3f Å.',
+                elem,
+                len(atoms),
+                min_dist,
+                threshold,
+            )
 
     struct = _ase_to_pymatgen_cluster(atoms, phase.cluster_elem, size)
 

@@ -421,7 +421,7 @@ This section is optional.
 - {alt}`basin_hopping`:
   - **Description**: Whether to relax clusters via basin hopping with a Lennard-Jones potential.
   - **Type**: `(optional, bool)`
-  - **Default**: `True`.
+  - **Default**: `False`.
 
 - {alt}`bh_totalsteps`:
   - **Description**: Number of basin hopping steps for cluster relaxation.
@@ -434,9 +434,9 @@ This section is optional.
   - **Default**: `0.05`.
 
 - {alt}`lj_sigma`:
-  - **Description**: Lennard-Jones sigma parameter (Angstrom) for basin hopping.
+  - **Description**: Lennard-Jones sigma parameter (Angstrom) for basin hopping. When omitted, sigma is auto-derived from the element's bulk nearest-neighbor distance.
   - **Type**: `(optional, float)`
-  - **Default**: `1.0`.
+  - **Default**: `'None'`.
 
 - {alt}`lj_epsilon`:
   - **Description**: Lennard-Jones epsilon parameter (eV) for basin hopping.
