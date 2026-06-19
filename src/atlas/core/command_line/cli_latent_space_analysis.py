@@ -71,10 +71,7 @@ def run_latent_space_analysis():
     with open(config_path, 'rb') as f:
         settings = tomllib.load(f)
 
-    if args.database:
-        db_path = args.database
-    else:
-        db_path = pl.Path(settings['descriptors']['database_path'])
+    db_path = args.database or pl.Path(settings['descriptors']['database_path'])
 
     # Load database
     atl_cut.custom_print(f'Loading database from {db_path}...', 'info', logger=logger)
