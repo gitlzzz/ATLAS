@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.54.2 (2026-06-20)
+
+### Fix
+
+- **gui**: optimize theme switching ([#76137ca](https://github.com/pol-sb/ATLAS/commit/76137ca875a07c5eaf5373c1e2f5dd2e35ec39ec))
+
+### Misc
+
+- **core**: update uv.lock ([#8792763](https://github.com/pol-sb/ATLAS/commit/87927634af5e868ee498188c3fda586cbb16d65d))
+
 ## 0.54.1 (2026-06-19)
 
 ### Fix
