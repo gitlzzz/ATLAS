@@ -67,30 +67,6 @@ PAGE_ICON_NAMES = {
     'logs': 'terminal',
 }
 
-SIDEBAR_STYLE = """
-QListWidget {
-    background-color: #f4f5f7;
-    border: none;
-    border-right: 1px solid #d0d4db;
-    padding: 4px;
-    font-size: 13px;
-}
-QListWidget::item {
-    padding: 10px 12px;
-    border-radius: 6px;
-    margin: 2px 4px;
-    color: #333;
-}
-QListWidget::item:selected {
-    background-color: #d0e0ff;
-    color: #1a3a6b;
-    font-weight: bold;
-}
-QListWidget::item:hover:!selected {
-    background-color: #e4e8ee;
-}
-"""
-
 
 class MainWindow(QMainWindow):
     """Sidebar-navigated main window for the ATLAS GUI."""
@@ -120,7 +96,9 @@ class MainWindow(QMainWindow):
         self._load_schema(SCHEMA_PATH)
 
         self._force_quit = False
-        self._current_theme = project.meta('app_theme', 'Default (Light)')
+        from atlas.core.gui.themes import saved_global_theme
+
+        self._current_theme = saved_global_theme()
         self._update_matplotlib_style(self._current_theme)
 
         self._log_timing('Building interface...')
@@ -197,7 +175,6 @@ class MainWindow(QMainWindow):
         sidebar_layout.setSpacing(0)
 
         self.sidebar = QListWidget()
-        self.sidebar.setStyleSheet(SIDEBAR_STYLE)
         sidebar_layout.addWidget(self.sidebar, 1)
 
         self._sidebar_sep = QWidget()
@@ -207,11 +184,11 @@ class MainWindow(QMainWindow):
         self._sidebar_sep_line = QFrame()
         self._sidebar_sep_line.setFrameShape(QFrame.NoFrame)
         self._sidebar_sep_line.setFixedHeight(1)
+        self._sidebar_sep_line.setStyleSheet('background: palette(mid);')
         sep_layout.addWidget(self._sidebar_sep_line)
         sidebar_layout.addWidget(self._sidebar_sep)
 
         self._sidebar_bottom = QListWidget()
-        self._sidebar_bottom.setStyleSheet(SIDEBAR_STYLE)
         self._sidebar_bottom.setFixedHeight(0)
         sidebar_layout.addWidget(self._sidebar_bottom, 0)
 
@@ -381,12 +358,26 @@ class MainWindow(QMainWindow):
     def _on_sidebar_changed(self, idx: int) -> None:
         self.stack.setCurrentIndex(idx)
         if 0 <= idx < len(self.pages):
-            self.pages[idx].on_shown()
-            if self.pages[idx].NAVIGATION_KEY == 'logs':
+            page = self.pages[idx]
+            if getattr(page, '_theme_stale', False):
+                page._theme_stale = False
+                self._repolish_page(page)
+            page.on_shown()
+            if page.NAVIGATION_KEY == 'logs':
                 self.log_panel._unread_count = 0
                 self.log_panel._badge.hide()
                 self._update_logs_sidebar_badge(0)
         self._update_status_bar()
+
+    def _repolish_page(self, page) -> None:
+        """Re-polish a page that was hidden during a theme switch."""
+        from PySide6.QtWidgets import QWidget
+
+        style = page.style()
+        for widget in [page, *page.findChildren(QWidget)]:
+            style.unpolish(widget)
+            style.polish(widget)
+        page.update()
 
     # ====================================================== status bar
 
@@ -553,7 +544,6 @@ class MainWindow(QMainWindow):
 
     def _apply_app_theme(self, theme_name: str) -> None:
         from atlas.core.gui.themes import (
-            DEFAULT_THEME,
             apply_theme_to_app,
             theme_colors,
         )
@@ -579,27 +569,20 @@ class MainWindow(QMainWindow):
             self.setUpdatesEnabled(True)
         t0 = _t('apply_theme_to_app', t0)
 
-        if theme_name == DEFAULT_THEME:
-            self.sidebar.setStyleSheet(SIDEBAR_STYLE)
-            self._sidebar_bottom.setStyleSheet(SIDEBAR_STYLE)
-        else:
-            self.sidebar.setStyleSheet('')
-            self._sidebar_bottom.setStyleSheet('')
-        colors = theme_colors(theme_name)
-        self._sidebar_sep_line.setStyleSheet(f'background: {colors["border"]};')
-        t0 = _t('sidebar styles', t0)
-
         self._update_matplotlib_style(theme_name)
         t0 = _t('matplotlib rcParams', t0)
 
         self._refresh_sidebar_icons()
         t0 = _t('sidebar icons', t0)
 
+        colors = theme_colors(theme_name)
         self.log_panel.set_theme(colors['fg'])
         t0 = _t('log panel', t0)
 
-        for page in getattr(self, 'pages', ()):
+        current_idx = self.stack.currentIndex()
+        for i, page in enumerate(getattr(self, 'pages', ())):
             page.set_app_theme(theme_name)
+            page._theme_stale = i != current_idx
         _t('page.set_app_theme (all)', t0)
 
     @staticmethod

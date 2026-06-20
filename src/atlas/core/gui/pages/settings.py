@@ -20,7 +20,12 @@ from PySide6.QtWidgets import (
 )
 
 from atlas.core.gui.pages.base import WorkflowPage
-from atlas.core.gui.themes import DEFAULT_THEME, theme_names
+from atlas.core.gui.themes import (
+    save_global_toml_theme,
+    saved_global_theme,
+    saved_global_toml_theme,
+    theme_names,
+)
 from atlas.core.gui.widgets.toml_editor import TomlHighlighter
 
 
@@ -64,7 +69,7 @@ class SettingsPage(WorkflowPage):
         self.app_theme_combo = QComboBox()
         for name in theme_names():
             self.app_theme_combo.addItem(name)
-        saved_theme = project.meta('app_theme', DEFAULT_THEME)
+        saved_theme = saved_global_theme()
         idx = self.app_theme_combo.findText(saved_theme)
         if idx >= 0:
             self.app_theme_combo.setCurrentIndex(idx)
@@ -73,7 +78,11 @@ class SettingsPage(WorkflowPage):
 
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(list(TomlHighlighter.THEMES.keys()))
-        self.theme_combo.currentTextChanged.connect(self.theme_changed)
+        saved_toml = saved_global_toml_theme()
+        toml_idx = self.theme_combo.findText(saved_toml)
+        if toml_idx >= 0:
+            self.theme_combo.setCurrentIndex(toml_idx)
+        self.theme_combo.currentTextChanged.connect(self._on_toml_theme_changed)
         appearance_form.addRow('TOML syntax theme', self.theme_combo)
 
         outer.addWidget(appearance_group)
@@ -154,8 +163,11 @@ class SettingsPage(WorkflowPage):
     # ── Appearance ──────────────────────────────────────────────────
 
     def _on_app_theme_changed(self, name: str) -> None:
-        self.project.set_meta('app_theme', name)
         self.app_theme_changed.emit(name)
+
+    def _on_toml_theme_changed(self, name: str) -> None:
+        save_global_toml_theme(name)
+        self.theme_changed.emit(name)
 
     # ── AiiDA profiles ──────────────────────────────────────────────
 
