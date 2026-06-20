@@ -564,8 +564,9 @@ def build_stylesheet(theme_name: str) -> str:
     tab_hover_bg = _mix(alt_bg, fg, 0.05)
 
     return f"""
-/* ====== Global ====== */
-QWidget {{
+/* ====== Base properties (targeted, not universal QWidget) ====== */
+QLabel, QPushButton, QLineEdit, QSpinBox, QDoubleSpinBox,
+QComboBox, QCheckBox, QRadioButton, QGroupBox, QToolButton {{
     background-color: {bg};
     color: {fg};
     font-size: 13px;
@@ -786,10 +787,14 @@ QGroupBox::title {{
 
 /* ====== Frames ====== */
 QFrame {{
+    background-color: {bg};
     color: {fg};
 }}
 
 /* ====== Splitter ====== */
+QSplitter {{
+    background-color: {bg};
+}}
 QSplitter::handle {{
     background-color: {border_light};
 }}
@@ -804,6 +809,13 @@ QSplitter::handle:vertical {{
 QScrollArea {{
     border: none;
     background-color: {bg};
+}}
+
+/* ====== Containers ====== */
+QStackedWidget, QTabWidget, QMainWindow,
+QWidget#atlasPage, QWidget#atlasPanel {{
+    background-color: {bg};
+    color: {fg};
 }}
 
 /* ====== Log Viewer (QTextEdit) ====== */
@@ -982,7 +994,10 @@ def theme_colors(name: str) -> dict[str, str]:
 
 
 def apply_theme_to_app(
-    theme_name: str, *, force: bool = False, verbose: bool = False,
+    theme_name: str,
+    *,
+    force: bool = False,
+    verbose: bool = False,
 ) -> None:
     """Apply theme QSS to QApplication and set OS color scheme hint."""
     import time
@@ -1016,7 +1031,6 @@ def apply_theme_to_app(
     t = THEMES.get(theme_name)
     variant = theme_variant(theme_name)
 
-    # Set palette so the window manager can infer dark/light preference.
     from PySide6.QtGui import QColor, QPalette
 
     if t is not None:
@@ -1026,7 +1040,11 @@ def apply_theme_to_app(
         palette.setColor(QPalette.ColorRole.Base, QColor(t.background))
         palette.setColor(QPalette.ColorRole.Text, QColor(t.foreground))
         app.setPalette(palette)
-    t0 = _t('app.setPalette', t0)
+
+    font = app.font()
+    font.setPointSize(10)
+    app.setFont(font)
+    t0 = _t('app.setPalette + setFont', t0)
 
     # Qt 6.8+ exposes an explicit color scheme hint for title bars.
     try:

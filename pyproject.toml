@@ -127,6 +127,10 @@ exclude-newer = "7 days"
 include-package-data = true
 package-dir = { "" = "src" }
 
+[tool.setuptools.package-data]
+"atlas.core.gui" = ["assets/**/*"]
+"atlas" = ["data/**/*"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

@@ -357,9 +357,7 @@ class MainWindow(QMainWindow):
         # Size the bottom list to fit its items exactly.
         bcount = self._sidebar_bottom.count()
         if bcount:
-            h = sum(
-                self._sidebar_bottom.sizeHintForRow(i) for i in range(bcount)
-            )
+            h = sum(self._sidebar_bottom.sizeHintForRow(i) for i in range(bcount))
             h += 2 * self._sidebar_bottom.frameWidth() + 12
             self._sidebar_bottom.setFixedHeight(h)
 
@@ -588,9 +586,7 @@ class MainWindow(QMainWindow):
             self.sidebar.setStyleSheet('')
             self._sidebar_bottom.setStyleSheet('')
         colors = theme_colors(theme_name)
-        self._sidebar_sep_line.setStyleSheet(
-            f'background: {colors["border"]};'
-        )
+        self._sidebar_sep_line.setStyleSheet(f'background: {colors["border"]};')
         t0 = _t('sidebar styles', t0)
 
         self._update_matplotlib_style(theme_name)

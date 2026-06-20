@@ -107,6 +107,7 @@ class SchemaForm(QWidget):
 
     def __init__(self, parent=None, field_font: QFont | None = None):
         super().__init__(parent)
+        self.setObjectName('atlasPanel')
         self._field_font = field_font or QFont()
 
         self.schema_data: dict | None = None
@@ -153,6 +154,7 @@ class SchemaForm(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.container = QWidget()
+        self.container.setObjectName('atlasPanel')
         self.scroll_area.setWidget(self.container)
         outer.addWidget(self.scroll_area, 1)
 
@@ -210,6 +212,7 @@ class SchemaForm(QWidget):
 
     def _reset_container(self) -> None:
         new_container = QWidget()
+        new_container.setObjectName('atlasPanel')
         self.scroll_area.setWidget(new_container)
         self.container = new_container
         self.widgets_map = {}

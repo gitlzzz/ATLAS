@@ -75,6 +75,7 @@ class ConfigPanel(QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
+        self.setObjectName('atlasPanel')
         self._section_key = section_key
         self._app_font = application_font or QFont()
         self._project = project

@@ -42,6 +42,7 @@ class WorkflowPage(QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
+        self.setObjectName('atlasPage')
         self.project = project
         self._schema_data = schema_data or {}
         self._application_font = application_font or QFont()
