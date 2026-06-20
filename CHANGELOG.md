@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.54.3 (2026-06-20)
+
+### Fix
+
+- **gui**: further optimize theme switching ([#f725295](https://github.com/pol-sb/ATLAS/commit/f72529557cd42618c8140fa3ef1f237639cb9cb2))
+
 ## 0.54.2 (2026-06-20)
 
 ### Fix
