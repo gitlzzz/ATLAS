@@ -114,6 +114,10 @@ Optional dependencies are installed using the following syntax:
 ```bash
 python3 -m pip install ./ATLAS['OPTIONAL_DEPENDENCY_NAME']
 ```
+on Mac:
+```bash
+python3 -m pip install "./ATLAS[OPTIONAL_DEPENDENCY_NAME]"
+```
 
 Some installation examples follow:
 
@@ -122,6 +126,10 @@ Some installation examples follow:
 ```bash
 # Install the library and the MACE dependencies in the venv using pip
 python3 -m pip install ./ATLAS['mace']
+```
+on Mac:
+```bash
+python3 -m pip install "./ATLAS[mace]"
 ```
 
 #### Using `uv`
