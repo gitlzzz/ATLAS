@@ -106,7 +106,7 @@ git clone https://github.com/LopezGroup-ICIQ/ATLAS.git
 
 There are several installation mechanisms, and several optional dependencies depending on what packages you want to use. Check the list and details of optional dependencies in the [pyproject.toml](pyproject.toml). Currently, the following are available:
 
-- `mace`
+- `mace` (requires CUDA, not working on Mac)
 - `dev`
 
 Optional dependencies are installed using the following syntax:
@@ -126,10 +126,6 @@ Some installation examples follow:
 ```bash
 # Install the library and the MACE dependencies in the venv using pip
 python3 -m pip install ./ATLAS['mace']
-```
-on mac:
-```bash
-python3 -m pip install "./ATLAS[mace]"
 ```
 
 #### Using `uv`
