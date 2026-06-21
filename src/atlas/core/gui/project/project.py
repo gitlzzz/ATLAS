@@ -467,6 +467,22 @@ class Project:
         )
         return [int(r[0]) for r in cur.fetchall()]
 
+    def remove_structures_from_index(self, atl_ids: list[str]) -> None:
+        """Remove structures from the SQLite index (main-thread only)."""
+        if not atl_ids:
+            return
+        placeholders = ','.join('?' for _ in atl_ids)
+        with self.conn:
+            self.conn.execute(
+                f'UPDATE dft_runs SET atl_id = NULL WHERE atl_id IN ({placeholders})',  # noqa: S608
+                atl_ids,
+            )
+            self.conn.execute(
+                f'DELETE FROM structures WHERE atl_id IN ({placeholders})',  # noqa: S608
+                atl_ids,
+            )
+        self._structures_index_mtime = None
+
     # =============================================================== AL runs
 
     def record_al_submission(
