@@ -259,9 +259,7 @@ class SchemaForm(QWidget):
                             )
                         )
 
-    def _scan_hidden_sections(
-        self, schema: dict, prefix: tuple[str, ...]
-    ) -> None:
+    def _scan_hidden_sections(self, schema: dict, prefix: tuple[str, ...]) -> None:
         for k, v in schema.items():
             if not isinstance(v, dict):
                 continue
@@ -315,7 +313,10 @@ class SchemaForm(QWidget):
                 label.setFont(QFont(self._field_font))
 
                 widget = self._create_widget(
-                    item, key, current_path, widget_storage,
+                    item,
+                    key,
+                    current_path,
+                    widget_storage,
                 )
                 widget.installEventFilter(self)
                 layout.addRow(label, widget)
@@ -735,9 +736,7 @@ class SchemaForm(QWidget):
             widget = QComboBox()
             widget.setEditable(True)
             widget.setInsertPolicy(QComboBox.NoInsert)
-            widget.lineEdit().setPlaceholderText(
-                item_def.get('example', 'e.g. Cu')
-            )
+            widget.lineEdit().setPlaceholderText(item_def.get('example', 'e.g. Cu'))
             if isinstance(picker, ElementPickerField):
                 for el in picker.elements():
                     widget.addItem(el)

@@ -90,6 +90,7 @@ class BoundaryPanel(QWidget):
         )
         self._detail_placeholder.setAlignment(Qt.AlignCenter)
         self._detail_placeholder.setWordWrap(True)
+        self._detail_placeholder.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self._detail_placeholder.setStyleSheet('padding: 30px; font-size: 13px;')
 
         self._detail_container = QWidget()

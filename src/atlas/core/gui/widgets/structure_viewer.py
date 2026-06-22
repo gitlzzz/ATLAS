@@ -46,6 +46,8 @@ class StructureViewer(QWidget):
 
         self._info_label = QLabel()
         self._info_label.setWordWrap(True)
+        self._info_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self._info_label.setCursor(Qt.IBeamCursor)
         self._info_label.setStyleSheet(
             'padding: 6px; border: 1px solid palette(mid); border-radius: 4px;'
         )

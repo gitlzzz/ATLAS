@@ -179,6 +179,8 @@ class MainWindow(QMainWindow):
 
         self._sidebar_sep = QWidget()
         self._sidebar_sep.setFixedHeight(9)
+        self._sidebar_sep.setAttribute(Qt.WA_TranslucentBackground)
+        self._sidebar_sep.setStyleSheet('background: transparent;')
         sep_layout = QHBoxLayout(self._sidebar_sep)
         sep_layout.setContentsMargins(20, 4, 20, 4)
         self._sidebar_sep_line = QFrame()

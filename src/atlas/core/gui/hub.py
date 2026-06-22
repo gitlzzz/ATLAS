@@ -10,8 +10,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QObject, QRect, QSize, Qt, QThread, Signal
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -24,6 +24,9 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QVBoxLayout,
     QWidget,
 )
@@ -33,6 +36,127 @@ from atlas.core.gui.app_params import ApplicationParameters, pretty_label
 from atlas.core.gui.project import Project, ProjectError, RecentProjects
 
 ASSETS_DIR = Path(__file__).resolve().parent / 'assets'
+
+_ITEM_PADDING = 8
+_ICON_SIZE = 16
+_LINE_GAP = 2
+
+
+class _RecentProjectDelegate(QStyledItemDelegate):
+    """Paints each recent-project item with three styled lines."""
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
+        self.initStyleOption(option, index)
+
+        # Let the style draw background/selection/focus, but not text or icon.
+        style = option.widget.style() if option.widget else QStyle.style()
+        icon = index.data(Qt.DecorationRole)
+        option.text = ''
+        option.icon = QIcon()
+        option.decorationSize = QSize(0, 0)
+        style.drawControl(QStyle.CE_ItemViewItem, option, painter, option.widget)
+
+        raw = index.data(Qt.DisplayRole) or ''
+        parts = raw.split('\n')
+        name = parts[0] if len(parts) > 0 else ''
+        path = parts[1] if len(parts) > 1 else ''
+        status = parts[2] if len(parts) > 2 else ''
+
+        has_icon = icon is not None and not icon.isNull()
+
+        painter.save()
+        painter.setClipRect(option.rect)
+
+        # Text area (offset past icon)
+        icon_space = _ICON_SIZE + 8 if has_icon else 0
+        text_rect = option.rect.adjusted(
+            _ITEM_PADDING + icon_space,
+            _ITEM_PADDING,
+            -_ITEM_PADDING,
+            -_ITEM_PADDING,
+        )
+
+        # Draw icon
+        if has_icon:
+            icon_y = option.rect.y() + (option.rect.height() - _ICON_SIZE) // 2
+            icon.paint(
+                painter,
+                option.rect.x() + _ITEM_PADDING,
+                icon_y,
+                _ICON_SIZE,
+                _ICON_SIZE,
+            )
+
+        selected = bool(option.state & QStyle.State_Selected)
+        base_color = (
+            option.palette.highlightedText().color()
+            if selected
+            else option.palette.text().color()
+        )
+        dim_color = (
+            option.palette.highlightedText().color()
+            if selected
+            else option.palette.placeholderText().color()
+        )
+
+        y = text_rect.y()
+
+        # Line 1: project name (bold)
+        bold_font = QFont(option.font)
+        bold_font.setBold(True)
+        painter.setFont(bold_font)
+        painter.setPen(base_color)
+        fm_bold = QFontMetrics(bold_font)
+        painter.drawText(
+            QRect(text_rect.x(), y, text_rect.width(), fm_bold.height()),
+            Qt.AlignLeft,
+            name,
+        )
+        y += fm_bold.height() + _LINE_GAP
+
+        # Line 2: path (smaller, dimmed)
+        small_font = QFont(option.font)
+        small_font.setPointSize(max(small_font.pointSize() - 1, 7))
+        painter.setFont(small_font)
+        painter.setPen(dim_color)
+        fm_small = QFontMetrics(small_font)
+        elided_path = fm_small.elidedText(path, Qt.ElideMiddle, text_rect.width())
+        painter.drawText(
+            QRect(text_rect.x(), y, text_rect.width(), fm_small.height()),
+            Qt.AlignLeft,
+            elided_path,
+        )
+        y += fm_small.height() + _LINE_GAP
+
+        # Line 3: status line (normal size, dimmed)
+        painter.setFont(option.font)
+        painter.setPen(dim_color)
+        fm_norm = QFontMetrics(option.font)
+        painter.drawText(
+            QRect(text_rect.x(), y, text_rect.width(), fm_norm.height()),
+            Qt.AlignLeft,
+            status,
+        )
+
+        painter.restore()
+
+    def sizeHint(self, option: QStyleOptionViewItem, index):
+        self.initStyleOption(option, index)
+        bold_font = QFont(option.font)
+        bold_font.setBold(True)
+        small_font = QFont(option.font)
+        small_font.setPointSize(max(small_font.pointSize() - 1, 7))
+
+        h = (
+            _ITEM_PADDING
+            + QFontMetrics(bold_font).height()
+            + _LINE_GAP
+            + QFontMetrics(small_font).height()
+            + _LINE_GAP
+            + QFontMetrics(option.font).height()
+            + _ITEM_PADDING
+        )
+        return QSize(option.rect.width(), h)
 
 
 class _VersionCheckWorker(QObject):
@@ -169,6 +293,7 @@ class HubDialog(QDialog):
         box = QGroupBox('Recent Projects')
         layout = QVBoxLayout(box)
         self.recents_list = QListWidget()
+        self.recents_list.setItemDelegate(_RecentProjectDelegate(self.recents_list))
         self.recents_list.itemActivated.connect(self._on_recent_activated)
         self.recents_list.itemDoubleClicked.connect(self._on_recent_activated)
         self.recents_list.currentItemChanged.connect(self._on_recents_selection_changed)

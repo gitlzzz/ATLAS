@@ -84,26 +84,30 @@ def _compute_workflow(
 
     # -- pre-phase ----------------------------------------------------------
 
-    steps.append(WorkflowStep(
-        name='Gather Base Structures',
-        description=f'{num_phases} phase(s) from Materials Project',
-        estimated_count=num_phases,
-        config_key='database',
-        category='generation',
-    ))
+    steps.append(
+        WorkflowStep(
+            name='Gather Base Structures',
+            description=f'{num_phases} phase(s) from Materials Project',
+            estimated_count=num_phases,
+            config_key='database',
+            category='generation',
+        )
+    )
     total += num_phases
 
     target_mod = config.get('targeted_modification', {})
     cao = target_mod.get('central_atom_octahedral', {})
     if cao:
         limit = int(cao.get('limit_max_num_modifications', 0) or 0)
-        steps.append(WorkflowStep(
-            name='Targeted Modification',
-            description='Central atom octahedral perturbation',
-            estimated_count=limit or None,
-            config_key='targeted_modification',
-            category='modification',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Targeted Modification',
+                description='Central atom octahedral perturbation',
+                estimated_count=limit or None,
+                config_key='targeted_modification',
+                category='modification',
+            )
+        )
         total += limit
 
     # -- per-phase ----------------------------------------------------------
@@ -113,27 +117,31 @@ def _compute_workflow(
         n_s = int(bulk.get('num_struct', 2) or 2)
         n_r = int(bulk.get('num_repeat', 2) or 2)
         per = n_s * n_r
-        steps.append(WorkflowStep(
-            name='Bulk Generation',
-            description=f'{n_s} compositions × {n_r} repeats per phase',
-            estimated_count=per,
-            config_key='generation.bulk',
-            category='generation',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Bulk Generation',
+                description=f'{n_s} compositions × {n_r} repeats per phase',
+                estimated_count=per,
+                config_key='generation.bulk',
+                category='generation',
+                group='per_phase',
+            )
+        )
         total += per * num_phases
 
     if 'surface' in gen_types and gen_dict.get('surface'):
         surf = gen_dict['surface']
         cap = int(surf.get('max_number_supercells', 100) or 100)
-        steps.append(WorkflowStep(
-            name='Surface Generation',
-            description=f'Capped at {cap:,} per phase',
-            estimated_count=cap,
-            config_key='generation.surface',
-            category='generation',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Surface Generation',
+                description=f'Capped at {cap:,} per phase',
+                estimated_count=cap,
+                config_key='generation.surface',
+                category='generation',
+                group='per_phase',
+            )
+        )
         total += cap * num_phases
 
     if 'cluster' in gen_types and gen_dict.get('cluster'):
@@ -143,64 +151,74 @@ def _compute_workflow(
         n_s = int(clust.get('num_struct', 2) or 2)
         n_r = int(clust.get('num_repeat', 2) or 2)
         per = max(n_sizes, 1) * n_s * n_r
-        steps.append(WorkflowStep(
-            name='Cluster Generation',
-            description=f'{n_sizes} sizes × {n_s} × {n_r} per phase',
-            estimated_count=per,
-            config_key='generation.cluster',
-            category='generation',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Cluster Generation',
+                description=f'{n_sizes} sizes × {n_s} × {n_r} per phase',
+                estimated_count=per,
+                config_key='generation.cluster',
+                category='generation',
+                group='per_phase',
+            )
+        )
         total += per * num_phases
 
     min_at = db_dict.get('min_num_atoms', 0) or 0
     max_at = db_dict.get('max_num_atoms', 999) or 999
-    steps.append(WorkflowStep(
-        name='Atom Count Filter',
-        description=f'Keep {min_at}–{max_at} atoms',
-        is_filter=True,
-        config_key='min_num_atoms',
-        category='filter',
-        group='per_phase',
-    ))
+    steps.append(
+        WorkflowStep(
+            name='Atom Count Filter',
+            description=f'Keep {min_at}–{max_at} atoms',
+            is_filter=True,
+            config_key='min_num_atoms',
+            category='filter',
+            group='per_phase',
+        )
+    )
 
     if config.get('deformation'):
         d = config['deformation']
         limit = int(d.get('limit_max_num_deformations', 100) or 100)
-        steps.append(WorkflowStep(
-            name='Lattice Deformation',
-            description=f'Up to {limit:,} per phase',
-            estimated_count=limit,
-            config_key='deformation',
-            category='modification',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Lattice Deformation',
+                description=f'Up to {limit:,} per phase',
+                estimated_count=limit,
+                config_key='deformation',
+                category='modification',
+                group='per_phase',
+            )
+        )
         total += limit * num_phases
 
     if config.get('perturbation'):
         p = config['perturbation']
         limit = int(p.get('limit_max_num_perturbs', 100) or 100)
-        steps.append(WorkflowStep(
-            name='Random Perturbation',
-            description=f'Up to {limit:,} per phase',
-            estimated_count=limit,
-            config_key='perturbation',
-            category='modification',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Random Perturbation',
+                description=f'Up to {limit:,} per phase',
+                estimated_count=limit,
+                config_key='perturbation',
+                category='modification',
+                group='per_phase',
+            )
+        )
         total += limit * num_phases
 
     if config.get('vacancies'):
         v = config['vacancies']
         limit = int(v.get('limit_max_num_vacancies', 100) or 100)
-        steps.append(WorkflowStep(
-            name='Vacancy Generation',
-            description=f'Up to {limit:,} per phase',
-            estimated_count=limit,
-            config_key='vacancies',
-            category='modification',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Vacancy Generation',
+                description=f'Up to {limit:,} per phase',
+                estimated_count=limit,
+                config_key='vacancies',
+                category='modification',
+                group='per_phase',
+            )
+        )
         total += limit * num_phases
 
     comp = db_dict.get('composition', {}) or {}
@@ -216,14 +234,16 @@ def _compute_workflow(
             desc = f'Target ~{ppl:,} per phase'
         else:
             desc = 'Per-phase limits applied'
-        steps.append(WorkflowStep(
-            name='Per-Phase Limit',
-            description=desc,
-            is_filter=True,
-            config_key='composition.size',
-            category='filter',
-            group='per_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Per-Phase Limit',
+                description=desc,
+                is_filter=True,
+                config_key='composition.size',
+                category='filter',
+                group='per_phase',
+            )
+        )
         if global_size:
             total = min(total, int(global_size))
 
@@ -232,25 +252,29 @@ def _compute_workflow(
     if config.get('adsorbates'):
         ads = config['adsorbates']
         limit = int(ads.get('limit_max_num_perturbs', 100) or 100)
-        steps.append(WorkflowStep(
-            name='Adsorbate Addition',
-            description=f'Up to {limit:,} adsorbate structures',
-            estimated_count=limit,
-            config_key='adsorbates',
-            category='modification',
-            group='post_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Adsorbate Addition',
+                description=f'Up to {limit:,} adsorbate structures',
+                estimated_count=limit,
+                config_key='adsorbates',
+                category='modification',
+                group='post_phase',
+            )
+        )
         total += limit
 
     if config.get('struct_filters'):
-        steps.append(WorkflowStep(
-            name='Structure Filtering',
-            description='User-defined structure filters',
-            is_filter=True,
-            config_key='struct_filters',
-            category='filter',
-            group='post_phase',
-        ))
+        steps.append(
+            WorkflowStep(
+                name='Structure Filtering',
+                description='User-defined structure filters',
+                is_filter=True,
+                config_key='struct_filters',
+                category='filter',
+                group='post_phase',
+            )
+        )
 
     elements: set[str] = set()
     el_list = phase_dict.get('element_list', [])
@@ -258,40 +282,46 @@ def _compute_workflow(
         elements.update(el_list)
     for pd in phases.values():
         if isinstance(pd, dict):
-            for k in (pd.get('composition') or {}):
+            for k in pd.get('composition') or {}:
                 if isinstance(k, str) and k != 'offset':
                     elements.add(k)
     n_el = max(len(elements), 1)
-    steps.append(WorkflowStep(
-        name='Isolated Atom Addition',
-        description=f'{n_el} unique element(s)',
-        estimated_count=n_el,
-        config_key='',
-        category='output',
-        group='post_phase',
-    ))
+    steps.append(
+        WorkflowStep(
+            name='Isolated Atom Addition',
+            description=f'{n_el} unique element(s)',
+            estimated_count=n_el,
+            config_key='',
+            category='output',
+            group='post_phase',
+        )
+    )
     total += n_el
 
     hull = config.get('concave_hull', {}) or {}
-    steps.append(WorkflowStep(
-        name='Boundary Generation',
-        description='Concave hull / morphological closing',
-        is_active=bool(hull.get('gen_concave_hull')),
-        config_key='concave_hull',
-        category='output',
-        group='post_phase',
-    ))
+    steps.append(
+        WorkflowStep(
+            name='Boundary Generation',
+            description='Concave hull / morphological closing',
+            is_active=bool(hull.get('gen_concave_hull')),
+            config_key='concave_hull',
+            category='output',
+            group='post_phase',
+        )
+    )
 
     export = db_dict.get('export', {}) or {}
     do_export = bool(export.get('export'))
-    steps.append(WorkflowStep(
-        name='Database Export',
-        description=export.get('format', 'extxyz') if do_export else '',
-        is_active=do_export,
-        config_key='export',
-        category='output',
-        group='post_phase',
-    ))
+    steps.append(
+        WorkflowStep(
+            name='Database Export',
+            description=export.get('format', 'extxyz') if do_export else '',
+            is_active=do_export,
+            config_key='export',
+            category='output',
+            group='post_phase',
+        )
+    )
 
     return steps, num_phases, total if total > 0 else None
 

@@ -669,6 +669,17 @@ QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
 QComboBox::drop-down {
     border: none;
     width: 20px;
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+}
+QComboBox::down-arrow {
+    image: none;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid palette(placeholder-text);
+    margin-right: 6px;
 }
 QComboBox QAbstractItemView {
     background-color: palette(tooltip-base);
