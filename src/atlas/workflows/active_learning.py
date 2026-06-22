@@ -315,7 +315,7 @@ class ActiveLearningWorkChain(WorkChain):
             if calc_limit == 0:
                 can_submit = True
             else:
-                can_submit = can_submit_calculation(
+                can_submit, _ = can_submit_calculation(
                     code=code_str,
                     limit=calc_limit,
                 )
@@ -323,7 +323,7 @@ class ActiveLearningWorkChain(WorkChain):
             # If the calculation cannot be submitted, wait for a minute and check again
             while not can_submit:
                 time.sleep(60)
-                can_submit = can_submit_calculation(
+                can_submit, _ = can_submit_calculation(
                     code=code_str,
                     limit=calc_limit,
                 )
@@ -584,7 +584,7 @@ class ActiveLearningWorkChain(WorkChain):
         if calc_limit == 0:
             can_submit = True
         else:
-            can_submit = can_submit_calculation(
+            can_submit, _ = can_submit_calculation(
                 computer=computer,
                 code=code.label,
                 limit=calc_limit,
@@ -592,7 +592,7 @@ class ActiveLearningWorkChain(WorkChain):
         # If the calculation cannot be submitted, wait for a minute and check again
         while not can_submit:
             time.sleep(60)
-            can_submit = can_submit_calculation(
+            can_submit, _ = can_submit_calculation(
                 computer=computer,
                 code=code.label,
                 limit=calc_limit,
@@ -692,7 +692,7 @@ class ActiveLearningWorkChain(WorkChain):
         if calc_limit == 0:
             can_submit = True
         else:
-            can_submit = can_submit_calculation(
+            can_submit, _ = can_submit_calculation(
                 code=code.label,
                 limit=calc_limit,
             )
@@ -700,7 +700,7 @@ class ActiveLearningWorkChain(WorkChain):
         # If the calculation cannot be submitted, wait for a minute and check again
         while not can_submit:
             time.sleep(60)
-            can_submit = can_submit_calculation(
+            can_submit, _ = can_submit_calculation(
                 code=code.label,
                 limit=calc_limit,
             )
@@ -968,7 +968,7 @@ class ActiveLearningWorkChain(WorkChain):
                     if calc_limit == 0:
                         can_submit = True
                     else:
-                        can_submit = can_submit_calculation(
+                        can_submit, _ = can_submit_calculation(
                             code=builder.code.label,
                             limit=calc_limit,
                         )
@@ -977,7 +977,7 @@ class ActiveLearningWorkChain(WorkChain):
                     # wait for a minute and check again
                     while not can_submit:
                         time.sleep(60)
-                        can_submit = can_submit_calculation(
+                        can_submit, _ = can_submit_calculation(
                             code=builder.code.label,
                             limit=calc_limit,
                         )
@@ -1395,7 +1395,7 @@ class ActiveLearningWorkChain(WorkChain):
             if calc_limit == 0:
                 can_submit = True
             else:
-                can_submit = can_submit_calculation(
+                can_submit, _ = can_submit_calculation(
                     computer=computer,
                     code=mace_builder.code.label,
                     limit=calc_limit,
@@ -1404,7 +1404,7 @@ class ActiveLearningWorkChain(WorkChain):
             # If the calculation cannot be submitted, wait for a minute and check again
             while not can_submit:
                 time.sleep(60)
-                can_submit = can_submit_calculation(
+                can_submit, _ = can_submit_calculation(
                     computer=computer,
                     code=mace_builder.code.label,
                     limit=calc_limit,
@@ -1604,7 +1604,7 @@ class ActiveLearningWorkChain(WorkChain):
             if calc_limit == 0:
                 can_submit = True
             else:
-                can_submit = can_submit_calculation(
+                can_submit, _ = can_submit_calculation(
                     computer=computer,
                     code=code.label,
                     limit=calc_limit,
@@ -1613,7 +1613,7 @@ class ActiveLearningWorkChain(WorkChain):
             # If the calculation cannot be submitted, wait for a minute and check again
             while not can_submit:
                 time.sleep(60)
-                can_submit = can_submit_calculation(
+                can_submit, _ = can_submit_calculation(
                     computer=computer,
                     code=code.label,
                     limit=calc_limit,
@@ -1908,7 +1908,7 @@ class ActiveLearningWorkChain(WorkChain):
                         if calc_limit == 0:
                             can_submit = True
                         else:
-                            can_submit = can_submit_calculation(
+                            can_submit, _ = can_submit_calculation(
                                 code=builder.code.label,
                                 limit=calc_limit,
                             )
@@ -1917,7 +1917,7 @@ class ActiveLearningWorkChain(WorkChain):
                         # wait for a minute and check again
                         while not can_submit:
                             time.sleep(60)
-                            can_submit = can_submit_calculation(
+                            can_submit, _ = can_submit_calculation(
                                 code=builder.code.label,
                                 limit=calc_limit,
                             )
@@ -1958,7 +1958,7 @@ class ActiveLearningWorkChain(WorkChain):
                     if calc_limit == 0:
                         can_submit = True
                     else:
-                        can_submit = can_submit_calculation(
+                        can_submit, _ = can_submit_calculation(
                             computer=builder.code.computer,
                             code=builder.code.label,
                             limit=calc_limit,
@@ -1968,7 +1968,7 @@ class ActiveLearningWorkChain(WorkChain):
                     # wait for a minute and check again
                     while not can_submit:
                         time.sleep(60)
-                        can_submit = can_submit_calculation(
+                        can_submit, _ = can_submit_calculation(
                             computer=builder.code.computer,
                             code=builder.code.label,
                             limit=calc_limit,
