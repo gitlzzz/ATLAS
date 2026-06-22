@@ -602,7 +602,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
         if self.inputs.mace_train.get('ignore_container') is True:
             containerized = False
 
-        for _ in range(self.inputs.committee_num_models.value):
+        for model_idx in range(self.inputs.committee_num_models.value):
             model_name = atl_al_ut.generate_model_name()
 
             # Load training settings from inputs and update path and model names.
@@ -682,7 +682,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             mace_builder.metadata.options.output_filename = (
                 f'train_{model_name}_iter-{self.inputs.al_loop_iteration.value}'
             )
-            mace_builder.metadata.label = model_name
+            mace_builder.metadata.label = (
+                f'AL{self.inputs.al_loop_iteration.value + 1}/train/{model_idx + 1}'
+            )
+            mace_builder.metadata.description = f'MACE training: {model_name}'
 
             if not hasattr(mace_builder.metadata.options, 'prepend_text'):
                 mace_builder.metadata.options.prepend_text = (
@@ -1207,7 +1210,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
             'structures to process...'
         )
         calc_count = 0
-        for _, curr_structure in enumerate(current_md_seed_structs):
+        for seed_idx, curr_structure in enumerate(current_md_seed_structs):
             # Run training and save new model file
             proc_seed = CalculationFactory('atl-process-md-seed-struct')
             proc_seed_builder = proc_seed.get_builder()
@@ -1354,9 +1357,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
             computer = orm.load_computer(metadata_dict['computer'])
             proc_seed_builder.metadata.computer = computer
             proc_seed_builder.metadata.label = (
-                f'process_{curr_structure.info.get("struct_name", "unknown")}'
+                f'AL{self.inputs.al_loop_iteration.value + 1}/MD/{seed_idx + 1}'
             )
-            proc_seed_builder.metadata.description = 'Processing structure using MD.'
+            proc_seed_builder.metadata.description = (
+                'MD on '
+                f'{curr_structure.info.get("struct_name", "unknown")}'
+            )
 
             # Getting container settings
             containerized = False
@@ -1564,7 +1570,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
         # Submitting calcs
         calc_count = 0
-        for struct in calcs_to_submit:
+        for dft_seq, struct in enumerate(calcs_to_submit):
             # Get row and index
             struct_uuid = struct.info.get('atl_id')
             if not struct_uuid:
@@ -1593,6 +1599,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     calc_idx=calc_idx,
                     group=None,
                     dft_settings=self.inputs.dft_settings.get_dict(),
+                )
+                builder.metadata.label = (
+                    f'AL{self.inputs.al_loop_iteration.value + 1}/DFT/{dft_seq + 1}'
                 )
 
                 # Get the code and computer from the builder, updated
@@ -1665,6 +1674,9 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 struct_list=mace_calcs_struct_list,
                 dft_settings=self.inputs.dft_settings.get_dict(),
                 container_settings=self.inputs.container_settings.get_dict(),
+            )
+            builder.metadata.label = (
+                f'AL{self.inputs.al_loop_iteration.value + 1}/DFT/mace_batch'
             )
 
             # Get the calculation limit, from the computer metadata set to 0
@@ -3280,7 +3292,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
         )
 
         calc_count = 0
-        for target_struct in target_md_structs:
+        for sg_idx, target_struct in enumerate(target_md_structs):
             # Creating builder for safeguard code
             safeguard_calc = CalculationFactory('atl-safeguard-md')
             sg_builder = safeguard_calc.get_builder()
@@ -3288,10 +3300,11 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
             sg_builder.metadata.computer = computer
             sg_builder.metadata.label = (
-                f'process_{target_struct.info.get("struct_name", "unknown")}'
+                f'AL{self.ctx.iteration + 1}/safeguard/{sg_idx + 1}'
             )
             sg_builder.metadata.description = (
-                'Processing structure using MD as a safeguard.'
+                'Safeguard MD on '
+                f'{target_struct.info.get("struct_name", "unknown")}'
             )
 
             sg_builder.metadata.options = options_dict
