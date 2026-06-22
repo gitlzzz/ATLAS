@@ -355,7 +355,7 @@ def apply_replacement_cluster_db(
     (other_elem,) = db_obj.ALLOY_SET - {phase.cluster_elem}
 
     # Selecting only non-replaced structures
-    base_clusters = db_obj.df.loc[db_obj.df['replacement'] is False]
+    base_clusters = db_obj.df.loc[~db_obj.df['replacement'].astype(bool)]
 
     for _row_idx, row in base_clusters.iterrows():
         cluster = row.structure
