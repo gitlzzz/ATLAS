@@ -114,7 +114,7 @@ Queue settings for HPC schedulers.
 
 - {alt}`node_cpus`:
   - **Description**: Number of CPUs per node.
-  - **Type**: `(optional, int)`
+  - **Type**: `(int)`
 
 - {alt}`max_wallclock_seconds`:
   - **Description**: Maximum wallclock time in seconds.
@@ -127,7 +127,8 @@ Queue settings for HPC schedulers.
 
 - {alt}`multiple`:
   - **Description**: Whether to use multiple nodes.
-  - **Type**: `(optional, int)`
+  - **Type**: `(bool)`
+  - **Default**: `False`.
 
 - {alt}`custom_scheduler_commands`:
   - **Description**: Custom scheduler commands.

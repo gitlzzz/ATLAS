@@ -207,13 +207,12 @@ class InitialDatabase:
         atl_cut.custom_print(f"Loading database: '{self.database_name}'", 'debug')
         self.database_name = db_path.stem
 
-        if not db_path.exists():
-            raise FileNotFoundError(f"Database '{db_path}' does not exist.")
-
         # If no suffixes are present, add the default one.
         if len(db_path.suffixes) == 0:
-            suffix = '.xz'
-            db_path = db_path.with_suffix(suffix)
+            db_path = db_path.with_suffix('.xz')
+
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database '{db_path}' does not exist.")
 
         # Compatibility with the old version of the database
         if '.pkl' in db_path.suffixes:

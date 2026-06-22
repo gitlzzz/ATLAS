@@ -67,7 +67,7 @@ def main():
         case '.xz':
             initial_db = atl_indb.InitialDatabase(
                 database_name=source_db.stem,
-                database_path=source_db,
+                database_path=source_db.parent,
             )
 
     atl_aut.run_dataframe_vasp_aiida_queue(

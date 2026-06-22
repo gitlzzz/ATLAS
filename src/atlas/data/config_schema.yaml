@@ -730,7 +730,7 @@ dft:
         node_cpus:
             description: "Number of CPUs per node."
             type: int
-            mandatory: false
+            mandatory: true
         max_wallclock_seconds:
             description: "Maximum wallclock time in seconds."
             type: int
@@ -742,8 +742,9 @@ dft:
             mandatory: false
         multiple:
             description: "Whether to use multiple nodes."
-            type: int
-            mandatory: false
+            type: bool
+            mandatory: true
+            default: false
         custom_scheduler_commands:
             description: "Custom scheduler commands."
             type: str
@@ -894,7 +895,7 @@ dft_benchmark:
         node_cpus:
             description: "Number of CPUs per node."
             type: int
-            mandatory: false
+            mandatory: true
         max_wallclock_seconds:
             description: "Maximum wallclock time in seconds."
             type: int
@@ -906,8 +907,9 @@ dft_benchmark:
             mandatory: false
         multiple:
             description: "Whether to use multiple nodes."
-            type: int
-            mandatory: false
+            type: bool
+            mandatory: true
+            default: false
         custom_scheduler_commands:
             description: "Custom scheduler commands."
             type: str
