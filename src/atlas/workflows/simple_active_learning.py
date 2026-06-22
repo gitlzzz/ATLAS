@@ -40,6 +40,18 @@ from atlas.core.code_utils import (
 )
 
 
+def add_calc_to_al_group(node, run_name, al_number, stage):
+    """Tag a calc node into a hierarchical AL group `<run_name>/AL<n>/<stage>`.
+
+    Slash-delimited group labels render as a tree in `verdi group list` and let
+    `verdi group dump <run_name>/AL1/MD` export one iteration/stage at a time.
+    """
+    label = f'{run_name}/AL{al_number}/{stage}'
+    group, _ = orm.Group.collection.get_or_create(label=label)
+    group.add_nodes(node)
+    return group
+
+
 class SimpleActiveLearningWorkChain(WorkChain):
     """
     WorkChain to run an active learning loop for a MLIP using MD simulations
@@ -704,6 +716,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
             # Submit calculation
             future = self.submit(mace_builder)
             self.report(f'Submitted training calculation {future.pk}.')
+            add_calc_to_al_group(
+                future,
+                self.inputs.run_name.value,
+                self.inputs.al_loop_iteration.value + 1,
+                'train',
+            )
             self.to_context(mace_training_results=append_(future))
 
     def get_mace_train_output(self):
@@ -1426,6 +1444,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
                     calc_count=calc_count,
                 )
             future = self.submit(proc_seed_builder)
+            add_calc_to_al_group(
+                future,
+                self.inputs.run_name.value,
+                self.inputs.al_loop_iteration.value + 1,
+                'MD',
+            )
 
             if curr_structure.info.get('aiida_uuid'):
                 future.base.extras.set(
@@ -1639,6 +1663,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
                 # Submitting current calculation
                 future = self.submit(builder)
+                add_calc_to_al_group(
+                    future,
+                    self.inputs.run_name.value,
+                    self.inputs.al_loop_iteration.value + 1,
+                    'DFT',
+                )
 
                 unique_id = row.get('unique_id')
                 if not unique_id:
@@ -1683,6 +1713,12 @@ class SimpleActiveLearningWorkChain(WorkChain):
 
             # Submitting current calculation
             future = self.submit(builder)
+            add_calc_to_al_group(
+                future,
+                self.inputs.run_name.value,
+                self.inputs.al_loop_iteration.value + 1,
+                'DFT',
+            )
             future.base.extras.set('atl_calc_uuid', struct.info.get('aiida_uuid'))
             future.base.extras.set(
                 'atl_struct_type', struct.info.get('atl_struct_type')
@@ -3347,6 +3383,12 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                     calc_count=calc_count,
                 )
             future = self.submit(sg_builder)
+            add_calc_to_al_group(
+                future,
+                self.inputs.active_learning.run_name.value,
+                self.ctx.iteration + 1,
+                'safeguard',
+            )
 
             if target_struct.info.get('aiida_uuid'):
                 future.base.extras.set(
