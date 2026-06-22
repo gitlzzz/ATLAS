@@ -1,4 +1,4 @@
-"""Error analysis panel — DFT vs NN parity plots.
+"""Error analysis panel, DFT vs NN parity plots.
 
 Evaluates a MACE model against a labelled database and renders
 energy and force parity scatter plots with RMSE/MAE statistics.

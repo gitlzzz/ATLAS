@@ -195,7 +195,7 @@ class DftBenchmarkPage(WorkflowPage):
     def _build_preflight_checks(self) -> list[Check]:
         def _check_aiida() -> str | None:
             if not _aiida_available():
-                return 'No AiiDA profile loaded — set AIIDA_PROFILE or load one first.'
+                return 'No AiiDA profile loaded, set AIIDA_PROFILE or load one first.'
             return None
 
         def _check_code_string() -> str | None:

@@ -373,9 +373,9 @@ class InitDbPage(WorkflowPage):
         self.tabs.setObjectName('pageTab')
         self.tabs.addTab(self.config_panel, 'Config')
         self.tabs.addTab(self._manage_panel, 'Manage')
-        self.tabs.addTab(self.structures_panel, 'Outputs — Database')
+        self.tabs.addTab(self.structures_panel, 'Outputs, Database')
         self.tabs.addTab(self.table_panel, 'Table View')
-        self.tabs.addTab(self.boundary_panel, 'Outputs — Boundary')
+        self.tabs.addTab(self.boundary_panel, 'Outputs, Boundary')
         self._mark_output_tabs(2)
 
         self.success_banner = SuccessBanner(

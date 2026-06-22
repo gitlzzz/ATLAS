@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
 from atlas.core.gui.project import Project
 
 COLORS = ['#6aa1f4', '#ffa6c8', '#3ed04e', '#e50e3f']
-CHEM_ACC_E = 43.37  # meV/atom — chemical accuracy reference
+CHEM_ACC_E = 43.37  # meV/atom, chemical accuracy reference
 
 
 # ------------------------------------------------------------------ parser

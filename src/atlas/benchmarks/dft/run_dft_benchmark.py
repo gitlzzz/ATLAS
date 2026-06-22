@@ -98,7 +98,7 @@ def main() -> int:
     atl_cut.custom_print(f'Built {len(descriptors)} benchmark calculations.', 'info')
 
     if dry_run:
-        atl_cut.custom_print('Dry run — listing calculations:', 'info')
+        atl_cut.custom_print('Dry run, listing calculations:', 'info')
         for d in descriptors:
             ref_tag = ' [REF]' if d['is_reference'] else ''
             atl_cut.custom_print(

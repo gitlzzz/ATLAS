@@ -51,7 +51,7 @@ def setup_code() -> None:
         'AiiDA Code Setup',
         'A code points to an executable on a configured computer.\n'
         'ATLAS supports VASP, LAMMPS, and MACE presets, or you can add a custom code.\n'
-        'All codes are optional — database generation does not require remote codes.'
+        'All codes are optional, database generation does not require remote codes.'
         '\n\nDocs: '
         'https://aiida.readthedocs.io/projects/aiida-core/en/stable/howto/'
         'run_codes.html#how-to-set-up-a-code',

@@ -1,4 +1,4 @@
-"""Latent space gallery — browse saved plots from AL iterations.
+"""Latent space gallery, browse saved plots from AL iterations.
 
 Scans the project directory for latent space plot images generated
 during active learning and displays them in a navigable gallery.
@@ -156,7 +156,7 @@ class LatentSpaceGallery(QWidget):
             return
 
         path = self._images[row]
-        self._info_label.setText(f'{path.name}  —  {path.parent}')
+        self._info_label.setText(f'{path.name} ,  {path.parent}')
 
         if path.suffix.lower() in ('.png', '.jpg', '.jpeg'):
             pixmap = QPixmap(str(path))

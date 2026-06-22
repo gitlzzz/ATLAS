@@ -3,7 +3,7 @@
 ``PrereqBanner`` (amber) is shown when an upstream pipeline stage hasn't
 produced what the current page needs.
 
-``SuccessBanner`` (green) is shown after a stage completes — it offers
+``SuccessBanner`` (green) is shown after a stage completes, it offers
 navigation buttons to the outputs tab or the next workflow stage, and a
 dismiss button (x) to reclaim screen space.
 """

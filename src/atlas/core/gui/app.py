@@ -122,7 +122,7 @@ def _parse_args() -> argparse.Namespace:
         '--console',
         action='store_true',
         help='Keep attached to the terminal (do not fork/detach). '
-        'Useful for debugging — stdout/stderr remain visible.',
+        'Useful for debugging, stdout/stderr remain visible.',
     )
     parser.add_argument(
         '--project',

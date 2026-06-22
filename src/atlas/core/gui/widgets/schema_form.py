@@ -125,7 +125,7 @@ class SchemaForm(QWidget):
         search_row.setContentsMargins(8, 4, 8, 4)
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(
-            'Find parameter (Ctrl+F) — name, key, or description'
+            'Find parameter (Ctrl+F), name, key, or description'
         )
         self.search_input.setClearButtonEnabled(True)
         self.search_input.textChanged.connect(self._on_search_text_changed)
@@ -185,7 +185,7 @@ class SchemaForm(QWidget):
         """Build the form for ``key``.
 
         If *sub_keys* is given, only those top-level children of the
-        section are rendered — useful for splitting a large section
+        section are rendered, useful for splitting a large section
         across multiple tabs.
 
         Emits ``section_changed`` and ``data_changed``.

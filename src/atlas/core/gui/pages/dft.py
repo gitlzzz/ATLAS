@@ -203,7 +203,7 @@ class DftPage(WorkflowPage):
     def _build_preflight_checks(self) -> list[Check]:
         def _check_aiida() -> str | None:
             if not _aiida_available():
-                return 'No AiiDA profile loaded — set AIIDA_PROFILE or load one first.'
+                return 'No AiiDA profile loaded, set AIIDA_PROFILE or load one first.'
             return None
 
         def _check_code_string() -> str | None:
@@ -218,7 +218,7 @@ class DftPage(WorkflowPage):
 
                 orm.load_code(val)
             except Exception:
-                return f'Code "{val}" not found in AiiDA — check the label.'
+                return f'Code "{val}" not found in AiiDA, check the label.'
             return None
 
         def _check_potential_family() -> str | None:
@@ -429,7 +429,7 @@ def _preflight_check(parsed: dict) -> list[str]:
     queue = parsed.get('queue', {})
     if not queue.get('code_string'):
         problems.append(
-            'Missing queue.code_string — set the AiiDA code label '
+            'Missing queue.code_string, set the AiiDA code label '
             '(e.g. "vasp@my_cluster").'
         )
 

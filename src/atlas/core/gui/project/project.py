@@ -1,4 +1,4 @@
-"""The ``Project`` class — runtime API for an ATLAS GUI project bundle.
+"""The ``Project`` class, runtime API for an ATLAS GUI project bundle.
 
 Layout
 ------
@@ -58,7 +58,7 @@ class ProjectError(Exception):
 def _row_to_dict(row: sqlite3.Row | None) -> dict | None:
     if row is None:
         return None
-    # NB: iterating a sqlite3.Row yields values, not column names — explicit
+    # NB: iterating a sqlite3.Row yields values, not column names, explicit
     # `.keys()` is required here.  Ruff's SIM118 autofix is wrong for Row.
     return {k: row[k] for k in row.keys()}  # noqa: SIM118
 
@@ -308,7 +308,7 @@ class Project:
             )
             if candidates:
                 return candidates[-1]
-            # No prefix match — fall back to newest .xz
+            # No prefix match, fall back to newest .xz
             all_xz = sorted(
                 db_dir.glob('*.xz'),
                 key=lambda p: p.stat().st_mtime,
@@ -660,7 +660,7 @@ class Project:
         elif has_init_db_file:
             # .xz exists but the index hasn't been refreshed yet.
             init_status = 'partial'
-            init_metric = 'Database file present — refresh index to see counts'
+            init_metric = 'Database file present, refresh index to see counts'
         else:
             init_status = 'empty'
             init_metric = 'No database generated yet'

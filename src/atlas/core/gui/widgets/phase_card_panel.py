@@ -283,7 +283,7 @@ class PhaseEditDialog(QDialog):
         parent=None,
     ):
         super().__init__(parent)
-        self.setWindowTitle(f'Phase — {key}')
+        self.setWindowTitle(f'Phase, {key}')
         self.setMinimumWidth(520)
         self._field_font = field_font
         self._key = key
@@ -435,7 +435,7 @@ class PhaseEditDialog(QDialog):
 
     def _on_name_changed(self, text: str) -> None:
         slug = self._slugify(text)
-        self.setWindowTitle(f'Phase — {text}' if text else 'Phase — new')
+        self.setWindowTitle(f'Phase, {text}' if text else 'Phase, new')
         if slug:
             self._key_preview.setText(f'Key: {slug}')
         else:

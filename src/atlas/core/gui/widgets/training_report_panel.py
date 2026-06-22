@@ -1,4 +1,4 @@
-"""Training report panel — cross-run comparison and export.
+"""Training report panel, cross-run comparison and export.
 
 Renders an AL training report with run selector, summary table,
 overlaid RMSE charts for comparing runs, and export-to-PNG.
@@ -305,7 +305,7 @@ class TrainingReportPanel(QWidget):
         if not run_ids:
             return
 
-        # DB evolution — bar chart of final DB sizes per run
+        # DB evolution, bar chart of final DB sizes per run
         fig = self._chart_db.fig
         fig.clear()
         ax = fig.add_subplot(111)
@@ -330,7 +330,7 @@ class TrainingReportPanel(QWidget):
             ax.spines['right'].set_visible(False)
         self._chart_db.redraw()
 
-        # RMSE E — overlaid lines per run
+        # RMSE E, overlaid lines per run
         fig = self._chart_rmse_e.fig
         fig.clear()
         ax = fig.add_subplot(111)
@@ -370,7 +370,7 @@ class TrainingReportPanel(QWidget):
             ax.spines['right'].set_visible(False)
         self._chart_rmse_e.redraw()
 
-        # RMSE F — overlaid lines per run
+        # RMSE F, overlaid lines per run
         fig = self._chart_rmse_f.fig
         fig.clear()
         ax = fig.add_subplot(111)
@@ -406,7 +406,7 @@ class TrainingReportPanel(QWidget):
             ax.spines['right'].set_visible(False)
         self._chart_rmse_f.redraw()
 
-        # Combined — iteration count per run
+        # Combined, iteration count per run
         fig = self._chart_combined.fig
         fig.clear()
         ax = fig.add_subplot(111)
@@ -498,9 +498,7 @@ class TrainingReportPanel(QWidget):
             ax.set_xticks(x + w / 2, labels=it_idx)
             ax.set_xlabel('AL Iteration')
             ax.set_ylabel('Structures')
-            ax.set_title(
-                f'Run #{run_id} — DB Evolution', fontsize=10, fontweight='bold'
-            )
+            ax.set_title(f'Run #{run_id}, DB Evolution', fontsize=10, fontweight='bold')
             ax.legend(fontsize=8)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)

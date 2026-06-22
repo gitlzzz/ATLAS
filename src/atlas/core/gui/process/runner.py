@@ -294,7 +294,7 @@ def _pid_alive(pid: int) -> bool:
 
 def _read_exit_code(pid_file: Path) -> int:
     """Best-effort read of exit code; returns -1 if unknown."""
-    # The PID file doesn't store exit codes — we only know the process
+    # The PID file doesn't store exit codes, we only know the process
     # is gone.  In the future we could write a .rc file from a wrapper.
     return -1
 

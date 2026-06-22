@@ -3646,7 +3646,7 @@ def cli_run_gen_initial_database(
         if _cluster_limit_global:
             _cluster_budget_remaining = int(_cluster_limit_global)
 
-    # Global target from database.composition.size — used to auto-derive
+    # Global target from database.composition.size, used to auto-derive
     # per-phase limits when no explicit limit_max_num_structures is set.
     _total_target = int(composition_dict.get('size', 0)) or None
 

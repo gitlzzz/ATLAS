@@ -1,4 +1,4 @@
-"""Database management panel — delete and export the initial database."""
+"""Database management panel, delete and export the initial database."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""DFT outputs panel — structures table with 3D viewer.
+"""DFT outputs panel, structures table with 3D viewer.
 
 Combines the sortable/filterable structures table with a structure
 viewer on the right.  Clicking a row loads the 3D view and metadata,

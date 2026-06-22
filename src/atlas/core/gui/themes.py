@@ -526,7 +526,7 @@ _STATIC_QSS: str | None = None
 def build_static_stylesheet() -> str:
     """Return a static QSS that uses palette(...) references for all colors.
 
-    The same QSS works for every theme — only the QPalette changes.
+    The same QSS works for every theme, only the QPalette changes.
     """
     global _STATIC_QSS  # noqa: PLW0603
     if _STATIC_QSS is not None:
@@ -1037,7 +1037,7 @@ def _repolish_visible(app, verbose: bool = False) -> None:
     After a QPalette change the ``palette(...)`` references in the static
     QSS are stale.  Calling ``app.setStyleSheet()`` again would re-polish
     *every* widget (slow).  Instead we manually unpolish+polish only
-    visible ones — hidden QStackedWidget pages are skipped and get
+    visible ones, hidden QStackedWidget pages are skipped and get
     re-polished lazily when shown.
     """
     import time
@@ -1068,7 +1068,7 @@ def apply_theme_to_app(
 
     The QSS uses ``palette(...)`` references and is set only once (at
     startup, when few widgets exist).  Subsequent theme switches update
-    the QPalette and selectively re-polish only visible widgets — hidden
+    the QPalette and selectively re-polish only visible widgets, hidden
     pages in the QStackedWidget are skipped and re-polished lazily.
     """
     import time

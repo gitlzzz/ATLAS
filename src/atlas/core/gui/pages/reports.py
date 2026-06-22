@@ -1,4 +1,4 @@
-"""Reports page — training report, error analysis, latent space gallery."""
+"""Reports page, training report, error analysis, latent space gallery."""
 
 from __future__ import annotations
 

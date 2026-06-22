@@ -7,7 +7,7 @@ buttons.  It is locked to a single top-level schema section (e.g.
 page's "Config" tab.
 
 When *sub_section_tabs* is provided, the single long form is split into
-multiple inner tabs — each rendering only the specified sub-keys of the
+multiple inner tabs, each rendering only the specified sub-keys of the
 schema section.  Data collection and population transparently span all
 tabs so the resulting TOML is identical to the single-form case.
 """

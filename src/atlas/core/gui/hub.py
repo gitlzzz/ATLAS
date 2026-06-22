@@ -1,4 +1,4 @@
-"""Hub dialog — entry point for `atl_gui`.
+"""Hub dialog, entry point for `atl_gui`.
 
 The Hub lets the user create, open, or pick a recently-used project.  On
 success it sets ``self.selected_project`` to an open ``Project`` instance

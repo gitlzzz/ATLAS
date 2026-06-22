@@ -185,7 +185,7 @@ class PeriodicTableDialog(QDialog):
         for z, symbol, name, row, col, _category in ELEMENTS:
             btn = QPushButton(symbol)
             btn.setFixedSize(38, 32)
-            btn.setToolTip(f'{z} — {name}')
+            btn.setToolTip(f'{z}, {name}')
             btn.setCheckable(True)
             btn.setChecked(symbol in self._selected)
             btn.clicked.connect(lambda _, s=symbol: self._toggle(s))

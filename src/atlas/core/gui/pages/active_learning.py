@@ -237,7 +237,7 @@ class ActiveLearningPage(WorkflowPage):
     def _build_preflight_checks(self) -> list[Check]:
         def _check_aiida() -> str | None:
             if not _aiida_available():
-                return 'No AiiDA profile loaded — set AIIDA_PROFILE or load one first.'
+                return 'No AiiDA profile loaded, set AIIDA_PROFILE or load one first.'
             return None
 
         def _check_profile() -> str | None:
@@ -484,7 +484,7 @@ def _preflight_check(parsed: dict, db_folder: str) -> list[str]:
     configured_db = al.get('init_db_path', '')
     if not configured_db:
         problems.append(
-            'Missing active_learning.init_db_path — set the path to the '
+            'Missing active_learning.init_db_path, set the path to the '
             'folder containing the initial database.'
         )
     elif not os.path.isdir(str(configured_db)):

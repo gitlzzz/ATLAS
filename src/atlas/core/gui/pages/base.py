@@ -98,8 +98,8 @@ class WorkflowPage(QWidget):
                 self,
                 'Detached Process',
                 'This process runs independently of the GUI.\n\n'
-                'Disconnect — stop watching but let it keep running.\n'
-                'Terminate — kill the process.\n\n'
+                'Disconnect, stop watching but let it keep running.\n'
+                'Terminate, kill the process.\n\n'
                 'Disconnect from the process?',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
             )

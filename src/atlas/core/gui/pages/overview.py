@@ -1,4 +1,4 @@
-"""Project overview page — first sidebar entry.
+"""Project overview page, first sidebar entry.
 
 Layout:
 * Project metadata at the top.

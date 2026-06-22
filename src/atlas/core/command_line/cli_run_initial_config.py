@@ -17,7 +17,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='atl_init_setup',
         description=(
-            'ATLAS setup wizard — configure MP API key, AiiDA profiles, '
+            'ATLAS setup wizard, configure MP API key, AiiDA profiles, '
             'computers, and codes.'
         ),
     )

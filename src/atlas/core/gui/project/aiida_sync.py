@@ -1,7 +1,7 @@
 """Query AiiDA for process states and sync them into the project DB.
 
 All AiiDA imports are deferred so the module can be imported without
-AiiDA installed — the functions raise ``RuntimeError`` at call time if
+AiiDA installed, the functions raise ``RuntimeError`` at call time if
 AiiDA is unavailable.
 """
 

@@ -239,7 +239,7 @@ def get_latent_space_autoencoder(
     with torch.no_grad():
         uuids = list(descriptor_dict.keys())
 
-        # Gather all descriptors — handle both per-atom (2D) and averaged (1D)
+        # Gather all descriptors, handle both per-atom (2D) and averaged (1D)
         all_descrs = []
         all_lengths = []
         for u in uuids:

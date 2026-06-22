@@ -6,7 +6,7 @@ from __future__ import annotations
 def fetch_aiida_suggestions() -> dict[str, list[str]]:
     """Return a dict of suggestion lists keyed by suggestion type.
 
-    Safe to call even when AiiDA is not installed — returns empty lists.
+    Safe to call even when AiiDA is not installed, returns empty lists.
     """
     suggestions: dict[str, list[str]] = {
         'aiida_profiles': [],

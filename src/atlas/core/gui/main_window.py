@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
 
         self.setGeometry(100, 100, 1600, 900)
         self.project = project
-        self.setWindowTitle(f'ATLAS — {project.name}')
+        self.setWindowTitle(f'ATLAS, {project.name}')
         self.setWindowIcon(self._app_icon())
 
         self._application_font = application_font or QFont()
@@ -133,7 +133,7 @@ class MainWindow(QMainWindow):
         if not self._verbose:
             return
         elapsed = time.perf_counter() - self._t0
-        print(f'[ATLAS] {elapsed:6.3f}s — {stage}')
+        print(f'[ATLAS] {elapsed:6.3f}s, {stage}')
 
     # ============================================================ schema
 
@@ -633,7 +633,7 @@ class MainWindow(QMainWindow):
             )
         else:
             self._tray.showMessage(
-                f'{task_name} — Failed',
+                f'{task_name}, Failed',
                 'The process did not complete successfully.',
                 QSystemTrayIcon.Warning,
                 3000,
@@ -648,7 +648,7 @@ class MainWindow(QMainWindow):
 
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(self._app_icon())
-        self._tray.setToolTip(f'ATLAS — {self.project.name}')
+        self._tray.setToolTip(f'ATLAS, {self.project.name}')
 
         menu = QMenu()
         show_action = menu.addAction('Show ATLAS')

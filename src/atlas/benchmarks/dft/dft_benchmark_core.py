@@ -290,7 +290,7 @@ def monitor_and_collect(
                     )
                 except Exception as exc:
                     atl_cut.custom_print(
-                        f'  {desc["calc_label"]}: FAILED — {exc}',
+                        f'  {desc["calc_label"]}: FAILED, {exc}',
                         'warning',
                     )
                     desc['energy_per_atom'] = None
