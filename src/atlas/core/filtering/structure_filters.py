@@ -66,7 +66,9 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
             # print('structure: ', type(structures))
             structure = AseAtomsAdaptor().get_atoms(row[1].structure)
 
-            if structure.info.get('base') or structure.info.get('base'):
+            if getattr(row[1], 'base', False) or getattr(
+                row[1], 'isolated_atom', False
+            ):
                 continue
 
             struct_filter_results = []
@@ -85,6 +87,7 @@ def apply_struct_filters_atl_db(structures, config_dict: dict):
                     result = filter_func(structure, **filt_params)
                 except Exception:
                     print(f"'{filt_name}' failed for structure '{row[0]}'. Skipping...")
+                    continue
                 if result:
                     struct_filter_results.append(result)
 
