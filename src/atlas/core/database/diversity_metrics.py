@@ -114,7 +114,7 @@ def get_vendi_score_db_rbf(
 
     custom_print(f'Feature matrix shape: {feature_matrix_X.shape}')
 
-    get_vendi_score(feature_matrix_X=feature_matrix_X, sigma=sigma, k=k)
+    return get_vendi_score(feature_matrix_X=feature_matrix_X, sigma=sigma, k=k)
 
 
 def get_vendi_score(
