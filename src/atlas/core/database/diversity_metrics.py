@@ -318,7 +318,7 @@ def tanimoto_distance(struct_1_descriptors, struct_2_descriptors):
     Also known as Jaccard distance.
     """
     tanimoto = 1 - np.sum(struct_1_descriptors * struct_2_descriptors) / (
-        np.sum(np.max(struct_1_descriptors, struct_2_descriptors))
+        np.sum(np.maximum(struct_1_descriptors, struct_2_descriptors))
     )
     return tanimoto
 
