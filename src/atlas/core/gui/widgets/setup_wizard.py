@@ -1,4 +1,4 @@
-"""GUI setup wizard — mirrors atl_init_setup in a QWizard."""
+"""GUI setup wizard, mirrors atl_init_setup in a QWizard."""
 
 from __future__ import annotations
 
@@ -91,7 +91,30 @@ def _current_profile() -> str | None:
         from aiida.manage.configuration import get_profile
 
         p = get_profile()
-        return p.name if p else None
+        if p is not None:
+            return p.name
+        # No profile loaded yet, try loading the default.
+        profiles, default = _list_profiles()
+        if default:
+            from aiida import load_profile
+
+            load_profile(default)
+            p = get_profile()
+            return p.name if p else None
+        return None
+    except Exception:
+        return None
+
+
+def _broker_configured() -> bool | None:
+    """True if broker is set, False if not, None if can't determine."""
+    try:
+        from aiida.manage.configuration import get_profile
+
+        profile = get_profile()
+        if profile is None:
+            return None
+        return profile.process_control_backend is not None
     except Exception:
         return None
 
@@ -173,6 +196,10 @@ def check_setup_problems() -> list[str]:
     elif not _current_profile():
         problems.append('No AiiDA profile is loaded')
     else:
+        if _broker_configured() is False:
+            problems.append(
+                'No message broker (RabbitMQ) configured, workflow submission will fail'
+            )
         if not _list_computers():
             problems.append('No compute resources configured in AiiDA')
         if not _list_codes():
@@ -247,10 +274,11 @@ class _WelcomePage(QWizardPage):
             'The wizard will guide you through:\n\n'
             '  1. Materials Project API key\n'
             '  2. AiiDA profile selection\n'
-            '  3. AiiDA computer setup\n'
-            '  4. AiiDA code registration\n'
-            '  5. VASP potential family upload\n\n'
-            'Steps 2–5 require AiiDA and can be skipped if you only\n'
+            '  3. Message broker (RabbitMQ) check\n'
+            '  4. AiiDA computer setup\n'
+            '  5. AiiDA code registration\n'
+            '  6. VASP potential family upload\n\n'
+            'Steps 2–6 require AiiDA and can be skipped if you only\n'
             'need database generation.\n\n'
             'Note: AiiDA settings (profiles, computers, codes, and potentials)\n'
             'are stored in your AiiDA installation and persist across all\n'
@@ -468,6 +496,137 @@ class _AiidaProfilePage(QWizardPage):
         return True
 
 
+class _BrokerPage(QWizardPage):
+    """Check and configure the RabbitMQ message broker for AiiDA."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle('Message Broker (RabbitMQ)')
+        self.setSubTitle(
+            'AiiDA uses RabbitMQ as a message broker to manage workflow\n'
+            'submissions to remote computers. Without it, calculations\n'
+            'cannot be submitted.\n'
+            'You can skip this step and configure it later.'
+        )
+        layout = QVBoxLayout(self)
+
+        if not _aiida_available():
+            layout.addWidget(
+                QLabel(
+                    'AiiDA is not installed in this environment.\n'
+                    'Skip this step or install aiida-core first.'
+                )
+            )
+            self._status = None
+            layout.addStretch()
+            return
+
+        info = QLabel(
+            'If you created your profile with "verdi presto", RabbitMQ\n'
+            'is likely not configured. To install RabbitMQ:\n\n'
+            '  Ubuntu/Debian:  sudo apt install rabbitmq-server\n'
+            '  macOS:          brew install rabbitmq\n'
+            '  conda:          conda install -c conda-forge rabbitmq-server'
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self._status = QLabel()
+        layout.addWidget(self._status)
+
+        btn_row = QHBoxLayout()
+        configure_btn = QPushButton('Configure RabbitMQ')
+        configure_btn.setToolTip(
+            'Run "verdi profile configure-rabbitmq" to connect\n'
+            'the current profile to a running RabbitMQ server.'
+        )
+        configure_btn.clicked.connect(self._run_configure_rabbitmq)
+        btn_row.addWidget(configure_btn)
+
+        refresh_btn = QPushButton('Refresh')
+        refresh_btn.setFixedWidth(80)
+        refresh_btn.clicked.connect(self._check_broker)
+        btn_row.addWidget(refresh_btn)
+
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+
+        docs_link = QLabel(
+            'For details, see the '
+            '<a href="https://aiida.readthedocs.io/projects/aiida-core/en/latest/'
+            'installation/guide_quick.html#quick-install-limitations">'
+            'AiiDA broker documentation</a>.'
+        )
+        docs_link.setOpenExternalLinks(True)
+        docs_link.setTextFormat(Qt.RichText)
+        layout.addWidget(docs_link)
+
+        layout.addStretch()
+
+    def initializePage(self) -> None:
+        self._check_broker()
+
+    def _check_broker(self) -> None:
+        if self._status is None:
+            return
+        result = _broker_configured()
+        if result is True:
+            self._status.setText('Message broker is configured.')
+            self._status.setStyleSheet('color: #4caf50;')
+        elif result is False:
+            self._status.setText(
+                'No message broker configured for this profile.\n'
+                'Click "Configure RabbitMQ" if RabbitMQ is installed and running.'
+            )
+            self._status.setStyleSheet('color: #ef5350;')
+        else:
+            self._status.setText('No AiiDA profile loaded.')
+            self._status.setStyleSheet('color: palette(mid);')
+
+    def _run_configure_rabbitmq(self) -> None:
+        import subprocess
+
+        self._status.setText('Configuring RabbitMQ...')
+        self._status.setStyleSheet('color: palette(mid);')
+        self._status.repaint()
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.processEvents()
+
+        try:
+            result = subprocess.run(
+                ['verdi', 'profile', 'configure-rabbitmq'],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                self._status.setText('RabbitMQ configured successfully.')
+                self._status.setStyleSheet('color: #4caf50;')
+            else:
+                msg = result.stderr.strip() or result.stdout.strip()
+                QMessageBox.critical(
+                    self,
+                    'RabbitMQ Configuration',
+                    msg or 'Unknown error. Is RabbitMQ installed and running?',
+                )
+                self._status.setText('Configuration failed.')
+                self._status.setStyleSheet('color: #ef5350;')
+        except FileNotFoundError:
+            QMessageBox.critical(
+                self,
+                'RabbitMQ Configuration',
+                '"verdi" command not found.\nIs aiida-core installed?',
+            )
+        except subprocess.TimeoutExpired:
+            QMessageBox.critical(
+                self, 'RabbitMQ Configuration', 'Command timed out (30 seconds).'
+            )
+
+    def validatePage(self) -> bool:
+        return True
+
+
 class _ComputerPage(QWizardPage):
     """Add an AiiDA computer (optionally pre-filled from SSH config)."""
 
@@ -479,7 +638,7 @@ class _ComputerPage(QWizardPage):
         self.setTitle('AiiDA Computer')
         self.setSubTitle(
             'Configure a remote or local computer for running calculations.\n'
-            'This step is optional — skip if not needed now.'
+            'This step is optional, skip if not needed now.'
         )
         layout = QVBoxLayout(self)
 
@@ -735,7 +894,7 @@ class _CodePage(QWizardPage):
         self.setTitle('AiiDA Code')
         self.setSubTitle(
             'Register a code (executable) on a configured computer.\n'
-            'This step is optional — all codes can be added later.'
+            'This step is optional, all codes can be added later.'
         )
         layout = QVBoxLayout(self)
 
@@ -942,7 +1101,7 @@ class _PotcarPage(QWizardPage):
         self.setSubTitle(
             'Upload VASP PAW potentials as an AiiDA potential family.\n'
             'Requires aiida-vasp installed and a POTCAR archive from the VASP portal.\n'
-            'This step is optional — skip if not using VASP.'
+            'This step is optional, skip if not using VASP.'
         )
         layout = QVBoxLayout(self)
 
@@ -1262,6 +1421,15 @@ class _StatusPage(QWizardPage):
         current = _current_profile()
         rows.append(('AiiDA profile', current or 'None'))
 
+        # Broker
+        broker = _broker_configured()
+        if broker is True:
+            rows.append(('Message broker', 'Configured'))
+        elif broker is False:
+            rows.append(('Message broker', 'Not configured'))
+        else:
+            rows.append(('Message broker', 'N/A'))
+
         # Computers
         computers = _list_computers()
         rows.append(('Computers', ', '.join(computers) if computers else 'None'))
@@ -1285,7 +1453,7 @@ class _StatusPage(QWizardPage):
 
 
 class SetupWizard(QWizard):
-    """ATLAS setup wizard — GUI equivalent of ``atl_init_setup``."""
+    """ATLAS setup wizard, GUI equivalent of ``atl_init_setup``."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1296,6 +1464,7 @@ class SetupWizard(QWizard):
         self.addPage(_WelcomePage())
         self.addPage(_MpKeyPage())
         self.addPage(_AiidaProfilePage())
+        self.addPage(_BrokerPage())
         self.addPage(_ComputerPage())
         self.addPage(_CodePage())
         self.addPage(_PotcarPage())
@@ -1353,6 +1522,14 @@ class SetupStatusPanel(QGroupBox):
 
         current = _current_profile()
         rows.append(('AiiDA profile', current or 'None'))
+
+        broker = _broker_configured()
+        if broker is True:
+            rows.append(('Message broker', 'Configured'))
+        elif broker is False:
+            rows.append(('Message broker', 'Not configured'))
+        else:
+            rows.append(('Message broker', 'N/A'))
 
         computers = _list_computers()
         rows.append(('Computers', ', '.join(computers) if computers else 'None'))
