@@ -121,18 +121,17 @@ def check_traj_in_domain(
     for c_uuid in descriptor_dict:
         descriptors = descriptor_dict[c_uuid]['latent_space']
 
-        for _, frame_desc in enumerate(descriptors):
-            c_all_p = []
-            for point in frame_desc:
-                p = Point(point)
-                if polygon.contains(p):
-                    point_inside.append(point)
-                    c_all_p.append(True)
-                else:
-                    point_outside.append(point)
-                    c_all_p.append(False)
+        c_all_p = []
+        for point in descriptors:
+            p = Point(point)
+            if polygon.contains(p):
+                point_inside.append(point)
+                c_all_p.append(True)
+            else:
+                point_outside.append(point)
+                c_all_p.append(False)
 
-            all_points_in_out.append(np.array(c_all_p))
+        all_points_in_out.append(np.array(c_all_p))
 
     point_inside = np.array(point_inside)
     point_outside = np.array(point_outside)
@@ -1204,11 +1203,8 @@ if __name__ == '__main__':
                 filename=res_folder / f'concave_hull_temp-{curr_temp}.png',
             )
 
-            for idx, frame in enumerate(all_points_in_out):
-                if np.all(frame):
-                    descriptor_dict[structure_uuid]['is_extrapolating'][idx] = False
-                else:
-                    descriptor_dict[structure_uuid]['is_extrapolating'][idx] = True
+            for uuid, frame in zip(uuids, all_points_in_out, strict=False):
+                descriptor_dict[uuid]['is_extrapolating'] = not np.all(frame)
 
         # Simple extrapolation check (descriptor min/max)
         elif extrap_type in ['basic', 'min-max']:
@@ -1235,10 +1231,8 @@ if __name__ == '__main__':
         # Gathering indices of extrapolating frames
         # according to the extrapolation check results
         if extrap_type != 'none':
-            for idx, is_extrapolating in enumerate(
-                descriptor_dict[structure_uuid]['is_extrapolating']
-            ):
-                if is_extrapolating:
+            for idx, uuid in enumerate(uuids):
+                if descriptor_dict[uuid]['is_extrapolating']:
                     curr_frame_idx = md_traj_short[idx].info['frame_idx']
                     extrapolating_frames.append(curr_frame_idx)
                     out_of_domain_frame_idx.append(curr_frame_idx)
