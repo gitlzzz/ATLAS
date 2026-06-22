@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.55.0 (2026-06-22)
+
+### Feature
+
+- **gui**: add table view filters, removal and addition ([#68e57a4](https://github.com/pol-sb/ATLAS/commit/68e57a4fa98a1ccec74ca997d1d0469556e54b49))
+
+### Fix
+
+- **gui**: lazy load aiida codes to prevent slowdown in development machine ([#97f780b](https://github.com/pol-sb/ATLAS/commit/97f780b06add92d0a40a62464855889c837cecc0))
+- **gui**: add missing message broker setup in gui setup wizard ([#47a8b01](https://github.com/pol-sb/ATLAS/commit/47a8b013e97f777e7557c107a1afdf92c2d8c371))
+- **dft**: normalize structure handling to ASE Atoms and update config schemas ([#cd21e96](https://github.com/pol-sb/ATLAS/commit/cd21e96eb42ec76e3ff44522500e33e676ca319e))
+- **gui**: improve gui design and theming consistency ([#8a21422](https://github.com/pol-sb/ATLAS/commit/8a214220dd89f39f4a4cb1627cf32dedc9f719e9))
+- **md**: apply shapely compatibility patch ([#09c2844](https://github.com/pol-sb/ATLAS/commit/09c28448572069f2f4fee08aec2e0e7e601fa5c2))
+
+### Refactor
+
+- **core**: change comments and code format ([#7489bd2](https://github.com/pol-sb/ATLAS/commit/7489bd2ab1e54b8c1429941162bc71b82850bb3b))
+
 ## 0.54.3 (2026-06-20)
 
 ### Fix
