@@ -771,7 +771,9 @@ class SchemaForm(QWidget):
             widget = QComboBox()
             widget.setEditable(True)
             widget.setInsertPolicy(QComboBox.NoInsert)
-            widget.lineEdit().setPlaceholderText(item_def.get('example', ''))
+            placeholder = item_def.get('example', '')
+            widget.lineEdit().setPlaceholderText(placeholder)
+            widget.lineEdit().setProperty('_original_placeholder', placeholder)
             if default_value is not None:
                 widget.setCurrentText(str(default_value))
             widget.setProperty('suggestions_key', suggestions)
@@ -899,6 +901,15 @@ class SchemaForm(QWidget):
 
     # ======================================================= suggestions
 
+    def set_suggestions_loading(self) -> None:
+        """Show a 'Loading...' placeholder on suggestion combo boxes."""
+        for widget in self._iter_all_widgets(self.widgets_map):
+            if not isinstance(widget, QComboBox):
+                continue
+            skey = widget.property('suggestions_key')
+            if skey and widget.count() == 0:
+                widget.lineEdit().setPlaceholderText('Loading suggestions…')
+
     def populate_suggestions(self, suggestions: dict[str, list[str]]) -> None:
         """Fill editable combo boxes tagged with a ``suggestions`` key.
 
@@ -917,6 +928,10 @@ class SchemaForm(QWidget):
                 widget.clear()
                 widget.addItems(suggestions[skey])
                 widget.setCurrentText(current)
+                le = widget.lineEdit()
+                if le is not None:
+                    example = le.property('_original_placeholder') or ''
+                    le.setPlaceholderText(example)
                 widget.blockSignals(False)
 
     @classmethod

@@ -186,6 +186,24 @@ def needs_first_run_wizard() -> bool:
     return not _secrets_path().exists()
 
 
+def _has_computers() -> bool:
+    try:
+        from aiida import orm
+
+        return orm.QueryBuilder().append(orm.Computer).count() > 0
+    except Exception:
+        return False
+
+
+def _has_codes() -> bool:
+    try:
+        from aiida import orm
+
+        return orm.QueryBuilder().append(orm.Code).count() > 0
+    except Exception:
+        return False
+
+
 def check_setup_problems() -> list[str]:
     """Return a list of human-readable setup issues (empty = all OK)."""
     problems: list[str] = []
@@ -200,9 +218,9 @@ def check_setup_problems() -> list[str]:
             problems.append(
                 'No message broker (RabbitMQ) configured, workflow submission will fail'
             )
-        if not _list_computers():
+        if not _has_computers():
             problems.append('No compute resources configured in AiiDA')
-        if not _list_codes():
+        if not _has_codes():
             problems.append('No simulation codes configured in AiiDA')
     return problems
 

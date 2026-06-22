@@ -128,7 +128,6 @@ class DftPage(WorkflowPage):
         layout.addWidget(self.tabs)
 
         self._update_prereq_banner()
-        self._refresh_suggestions()
         self._preflight.run_checks()
 
     def on_shown(self) -> None:
@@ -195,10 +194,11 @@ class DftPage(WorkflowPage):
 
     def _refresh_suggestions(self) -> None:
         from atlas.core.gui.widgets.aiida_suggestions import (
-            fetch_aiida_suggestions,
+            fetch_aiida_suggestions_async,
         )
 
-        self.config_panel.populate_suggestions(fetch_aiida_suggestions())
+        self.config_panel.set_suggestions_loading()
+        fetch_aiida_suggestions_async(self.config_panel.populate_suggestions)
 
     def _build_preflight_checks(self) -> list[Check]:
         def _check_aiida() -> str | None:

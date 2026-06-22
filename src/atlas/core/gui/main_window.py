@@ -133,7 +133,7 @@ class MainWindow(QMainWindow):
         if not self._verbose:
             return
         elapsed = time.perf_counter() - self._t0
-        print(f'[ATLAS] {elapsed:6.3f}s, {stage}')
+        print(f'[ATLAS] {elapsed:6.3f}s - {stage}')
 
     # ============================================================ schema
 
@@ -347,8 +347,12 @@ class MainWindow(QMainWindow):
 
     def _broadcast_workflow_refresh(self) -> None:
         """Ask every page (including the sender) to recompute pipeline UI."""
-        for page in self.pages:
-            page.on_shown()
+        current_idx = self.stack.currentIndex()
+        for i, page in enumerate(self.pages):
+            if i == current_idx:
+                page.on_shown()
+            else:
+                page._workflow_stale = True
         self._update_status_bar()
 
     def navigate_to(self, key: str) -> None:
@@ -358,13 +362,24 @@ class MainWindow(QMainWindow):
             self._sidebar_set_current(idx)
 
     def _on_sidebar_changed(self, idx: int) -> None:
+        prev_idx = self.stack.currentIndex()
         self.stack.setCurrentIndex(idx)
         if 0 <= idx < len(self.pages):
             page = self.pages[idx]
             if getattr(page, '_theme_stale', False):
                 page._theme_stale = False
                 self._repolish_page(page)
+            page._workflow_stale = False
+            t0 = time.perf_counter()
             page.on_shown()
+            if self._verbose:
+                dt = (time.perf_counter() - t0) * 1000
+                prev_name = (
+                    self.pages[prev_idx].DISPLAY_NAME
+                    if 0 <= prev_idx < len(self.pages)
+                    else '?'
+                )
+                print(f'[ATLAS] tab: {prev_name} -> {page.DISPLAY_NAME} ({dt:.0f}ms)')
             if page.NAVIGATION_KEY == 'logs':
                 self.log_panel._unread_count = 0
                 self.log_panel._badge.hide()

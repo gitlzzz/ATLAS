@@ -312,6 +312,11 @@ class ConfigPanel(QWidget):
         self.side_panel.set_theme(theme_name)
         self._workflow_view.set_theme(theme_name)
 
+    def set_suggestions_loading(self) -> None:
+        """Show a loading placeholder on every sub-form's suggestion combos."""
+        for form in self._sub_forms:
+            form.set_suggestions_loading()
+
     def populate_suggestions(self, suggestions: dict[str, list[str]]) -> None:
         """Forward AiiDA suggestions to every sub-form's editable combos."""
         for form in self._sub_forms:
