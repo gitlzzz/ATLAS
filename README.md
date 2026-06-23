@@ -175,7 +175,7 @@ The modular architecture split into several stages translates to a set of comman
 ATLAS ships with a desktop GUI (`atl_gui`) that provides a graphical front-end to all major workflows. The application (codenamed ATLAS Hub) eliminates the need of manual TOML editing with schema-driven forms and live previews, and staged navigation that simplifies the workflow. Moreover, most of the AiiDA configuration is handled automatically, and the user can explore the initial database and monitor DFT and active learning loops in real time through the dashboard views.
 
 <p align="center">
-  <img src="media/gui_mockup.png" alt="ATLAS Hub GUI mockup" width="800">
+  <img src="media/gui_mockup.png" alt="ATLAS Hub GUI mockup" width="900">
 </p>
 
 > [!NOTE]
