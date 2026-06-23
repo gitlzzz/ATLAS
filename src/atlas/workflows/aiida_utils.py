@@ -937,11 +937,11 @@ def update_db_with_dft_results(sel_struct_db, queue):
 
         # Skipping if the calculation is not finished
         if not node.is_finished_ok:
-            if node.exit_status:
-                # Skipping failed calculations, and printing a warning.
+            if node.is_terminated:
+                status = node.exit_status or node.process_state.value
                 atl_cut.custom_print(
-                    f"[bold yellow]Skipping calc. {node.pk} ('struct_id: {unique_id}')"
-                    f" with status '{node.exit_status}'.[/]",
+                    f"Skipping calc. {node.pk} ('struct_id: {unique_id}')"
+                    f" with status '{status}'.",
                     'warning',
                 )
                 num_error += 1
@@ -1268,7 +1268,7 @@ def run_dataframe_vasp_aiida_queue(
                 if struct_type != 'bulk':
                     atl_cut.custom_print(
                         (
-                            f"No [incar.{struct_type}] section in config for "
+                            f"No incar.{struct_type} section in config for "
                             f"structure {current_row_index}. "
                             "Using 'bulk' INCAR settings as fallback."
                         ),

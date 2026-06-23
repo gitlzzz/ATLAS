@@ -56,7 +56,11 @@ def main():
     check_atl_version(logger=logger)
 
     # Check if all required sections are present
-    validate_config_file(config_dict=config, config_type='dft')
+    any_errors, errors, warnings = validate_config_file(
+        config_dict=config, config_type='dft'
+    )
+    if any_errors:
+        return
 
     source_db = pl.Path(args.db_file)
 
