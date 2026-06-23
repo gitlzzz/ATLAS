@@ -42,7 +42,7 @@ dependencies = [
     "scikit-image",
     "dash==4.1.0",
     "tomlkit",
-    "torch>=2.8.0,<2.10",
+    "torch>=2.8.0,<2.13",
     "torchvision>=0.24.1",
 ]
 
