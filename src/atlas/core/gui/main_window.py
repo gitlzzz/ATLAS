@@ -662,7 +662,9 @@ class MainWindow(QMainWindow):
             return
 
         self._tray = QSystemTrayIcon(self)
-        self._tray.setIcon(self._app_icon())
+        from atlas.core.gui.icons import tray_icon
+
+        self._tray.setIcon(tray_icon())
         self._tray.setToolTip(f'ATLAS, {self.project.name}')
 
         menu = QMenu()

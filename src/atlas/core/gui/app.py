@@ -59,7 +59,7 @@ class _LoadingDialog(QDialog):
 
     def __init__(self, project_name: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle('ATLAS')
+        self.setWindowTitle('ATLAS - Loading')
         self.setFixedSize(400, 200)
         self.setWindowFlags(
             Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -148,6 +148,7 @@ def main() -> int:
 
     qt_argv = [sys.argv[0]]
     app = QApplication.instance() or QApplication(qt_argv)
+    app.setDesktopFileName('atlas.gui')
     application_font = app.font()
     application_font.setFamilies(ApplicationParameters.FONT_FAMILIES_REGULAR)
     app.setFont(application_font)
