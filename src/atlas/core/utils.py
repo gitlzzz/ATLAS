@@ -232,8 +232,17 @@ def similarity_check_list(
     )
 
     # Checking for similarity after replacement
+    soap_kwargs = {'l_max': 2, 'n_max': 2}
+    if r_cut is not None:
+        soap_kwargs['r_cut'] = r_cut
+    if n_max is not None:
+        soap_kwargs['n_max'] = n_max
+    if l_max is not None:
+        soap_kwargs['l_max'] = l_max
     uuid_list = _check_repeat_struct_list(
-        replaced_structures, r_cut=r_cut, l_max=2, n_max=2
+        replaced_structures,
+        alloy_set=db_obj.phase_diagram.alloy_set,
+        **soap_kwargs,
     )
     print('uuid_list: ', len(uuid_list))
 
@@ -272,10 +281,10 @@ def gauss_perturb(structure: Structure, center: float = 0.04):
     return new_structure
 
 
-def _check_repeat_struct_list(structure_list, r_cut=6, n_max=8, l_max=6):
+def _check_repeat_struct_list(structure_list, alloy_set, r_cut=6, n_max=8, l_max=6):
     print('r_cut: ', r_cut)
 
-    species_list = [el.Z for el in atl_indb.CuZnInitialDatabase.ALLOY_SET]
+    species_list = [el.Z for el in alloy_set]
 
     # Setting up the SOAP descriptor
     soap = SOAP(
@@ -536,6 +545,8 @@ def apply_filters_db(
     # Applying filters. Filter lists are column names, that select all rows
     # that have a True value in that column, applied with an OR logic.
     if filters:
+        if isinstance(filters, str):
+            filters = [filters]
         appl_filter_db_list = []
         for filt in filters:
             appl_filt = filtered_df.loc[filtered_df[filt]]
@@ -647,7 +658,7 @@ def apply_replacement(
     # although this results in more randomness.
     base_elem = phase.base_elem
     if len(phase_diagram.alloy_set) > 1:
-        (other_elem,) = phase_diagram.alloy_set - {base_elem.symbol}
+        (other_elem,) = phase_diagram.alloy_set - {base_elem}
     else:
         other_elem = list(phase_diagram.alloy_set)[0]
 
@@ -979,6 +990,7 @@ def _apply_perturbation_atl_struct(center, row, per_idx):
         'deformation',
         'unique_id',
         'to_ase_atoms',
+        'from_ase_atoms',
     ]:
         if func_name in row_kwargs_dict:
             row_kwargs_dict.pop(func_name)
@@ -1062,6 +1074,7 @@ def limit_num_structures_phase(
     phase: 'atl_pd.Phase',
     num_limit: int,
     rng_seed: int,
+    stratify_by_size: bool = False,
 ):
     # Instantiating RNG
     rng = np.random.default_rng(seed=rng_seed)
@@ -1069,25 +1082,67 @@ def limit_num_structures_phase(
     # Getting the current phase structures (df_filtered)
     df_filtered = db_obj.df.loc[db_obj.df['phase'] == phase.name]
 
-    # Gathering the base structures incldued in the current phase
+    # Gathering the base structures included in the current phase
     df_filt_base = df_filtered.loc[df_filtered.base]
+    df_filt_non_base = df_filtered.loc[~df_filtered.base]
 
     # Getting the remaining structures after selecting
     # the phase (df_remaining)
     df_remaining = db_obj.df.loc[db_obj.df['phase'] != phase.name]
 
-    # Getting a num_limit size random sample of the structures from
-    # the current phase (df_filt_sample)
-    num_limit = np.min([num_limit, df_filtered.shape[0]])
-    df_filt_sampl_idx = rng.choice(
-        range(df_filtered.shape[0]), num_limit, replace=False
-    )
-    df_filt_sampl = df_filtered.iloc[df_filt_sampl_idx]
+    # Reserve slots for base structures, sample the rest from non-base
+    n_base = df_filt_base.shape[0]
+    n_sample = max(0, min(num_limit, df_filtered.shape[0]) - n_base)
+    n_sample = min(n_sample, df_filt_non_base.shape[0])
+
+    if n_sample > 0:
+        if stratify_by_size:
+            df_filt_sampl = _stratified_sample_by_size(
+                df_filt_non_base, n_sample, rng
+            )
+        else:
+            sampl_idx = rng.choice(df_filt_non_base.shape[0], n_sample, replace=False)
+            df_filt_sampl = df_filt_non_base.iloc[sampl_idx]
+    else:
+        df_filt_sampl = df_filt_non_base.iloc[:0]
 
     # Adding df_filt_sample to the df_remaining
     df_remaining = pd.concat([df_remaining, df_filt_sampl, df_filt_base], axis=0)
     db_obj.df = df_remaining
     return db_obj
+
+
+def _stratified_sample_by_size(df, n_sample, rng):
+    """Sample structures proportionally across atom-count bins."""
+    atom_counts = df.apply(lambda row: len(row.structure.species), axis=1)
+
+    n_unique = atom_counts.nunique()
+    n_bins = min(n_unique, max(1, n_sample // 5))
+
+    bin_labels = pd.cut(atom_counts, bins=n_bins, labels=False)
+    groups = list(df.groupby(bin_labels))
+    n_groups = len(groups)
+
+    base_quota = n_sample // n_groups
+    remainder = n_sample % n_groups
+
+    sampled_indices = []
+    for bin_idx, (_, group) in enumerate(groups):
+        quota = base_quota + (1 if bin_idx < remainder else 0)
+        quota = min(quota, len(group))
+        if quota > 0:
+            chosen = rng.choice(len(group), quota, replace=False)
+            sampled_indices.extend(group.index[chosen])
+
+    # Top up if under-filled bins left us short
+    if len(sampled_indices) < n_sample:
+        remaining_pool = df.index.difference(sampled_indices)
+        shortfall = min(n_sample - len(sampled_indices), len(remaining_pool))
+        if shortfall > 0:
+            extra = rng.choice(remaining_pool.values, shortfall, replace=False)
+            sampled_indices.extend(extra)
+
+    return df.loc[sampled_indices]
 
 
 def add_adsorbates(

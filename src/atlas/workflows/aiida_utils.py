@@ -45,6 +45,34 @@ except Exception as e:
     tmp_logger.handlers = []
 
 
+def get_or_create_portable_code(
+    label: str,
+    filepath_files,
+    filepath_executable: str,
+    prepend_text: str = '',
+) -> orm.PortableCode:
+    """Return an existing PortableCode with the given label, or create one."""
+    qb = orm.QueryBuilder()
+    qb.append(
+        orm.PortableCode,
+        filters={'label': label},
+        project='*',
+    )
+    qb.order_by({orm.PortableCode: {'ctime': 'desc'}})
+    qb.limit(1)
+    results = qb.all(flat=True)
+
+    if results:
+        return results[0]
+
+    return orm.PortableCode(
+        label=label,
+        filepath_files=filepath_files,
+        filepath_executable=filepath_executable,
+        prepend_text=prepend_text,
+    )
+
+
 PARSER_DICT = {
     'parser_settings': {
         'add_misc': [
@@ -344,9 +372,10 @@ def choose_queue_from_struct(queue_data: dict, computer: orm.Computer):
     options['resources'] = queue_data['options_resources']
 
     # Getting options
-    node_cpus = queue_data['node_cpus']
-
-    mult_nodes = queue_data['multiple']
+    node_cpus = queue_data.get(
+        'node_cpus', queue_data.get('options_resources', {}).get('tot_num_mpiprocs')
+    )
+    mult_nodes = queue_data.get('multiple', False)
 
     # Specific settings for slurm scheduler
     if computer.scheduler_type == 'core.slurm':
@@ -908,11 +937,11 @@ def update_db_with_dft_results(sel_struct_db, queue):
 
         # Skipping if the calculation is not finished
         if not node.is_finished_ok:
-            if node.exit_status:
-                # Skipping failed calculations, and printing a warning.
+            if node.is_terminated:
+                status = node.exit_status or node.process_state.value
                 atl_cut.custom_print(
-                    f"[bold yellow]Skipping calc. {node.pk} ('struct_id: {unique_id}')"
-                    f" with status '{node.exit_status}'.[/]",
+                    f"Skipping calc. {node.pk} ('struct_id: {unique_id}')"
+                    f" with status '{status}'.",
                     'warning',
                 )
                 num_error += 1
@@ -1028,9 +1057,9 @@ def run_dataframe_vasp_aiida_queue(
     kspacing_dict: dict | float = config_dict.get('kpoints', {}).get('kspacing')
     dry_run: bool = config_dict.get('general', {}).get('dry_run', False)
     max_batch: int = config_dict.get('general', {}).get('max_batch', 1)
-    sel_structures_type: str = config_dict.get('general', {}).get(
-        'selected_structure_type'
-    )
+    sel_structures_type = config_dict.get('general', {}).get('selected_structure_type')
+    if isinstance(sel_structures_type, str):
+        sel_structures_type = [sel_structures_type]
     start_on_struct_idx: int = config_dict.get('general', {}).get(
         'start_on_struct_idx', 0
     )
@@ -1079,17 +1108,25 @@ def run_dataframe_vasp_aiida_queue(
                 'or remove all atl_id keys and re-run to auto-generate them.'
             )
 
-    # Getting the selected structures dataframe
-    if sel_structures_type and isinstance(initial_db, atl_indb.InitialDatabase):
-        sel_struct_db = initial_db.df[initial_db.df[sel_structures_type]]
-    elif not sel_structures_type and isinstance(initial_db, atl_indb.InitialDatabase):
-        sel_struct_db = initial_db.df
-    elif not sel_structures_type and isinstance(initial_db, list):
-        sel_struct_db = initial_db
-    elif sel_structures_type and isinstance(initial_db, list):
+    # Getting the selected structures as a list of ASE Atoms
+    if isinstance(initial_db, atl_indb.InitialDatabase):
+        if sel_structures_type:
+            mask = initial_db.df[sel_structures_type].any(axis=1)
+            filtered_df = initial_db.df[mask]
+        else:
+            filtered_df = initial_db.df
         sel_struct_db = [
-            struct for struct in initial_db if struct.info[sel_structures_type]
+            initial_db.db_struct_to_ase(row) for _, row in filtered_df.iterrows()
         ]
+    elif isinstance(initial_db, list):
+        if sel_structures_type:
+            sel_struct_db = [
+                struct
+                for struct in initial_db
+                if any(struct.info.get(st) for st in sel_structures_type)
+            ]
+        else:
+            sel_struct_db = initial_db
     else:
         raise ValueError('Initial database type not recognized.')
 
@@ -1196,31 +1233,15 @@ def run_dataframe_vasp_aiida_queue(
             and current_row_index < len(sel_struct_db)
         ):
             # Choosing current structure and gathering information
-            if isinstance(sel_struct_db, list):
-                target_row = sel_struct_db[current_row_index]
-                curr_structure = target_row
+            target_row = sel_struct_db[current_row_index]
+            curr_structure = target_row
 
-                # Get alues from the structure's info dict
-                curr_material_name = target_row.info['struct_name']
-                curr_unique_id = target_row.info['atl_id']
-                curr_phase = target_row.info.get('phase')
-                if curr_phase is None:
-                    curr_phase = target_row.info.get('atl_struct_type', 'bulk')
-                struct_type = target_row.info.get('atl_struct_type', 'bulk')
-
-            else:
-                # Getting current row
-                target_row = sel_struct_db.iloc[current_row_index]
-                struct_type = target_row['atl_struct_type']
-
-                # Creating list for storing the nodes once submitted
-                # Gathering row information
-                (
-                    curr_structure,
-                    curr_material_name,
-                    curr_unique_id,
-                    curr_phase,
-                ) = gather_calc_data_from_row(target_row)
+            curr_material_name = target_row.info['struct_name']
+            curr_unique_id = target_row.info['atl_id']
+            curr_phase = target_row.info.get('phase')
+            if curr_phase is None:
+                curr_phase = target_row.info.get('atl_struct_type', 'bulk')
+            struct_type = target_row.info.get('atl_struct_type', 'bulk')
 
             # Skipping structures that have already been calculated
             structure_already_calculated = target_row.info.get('calc_performed', False)
@@ -1240,16 +1261,19 @@ def run_dataframe_vasp_aiida_queue(
             )
             calc_type = atl_aut.CalcType.from_string(calc_type_str)
 
-            incar_dict = config_dict.get('incar', {}).get(struct_type, None)
+            incar_sections = config_dict.get('incar', {})
+            incar_dict = incar_sections.get(struct_type, None)
             if not incar_dict:
-                atl_cut.custom_print(
-                    (
-                        f"Can't find struct type for structure {current_row_index}. "
-                        "Using 'bulk' INCAR as default."
-                    ),
-                    'warning',
-                )
-                incar_dict = INCAR_SP
+                incar_dict = incar_sections.get('bulk', INCAR_SP)
+                if struct_type != 'bulk':
+                    atl_cut.custom_print(
+                        (
+                            f"No incar.{struct_type} section in config for "
+                            f"structure {current_row_index}. "
+                            "Using 'bulk' INCAR settings as fallback."
+                        ),
+                        'warning',
+                    )
 
             # Iterating over the chunk and launching a separate
             # vasp workchain for every structure contained.

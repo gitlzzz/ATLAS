@@ -1,5 +1,133 @@
 # Changelog
 
+## 0.55.2 (2026-06-23)
+
+### Docs
+
+- **gui**: update wizard instructions ([#7eff4ec](https://github.com/pol-sb/ATLAS/commit/7eff4ec1a2fe09cf694e7df7d1baa9eb9b2ad91d))
+- **gui**: add gui section to README.md ([#f430503](https://github.com/pol-sb/ATLAS/commit/f430503348a7f370ecc0587c2492a83d360d9eb4))
+
+### Fix
+
+- **gui**: avoid ticklabels recursion ([#10b066d](https://github.com/pol-sb/ATLAS/commit/10b066de7c9ce8190fc32f3b6ad9cc2dfe724625))
+- **gui**: update icons and app id ([#d9cdaa1](https://github.com/pol-sb/ATLAS/commit/d9cdaa1ff8e86edb4a1e258080b17d3fac8e4938))
+
+### Refactor
+
+- **gui**: update icons ([#b464c1e](https://github.com/pol-sb/ATLAS/commit/b464c1efcb993c8582ccaf49a4a1c0c95ed22b64))
+
+## 0.55.1 (2026-06-23)
+
+### Fix
+
+- **gui**: numerical sorting in table view ([#8021a84](https://github.com/pol-sb/ATLAS/commit/8021a84113ca1e202e8b76fb0b1fff9ec3631bab))
+- **gui**: increase tooltip size to avoid clipping ([#b16963d](https://github.com/pol-sb/ATLAS/commit/b16963dc8f0ed9ecbb927dfb031547f1899ffbfa))
+- **dft**: enhance compatibility between gui and dft submission ([#bf08aa2](https://github.com/pol-sb/ATLAS/commit/bf08aa2d7103deacab76b0cdce6f4de855bc6d20))
+
+### Misc
+
+- **core**: update uv.lock ([#9c9bc82](https://github.com/pol-sb/ATLAS/commit/9c9bc824aa188f3b1101ce1ada46e39ec3fd0b03))
+- **core**: update requirements ([#f476184](https://github.com/pol-sb/ATLAS/commit/f476184d3bd2808fd0944aca88453555aa608fd0))
+
+## 0.55.0 (2026-06-22)
+
+### Feature
+
+- **gui**: add table view filters, removal and addition ([#68e57a4](https://github.com/pol-sb/ATLAS/commit/68e57a4fa98a1ccec74ca997d1d0469556e54b49))
+
+### Fix
+
+- **gui**: lazy load aiida codes to prevent slowdown in development machine ([#97f780b](https://github.com/pol-sb/ATLAS/commit/97f780b06add92d0a40a62464855889c837cecc0))
+- **gui**: add missing message broker setup in gui setup wizard ([#47a8b01](https://github.com/pol-sb/ATLAS/commit/47a8b013e97f777e7557c107a1afdf92c2d8c371))
+- **dft**: normalize structure handling to ASE Atoms and update config schemas ([#cd21e96](https://github.com/pol-sb/ATLAS/commit/cd21e96eb42ec76e3ff44522500e33e676ca319e))
+- **gui**: improve gui design and theming consistency ([#8a21422](https://github.com/pol-sb/ATLAS/commit/8a214220dd89f39f4a4cb1627cf32dedc9f719e9))
+- **md**: apply shapely compatibility patch ([#09c2844](https://github.com/pol-sb/ATLAS/commit/09c28448572069f2f4fee08aec2e0e7e601fa5c2))
+
+### Refactor
+
+- **core**: change comments and code format ([#7489bd2](https://github.com/pol-sb/ATLAS/commit/7489bd2ab1e54b8c1429941162bc71b82850bb3b))
+
+## 0.54.3 (2026-06-20)
+
+### Fix
+
+- **gui**: further optimize theme switching ([#f725295](https://github.com/pol-sb/ATLAS/commit/f72529557cd42618c8140fa3ef1f237639cb9cb2))
+
+## 0.54.2 (2026-06-20)
+
+### Fix
+
+- **gui**: optimize theme switching ([#76137ca](https://github.com/pol-sb/ATLAS/commit/76137ca875a07c5eaf5373c1e2f5dd2e35ec39ec))
+
+### Misc
+
+- **core**: update uv.lock ([#8792763](https://github.com/pol-sb/ATLAS/commit/87927634af5e868ee498188c3fda586cbb16d65d))
+
+## 0.54.1 (2026-06-19)
+
+### Fix
+
+- **gui**: added workflow view, and fixes and additions to the gui ([#7a26331](https://github.com/pol-sb/ATLAS/commit/7a26331d655226cfc5f4d6f30b21199c3ea31289))
+- **init_db**: prevent unphysical distances during cluster generation using spherical method ([#9e506a4](https://github.com/pol-sb/ATLAS/commit/9e506a4ec8733cf30b64aa2de56f955c2a74fcf2))
+- **gui**: improve init db deletion dialog clarity ([#76d8126](https://github.com/pol-sb/ATLAS/commit/76d81268cc07d30d3c8dadb2f0861b4a2987e408))
+
+## 0.54.0 (2026-06-18)
+
+### Docs
+
+- **core**: add docs for DFT benchmark ([#c2d3cbc](https://github.com/pol-sb/ATLAS/commit/c2d3cbc5eb2efbba9c0006cbcd89ff0484afa778))
+
+### Feature
+
+- **dft**: re-add DFT benchmark suite ([#ecf3593](https://github.com/pol-sb/ATLAS/commit/ecf35933e4b4f23b4f4d62294d9b2e0d232bbea3))
+
+### Fix
+
+- **gui**: improve delete dialog and toml parsing robustness ([#62d0f8e](https://github.com/pol-sb/ATLAS/commit/62d0f8e6897e903a04273e720c3ca829d55caa50))
+- **init_db**: rearrange order of operations to ensure continuous structure size distribution ([#72442ee](https://github.com/pol-sb/ATLAS/commit/72442eee47a8b30e257a539eb891b4737e784190))
+- **gui**: fixes to phasediagram creation and config editor ([#6737bb9](https://github.com/pol-sb/ATLAS/commit/6737bb9a706faddfdd2fa12b7c72c7567ed46498))
+- **init_db**: fix phase generation in databases ([#8ec5667](https://github.com/pol-sb/ATLAS/commit/8ec5667ccdde49fa3a5579a1e1450eda2ddcdb59))
+- **gui**: improve gui setup wizard ([#b216507](https://github.com/pol-sb/ATLAS/commit/b216507aa260b689da13a25f77222d0eccb8d5fd))
+- **gui**: change order of DFT benchmark and labelling in side panel ([#52955c3](https://github.com/pol-sb/ATLAS/commit/52955c36413292e1c5d7255cc7d888c59e39daae))
+- **gui**: gui improvements, refactors and fixes ([#1a9b247](https://github.com/pol-sb/ATLAS/commit/1a9b2472db025c7a4b032787296be503d2bbffc3))
+- **core**: fix imports ([#2de7a9d](https://github.com/pol-sb/ATLAS/commit/2de7a9d168e99617bbfdc8fbf2e6b5b03b280e22))
+- **al_loop**: create only a single instance of portable code ([#c31afcd](https://github.com/pol-sb/ATLAS/commit/c31afcd3d87a5c32a2c694a47465eb49f6b8545e))
+- **core**: ensure compatibility of requirements ([#623c70a](https://github.com/pol-sb/ATLAS/commit/623c70aa860d75db72a90f4767c0435a52ce5a05))
+- **gui**: address slowdowns on settings tab (i) ([#7640967](https://github.com/pol-sb/ATLAS/commit/7640967be4a3475bcd6bbe7d04748b8b2b79d1bb))
+
+### Misc
+
+- **core**: update repository-related files ([#a6cad8c](https://github.com/pol-sb/ATLAS/commit/a6cad8c1877a09e2523af7b6a4a19a2d94bf211d))
+
+### Refactor
+
+- **al_loop**: remove deprecated active learning workchain ([#b5f203f](https://github.com/pol-sb/ATLAS/commit/b5f203f7a607503d3e58f4a88ae3ec1d65d34a75))
+
+## 0.53.0 (2026-06-16)
+
+### Docs
+
+- **core**: update readme ([#e3c125b](https://github.com/pol-sb/ATLAS/commit/e3c125b2ceb996171241d8bbb82df2ece11b9839))
+
+### Feature
+
+- **gui**: add improve initial setup and wizard ([#89964ae](https://github.com/pol-sb/ATLAS/commit/89964ae58c23b2f699379bdd83d30f11519c7abc))
+- **gui**: add first version of gui ([#f5fde84](https://github.com/pol-sb/ATLAS/commit/f5fde8452e473a894636f389e816bf23886fa78b))
+- **core**: big batch of improvements: db gen, cluster, dft, gui ([#bf063d7](https://github.com/pol-sb/ATLAS/commit/bf063d76961f97b2105e8a8d3b043d61e3f65fa1))
+
+### Fix
+
+- **core**: update missed references to mdb ([#3b035f2](https://github.com/pol-sb/ATLAS/commit/3b035f2c0d87210efed24852f50eff80781bef8f))
+
+### Misc
+
+- **core**: update .gitignore ([#8d11ef3](https://github.com/pol-sb/ATLAS/commit/8d11ef3334df38643bdbd18b2b5de8c7092452cc))
+- **core**: add uv-related files ([#e536671](https://github.com/pol-sb/ATLAS/commit/e5366719d1c734a403c5e8c97cbce520297e8b09))
+
+### Refactor
+
+- **gui**: updated internal paths for GUI, logos and added scope in pyproject.toml ([#eb782ac](https://github.com/pol-sb/ATLAS/commit/eb782ac75270ca327883ec3040de5b100e2dfe61))
+
 ## 0.52.6 (2026-06-05)
 
 ### Docs

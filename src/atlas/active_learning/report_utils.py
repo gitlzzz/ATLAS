@@ -1330,7 +1330,8 @@ def gen_batch_report(
     clr_short = COLORS[: len(ind)]
 
     ax1 = ax.figure.add_subplot(ax[0, 0])
-    ax1.set_xticks(ind + width / 2, labels=[d.name for d in dirs])
+    ax1.set_xticks(ind + width / 2)
+    ax1.set_xticklabels([d.name for d in dirs])
     ax1.bar(
         ind,
         train_db_sizes_plot,
@@ -1354,8 +1355,10 @@ def gen_batch_report(
     ax2_top = ax.figure.add_subplot(inner_grid_1[0, 0])
     ax2_bottom = ax.figure.add_subplot(inner_grid_1[1, 0])
 
-    ax2_top.set_xticks(ind, labels=[d.name for d in dirs])
-    ax2_bottom.set_xticks(ind, labels=[d.name for d in dirs])
+    ax2_top.set_xticks(ind)
+    ax2_top.set_xticklabels([d.name for d in dirs])
+    ax2_bottom.set_xticks(ind)
+    ax2_bottom.set_xticklabels([d.name for d in dirs])
 
     ax2_top.bar(ind, mace_e_plot, width=width, label=title + '_E', color=clr_short)
     ax2_bottom.bar(ind, mace_f_plot, width=width, label=title + '_F', color=clr_short)
@@ -1366,8 +1369,10 @@ def gen_batch_report(
     )
     ax3_top = ax.figure.add_subplot(inner_grid_2[0, 0])
     ax3_bottom = ax.figure.add_subplot(inner_grid_2[1, 0])
-    ax3_top.set_xticks(ind, labels=[d.name for d in dirs])
-    ax3_bottom.set_xticks(ind, labels=[d.name for d in dirs])
+    ax3_top.set_xticks(ind)
+    ax3_top.set_xticklabels([d.name for d in dirs])
+    ax3_bottom.set_xticks(ind)
+    ax3_bottom.set_xticklabels([d.name for d in dirs])
 
     ax3_top_twin = ax3_top.twinx()
     ax3_bottom_twin = ax3_bottom.twinx()
@@ -1710,7 +1715,8 @@ def plot_al_loop_report(
         edgecolor=bar_line_color,
         linewidth=bar_line_width,
     )
-    ax1.set_xticks(top_xaxis + width / 2, labels=ind)
+    ax1.set_xticks(top_xaxis + width / 2)
+    ax1.set_xticklabels(ind)
     ax1.set_xlabel('AL Loop Step')
     ax1.set_ylabel('Number of structures')
     ax1.legend()
@@ -1885,7 +1891,8 @@ def plot_al_loop_report(
         )
         ax3.set_ylabel('Energy threshold [meV]')
 
-    ax3.set_xticks(bottom_xaxis, labels=ind_short)
+    ax3.set_xticks(bottom_xaxis)
+    ax3.set_xticklabels(ind_short)
     ax3.set_xlabel('AL Loop Step')
     ax3.set_ylabel('RMSE E per atom [meV]')
     ax3.set_title('Evolution of best MACE Model Energy RMSE')
@@ -1921,7 +1928,8 @@ def plot_al_loop_report(
             marker='^',
         )
 
-    ax4.set_xticks(bottom_xaxis, labels=ind_short)
+    ax4.set_xticks(bottom_xaxis)
+    ax4.set_xticklabels(ind_short)
     ax4.set_xlabel('AL Loop Step')
     ax4.set_ylabel('RMSE F [meV / A]')
     ax4.set_title('Evolution of best MACE Model Force RMSE')

@@ -85,7 +85,7 @@ copyright = '2024, Pol Sanz'
 author = 'Pol Sanz'
 
 # The full version, including alpha/beta/rc tags
-release = '0.52.6'
+release = '0.55.2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -127,7 +127,6 @@ exclude_patterns = [
     'devel/*',
     'display_db/*',
     '*sync-conflict*',
-    'active_learning.py',
 ]
 
 # -- Options for HTML output -------------------------------------------------

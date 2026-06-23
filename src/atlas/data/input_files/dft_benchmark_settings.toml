@@ -1,0 +1,144 @@
+# ============================================================================
+# DFT Parameter Benchmark Configuration
+# ============================================================================
+# Run with:  atl_dft_benchmark -c dft_benchmark_settings.toml
+#
+# This utility tests different VASP parameters (kspacing, ENCUT, ISPIN, ...)
+# on one representative bulk structure per phase. It then reports which
+# values meet the energy convergence threshold, so you can pick the cheapest
+# settings that are accurate enough for your system.
+# ============================================================================
+
+[general]
+
+# (str) Path where the logs will be stored
+log_path = "/tmp/"
+
+# (str) Name of the AiiDA group for benchmark calculations
+aiida_group_name = "dft_benchmark"
+
+# (int) Maximum number of calculations in the queue at once
+max_batch = 50
+
+# (int) Queue polling interval in seconds
+queue_check_interval_seconds = 240
+
+# (bool) If true, list calculations without submitting
+dry_run = false
+
+
+# Path to the initial database (extxyz format)
+[database]
+db_path = "initial_database.extxyz"
+
+
+# Calculation settings (same format as dft_settings.toml)
+[calculation]
+
+# (str) Type of calculation — benchmarks always use static (single-point)
+calc_type = "static"
+
+# (str) AiiDA potential family name
+aiida_potential_family = "vasp-5.4-PBE-2023"
+
+# (dict, optional) Element → potential label overrides
+# potential_mapping.Si = "Si_GW"
+
+
+# Base k-point settings (used as reference for non-kspacing benchmarks).
+# Use the tightest (smallest) kspacing you want to test, or ATL_DEFAULT.
+[kpoints.kspacing]
+ATL_DEFAULT = 0.05
+
+
+# Queue / HPC scheduler settings (same format as dft_settings.toml)
+[queue]
+
+code_string = "vasp@cluster"
+account = "my_account"
+qos = "my_qos"
+node_cpus = 24
+max_wallclock_seconds = 16200
+max_memory_kb = 96000000
+multiple = 1
+custom_scheduler_commands = ""
+
+[queue.options_resources]
+tot_num_mpiprocs = 24
+
+
+# Base INCAR for all benchmarks.
+# Each benchmark sweep varies ONE parameter from this base.
+# Only bulk INCAR is needed (benchmarks use bulk structures only).
+[incar.bulk]
+
+istart = 0
+icharg = 2
+gga = "Pe"
+ispin = 1
+encut = 550
+ediff = 1e-6
+ismear = 0
+sigma = 0.03
+algo = "Fast"
+lreal = "Auto"
+nelm = 60
+ibrion = -1
+nsw = 1
+lwave = false
+lcharg = false
+ncore = 4
+ivdw = 11
+
+
+# ============================================================================
+# Benchmark configuration
+# ============================================================================
+# Each [benchmark.<param>] sub-table defines a parameter sweep.
+# "values" lists the settings to test.
+# The reference (tightest/most expensive) value is auto-detected:
+#   - kspacing, ediff, sigma: smallest = tightest
+#   - encut, ispin: largest = tightest
+# Override with "reference_value" or "direction" if needed.
+# ============================================================================
+
+[benchmark]
+
+# (float) Energy convergence threshold in meV per atom.
+# A parameter value is accepted if |E_test - E_ref| < threshold.
+threshold_meV = 1.0
+
+# (str) Output directory for plots and the recommended-settings file
+output_dir = "./dft_benchmark_results"
+
+
+# --- K-point spacing sweep ---
+# Tests different k-point mesh densities.
+# Smallest value = densest mesh = most expensive = reference.
+[benchmark.kspacing]
+values = [0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2]
+
+
+# --- Energy cutoff sweep ---
+# Tests different ENCUT values.
+# Largest value = most accurate = reference.
+[benchmark.encut]
+values = [350, 400, 450, 500, 550]
+
+
+# --- Spin polarisation test ---
+# Compares non-magnetic (ISPIN=1) vs magnetic (ISPIN=2).
+# ISPIN=2 is the reference.
+[benchmark.ispin]
+values = [1, 2]
+
+
+# --- Custom parameter example (uncomment to use) ---
+# Any VASP INCAR parameter can be benchmarked.
+# Set "direction" to indicate which end is tightest:
+#   "min" = smallest value is tightest (e.g., ediff, sigma)
+#   "max" = largest value is tightest (e.g., encut)
+#
+# [benchmark.sigma]
+# values = [0.01, 0.03, 0.05, 0.1]
+# direction = "min"

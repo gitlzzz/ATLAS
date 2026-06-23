@@ -217,16 +217,16 @@ def get_miller_index_str(miller_source):
     elif isinstance(miller_source, (np.ndarray, tuple, list)):
         curr_miller = str(miller_source)
     elif isinstance(miller_source, list):
-        curr_miller = "".join(map(str, miller_source))
+        curr_miller = ''.join(map(str, miller_source))
     elif isinstance(miller_source, str):
         curr_miller = miller_source
     else:
         # Return None if the given structure is not a surface.
         return None
 
-    replace_chars = ["'", ",", " ", "(", ")", "[", "]"]
+    replace_chars = ["'", ',', ' ', '(', ')', '[', ']']
     for char in replace_chars:
-        curr_miller = curr_miller.replace(char, "")
+        curr_miller = curr_miller.replace(char, '')
 
     return curr_miller
 
@@ -282,10 +282,10 @@ def process_row_parallel(
     max_slab_num = min(max_slab_num, len(total_slabs))
     atl_cut.custom_print(
         (
-            f"Generated {len(total_slabs)} slabs for {row.material_id}."
-            f" Limited to {max_slab_num} slabs."
+            f'Generated {len(total_slabs)} slabs for {row.material_id}.'
+            f' Limited to {max_slab_num} slabs.'
         ),
-        "debug",
+        'debug',
     )
     total_slabs_idx = rng.choice(range(len(total_slabs)), max_slab_num, replace=False)
     total_slabs = [total_slabs[idx] for idx in total_slabs_idx]
@@ -300,16 +300,16 @@ def process_row_parallel(
 
         # Preparing the structure name
         surf_name = (
-            f"{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx+1}"
-            f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at"
+            f'{row.material_id}_{phase.name}_pure_surface_{mill_str}-{idx + 1}'
+            f'_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at'
         )
 
         # Fix the bottom `fixed_layers` number of layers
         # TODO: Implement this feature and remove warning
         if fixed_layers and fix_layers_warn:
             atl_cut.custom_print(
-                "`fixed_layers` specified, but not implemented yet.",
-                "debug",
+                '`fixed_layers` specified, but not implemented yet.',
+                'debug',
             )
             fix_layers_warn = False
             # slab = atl_ut.fix_bottom_layers(slab, fixed_layers)
@@ -334,8 +334,10 @@ def process_row_parallel(
 
     # Getting supercells
     supercell_list = []
+    supercell_idx_list = []
     if get_supercells:
         for _, (slab, mill) in enumerate(total_slabs):
+            mill_str_sc = get_miller_index_str(mill)
             super_list, idx_list, supercells = atl_ut.find_supercell_indices(
                 structure=slab,
                 min_atoms=min_num_atoms,
@@ -346,7 +348,7 @@ def process_row_parallel(
             )
 
             # Storing the supercells.
-            for supercell, _, sup_vec in zip(
+            for supercell, s_idx, sup_vec in zip(
                 super_list, idx_list, supercells, strict=False
             ):
                 sup_len = len(supercell.sites)
@@ -356,8 +358,8 @@ def process_row_parallel(
 
                     # Preparing the structure name
                     surf_name = (
-                        f"{row.material_id}_{phase.name}_pure_surface-"
-                        f"_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{get_miller_index_str(mill)}-super-{sup_vec}"
+                        f'{row.material_id}_{phase.name}_pure_surface-'
+                        f'_min_vac-{min_vacuum_size}_min_slab-{min_slab_size}_{len(row.structure)}-max-at_{mill_str_sc}-super-{sup_vec}'
                     )
 
                     # Creating a new surface from the supercell
@@ -372,14 +374,17 @@ def process_row_parallel(
                         calc_performed=False,
                         phase=phase.name,
                         supercell=sup_vec,
-                        surface_miller=mill_str,
+                        surface_miller=mill_str_sc,
                     )
 
                     supercell_list.append(curr_strct)
+                    supercell_idx_list.append(s_idx)
 
     # Get replacements
     replacement_list = []
-    for structure_obj, supr_idx in zip(supercell_list, idx_list, strict=False):
+    for structure_obj, supr_idx in zip(
+        supercell_list, supercell_idx_list, strict=False
+    ):
         structure = structure_obj.structure
 
         # Replacing some atoms using symmetry
@@ -394,8 +399,8 @@ def process_row_parallel(
         subst_base_elem_perc = atl_ut.gen_base_elem_perc(phase, num_replacements)
 
         atl_cut.custom_print(
-            f"Random base element % for surface to gen: {subst_base_elem_perc*100}",
-            "debug",
+            f'Random base element % for surface to gen: {subst_base_elem_perc * 100}',
+            'debug',
         )
 
         # Attempting to fix any percentages outside of the
@@ -425,8 +430,12 @@ def process_row_parallel(
                 bulk_temp = np.nan
 
                 # Creating a new Bulk object for the structure with replacement
+                curr_material_name = (
+                    f'{row.material_id}_{phase.name}_super-{supercell_vec_str}-'
+                    f'{supr_idx}_replacement-{str_ind + 1}-{repl + 1}'
+                )
                 new_struct_symm = atl_struct.Surface(
-                    material_name=f"{row.material_id}_{phase.name}_super-{supercell_vec_str}-{supr_idx}_replacement-{str_ind+1}-{repl+1}",
+                    material_name=curr_material_name,
                     material_id=row.material_id,
                     targeted_modification=structure_obj.targeted_modification,
                     structure=new_structure,
@@ -465,24 +474,24 @@ def process_row_parallel(
     # Limiting the number of generated supercells to
     # the supercell limit.
     atl_cut.custom_print(
-        f"Length of the supercell+replacement list: {len(generated_structures)}",
-        "debug",
+        f'Length of the supercell+replacement list: {len(generated_structures)}',
+        'debug',
     )
 
     if len(generated_structures) > limit_total_num_struct:
         atl_cut.custom_print(
             (
-                f"Limiting the number of slabs ({len(generated_structures)})"
-                f" to {limit_total_num_struct}."
+                f'Limiting the number of slabs ({len(generated_structures)})'
+                f' to {limit_total_num_struct}.'
             ),
-            "debug",
+            'debug',
         )
 
         generated_structures = np.random.choice(
             generated_structures, size=limit_total_num_struct, replace=False
         )
 
-    with open(f"{temp_folder}/generated_structures_{row_idx}.pkl", "wb") as f:
+    with open(f'{temp_folder}/generated_structures_{row_idx}.pkl', 'wb') as f:
         pickle.dump(
             generated_structures,
             file=f,
@@ -495,7 +504,7 @@ def process_row_parallel(
 
 
 def gen_surfaces_diff_miller_parallel(
-    db_obj: "atl_indb.InitialDatabase",
+    db_obj: 'atl_indb.InitialDatabase',
     phase: atl_pd.Phase,
     max_miller_index: int,
     min_miller_index: int = 2,
@@ -531,9 +540,9 @@ def gen_surfaces_diff_miller_parallel(
     # phase.
     if len(base_structs) == 0:
         err_msg = (
-            f"No base structure could be found for phase {phase.name}."
-            "\nThe database must contain base structures before "
-            "running this function."
+            f'No base structure could be found for phase {phase.name}.'
+            '\nThe database must contain base structures before '
+            'running this function.'
         )
 
         raise atl_exc.BaseStructureNotFound(err_msg)
@@ -561,23 +570,23 @@ def gen_surfaces_diff_miller_parallel(
         n_workers = min(n_workers, len(base_structs))
 
     if phase.use_cache:
-        temp_dir = atl_cut.get_cache_path() / "mdb"
-        temp_dir = temp_dir / f"atl_gen_init_db_surface_{phase.name}"
+        temp_dir = atl_cut.get_cache_path() / 'mdb'
+        temp_dir = temp_dir / f'atl_gen_init_db_surface_{phase.name}'
         temp_dir.mkdir(parents=False, exist_ok=True)
     else:
         temp_dir = tempfile.mkdtemp(
-            prefix="atl_gen_init_db_",
+            prefix='atl_gen_init_db_',
         )
     atl_cut.custom_print(
-        f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", "debug"
+        f"Storing surfaces on temporary/cache directory: '{temp_dir}'.", 'debug'
     )
 
     generated_structures = []
-    if len(list(pl.Path(temp_dir).glob("*"))) == 0:
+    if len(list(pl.Path(temp_dir).glob('*'))) == 0:
         with progress.Progress(
-            "[progress.description]{task.description}",
+            '[progress.description]{task.description}',
             progress.BarColumn(),
-            "[progress.percentage]{task.percentage:>3.0f}%",
+            '[progress.percentage]{task.percentage:>3.0f}%',
             progress.MofNCompleteColumn(),
             progress.TimeRemainingColumn(),
             progress.TimeElapsedColumn(),
@@ -587,10 +596,10 @@ def gen_surfaces_diff_miller_parallel(
         ) as progress:
             futures = []
             overall_progress_task = progress.add_task(
-                "[green]Generating structures:", total=len(base_structs)
+                '[green]Generating structures:', total=len(base_structs)
             )
 
-            atl_cut.custom_print(f"Using '{n_workers}' workers.", "debug")
+            atl_cut.custom_print(f"Using '{n_workers}' workers.", 'debug')
 
             # iterate over the jobs we need to run
             with ProcessPoolExecutor(
@@ -645,7 +654,7 @@ def gen_surfaces_diff_miller_parallel(
                 )
     else:
         atl_cut.custom_print(
-            f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", "info"
+            f"Gathering surfaces from temporary/cache directory: '{temp_dir}'.", 'info'
         )
     # Reading stored temporary files
     for idx, _ in base_structs.iterrows():
@@ -653,29 +662,29 @@ def gen_surfaces_diff_miller_parallel(
         # with open(
         # f"/tmp/atl_gen_init_db_sgem6zp2/generated_structures_{idx}.pkl", "rb"
         # ) as f:
-        with open(f"{temp_dir}/generated_structures_{idx}.pkl", "rb") as f:
+        with open(f'{temp_dir}/generated_structures_{idx}.pkl', 'rb') as f:
             generated_structures.append(pickle.load(f))
 
     # Concatenating lists
     generated_structures = np.concatenate(generated_structures)
 
-    atl_cut.custom_print(f"Generated {len(generated_structures)} surfaces.", "debug")
+    atl_cut.custom_print(f'Generated {len(generated_structures)} surfaces.', 'debug')
 
     # Saving the structures in the db.
     if save_in_db:
-        atl_cut.custom_print("Saving replaced structures in dataframe.", "debug")
+        atl_cut.custom_print('Saving replaced structures in dataframe.', 'debug')
         for slab in generated_structures:
             slab.save_to_db(db_obj=db_obj)
         atl_cut.custom_print(
-            f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+            f'Dataframe shape after saving: {db_obj.df.shape}', 'debug'
         )
 
     # Removing temporary directory
     if not phase.use_cache:
-        atl_cut.custom_print(f"Removing temporary directory: '{temp_dir}'.", "debug")
+        atl_cut.custom_print(f"Removing temporary directory: '{temp_dir}'.", 'debug')
 
         # Removing contents
-        for file in pl.Path(temp_dir).glob("*"):
+        for file in pl.Path(temp_dir).glob('*'):
             file.unlink()
 
         # Removing directory
@@ -685,7 +694,7 @@ def gen_surfaces_diff_miller_parallel(
 
 
 def apply_replacement_surface(
-    db_obj: "atl_indb.InitialDatabase",
+    db_obj: 'atl_indb.InitialDatabase',
     slabs_to_replace: list,
     save_in_db: bool = False,
     num_replacement_structs: int = 3,
@@ -693,7 +702,7 @@ def apply_replacement_surface(
     limit_replacements: int = None,
 ):
     atl_cut.custom_print(
-        f"Applying replacements to {len(slabs_to_replace)} structures...", "debug"
+        f'Applying replacements to {len(slabs_to_replace)} structures...', 'debug'
     )
     rng = np.random.default_rng()
 
@@ -732,15 +741,15 @@ def apply_replacement_surface(
                 # Generating name
                 if gen_slab.supercell:
                     supercell_vec_str = get_miller_index_str(gen_slab.supercell)
-                    supercell_vec_str_name = f"super-{supercell_vec_str}_"
+                    supercell_vec_str_name = f'super-{supercell_vec_str}_'
                 else:
                     supercell_vec_str = gen_slab.surface_miller
                     supercell_vec_str_name = supercell_vec_str
 
                 mat_name = (
-                    f"{slab_phase.prototype}_{slab_phase.name}_surface"
-                    f"-{supercell_vec_str_name}-{str_ind+1}"
-                    f"_replacement-{repl + 1}"
+                    f'{slab_phase.prototype}_{slab_phase.name}_surface'
+                    f'-{supercell_vec_str_name}-{str_ind + 1}'
+                    f'_replacement-{repl + 1}'
                 )
 
                 # Creating a new Surface object for the
@@ -763,7 +772,7 @@ def apply_replacement_surface(
                 replacement_list.append(new_struct_symm)
 
     atl_cut.custom_print(
-        f"Generated {len(replacement_list)} replaced surfaces.", "debug"
+        f'Generated {len(replacement_list)} replaced surfaces.', 'debug'
     )
 
     # Limiting the number of replaced surfaces
@@ -773,19 +782,18 @@ def apply_replacement_surface(
         )
 
         atl_cut.custom_print(
-            f"Limited number of replaced surfaces to {len(replacement_list)}.", "debug"
+            f'Limited number of replaced surfaces to {len(replacement_list)}.', 'debug'
         )
 
     if save_in_db:
-        atl_cut.custom_print("Saving replaced surfaces in dataframe.", "debug")
+        atl_cut.custom_print('Saving replaced surfaces in dataframe.', 'debug')
         for slab in replacement_list:
             slab.save_to_db(db_obj=db_obj)
         atl_cut.custom_print(
-            f"Dataframe shape after saving: {db_obj.df.shape}", "debug"
+            f'Dataframe shape after saving: {db_obj.df.shape}', 'debug'
         )
 
     return replacement_list
-
 
     # TODO: Add way of checking the main element of the structure
     def find_surface_atoms(self, slab):
@@ -814,9 +822,9 @@ def apply_replacement_surface(
 
         for i, (pos, symbol) in enumerate(zip(positions, symbols, strict=False)):
             if self.is_exposed(pos, positions, pos[2], z_max):
-                if symbol == "Ir":
+                if symbol == 'Ir':
                     surface_ir.append((i, pos))
-                elif symbol == "O":
+                elif symbol == 'O':
                     surface_o.append((i, pos))
 
         # Apply coverage to limit the number of sites
@@ -842,16 +850,16 @@ def apply_replacement_surface(
         # Add H2O on Ir sites
         for i, (_, pos) in enumerate(ir_sites):
             slab_copy = slab.copy()
-            water = molecule("H2O")
-            water.rotate(180, "x")  # O end down
+            water = molecule('H2O')
+            water.rotate(180, 'x')  # O end down
             self.add_adsorbate_at_distance(slab_copy, water, pos, 2.0)
-            structures.append(("H2O", i, slab_copy))
+            structures.append(('H2O', i, slab_copy))
 
         # Add H on O sites
         for i, (_, pos) in enumerate(o_sites):
             slab_copy = slab.copy()
-            hydrogen = molecule("H")
+            hydrogen = molecule('H')
             self.add_adsorbate_at_distance(slab_copy, hydrogen, pos, 1.5)
-            structures.append(("H", i, slab_copy))
+            structures.append(('H', i, slab_copy))
 
         return structures

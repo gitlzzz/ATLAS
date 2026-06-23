@@ -797,17 +797,14 @@ def plot_concave_hull(
 
     # Calculate limits based on all available data
     all_points = []
-    if latent_space is not None and latent_space.size > 0:
-        all_points.append(latent_space)
-    if point_inside is not None and point_inside.size > 0:
-        all_points.append(point_inside)
-    if point_outside is not None and point_outside.size > 0:
-        all_points.append(point_outside)
+    for arr in (latent_space, point_inside, point_outside):
+        if arr is not None and arr.size > 0:
+            all_points.append(np.atleast_2d(arr))
     if isinstance(concave_hull, list):
         for hull in concave_hull:
-            all_points.append(hull)
+            all_points.append(np.atleast_2d(np.asarray(hull)))
     elif concave_hull is not None:
-        all_points.append(concave_hull)
+        all_points.append(np.atleast_2d(np.asarray(concave_hull)))
 
     if all_points:
         all_points_stacked = np.vstack(all_points)

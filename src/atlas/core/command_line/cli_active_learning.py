@@ -35,12 +35,11 @@ logging.getLogger('e3nn').setLevel(logging.ERROR)
 def create_active_learning_builder(
     toml_dict: dict,
     toml_dict_path: pl.Path = None,
-    complete: bool = False,
     log_file_path: pl.Path = None,
     al_start_mode: str = 'normal',
 ):
     """
-    Create builder object for the ActiveLearningWorkChain.
+    Create builder object for the SimpleActiveLearningWorkChain.
 
     Parameters
     ----------
@@ -51,15 +50,11 @@ def create_active_learning_builder(
     -------
     ProcessBuilder
         A process builder that helps setting up the inputs for
-        an ActiveLearningWorkChain.
+        a SimpleActiveLearningWorkChain.
     """
     from aiida.plugins import WorkflowFactory
 
-    # Getting builder for workchain
-    if complete:
-        al_calculation = WorkflowFactory('atl-active-learning-base')
-    else:
-        al_calculation = WorkflowFactory('atl-simple-active-learning-base')
+    al_calculation = WorkflowFactory('atl-simple-active-learning-base')
     builder = al_calculation.get_builder()
 
     ## General AL settings
@@ -428,13 +423,6 @@ def run_active_learning():
         default='./active_learning_settings.toml',
         # required=True,
         metavar='PATH',
-    )
-
-    al_loop_parser.add_argument(
-        '--complete',
-        help='Use the old version of the active learning workchain.',
-        action='store_const',
-        const=True,
     )
 
     al_loop_parser.add_argument(
@@ -987,7 +975,6 @@ def run_active_learning():
         builder = create_active_learning_builder(
             toml_dict,
             toml_dict_path=pl.Path(args.config_file).resolve(),
-            complete=args.complete,
         )
 
     # Start a new al loop

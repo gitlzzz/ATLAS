@@ -38,6 +38,7 @@ from atlas.core.code_utils import (
     LevelNameFilter,
     get_atl_version_info,
 )
+from atlas.workflows.aiida_utils import get_or_create_portable_code
 
 
 class SimpleActiveLearningWorkChain(WorkChain):
@@ -1366,42 +1367,37 @@ class SimpleActiveLearningWorkChain(WorkChain):
             if ignore_container is True:
                 containerized = False
 
-            if containerized:
-                image_name = container_dict.get('image_name', '')
-                engine_command = container_dict.get('engine_command', '')
-                prepend_text = (
-                    prepend_text_conf
-                    + '\n'
-                    + container_dict.get('prepend_text', '')
-                    + f'\nexport OMP_NUM_THREADS={num_threads}'
-                )
-                code = orm.ContainerizedCode(
-                    computer=computer,
-                    image_name=image_name,
-                    filepath_executable='atl_process_structure.py',
-                    prepend_text=prepend_text,
-                    engine_command=engine_command,
-                )
-            else:
-                # Get portable code
-                # TODO: This should not be `descriptor_settings`` after the simple
-                # loop is introduced. A new section containing all settings
-                # should be included, and this should be changed to the section
-                # name.
-                code_path = Path(f'{ATL_ROOT_DIR}/active_learning/md')
-
-                prepend_text = (
-                    prepend_text_conf
-                    + '\nexport PATH=$PATH:.'
-                    + f'\nexport OMP_NUM_THREADS={num_threads}'
-                )
-                code = orm.PortableCode(
-                    label='atl_process_md_seed_struct',
-                    filepath_files=code_path,
-                    filepath_executable='atl_process_structure.py',
-                    prepend_text=prepend_text,
-                )
-            proc_seed_builder.code = code
+            if not hasattr(self.ctx, '_md_seed_code'):
+                if containerized:
+                    image_name = container_dict.get('image_name', '')
+                    engine_command = container_dict.get('engine_command', '')
+                    prepend_text = (
+                        prepend_text_conf
+                        + '\n'
+                        + container_dict.get('prepend_text', '')
+                        + f'\nexport OMP_NUM_THREADS={num_threads}'
+                    )
+                    self.ctx._md_seed_code = orm.ContainerizedCode(
+                        computer=computer,
+                        image_name=image_name,
+                        filepath_executable='atl_process_structure.py',
+                        prepend_text=prepend_text,
+                        engine_command=engine_command,
+                    )
+                else:
+                    code_path = Path(f'{ATL_ROOT_DIR}/active_learning/md')
+                    prepend_text = (
+                        prepend_text_conf
+                        + '\nexport PATH=$PATH:.'
+                        + f'\nexport OMP_NUM_THREADS={num_threads}'
+                    )
+                    self.ctx._md_seed_code = get_or_create_portable_code(
+                        label='atl_process_md_seed_struct',
+                        filepath_files=code_path,
+                        filepath_executable='atl_process_structure.py',
+                        prepend_text=prepend_text,
+                    )
+            proc_seed_builder.code = self.ctx._md_seed_code
 
             # options_dict.pop('computer', None)
 
@@ -1926,7 +1922,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
 
     The loop will only be restarted from the beginning of the last step.
 
-    Check `ActiveLearningWorkChain` for information on what is done in each step.
+    Check `SimpleActiveLearningWorkChain` for information on what is done in each step.
     """
 
     _process_class = SimpleActiveLearningWorkChain
@@ -2556,7 +2552,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
             )
 
         self.logger.log(
-            15, f"ActiveLearningWorkChain to gather results from: '{node.uuid}'"
+            15, f"SimpleActiveLearningWorkChain to gather results from: '{node.uuid}'"
         )
 
         # TODO: Gather outputs manually, instead of using __attach_outputs
@@ -3212,7 +3208,7 @@ class SimpleActiveLearningBaseWorkChain(BaseRestartWorkChain):
                 + '\nexport PATH=$PATH:.'
                 + f'\nexport OMP_NUM_THREADS={num_threads}'
             )
-            code = orm.PortableCode(
+            code = get_or_create_portable_code(
                 label='atl_run_safeguard_md',
                 filepath_files=code_path,
                 filepath_executable='atl_run_safeguard_md.py',

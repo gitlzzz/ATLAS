@@ -1,87 +1,92 @@
 """Run initial configuration to set up the ATLAS environment."""
 
-import json
+from __future__ import annotations
+
+import argparse
 import pathlib as pl
 import warnings
 
 import rich.prompt as rp
-from rich import print as rprint
-from rich.panel import Panel
 
 from atlas.core import code_utils as atl_cut
 
 warnings.filterwarnings('ignore')
 
 
-def run_initial_config():
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog='atl_init_setup',
+        description=(
+            'ATLAS setup wizard, configure MP API key, AiiDA profiles, '
+            'computers, and codes.'
+        ),
+    )
+    sub = parser.add_subparsers(dest='command')
+
+    sub.add_parser('mpkey', help='Set up the Materials Project API key')
+    sub.add_parser('profile', help='Create or select an AiiDA profile')
+    sub.add_parser('computer', help='Set up an AiiDA computer')
+    sub.add_parser('code', help='Set up an AiiDA code (VASP, LAMMPS, MACE, ...)')
+    sub.add_parser('potcar', help='Upload a VASP POTCAR potential family')
+    sub.add_parser('status', help='Show current configuration status')
+
+    return parser
+
+
+def _run_full_wizard() -> None:
+    """Run all setup steps interactively."""
+    from atlas.core.command_line.setup import (
+        setup_code,
+        setup_computer,
+        setup_mp_key,
+        setup_potcar,
+        setup_profile,
+        show_status,
+    )
+
+    setup_mp_key()
+
+    if rp.Confirm.ask('\nSet up AiiDA for active learning?', default=False):
+        setup_profile()
+
+        if rp.Confirm.ask('\nAdd a compute cluster?', default=False):
+            setup_computer()
+
+        if rp.Confirm.ask('\nSet up a remote code?', default=False):
+            setup_code()
+
+        if rp.Confirm.ask('\nUpload a VASP POTCAR family?', default=False):
+            setup_potcar()
+
+    print()
+    show_status()
+
+
+def run_initial_config() -> None:
     atl_cut.init_logger(source=pl.Path(__file__).stem, log_path='/tmp')
 
-    config_file_name = 'secrets.json'
-    config_path = atl_cut.get_config_path()
-    config_dir = config_path / 'atl'
+    parser = _build_parser()
+    args = parser.parse_args()
 
-    # Create config directory if needed
-    config_dir.mkdir(parents=True, exist_ok=True)
-    secrets_path = config_dir / config_file_name
+    if args.command is None:
+        _run_full_wizard()
+        return
 
-    if not secrets_path.exists():
-        # New setup: prompt for API key interactively
-        print()
-        panel = Panel(
-            'Welcome to ATLAS!\n\n'
-            'To get started with database generation,\n'
-            'you need a Materials Project API key.\n\n'
-            'Get one at: https://next-gen.materialsproject.org/api',
-            title='ATLAS Setup',
-            border_style='cyan',
-        )
-        rprint(panel)
-        print()
+    from atlas.core.command_line.setup import (
+        setup_code,
+        setup_computer,
+        setup_mp_key,
+        setup_potcar,
+        setup_profile,
+        show_status,
+    )
 
-        api_key = rp.Prompt.ask('Enter your MP API key', password=True)
-        print()
-
-        if not api_key or not api_key.strip():
-            atl_cut.custom_print(
-                'API key cannot be empty. Setup aborted.',
-                print_type='error',
-            )
-            return
-
-        # Write secrets file with correct permissions
-        secrets_path.write_text(json.dumps({'API_KEY': api_key.strip()}) + '\n')
-        import os
-
-        os.chmod(secrets_path, 0o600)
-
-        atl_cut.custom_print(
-            f"API key saved to '{secrets_path}'",
-            print_type='done',
-        )
-        atl_cut.custom_print(
-            'File permissions set to 0o600 (owner read/write only).',
-            print_type='info',
-        )
-    else:
-        atl_cut.custom_print(
-            (
-                f'Initial configuration already done: '
-                f"'{secrets_path}' already exists.\n"
-                'To update your MP API key, edit this file '
-                'or delete it and re-run setup.'
-            ),
-            'warn',
-        )
-
-    # Create cache directory
-    cache_path = atl_cut.get_cache_path()
-    cache_dir = cache_path / 'mdb'
-
-    try:
-        cache_dir.mkdir(parents=True, exist_ok=False)
-        atl_cut.custom_print(
-            f"Cache directory created at '{cache_dir}'",
-            print_type='info',
-        )
-    except FileExistsError:
-        atl_cut.custom_print('Cache directory already exists. Nothing done.', 'done')
+    dispatch = {
+        'mpkey': setup_mp_key,
+        'profile': setup_profile,
+        'computer': setup_computer,
+        'code': setup_code,
+        'potcar': setup_potcar,
+        'status': show_status,
+    }
+    dispatch[args.command]()

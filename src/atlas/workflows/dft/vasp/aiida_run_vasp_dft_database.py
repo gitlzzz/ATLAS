@@ -56,7 +56,11 @@ def main():
     check_atl_version(logger=logger)
 
     # Check if all required sections are present
-    validate_config_file(config_dict=config, config_type='dft')
+    any_errors, errors, warnings = validate_config_file(
+        config_dict=config, config_type='dft'
+    )
+    if any_errors:
+        return
 
     source_db = pl.Path(args.db_file)
 
@@ -67,7 +71,7 @@ def main():
         case '.xz':
             initial_db = atl_indb.InitialDatabase(
                 database_name=source_db.stem,
-                database_path=source_db,
+                database_path=source_db.parent,
             )
 
     atl_aut.run_dataframe_vasp_aiida_queue(

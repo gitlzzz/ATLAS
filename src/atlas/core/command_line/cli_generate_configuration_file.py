@@ -158,7 +158,7 @@ def generate_toml_recursive(
             )
             lines.append('#' * 80)
             generate_toml_recursive(
-                content.get('schema', {}),
+                content.get('schema_under_dynamic_keys', {}),
                 path_parts + [name, 'EXAMPLE_KEY'],
                 lines,
                 section_mandatory=is_section_mandatory,
@@ -227,6 +227,7 @@ def generate_command(args, schema):
         'active_learning': 'active_learning_settings.toml',
         'mlip_benchmarks': 'atl_benchmark_settings.toml',
         'latent_space_analysis': 'latent_space_settings.toml',
+        'dft_benchmark': 'dft_benchmark_settings.toml',
     }
     output_filename = filename_map[args.config_type]
 
@@ -284,6 +285,7 @@ def gen_default_config():
             '\t- dft: For DFT calculations.\n'
             '\t- active_learning: For the active learning loop.\n'
             '\t- latent_space_analysis: For latent space analysis of datasets.\n'
+            '\t- dft_benchmark: For DFT parameter benchmarking.\n'
         ),
         type=str,
         required=True,
@@ -293,6 +295,7 @@ def gen_default_config():
             'active_learning',
             'mlip_benchmarks',
             'latent_space_analysis',
+            'dft_benchmark',
         ],
         metavar='TYPE',
     )
@@ -337,10 +340,17 @@ def gen_default_config():
             '\t- database_generation: For initial database generation.\n'
             '\t- dft: For DFT calculations.\n'
             '\t- active_learning: For the active learning loop.\n'
+            '\t- dft_benchmark: For DFT parameter benchmarking.\n'
         ),
         type=str,
         required=True,
-        choices=['database_generation', 'dft', 'active_learning', 'mlip_benchmarks'],
+        choices=[
+            'database_generation',
+            'dft',
+            'active_learning',
+            'mlip_benchmarks',
+            'dft_benchmark',
+        ],
         metavar='TYPE',
     )
     validate_parser.add_argument(
@@ -373,10 +383,11 @@ def gen_default_config():
                 '\t- database_generation: For initial database generation.\n'
                 '\t- dft: For DFT calculations.\n'
                 '\t- active_learning: For the active learning loop.\n'
+                '\t- dft_benchmark: For DFT parameter benchmarking.\n'
             ),
             type=str,
             required=True,
-            choices=['database_generation', 'dft', 'active_learning'],
+            choices=['database_generation', 'dft', 'active_learning', 'dft_benchmark'],
             metavar='TYPE',
         )
         old_parser.add_argument(

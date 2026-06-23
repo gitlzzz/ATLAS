@@ -19,16 +19,16 @@ dependencies = [
     "dscribe==2.1.0",
     "gunicorn==23.0.0",
     "matplotlib==3.8.0",
-    "mp_api>=0.45.3",
+    "mp_api>=0.46.2",
     "pandas",
     "plotly>=6.1.1",
-    "pymatgen==2024.10.3",
+    "pymatgen>=2025.4.10",
     "python-slugify[unidecode]",
     "PyYAML",
+    'numpy>=1.26.4,<2.0.0',
     "rich>=14.0.0",
     "scipy==1.16.2",
     "seaborn==0.13.2",
-    "e3nn==0.4.4",
     "aiida-core==2.7.3",
     "aiida-lammps==1.0.1",
     "aiida-vasp==4.1.0",
@@ -42,20 +42,18 @@ dependencies = [
     "scikit-image",
     "dash==4.1.0",
     "tomlkit",
+    "torch>=2.8.0,<2.13",
+    "torchvision>=0.24.1",
 ]
 
 [project.optional-dependencies]
 dev = ["pre-commit", "pytest", "pytest-cov", "commitizen==4.1.1", "ipdb"]
+gui = ["PySide6>=6.6","PySide6-addons", "tomli", "tomli_w"]
 mace = [
     "mace-torch==0.3.14",
-    "torch>=2.5.0,<2.10",
-    "torchvision>=0.24.1",
-    "cuequivariance; sys_platform != 'darwin'",
-    "cuequivariance-torch; sys_platform != 'darwin'",
-    "cuequivariance-ops-torch-cu12; sys_platform != 'darwin'",
-    # "cuequivariance==0.5.1",
-    # "cuequivariance-torch==0.5.1",
-    # "cuequivariance-ops-torch-cu12==0.5.1",
+    "cuequivariance",
+    "cuequivariance-torch",
+    "cuequivariance-ops-torch-cu12",
 ]
 
 [project.urls]
@@ -80,8 +78,6 @@ Homepage = "https://github.com/LopezGroup-ICIQ/ATLAS"
 "monitor.davwarning" = "atlas.workflows.monitors:output_monitor"
 
 [project.entry-points."aiida.workflows"]
-"atl-active-learning" = "atlas.workflows.active_learning:ActiveLearningWorkChain"
-"atl-active-learning-base" = "atlas.workflows.active_learning:ActiveLearningBaseWorkChain"
 "atl-simple-active-learning" = "atlas.workflows.simple_active_learning:SimpleActiveLearningWorkChain"
 "atl-simple-active-learning-base" = "atlas.workflows.simple_active_learning:SimpleActiveLearningBaseWorkChain"
 
@@ -118,8 +114,10 @@ Homepage = "https://github.com/LopezGroup-ICIQ/ATLAS"
 "atl_train_autoencoder" = "atlas.core.command_line.cli_train_autoencoder:run_train_autoencoder"
 "atl_run_dft_database" = "atlas.workflows.dft.vasp.aiida_run_vasp_dft_database:main"
 "atl_benchmark_mlip" = "atlas.benchmarks.mlip.evaluate_mlip_performance:main"
+"atl_dft_benchmark" = "atlas.benchmarks.dft.run_dft_benchmark:main"
 "atl_latent_space_analysis" = "atlas.core.command_line.cli_latent_space_analysis:run_latent_space_analysis"
 "atl_database_analysis" = "atlas.core.command_line.cli_db_analysis:run_database_analysis"
+"atl_gui" = "atlas.core.gui.app:main"
 
 # package managers are becoming dangerous
 [tool.uv]
@@ -128,6 +126,10 @@ exclude-newer = "7 days"
 [tool.setuptools]
 include-package-data = true
 package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+"atlas.core.gui" = ["assets/**/*"]
+"atlas" = ["data/**/*"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -142,7 +144,7 @@ dirty_template = "{tag}.post{ccount}+git-{branch}-{sha}"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "0.52.6"
+version = "0.55.2"
 changelog_incremental = true
 update_changelog_on_bump = true
 version_files = [

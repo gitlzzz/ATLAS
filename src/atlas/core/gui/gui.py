@@ -348,9 +348,7 @@ class InputFileTab(QWidget):
         self._highlight_format = QTextCharFormat()
         self._highlight_format.setBackground(self._highlight_color)
         self._highlight_format.setForeground(self._highlight_text_color)
-        self._highlight_format.setProperty(
-            QTextFormat.FullWidthSelection, True
-        )
+        self._highlight_format.setProperty(QTextFormat.FullWidthSelection, True)
 
         top_bar_layout = QHBoxLayout()
         top_bar_layout.addWidget(QLabel('Configuration Section:'))
@@ -541,9 +539,7 @@ class InputFileTab(QWidget):
                     )
                     font = group_box.font()
                     base_size = application_font.pointSize() + 4
-                    new_size = max(
-                        base_size - depth, application_font.pointSize() - 1
-                    )
+                    new_size = max(base_size - depth, application_font.pointSize() - 1)
                     font.setPointSize(new_size)
                     font.setBold(True)
                     group_box.setFont(font)
@@ -1107,7 +1103,9 @@ class InputFileTab(QWidget):
             'description', item_def.get('description', 'No description available.')
         )
         widget.setProperty('value_type', item_def.get('type', 'N/A'))
-        widget.setToolTip(item_def.get('description', ''))
+        desc = item_def.get('description', '')
+        if desc:
+            widget.setToolTip(f'<p>{desc}</p>')
         return widget
 
     def _get_widget_value(self, widget):

@@ -178,9 +178,18 @@ If any hook fails, the commit is blocked and ruff errors must be resolved manual
 
 ## Usage
 
-The goal of this library is to provide workflows, functions and utilities for streamlining the training of neural networks potentials (MLIPs) by means of Active Learning (AL) Loops.
+The modular architecture split into several stages translates to a set of command line utilities that can be used separately or in a pipeline, and a graphical user interface that provides a guided workflow for the same tasks.
 
-During the library installation, several entry points will be added so that the user can easily run the different utilities:
+ATLAS ships with a desktop GUI (`atl_gui`) that provides a graphical front-end to all major workflows. The application (codenamed ATLAS Hub) eliminates the need of manual TOML editing with schema-driven forms and live previews, and staged navigation that simplifies the workflow. Moreover, most of the AiiDA configuration is handled automatically, and the user can explore the initial database and monitor DFT and active learning loops in real time through the dashboard views.
+
+<p align="center">
+  <img src="media/gui_mockup.png" alt="ATLAS Hub GUI mockup" width="900">
+</p>
+
+> [!NOTE]
+> The GUI requires the optional `gui` dependency: `pip install -e '.[gui]'`. Launch with `atl_gui`.
+
+ATLAS comes with several entry points will be added so that the user can easily run the different utilities:
 
 - `atl_init_setup`: Run initial configuration steps after installing atlas.
 - `atl_run_dft_database`: Run DFT calculations for a ATLAS structure database.

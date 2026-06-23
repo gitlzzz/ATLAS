@@ -15,3 +15,7 @@ src/ATLAS/display_db
 docs/api/*
 .coverage
 scripts/*
+
+
+# TODO files to ignore
+GUI_TODO.md

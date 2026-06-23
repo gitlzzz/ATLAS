@@ -13,14 +13,6 @@ Subpackages
 Submodules
 ----------
 
-atlas.workflows.active\_learning module
----------------------------------------
-
-.. automodule:: atlas.workflows.active_learning
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 atlas.workflows.aiida\_utils module
 -----------------------------------
 

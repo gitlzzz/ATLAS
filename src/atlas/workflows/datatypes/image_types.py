@@ -1,4 +1,5 @@
 """Custom data types for image handling in atlas."""
+
 import os
 import subprocess as sb
 import tempfile

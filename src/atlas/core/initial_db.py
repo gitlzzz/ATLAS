@@ -15,7 +15,6 @@ import warnings
 from collections import Counter
 from io import BytesIO, TextIOWrapper
 from os import cpu_count
-from types import SimpleNamespace
 from typing import Self
 
 import ase.io as aseio
@@ -31,7 +30,6 @@ from ase import Atoms
 from ase import build as ase_build
 from dscribe.descriptors import SOAP
 from dscribe.kernels import AverageKernel
-from mp_api.client import MPRester
 from pymatgen.core.periodic_table import Element
 from pymatgen.core.structure import Structure
 from pymatgen.core.surface import Slab
@@ -147,6 +145,9 @@ class InitialDatabase:
             )
             self.use_offset = use_offset
 
+        # Track removal history for filtering
+        self._removal_history = {'filtering': {}}
+
         # Create the database if it does not exists
         # Load it if otherwise.
         db_exists = self._check_database()
@@ -206,13 +207,12 @@ class InitialDatabase:
         atl_cut.custom_print(f"Loading database: '{self.database_name}'", 'debug')
         self.database_name = db_path.stem
 
-        if not db_path.exists():
-            raise FileNotFoundError(f"Database '{db_path}' does not exist.")
-
         # If no suffixes are present, add the default one.
         if len(db_path.suffixes) == 0:
-            suffix = '.xz'
-            db_path = db_path.with_suffix(suffix)
+            db_path = db_path.with_suffix('.xz')
+
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database '{db_path}' does not exist.")
 
         # Compatibility with the old version of the database
         if '.pkl' in db_path.suffixes:
@@ -450,12 +450,15 @@ class InitialDatabase:
             elif hasattr(struct[1], 'perturb') and struct[1].perturb:
                 struct_info_dict['structure_count']['by_modification']['perturb'] += 1
 
-            if struct[1].phase not in struct_info_dict['phases']:
-                struct_info_dict['phases'][struct[1].phase] = 1
-            elif isinstance(struct[1].phase, str):
-                struct_info_dict['phases'][struct[1].phase] += 1
+            phase_key = (
+                struct[1].phase.name
+                if hasattr(struct[1].phase, 'name')
+                else struct[1].phase
+            )
+            if phase_key not in struct_info_dict['phases']:
+                struct_info_dict['phases'][phase_key] = 1
             else:
-                struct_info_dict['phases'][struct[1].phase.name] += 1
+                struct_info_dict['phases'][phase_key] += 1
 
         # Adding database info
         struct_info_dict.update(
@@ -502,6 +505,12 @@ class InitialDatabase:
         struct_info_dict['structure_count']['by_modification']['none'] += (
             struct_info_dict['structure_count']['by_modification'].pop(True, 0)
         )
+
+        # Add removal history if available (without the UUID list)
+        if hasattr(self, '_removal_history') and self._removal_history.get('filtering'):
+            removal_data = dict(self._removal_history['filtering'])
+            removal_data.pop('filtered_uuids', None)
+            struct_info_dict['removal_history'] = removal_data
 
         return struct_info_dict
 
@@ -931,6 +940,7 @@ class InitialDatabase:
 
         struct_list = self.standardize_struct_ids(struct_list)
 
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         aseio.write(filename=file_path, images=struct_list, format=out_format)
         atl_cut.custom_print(f"Database exported to '{file_path}'", 'done')
 
@@ -1121,6 +1131,8 @@ class InitialDatabase:
         atl_cut.custom_print(
             'Gathering base structures by querying the MP API...', 'info'
         )
+
+        from mp_api.client import MPRester
 
         report_replacements = True
         with MPRester(ut.gather_secrets()['API_KEY'], mute_progress_bars=True) as mpr:
@@ -1423,11 +1435,8 @@ class InitialDatabase:
                 new_struct_templ['unique_id'] = None
 
                 # Remove unused method
-                try:  # noqa
-                    new_struct_templ.pop('from_db_row')
-                    new_struct_templ.pop('to_ase_atoms')
-                except KeyError:
-                    pass
+                for _key in ('from_db_row', 'to_ase_atoms', 'from_ase_atoms'):
+                    new_struct_templ.pop(_key, None)
 
                 # Creating a new Structure from the perturbed structure
                 curr_struct = atl_struct.Structure(
@@ -1652,7 +1661,7 @@ class InitialDatabase:
         if only_use_base:
             # Getting all relaxed structures.
             target_entries = self.df.loc[self.df.base]
-        elif not only_use_base and filters or use_phase:
+        elif (not only_use_base) and (filters or use_phase):
             # Filtering structures to perturb.
             target_entries, _, _ = ut.apply_filters_db(self, filters, use_phase)
         else:
@@ -1661,14 +1670,16 @@ class InitialDatabase:
 
         # Limiting number of structures
         if limit_num_structures:
-            limit_num_structures = min(limit_num_structures // repeat, self.df.shape[0])
+            limit_num_structures = min(
+                limit_num_structures // repeat, target_entries.shape[0]
+            )
             atl_cut.custom_print(
                 f'Limiting number of deformations to  {limit_num_structures}', 'debug'
             )
             rng_idxs = rng.choice(
-                self.df.shape[0], size=limit_num_structures, replace=False
+                target_entries.shape[0], size=limit_num_structures, replace=False
             )
-            target_entries = self.df.iloc[rng_idxs]
+            target_entries = target_entries.iloc[rng_idxs]
 
         # Applying deformation to all perturbed structures
         for _, entry in target_entries.iterrows():
@@ -1812,7 +1823,8 @@ class InitialDatabase:
             anything other than the alloy_set atoms.
         """
         # Checking if there are any other atoms than ones in alloy_set in the structure
-        if len(set(structure.symbol_set) - self.phase_diagram.alloy_set) > 0:
+        alloy_symbols = {str(e) for e in self.phase_diagram.alloy_set}
+        if len(set(structure.symbol_set) - alloy_symbols) > 0:
             # Creating a new structure using the base one as a template
             new_structure = structure.copy(sanitize=True)
 
@@ -2032,6 +2044,8 @@ class InitialDatabase:
         return struct_obj_list, query_result, idx_list
 
     def query_mp_api_prototype(self, prototype):
+        from mp_api.client import MPRester
+
         atl_cut.custom_print('Querying the MP API...', 'debug')
         with MPRester(ut.gather_secrets()['API_KEY'], mute_progress_bars=True) as mpr:
             if isinstance(prototype, list):
@@ -2226,7 +2240,7 @@ class InitialDatabase:
         # although this results in more randomness.
         base_elem = phase.base_elem
         if len(self.phase_diagram.alloy_set) > 1:
-            (other_elem,) = self.phase_diagram.alloy_set - {base_elem.symbol}
+            (other_elem,) = self.phase_diagram.alloy_set - {base_elem}
         else:
             other_elem = list(self.phase_diagram.alloy_set)[0]
 
@@ -2516,6 +2530,7 @@ class InitialDatabase:
             'to_cluster',
             'from_db_row',
             'to_ase_atoms',
+            'from_ase_atoms',
         ]
 
         # If given structure is a pymatgen Structure
@@ -2540,6 +2555,10 @@ class InitialDatabase:
                 if not att.startswith('_') and att not in unwanted_attrs
             ]
             att_dict = {att: getattr(structure, att) for att in attr_list}
+
+            # Normalize phase to string for consistent DataFrame comparisons
+            if 'phase' in att_dict and hasattr(att_dict['phase'], 'name'):
+                att_dict['phase'] = att_dict['phase'].name
 
             new_row = pd.Series(att_dict)
 
@@ -2826,11 +2845,18 @@ class InitialDatabase:
         add_dimer=False,
         save_in_db=False,
         limit_per_phase: int = None,
+        phase: 'atl_pd.Phase' = None,
         num_struct: int = 2,
         num_repeat: int = 2,
+        method: str = 'wulff',
+        basin_hopping: bool = False,
+        bh_totalsteps: int = 50,
+        bh_fmax: float = 0.05,
+        lj_sigma: float | None = None,
+        lj_epsilon: float = 1.0,
     ):
-        # Getting default phase
-        phase = self.phase_diagram.get_phase('alpha')
+        if phase is None:
+            phase = self.phase_diagram.get_phase('alpha')
 
         # Generate a list of atl_struct.Cluster
         cluster_list = []
@@ -2847,8 +2873,18 @@ class InitialDatabase:
             f'Adding base clusters with n_atoms: {size_range[0]}-{size_range[-1]}...',
             'debug',
         )
-        for size in size_range:
-            clust_obj = atl_clust.make_clean_cluster(self, size=size, phase=phase)
+        for size in riprg.track(size_range, description='Base clusters...'):
+            clust_obj = atl_clust.make_clean_cluster(
+                self,
+                size=size,
+                phase=phase,
+                method=method,
+                basin_hopping=basin_hopping,
+                bh_totalsteps=bh_totalsteps,
+                bh_fmax=bh_fmax,
+                lj_sigma=lj_sigma,
+                lj_epsilon=lj_epsilon,
+            )
             cluster_list.append(clust_obj)
         atl_cut.custom_print('Base clusters done...', 'debug')
 
@@ -3030,7 +3066,8 @@ class InitialDatabase:
             color=[plot_dict[key]['color'] for key in top_dict],
             alpha=0.3,
         )
-        bar_chart_ax.set_yticks(y_pos_bar, labels=top_dict.keys())
+        bar_chart_ax.set_yticks(y_pos_bar)
+        bar_chart_ax.set_yticklabels(list(top_dict.keys()))
 
         # Writing labels in barchart
         label_x = max(top_dict.values()) * 0.10
@@ -3054,7 +3091,8 @@ class InitialDatabase:
             color=[plot_dict[key]['color'] for key in bottom_dict],
             alpha=0.3,
         )
-        bar_chart_ax_2.set_yticks(y_pos_bar, labels=bottom_dict.keys())
+        bar_chart_ax_2.set_yticks(y_pos_bar)
+        bar_chart_ax_2.set_yticklabels(list(bottom_dict.keys()))
 
         # Writing labels in barchart
         label_x = max(bottom_dict.values()) * 0.10
@@ -3177,13 +3215,21 @@ class InitialDatabase:
         rng_seed: int = None,
         device: str = None,
         plot_filename: str = None,
+        boundary_method: str = 'concave_hull',
+        morph_disk_size: int = 10,
+        morph_threshold: int = 250,
+        morph_dpi: int = 100,
     ):
         import torch  # noqa
 
         from atlas.active_learning.extrapolation import concave_hull as atl_ch
         from atlas.active_learning.extrapolation import (
+            morphological_closing as atl_morph,
+        )
+        from atlas.active_learning.extrapolation import (
             train_autoencoder as atl_tr_ae,
         )
+        from atlas.active_learning.extrapolation.autoencoder import AutoencoderSettings
 
         if not device:
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -3217,26 +3263,13 @@ class InitialDatabase:
                     [val['descriptors'] for key, val in descriptors.items()]
                 )
                 model = atl_tr_ae.run_training(
-                    SimpleNamespace(
+                    AutoencoderSettings(
                         rng_seed=rng_seed,
                         device=device,
-                        dtype=torch.float32,
+                        dtype='float32',
                         dataset=descriptor_arr,
-                        test_frac=0.1,
-                        valid_frac=0.1,
-                        train_frac=0.8,
-                        wandb=False,
-                        l1_hidden_dim=256,
-                        l2_hidden_dim=32,
-                        bias_flag=True,
-                        loss='mse',
-                        patience=5,
-                        lr=1e-3,
-                        batch_size=4096,
                         num_epochs=250,
                         model_path='./autoencoder_model.pth',
-                        weight_decay=1e-5,
-                        verbose=False,
                     )
                 )
 
@@ -3259,18 +3292,122 @@ class InitialDatabase:
                     device=device,
                 )
 
-        # Get the concave hull of the reduced descriptors
+        # Get boundary of the reduced descriptors
         latent_space = np.vstack(
             [val['latent_space'] for key, val in descriptors.items()]
         )
+        unique_ids = np.array(list(descriptors.keys()), dtype=str)
+        npz_path = pl.Path(plot_filename).with_name('latent_space.npz')
 
-        atl_cut.custom_print('Getting concave hull...', 'info')
-        concave_hull = atl_ch.get_concave_hull_python(latent_space)
-        concave_hull = atl_ch.plot_concave_hull(
-            concave_hull=concave_hull,
-            latent_space=latent_space,
-            filename=plot_filename,
+        match boundary_method:
+            case 'concave_hull':
+                atl_cut.custom_print('Getting concave hull...', 'info')
+                concave_hull, alpha = atl_ch.get_concave_hull_python(latent_space)
+
+                np.savez(
+                    npz_path,
+                    latent_space=latent_space,
+                    unique_ids=unique_ids,
+                    boundary_method=np.array(['concave_hull']),
+                    hull_vertices=concave_hull,
+                    alpha=np.array([alpha]),
+                )
+                atl_cut.custom_print(f'Saved latent space data to {npz_path}', 'done')
+
+                atl_ch.plot_concave_hull(
+                    concave_hull=concave_hull,
+                    latent_space=latent_space,
+                    filename=plot_filename,
+                    alpha=alpha,
+                )
+
+            case 'morphological_closing':
+                atl_cut.custom_print(
+                    'Getting morphological closing boundary...', 'info'
+                )
+                results = atl_morph.process_morphological_closing(
+                    latent_space[:, 0],
+                    latent_space[:, 1],
+                    disk_size=morph_disk_size,
+                    threshold=morph_threshold,
+                    dpi=morph_dpi,
+                )
+                boundaries = results['data_boundaries']
+
+                if boundaries:
+                    all_coords = np.vstack(boundaries)
+                    counts = np.array([len(b) for b in boundaries], dtype=np.int64)
+                else:
+                    all_coords = np.empty((0, 2), dtype=np.float64)
+                    counts = np.array([], dtype=np.int64)
+
+                np.savez(
+                    npz_path,
+                    latent_space=latent_space,
+                    unique_ids=unique_ids,
+                    boundary_method=np.array(['morphological_closing']),
+                    boundary_coords=all_coords,
+                    boundary_counts=counts,
+                    morph_disk_size=np.array([morph_disk_size]),
+                )
+                atl_cut.custom_print(f'Saved latent space data to {npz_path}', 'done')
+
+                _plot_morphological_closing(
+                    latent_space, boundaries, morph_disk_size, plot_filename
+                )
+
+
+def _plot_morphological_closing(latent_space, boundaries, disk_size, filename):
+    """Save a boundary overlay plot for morphological closing results."""
+    import matplotlib.pyplot as plt
+    from shapely.geometry import Polygon
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.scatter(
+        latent_space[:, 0],
+        latent_space[:, 1],
+        s=4,
+        c='steelblue',
+        alpha=0.6,
+        edgecolors='none',
+        rasterized=True,
+        zorder=1,
+    )
+
+    total_area = 0.0
+    for boundary in boundaries:
+        boundary = np.atleast_2d(boundary)
+        if len(boundary) < 3:
+            continue
+        try:  # noqa
+            total_area += Polygon(boundary).area
+        except Exception:
+            pass
+        ax.plot(
+            boundary[:, 0],
+            boundary[:, 1],
+            '-',
+            color='#cc241d',
+            lw=2,
+            zorder=2,
         )
+
+    ax.text(
+        0.03,
+        0.97,
+        f'Disk size: {disk_size}\nTotal area: {total_area:.2e}\n'
+        f'Boundaries: {len(boundaries)}\nStructures: {len(latent_space):,}',
+        transform=ax.transAxes,
+        fontsize=9,
+        verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor='white', alpha=0.85),
+        zorder=4,
+    )
+    ax.set_xlabel('Embedded dimension 1')
+    ax.set_ylabel('Embedded dimension 2')
+    fig.savefig(filename, bbox_inches='tight', dpi=150)
+    plt.close(fig)
+    atl_cut.custom_print(f'Boundary plot saved to {filename}', 'done')
 
 
 # def estimate_final_struct_number(
@@ -3416,6 +3553,8 @@ def cli_run_gen_initial_database(
         symbol = None
 
         try:
+            from mp_api.client import MPRester
+
             with MPRester(
                 ut.gather_secrets()['API_KEY'], mute_progress_bars=True
             ) as mpr:
@@ -3499,6 +3638,17 @@ def cli_run_gen_initial_database(
     # )
     # quit()
 
+    # Fair cluster budget distribution across phases
+    _cluster_budget_remaining = None
+    if 'cluster' in gen_dict and 'cluster' in gen_dict.get('generate_type', []):
+        _cluster_limit_global = gen_dict['cluster'].get('limit_max_num_structures')
+        if _cluster_limit_global:
+            _cluster_budget_remaining = int(_cluster_limit_global)
+
+    # Global target from database.composition.size, used to auto-derive
+    # per-phase limits when no explicit limit_max_num_structures is set.
+    _total_target = int(composition_dict.get('size', 0)) or None
+
     for phase_idx, phase in enumerate(selected_phases):
         # Line break for aesthetic purposes
         print()
@@ -3525,7 +3675,7 @@ def cli_run_gen_initial_database(
             )
             continue
 
-        if 'bulk' in gen_dict:
+        if 'bulk' in gen_dict and 'bulk' in gen_dict.get('generate_type', []):
             step_name = 'bulk generation'
             atl_cut.custom_print(
                 f"Step '{step_name}' - Generating bulk structures...", 'info'
@@ -3550,7 +3700,7 @@ def cli_run_gen_initial_database(
             added_structs = len(structures) - ini_n_structs
             report_completed_step(phase, structures, added_structs, step_name=step_name)
 
-        if 'surface' in gen_dict:
+        if 'surface' in gen_dict and 'surface' in gen_dict.get('generate_type', []):
             step_name = 'surface generation'
             atl_cut.custom_print(
                 f'Step {step_name} - Generating surface structures...', 'info'
@@ -3588,8 +3738,99 @@ def cli_run_gen_initial_database(
             report_completed_step(phase, structures, added_structs, step_name=step_name)
             # output_db_status(structures)
 
-        if 'cluster' in gen_dict:
-            raise NotImplementedError('Cluster type not implemented yet')
+        if 'cluster' in gen_dict and 'cluster' in gen_dict.get('generate_type', []):
+            step_name = 'cluster generation'
+            atl_cut.custom_print(
+                f'Step {step_name} - Generating cluster structures...', 'info'
+            )
+            ini_n_structs = len(structures)
+
+            # Per-phase cluster budget: divide remaining budget among remaining phases
+            _phase_cluster_start = len(structures)
+            if _cluster_budget_remaining is not None:
+                _num_remaining = len(selected_phases) - phase_idx
+                _per_phase_ceiling = max(1, _cluster_budget_remaining // _num_remaining)
+                cluster_limit = _phase_cluster_start + _per_phase_ceiling
+            else:
+                cluster_limit = None
+
+            # Generating base clusters
+            structures.generate_clusters(
+                size_range=list(int(s) for s in gen_dict['cluster']['size_range']),
+                add_dimer=gen_dict['cluster'].get('add_dimer', False),
+                save_in_db=gen_dict['cluster'].get('save_in_db', True),
+                get_replacements=False,
+                get_perturbed=False,
+                phase=phase,
+                num_struct=int(gen_dict['cluster'].get('num_struct', 2)),
+                num_repeat=int(gen_dict['cluster'].get('num_repeat', 2)),
+                method=gen_dict['cluster'].get('cluster_method', 'wulff'),
+                basin_hopping=gen_dict['cluster'].get('basin_hopping', False),
+                bh_totalsteps=int(gen_dict['cluster'].get('bh_totalsteps', 50)),
+                bh_fmax=float(gen_dict['cluster'].get('bh_fmax', 0.05)),
+                lj_sigma=float(gen_dict['cluster']['lj_sigma'])
+                if 'lj_sigma' in gen_dict['cluster']
+                else None,
+                lj_epsilon=float(gen_dict['cluster'].get('lj_epsilon', 1.0)),
+            )
+
+            # Check limit after base cluster generation
+            if cluster_limit and len(structures) >= cluster_limit:
+                atl_cut.custom_print(
+                    f'Cluster limit reached ({len(structures)} >= {cluster_limit}). '
+                    'Skipping replacements and perturbations.',
+                    'warning',
+                )
+            else:
+                # Generating replacement clusters
+                if gen_dict['cluster'].get('get_replacements', False):
+                    atl_cut.custom_print('Generating cluster replacements...', 'info')
+                    _remaining = (
+                        (cluster_limit - len(structures)) if cluster_limit else None
+                    )
+                    atl_clust.apply_replacement_cluster_db(
+                        db_obj=structures,
+                        phase=phase,
+                        num_struct=int(gen_dict['cluster'].get('num_struct', 2)),
+                        num_repeat=int(gen_dict['cluster'].get('num_repeat', 2)),
+                        similarity_check=True,
+                        save_in_db=gen_dict['cluster'].get('save_in_db', True),
+                        max_structures=_remaining,
+                    )
+
+                # Check limit after replacements
+                if cluster_limit and len(structures) >= cluster_limit:
+                    atl_cut.custom_print(
+                        f'Cluster limit reached ({len(structures)} >= {cluster_limit}).'
+                        ' Skipping perturbations.',
+                        'warning',
+                    )
+                else:
+                    # Generating perturbed clusters
+                    if gen_dict['cluster'].get('get_perturbed', False):
+                        atl_cut.custom_print('Generating perturbed clusters...', 'info')
+                        _remaining = (
+                            (cluster_limit - len(structures)) if cluster_limit else None
+                        )
+                        atl_clust.apply_gauss_perturb_db(
+                            repeat=int(gen_dict['cluster'].get('num_repeat', 2)),
+                            db_obj=structures,
+                            center=float(
+                                gen_dict['cluster'].get('perturbation_ang', 0.04)
+                            ),
+                            max_structures=_remaining,
+                            phase=phase,
+                        )
+
+            added_structs = len(structures) - ini_n_structs
+            report_completed_step(phase, structures, added_structs, step_name=step_name)
+
+            # Update remaining cluster budget
+            if _cluster_budget_remaining is not None:
+                _phase_cluster_used = len(structures) - _phase_cluster_start
+                _cluster_budget_remaining = max(
+                    0, _cluster_budget_remaining - _phase_cluster_used
+                )
 
         # Filter small and large structures
         remove_count = structures.remove_structs_out_of_atom_count_range(
@@ -3684,6 +3925,9 @@ def cli_run_gen_initial_database(
         lim_phas_structs = phase_diagram_dict['phase'][phase.original_name].get(
             'limit_max_num_structures'
         )
+        if not lim_phas_structs and _total_target:
+            n_phases = len(selected_phases)
+            lim_phas_structs = max(1, _total_target // n_phases)
         if lim_phas_structs:
             step_name = 'limiting structures'
             atl_cut.custom_print(
@@ -3694,11 +3938,15 @@ def cli_run_gen_initial_database(
                 'info',
             )
             ini_n_structs = len(structures)
+            _stratify = phase_diagram_dict['phase'][phase.original_name].get(
+                'stratify_by_size', False
+            )
             structures = ut.limit_num_structures_phase(
                 structures,
                 phase,
                 lim_phas_structs,
                 rng_seed,
+                stratify_by_size=_stratify,
             )
             added_structs = len(structures) - ini_n_structs
             report_completed_step(phase, structures, added_structs, step_name=step_name)
@@ -3763,11 +4011,22 @@ def cli_run_gen_initial_database(
         ini_n_structs = len(structures)
 
         # Apply user-defined filters to the structures
-        filtered_idxs = apply_struct_filters_atl_db(structures, config_dict)
+        filter_results = apply_struct_filters_atl_db(structures, config_dict)
+        total_removed = len(filter_results['filtered_uuids'])
         atl_cut.custom_print(
-            f'Removed {len(filtered_idxs)} structures based on user-defined filters.',
+            f'Removed {total_removed} structures based on user-defined filters.',
             'info',
         )
+        if total_removed > 0:
+            bp = dict(filter_results['by_phase'])
+            bt = dict(filter_results['by_type'])
+            bm = dict(filter_results['by_modification'])
+            bf = dict(filter_results['by_filter'])
+            atl_cut.custom_print(f'  By phase: {bp}', 'info')
+            atl_cut.custom_print(f'  By type: {bt}', 'info')
+            atl_cut.custom_print(f'  By modification: {bm}', 'info')
+            atl_cut.custom_print(f'  By filter: {bf}', 'info')
+            structures._removal_history['filtering'].update(filter_results)
         added_structs = len(structures) - ini_n_structs
         report_completed_step(phase, structures, added_structs, step_name=step_name)
     # Add function to check all atom type in database and
@@ -3805,8 +4064,12 @@ def cli_run_gen_initial_database(
     # Getting the concave hull if requested
     if config_dict.get('concave_hull', {}).get('gen_concave_hull', False):
         concave_dict = config_dict['concave_hull']
+        boundary_method = concave_dict.get('boundary_method', 'concave_hull')
         print()
-        atl_cut.custom_print('Generating concave hull...', 'info')
+        atl_cut.custom_print(
+            f'Generating boundary ({boundary_method})...',
+            'info',
+        )
         structures.descriptors_concave_hull(
             descriptor_type=concave_dict.get('descriptor', 'soap').lower(),
             dimensionality_reduction_method=concave_dict.get(
@@ -3818,8 +4081,12 @@ def cli_run_gen_initial_database(
             ),
             device=concave_dict.get('device', 'cpu'),
             rng_seed=rng_seed,
+            boundary_method=boundary_method,
+            morph_disk_size=concave_dict.get('morph_disk_size', 10),
+            morph_threshold=concave_dict.get('morph_threshold', 250),
+            morph_dpi=concave_dict.get('morph_dpi', 100),
         )
-        atl_cut.custom_print('Concave hull generated!', 'done')
+        atl_cut.custom_print('Boundary generated!', 'done')
         print()
 
     # Export the database if requested
