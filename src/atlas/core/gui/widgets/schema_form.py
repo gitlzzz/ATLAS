@@ -834,7 +834,9 @@ class SchemaForm(QWidget):
         widget.setProperty(
             'default_value', str(raw_default) if raw_default is not None else ''
         )
-        widget.setToolTip(item_def.get('description', ''))
+        desc = item_def.get('description', '')
+        if desc:
+            widget.setToolTip(f'<p>{desc}</p>')
         return widget
 
     @staticmethod

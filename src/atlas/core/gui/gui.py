@@ -1103,7 +1103,9 @@ class InputFileTab(QWidget):
             'description', item_def.get('description', 'No description available.')
         )
         widget.setProperty('value_type', item_def.get('type', 'N/A'))
-        widget.setToolTip(item_def.get('description', ''))
+        desc = item_def.get('description', '')
+        if desc:
+            widget.setToolTip(f'<p>{desc}</p>')
         return widget
 
     def _get_widget_value(self, widget):
