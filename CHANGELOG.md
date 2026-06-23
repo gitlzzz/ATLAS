@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.55.1 (2026-06-23)
+
+### Fix
+
+- **gui**: numerical sorting in table view ([#8021a84](https://github.com/pol-sb/ATLAS/commit/8021a84113ca1e202e8b76fb0b1fff9ec3631bab))
+- **gui**: increase tooltip size to avoid clipping ([#b16963d](https://github.com/pol-sb/ATLAS/commit/b16963dc8f0ed9ecbb927dfb031547f1899ffbfa))
+- **dft**: enhance compatibility between gui and dft submission ([#bf08aa2](https://github.com/pol-sb/ATLAS/commit/bf08aa2d7103deacab76b0cdce6f4de855bc6d20))
+
+### Misc
+
+- **core**: update uv.lock ([#9c9bc82](https://github.com/pol-sb/ATLAS/commit/9c9bc824aa188f3b1101ce1ada46e39ec3fd0b03))
+- **core**: update requirements ([#f476184](https://github.com/pol-sb/ATLAS/commit/f476184d3bd2808fd0944aca88453555aa608fd0))
+
 ## 0.55.0 (2026-06-22)
 
 ### Feature
