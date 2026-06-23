@@ -543,6 +543,7 @@ class _BrokerPage(QWizardPage):
             'If you created your profile with "verdi presto", RabbitMQ\n'
             'is likely not configured. To install RabbitMQ:\n\n'
             '  Ubuntu/Debian:  sudo apt install rabbitmq-server\n'
+            '  Fedora:  sudo dnf install rabbitmq-server\n'
             '  macOS:          brew install rabbitmq\n'
             '  conda:          conda install -c conda-forge rabbitmq-server'
         )
@@ -638,7 +639,9 @@ class _BrokerPage(QWizardPage):
             )
         except subprocess.TimeoutExpired:
             QMessageBox.critical(
-                self, 'RabbitMQ Configuration', 'Command timed out (30 seconds).'
+                self,
+                'RabbitMQ Configuration',
+                'Command timed out (30 seconds)',
             )
 
     def validatePage(self) -> bool:
