@@ -57,7 +57,7 @@ mace = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pol-sb/ATLAS"
+Homepage = "https://github.com/LopezGroup-ICIQ/ATLAS"
 
 [project.entry-points."aiida.calculations"]
 "atl-autoencoder-train" = "atlas.active_learning.extrapolation.autoencoder_tools_aiida:TrainAutoencoderCalculation"

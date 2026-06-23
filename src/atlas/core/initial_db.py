@@ -1252,10 +1252,7 @@ class InitialDatabase:
         # Getting the path where the calculations will be searched for.
         read_path = pathlib.Path(path) if path else pathlib.Path()
 
-        if target_structures:
-            selection_criteria = target_structures
-        else:
-            selection_criteria = self.phase_diagram.keys()
+        selection_criteria = target_structures or self.phase_diagram.keys()
 
         selection_criteria = [crit.name for crit in selection_criteria]
 
