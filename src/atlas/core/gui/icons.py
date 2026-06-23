@@ -42,11 +42,42 @@ def themed_icon(name: str, color: str, size: int = 24) -> QIcon:
     return icon
 
 
+def _tray_icon_path() -> Path | None:
+    """Return the SVG path for the system tray icon.
+
+    The tray icon always uses the light version with a blue accent
+    because system trays render on their own background (often dark)
+    and we can't control it.
+    """
+    return ASSETS_DIR / 'atlas_atom_tray.svg'
+
+
 def app_icon() -> QIcon:
     """Return the application icon for window/tray use."""
+    from atlas.core.gui.themes import saved_global_theme, theme_variant
+
+    variant = theme_variant(saved_global_theme())
+    dark = ASSETS_DIR / 'atlas_atom_dark.svg'
+    light = ASSETS_DIR / 'atlas_atom.svg'
+    if variant == 'dark' and dark.exists():
+        return QIcon(str(dark))
+    if light.exists():
+        return QIcon(str(light))
     logo = ASSETS_DIR / 'atlas_logo_light.png'
     if logo.exists():
         return QIcon(str(logo))
+    return QIcon.fromTheme('applications-science')
+
+
+def tray_icon() -> QIcon:
+    """Return the icon for the system tray.
+
+    Always uses the light version with a blue accent since system
+    trays render on an independent background.
+    """
+    tray_svg = _tray_icon_path()
+    if tray_svg and tray_svg.exists():
+        return QIcon(str(tray_svg))
     return QIcon.fromTheme('applications-science')
 
 
