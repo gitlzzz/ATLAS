@@ -285,11 +285,21 @@ class _StructuresTableModel(QAbstractTableModel):
         return None
 
     def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid() or role != Qt.DisplayRole:
+        if not index.isValid() or role not in (Qt.DisplayRole, Qt.UserRole):
             return None
         row = self._rows[index.row()]
         key = self._columns[index.column()][0]
         value = row.get(key)
+
+        if role == Qt.UserRole:
+            if key == 'n_atoms':
+                return int(value) if value is not None else -1
+            if key == 'calc_energy':
+                return float(value) if value is not None else float('inf')
+            if key == 'calc_performed':
+                return 1 if value else 0
+            return str(value or '')
+
         if key == 'calc_performed':
             return 'Yes' if value else 'No'
         if key == 'calc_energy' and value is not None:
@@ -465,6 +475,7 @@ class StructuresPanel(QWidget):
         self._model = _StructuresTableModel(self)
         self._proxy = QSortFilterProxyModel(self)
         self._proxy.setSourceModel(self._model)
+        self._proxy.setSortRole(Qt.UserRole)
 
         self._table = QTableView()
         self._table.setModel(self._proxy)
@@ -638,6 +649,7 @@ class StructuresTablePanel(QWidget):
         self._model = _StructuresTableModel(self)
         self._proxy = _StructuresFilterProxy(self)
         self._proxy.setSourceModel(self._model)
+        self._proxy.setSortRole(Qt.UserRole)
 
         # -- Table -----------------------------------------------------------
         self._table = QTableView()
