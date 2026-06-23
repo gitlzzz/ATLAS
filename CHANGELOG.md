@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.55.2 (2026-06-23)
+
+### Docs
+
+- **gui**: update wizard instructions ([#7eff4ec](https://github.com/pol-sb/ATLAS/commit/7eff4ec1a2fe09cf694e7df7d1baa9eb9b2ad91d))
+- **gui**: add gui section to README.md ([#f430503](https://github.com/pol-sb/ATLAS/commit/f430503348a7f370ecc0587c2492a83d360d9eb4))
+
+### Fix
+
+- **gui**: avoid ticklabels recursion ([#10b066d](https://github.com/pol-sb/ATLAS/commit/10b066de7c9ce8190fc32f3b6ad9cc2dfe724625))
+- **gui**: update icons and app id ([#d9cdaa1](https://github.com/pol-sb/ATLAS/commit/d9cdaa1ff8e86edb4a1e258080b17d3fac8e4938))
+
+### Refactor
+
+- **gui**: update icons ([#b464c1e](https://github.com/pol-sb/ATLAS/commit/b464c1efcb993c8582ccaf49a4a1c0c95ed22b64))
+
 ## 0.55.1 (2026-06-23)
 
 ### Fix
