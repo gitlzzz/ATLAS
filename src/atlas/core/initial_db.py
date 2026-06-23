@@ -3069,7 +3069,8 @@ class InitialDatabase:
             color=[plot_dict[key]['color'] for key in top_dict],
             alpha=0.3,
         )
-        bar_chart_ax.set_yticks(y_pos_bar, labels=top_dict.keys())
+        bar_chart_ax.set_yticks(y_pos_bar)
+        bar_chart_ax.set_yticklabels(list(top_dict.keys()))
 
         # Writing labels in barchart
         label_x = max(top_dict.values()) * 0.10
@@ -3093,7 +3094,8 @@ class InitialDatabase:
             color=[plot_dict[key]['color'] for key in bottom_dict],
             alpha=0.3,
         )
-        bar_chart_ax_2.set_yticks(y_pos_bar, labels=bottom_dict.keys())
+        bar_chart_ax_2.set_yticks(y_pos_bar)
+        bar_chart_ax_2.set_yticklabels(list(bottom_dict.keys()))
 
         # Writing labels in barchart
         label_x = max(bottom_dict.values()) * 0.10

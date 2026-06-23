@@ -404,7 +404,8 @@ class AlOutputsPanel(QWidget):
                 linewidth=0.8,
             )
 
-        ax.set_xticks(x + width / 2, labels=it_idx)
+        ax.set_xticks(x + width / 2)
+        ax.set_xticklabels(it_idx)
         ax.set_xlabel('AL Iteration')
         ax.set_ylabel('Number of Structures')
         ax.set_title('Database Evolution', fontsize=10, fontweight='bold')
@@ -467,7 +468,8 @@ class AlOutputsPanel(QWidget):
             )
 
         ax.axhline(y=0, color=LINE_COLOR, linestyle='--')
-        ax.set_xticks(x + width / 2, labels=it_idx)
+        ax.set_xticks(x + width / 2)
+        ax.set_xticklabels(it_idx)
         ax.set_xlabel('AL Iteration')
         ax.set_ylabel('Δ Structures')
         ax.set_title('Per-Iteration Change', fontsize=10, fontweight='bold')

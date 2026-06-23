@@ -323,7 +323,8 @@ class TrainingReportPanel(QWidget):
             x = np.arange(len(labels))
             colors = [COLORS[i % len(COLORS)] for i in range(len(labels))]
             ax.bar(x, sizes, color=colors, edgecolor='#282828', linewidth=0.8)
-            ax.set_xticks(x, labels=labels)
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels)
             ax.set_ylabel('Final DB Size')
             ax.set_title('Final Database Size', fontsize=10, fontweight='bold')
             ax.spines['top'].set_visible(False)
@@ -422,7 +423,8 @@ class TrainingReportPanel(QWidget):
             x = np.arange(len(labels))
             colors = [COLORS[i % len(COLORS)] for i in range(len(labels))]
             ax.bar(x, iters, color=colors, edgecolor='#282828', linewidth=0.8)
-            ax.set_xticks(x, labels=labels)
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels)
             ax.set_ylabel('Completed Iterations')
             ax.set_title('Iterations per Run', fontsize=10, fontweight='bold')
             ax.spines['top'].set_visible(False)
@@ -495,7 +497,8 @@ class TrainingReportPanel(QWidget):
                     edgecolor='#282828',
                     linewidth=0.8,
                 )
-            ax.set_xticks(x + w / 2, labels=it_idx)
+            ax.set_xticks(x + w / 2)
+            ax.set_xticklabels(it_idx)
             ax.set_xlabel('AL Iteration')
             ax.set_ylabel('Structures')
             ax.set_title(f'Run #{run_id}, DB Evolution', fontsize=10, fontweight='bold')
@@ -561,7 +564,8 @@ class TrainingReportPanel(QWidget):
             x = np.arange(len(it_idx))
             ax.bar(x, delta, color=COLORS[0], edgecolor='#282828', linewidth=0.8)
             ax.axhline(y=0, color='#28282855', ls='--')
-            ax.set_xticks(x, labels=it_idx)
+            ax.set_xticks(x)
+            ax.set_xticklabels(it_idx)
             ax.set_xlabel('AL Iteration')
             ax.set_ylabel('Δ Structures')
             ax.set_title('Per-Iteration Change', fontsize=10, fontweight='bold')
