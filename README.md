@@ -161,6 +161,35 @@ atl_init_setup
     2. Create the AiiDA computer and code entries for ATLAS and aiida-vasp.
     3. Add the potential datasets for aiida-vasp ([information here](https://aiida-vasp.readthedocs.io/en/latest/getting_started/potentials.html)).
 
+### Option D - Docker (`docker compose`)
+
+A turnkey orchestration stack (ATLAS + PostgreSQL + RabbitMQ) is provided so you
+don't have to install AiiDA's services by hand. The `atlas` container's entrypoint
+waits for the database/broker and creates an AiiDA profile (`atlas`) automatically
+on first start.
+
+```bash
+# Build and start the stack (PostgreSQL, RabbitMQ, and the ATLAS container)
+MP_API_KEY=your_mp_key docker compose up -d --build
+
+# Verify the AiiDA profile is up inside the container
+docker compose exec atlas verdi status
+
+# Run any atl_* command against your working directory (mounted at /work)
+docker compose exec atlas atl_gen_configuration_file -t active_learning
+docker compose exec atlas atl_gen_init_db -c ./config_file.toml
+```
+
+Notes:
+- Your current directory is mounted at `/work` inside the container, so generated
+  databases and configs land on the host.
+- The MACE/VASP **codes still run on your HPC** via AiiDA's `ContainerizedCode`
+  (configure `container_settings.image_name` / `engine_command` in your TOML and
+  register the remote computer/code with `verdi`). This image only orchestrates.
+- Build with `--build-arg INSTALL_MACE=true` if you also want the (large) MACE
+  extra available inside the orchestration image.
+- The dashboard (`atl_monitor_al_loop`) is exposed on port 8000.
+
 ## Developer Workflow
 
 Install the development dependencies with `pip install -e '.[dev]'`, which adds pre-commit, pytest, commitizen, and ipdb. After cloning, run `pre-commit install` to activate the git hooks.

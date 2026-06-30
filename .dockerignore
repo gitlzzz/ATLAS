@@ -1,0 +1,17 @@
+# Keep .git: setuptools-git-versioning derives the version from it.
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+docs/
+media/
+tests/
+.github/
+uv.lock
+*.log
+.venv/
+venv/
+atlas/
