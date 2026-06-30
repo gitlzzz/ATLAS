@@ -435,7 +435,10 @@ def select_structures_random(database: list[Atoms], n_structures: int) -> list[A
         return database.copy()
 
     indices = np.random.choice(len(database), size=n_structures, replace=False)
-    return [database[i] for i in indices]
+    selected = [database[i] for i in indices]
+    for struct in selected:
+        struct.info['selection_reason'] = 'random'
+    return selected
 
 
 def select_structures_lowest_energy(
@@ -463,7 +466,10 @@ def select_structures_lowest_energy(
     sorted_db = sorted(
         database, key=lambda x: float(x.info.get('REF_energy', float('inf')))
     )
-    return sorted_db[:n_structures]
+    selected = sorted_db[:n_structures]
+    for struct in selected:
+        struct.info['selection_reason'] = 'lowest_energy'
+    return selected
 
 
 def select_structures_fps(
@@ -517,7 +523,10 @@ def select_structures_fps(
     # Sort descending by score just to keep them ordered properly
     selected_candidates.sort(key=lambda x: x.info['fps_score'], reverse=True)
 
-    return selected_candidates[:n_structures]
+    result = selected_candidates[:n_structures]
+    for struct in result:
+        struct.info['selection_reason'] = 'fps'
+    return result
 
 
 def select_structures_uncertainty(
@@ -591,7 +600,10 @@ def select_structures_uncertainty(
 
     # Sort by uncertainty (descending) and select top n
     uncertainties.sort(key=lambda x: x[0], reverse=True)
-    return [struct for _, struct in uncertainties[:n_structures]]
+    selected = [struct for _, struct in uncertainties[:n_structures]]
+    for struct in selected:
+        struct.info['selection_reason'] = 'committee_disagreement'
+    return selected
 
 
 def select_structures_data_reduction(
