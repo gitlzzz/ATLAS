@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+    push:
+        branches:
+            - master
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    pytest:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Free Disk Space (Ubuntu)
+              run: |
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /opt/ghc
+                  sudo docker image prune --all --force || true
+
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Python 3.11
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+
+            - name: Install package (dev extras)
+              run: |
+                  python -m pip install --upgrade pip setuptools
+                  pip install ".[dev]"
+
+            - name: Run fast test suite with coverage
+              env:
+                  QT_QPA_PLATFORM: offscreen
+                  QT_NO_DBUS: "1"
+              run: |
+                  # Skip tests requiring a configured AiiDA profile (test_kpoints)
+                  # or a Qt display / PySide6 (GUI tests), which aren't available
+                  # in this lightweight CI environment.
+                  pytest tests/ \
+                    --ignore=tests/test_structure_viewer.py \
+                    --ignore=tests/test_al_page.py \
+                    --cov=atlas --cov-report=term-missing \
+                    -p no:cacheprovider
