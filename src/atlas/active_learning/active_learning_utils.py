@@ -1082,6 +1082,48 @@ def run_mace_md_ase(
         )
         init_conf.calc = wrapped_calc
 
+    # Enhanced sampling dispatch (CV-free). GaMD/aMD wrap the calculator with a
+    # boost potential; replica exchange / minima hopping replace the single
+    # trajectory run entirely and return their harvested frames.
+    es_settings = md_params.get('enhanced_sampling') or {}
+    es_method = es_settings.get('method', 'none')
+
+    if es_method in ('gamd', 'amd'):
+        from atlas.active_learning.md.enhanced_sampling import (
+            make_enhanced_calculator,
+        )
+
+        init_conf.calc = make_enhanced_calculator(init_conf.calc, es_settings)
+
+    if es_method in ('replica_exchange', 'minima_hopping'):
+        from atlas.active_learning.md import enhanced_sampling as atl_es
+
+        frames = atl_es.run_enhanced_sampling_frames(
+            init_conf=init_conf,
+            method=es_method,
+            settings=es_settings,
+            t_start=T_start,
+            md_params=md_params,
+        )
+        atl_cut.custom_print(
+            f"Enhanced sampling '{es_method}' produced {len(frames)} frames.",
+            'info',
+        )
+        if mode == 'normal' and traj_obj is not None:
+            for frame in frames:
+                ref_e = frame.info.get('REF_energy')
+                ref_f = frame.arrays.get('REF_forces')
+                frame.info['atl_id'] = str(uuid4())
+                frame.info['md_stage_name'] = stage_name
+                traj_obj.write(frame, energy=ref_e, forces=ref_f)
+            return
+        if mode != 'normal':
+            if not md_struct_list:
+                md_struct_list = []
+            md_struct_list.extend(frames)
+            return md_struct_list
+        return
+
     # Set the momenta corresponding to the initial temperature
     MaxwellBoltzmannDistribution(init_conf, temperature_K=T_start)
 

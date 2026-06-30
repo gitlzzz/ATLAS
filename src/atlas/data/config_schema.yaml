@@ -1669,6 +1669,53 @@ active_learning:
                 #   description: "Symbol of the element defining the cluster."
                 #   type: str
                 #   mandatory: false
+        enhanced_sampling:
+            name: "enhanced_sampling"
+            name_pretty: "Enhanced Sampling"
+            description: "CV-free enhanced sampling for the MD step, to generate more diverse / off-equilibrium training structures. `gamd` (Gaussian Accelerated MD) and `amd` (Accelerated MD) add a boost potential that lowers energy barriers and are implemented as a calculator wrapper. `minima_hopping` uses ASE MinimaHopping to explore distinct PES minima. `replica_exchange` runs in-process parallel tempering across a temperature ladder. `none` runs standard MD."
+            method:
+                description: "Enhanced-sampling method to use during MD."
+                type: str
+                mandatory: false
+                default: "none"
+                choices: ["none", "gamd", "amd", "minima_hopping", "replica_exchange"]
+            equilibration_steps:
+                description: "GaMD/aMD: number of initial force evaluations used to auto-tune the boost parameters (E, k). Set to 0 to disable auto-tuning, in which case `boost_energy` (and `boost_k` for GaMD / `amd_alpha` for aMD) must be provided."
+                type: int
+                mandatory: false
+                default: 200
+            gamd_sigma0:
+                description: "GaMD: upper bound (eV) on the standard deviation of the boost potential; controls how aggressive the boost is."
+                type: float
+                mandatory: false
+                default: 6.0
+            boost_energy:
+                description: "GaMD/aMD: explicit energy threshold E (eV). If unset, it is auto-tuned from the equilibration phase as the maximum observed potential energy."
+                type: float
+                mandatory: false
+            boost_k:
+                description: "GaMD: explicit harmonic force constant k. If unset, it is auto-tuned."
+                type: float
+                mandatory: false
+            amd_alpha:
+                description: "aMD: acceleration parameter alpha (eV). If unset, it is auto-tuned."
+                type: float
+                mandatory: false
+            n_replicas:
+                description: "Replica exchange: number of temperature replicas in the ladder."
+                type: int
+                mandatory: false
+                default: 4
+            swap_interval:
+                description: "Replica exchange: number of MD steps between swap attempts."
+                type: int
+                mandatory: false
+                default: 100
+            minima_hopping_steps:
+                description: "Minima hopping: number of hops (totalsteps) to perform."
+                type: int
+                mandatory: false
+                default: 10
         filters:
             name: "filters"
             name_pretty: "MD Trajectory Filters"
