@@ -1,0 +1,70 @@
+# Turnkey ATLAS orchestration stack.
+#
+#   docker compose up -d --build
+#   docker compose exec atlas verdi status
+#   docker compose exec atlas atl_gen_configuration_file -t active_learning
+#
+# The `atlas` service orchestrates the AL loop; MACE/VASP run on compute nodes
+# via AiiDA ContainerizedCode (configure container_settings in your TOML).
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: aiida
+      POSTGRES_PASSWORD: aiida_pw
+      POSTGRES_DB: aiida
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiida"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "15672:15672"  # management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  atlas:
+    build:
+      context: .
+      args:
+        INSTALL_MACE: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: aiida
+      POSTGRES_PASSWORD: aiida_pw
+      POSTGRES_DB: aiida
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      # Pass your Materials Project key through from the host environment.
+      MP_API_KEY: ${MP_API_KEY:-}
+    volumes:
+      - ./:/work          # your working directory (configs, databases)
+      - atlas_data:/atl_data
+    working_dir: /work
+    ports:
+      - "8000:8000"       # atl_monitor_al_loop dashboard
+    # Keep the orchestration container alive for interactive use
+    # (`docker compose exec atlas ...`). The entrypoint still sets up AiiDA.
+    command: ["tail", "-f", "/dev/null"]
+
+volumes:
+  pgdata:
+  rabbitmq_data:
+  atlas_data:
