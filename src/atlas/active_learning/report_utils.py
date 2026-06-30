@@ -34,6 +34,7 @@ from atlas.active_learning.extrapolation.autoencoder import (
     get_latent_space_autoencoder,
     load_autoencoder_model,
 )
+from atlas.active_learning.selection_insight import hull_area
 from atlas.active_learning.extrapolation.train_autoencoder import (
     run_training,
 )
@@ -2274,6 +2275,20 @@ def generate_latent_space_evol(
     # x_min = -5
     # y_max = 0
     # y_min = -1
+
+    # Track latent-space hull area (and area-per-structure coverage) per AL
+    # iteration. Persisted next to the report so coverage growth is inspectable.
+    hull_areas = {
+        int(idx): hull_area(np.asarray(h)) for idx, h in concave_hulls.items()
+    }
+    if hull_areas:
+        with open('hull_areas.json', 'w') as f:
+            json.dump({'hull_areas': hull_areas}, f, indent=2)
+        custom_print(
+            'Latent-space hull area per iteration: '
+            + ', '.join(f'{i}:{a:.3f}' for i, a in sorted(hull_areas.items())),
+            'info',
+        )
 
     for idx, hull in concave_hulls.items():
         # Initial concave hull. Do scatter and fill.

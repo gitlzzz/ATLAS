@@ -1646,6 +1646,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 future.base.extras.set('atl_calc_uuid', unique_id)
                 future.base.extras.set('atl_struct_type', row['atl_struct_type'])
                 future.base.extras.set('struct_name', struct_name)
+                future.base.extras.set(
+                    'selection_reason',
+                    row.get('selection_reason', 'extrapolating'),
+                )
                 self.to_context(dft_struct_seed_calcs=append_(future))
 
                 if self.inputs.train_seed_group.value:
@@ -1685,6 +1689,10 @@ class SimpleActiveLearningWorkChain(WorkChain):
             )
             future.base.extras.set('struct_name', struct.info.get('struct_name'))
             future.base.extras.set('atl_md_node', struct.info.get('atl_md_node'))
+            future.base.extras.set(
+                'selection_reason',
+                struct.info.get('selection_reason', 'extrapolating'),
+            )
 
             self.to_context(dft_struct_seed_calcs=append_(future))
 
