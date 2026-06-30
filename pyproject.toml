@@ -272,3 +272,30 @@ docstring-code-format = true
 docstring-code-line-length = 60
 indent-style = "space"
 quote-style = "single"
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "aiida: tests that require a configured AiiDA profile",
+    "gui: tests that require PySide6 / a display",
+]
+
+[tool.coverage.run]
+source = ["atlas"]
+omit = [
+    "*/atlas/core/gui/*",
+    "*/atlas/workflows/*",
+    "*/atlas/examples/*",
+    "*/atlas/benchmarks/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
