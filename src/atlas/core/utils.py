@@ -1149,137 +1149,71 @@ def add_adsorbates(
     repeat: int,
     db_obj: 'atl_indb.InitialDatabase',
     filters: list,
-    phase: atl_pd.Phase,
+    phase,
     adsorbate_species: list[str],
     limit_num_structures: int = None,
+    sites: list[str] = None,
+    height: float = 2.0,
 ):
-    from rich.progress import track
+    """Place adsorbate molecules on filtered surfaces and add them to the database.
 
-    # Create temporary file to store the trajectory using tmpfile
-    tmp_file = tempfile.NamedTemporaryFile(suffix='.traj').name  # noqa
-
-    adsorb_structs = []
+    For each surface matching ``filters``, enumerate high-symmetry adsorption
+    sites (pymatgen ``AdsorbateSiteFinder``) and place each requested adsorbate
+    species there, storing the result with adsorbate metadata. ``repeat`` is
+    accepted for backward compatibility (placements are deterministic per site).
+    """
+    from atlas.core import adsorption as atl_ads
 
     if not isinstance(db_obj, atl_indb.InitialDatabase):
         raise TypeError(
-            f"'{apply_gauss_perturb_db.__name__}' expects a ATLAS "
-            f'database object, not a {type(db_obj)}.'
+            f"'add_adsorbates' expects an ATLAS database object, not a {type(db_obj)}."
         )
 
-    # Filtering structures to perturb
+    rng = np.random.default_rng()
+
+    # Keep only the target structure types (e.g. surfaces).
     filtered_df, _, _ = apply_filters_db(db_obj, filters, phase)
+    custom_print(f'Adding adsorbates to {filtered_df.shape[0]} structures.', 'debug')
 
-    # Iterating over all filtered database rows to get desired surfaces
-    custom_print(
-        f'Perturbation will be applied to: {filtered_df.shape[0]} structures.', 'debug'
-    )
+    n_added = 0
+    for _, row in filtered_df.iterrows():
+        if row.structure is None:
+            continue
 
-    target_structs = filtered_df.iterrows()
+        slab = AseAtomsAdaptor.get_atoms(row.structure)
+        try:
+            generated = atl_ads.generate_adsorbed_structures(
+                slab,
+                species_list=adsorbate_species,
+                site_types=sites,
+                height=height,
+                max_per_slab=limit_num_structures,
+                rng=rng,
+            )
+        except Exception as exc:
+            custom_print(
+                f"Adsorbate placement failed for '{row.material_name}': {exc}", 'warn'
+            )
+            continue
 
-    if limit_num_structures:
-        limit_num_structures = np.min(
-            [limit_num_structures // repeat, filtered_df.shape[0] // repeat]
-        )
+        for atoms, ads_type, site_type in generated:
+            new_struct = atl_struct.Structure(
+                material_name=f'{row.material_name}_ads-{ads_type}-{site_type}',
+                material_id=row.material_id,
+                structure=AseAtomsAdaptor.get_structure(atoms),
+                phase=row.phase,
+                surface=True,
+                surface_miller=row.surface_miller,
+                base=False,
+                adsorbate=True,
+                adsorbate_type=ads_type,
+                adsorbate_site=site_type,
+            )
+            new_struct.save_to_db(db_obj=db_obj)
+            n_added += 1
 
-        custom_print(
-            f'Limiting number of structures to  {limit_num_structures}', 'info'
-        )
-
-        target_structs = np.random.choice(
-            range(limit_num_structures), limit_num_structures, replace=False
-        )
-
-        target_structs = [filtered_df.iloc[struct] for struct in target_structs]
-
-    # for _, row in filtered_df.iterrows():
-    adsorb_structs_l = []
-    for row in track(target_structs, description='Placing adsorbates...'):
-        struct = row.structure
-        if not isinstance(row.structure, Atoms):
-            struct = AseAtomsAdaptor().get_atoms(row.structure)
-
-        # TODO: test miller index. Get actual miller from row
-        # miller = row.surface_miller
-
-        # Getting the layers of the structure
-        # layer_num = len(np.unique(get_layers(struct, miller, tolerance=0.3)[0]))
-
-        # cust_crystal = crystal(
-        #     symbols=struct,
-        #     spacegroup=phase.spacegroup,
-        #     cell=struct.cell,
-        # )
-
-        # ase_surf = surface(cust_crystal, miller, layers=1, vacuum=15)
-        # print('ase_surf: ', ase_surf)
-
-        # Getting the layers of the structure
-        # _, layer_levels_sf = get_layers(ase_surf, miller, tolerance=0.1)
-        # layer_num_sf = len(layer_levels_sf)
-
-        # cust_surf = CustomSurface(struct, n_layers=4)
-        # cust_surf = CustomSurface(struct)
-        # print('cust_surf: ', dir(cust_surf))
-        # print('struct: ', struct)
-
-        # sas = SlabAdsorptionSites(
-        #     struct,
-        #     surface=cust_surf,
-        #     composition_effect=True,
-        #     #   ignore_sites=['4fold'],
-        #     label_sites=True,
-        # )
-        # # print("sas: ", sas)
-
-        # # Add more height
-        # print('sas: ', sas)
-        # heights = {k: v + 0.5 for k, v in site_heights.items()}
-
-        # # TODO: Change surface to the correct one
-        # # for spec in adsorbate_species:
-
-        # # print("spec: ", spec)
-        # print('repeat: ', repeat)
-        # gen = RPG(
-        #     images=struct,
-        #     adsorbate_species=adsorbate_species,
-        #     min_adsorbate_distance=1.5,
-        #     surface=cust_surf,
-        #     heights=heights,
-        #     # species_forbidden_sites={'CHOO': ['ontop','bridge']},
-        #     trajectory=tmp_file,
-        #     adsorption_sites=sas,
-        #     append_trajectory=True,
-        # )
-        # gen.run(num_gen=repeat, action="add")
-        # atoms = ase_read(tmp_file)
-        # adsorb_structs.append(atoms)
-        # visualize(atoms)
-
-        # Make this general
-        adder = AdsorbateAdder(cutoff=1.5, coverage=1)
-        ir_sites, o_sites = adder.find_surface_atoms(struct)
-        print(f'Found {len(ir_sites)} exposed Ir atoms')
-        print(f'Found {len(o_sites)} exposed O atoms')
-
-        structures = adder.add_adsorbates(struct, ir_sites, o_sites)
-        adsorb_structs.extend(structures)
-
-    surfaces = [tupl[2] for tupl in adsorb_structs_l]
-    # REMOVE
-    visualize.view(surfaces)
-
-    # Saving in database
-    custom_print('Saving surfaces with adsorbates in dataframe...', 'debug')
-    for surf in surfaces:
-        db_obj._save_row(structure=surf)
-    custom_print(f'Dataframe shape after saving: {db_obj.df.shape}.', 'debug')
-
-    # Deleting temporary file
-    # os.remove(tmp_file)
-
-    return adsorb_structs
-
+    custom_print(f'Added {n_added} adsorbed structures.', 'info')
+    return n_added
 
 def fix_bottom_layers(structure: Structure, n_layers: int) -> Structure:
     """

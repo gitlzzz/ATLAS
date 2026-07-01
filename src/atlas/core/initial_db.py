@@ -3958,7 +3958,7 @@ def cli_run_gen_initial_database(
     )
     print()
 
-    if 'adsorbates' in config_dict:
+    if 'adsorbates' in config_dict and config_dict['adsorbates'].get('enabled'):
         step_name = 'adsorbate generation'
         atl_cut.custom_print(
             f'Step {step_name} - Adding adsorbates on top of the structures...',
@@ -3969,11 +3969,13 @@ def cli_run_gen_initial_database(
 
         ut.add_adsorbates(
             db_obj=structures,
-            repeat=int(adsorb_dict['num_repeats']),
+            repeat=int(adsorb_dict.get('num_repeats', 1)),
             filters=adsorb_dict['filter_struct_types'],
             phase=structures.df.phase.unique(),
             limit_num_structures=int(adsorb_dict['limit_max_num_perturbs']),
             adsorbate_species=adsorb_dict['adsorbate_species'],
+            sites=adsorb_dict.get('sites'),
+            height=float(adsorb_dict.get('height', 2.0)),
         )
 
         added_structs = len(structures) - ini_n_structs

@@ -467,9 +467,13 @@ database_generation:
             mandatory: false
             default: 0.04
     adsorbates:
-        description: "Adsorbate placement settings."
+        description: "Adsorbate placement settings. When enabled, small molecules are placed on high-symmetry sites of generated surfaces (via pymatgen's AdsorbateSiteFinder), and optionally clusters are placed on surfaces."
         mandatory: false
-        enabled: false
+        enabled:
+            description: "Whether to generate adsorbed structures during database generation."
+            type: bool
+            mandatory: false
+            default: false
         filter_struct_types:
             description: "Types of structures to which adsorbates will be added."
             type: list[str]
@@ -477,7 +481,7 @@ database_generation:
             default: ["surface"]
             choices: ["bulk", "surface", "cluster"]
         limit_max_num_perturbs:
-            description: "Maximum number of structures with adsorbates to generate."
+            description: "Maximum number of adsorbed structures to generate per base surface."
             type: int
             mandatory: false
             default: 100
@@ -487,10 +491,26 @@ database_generation:
             mandatory: true
             default: 1
         adsorbate_species:
-            description: "List of adsorbate species to consider."
+            description: "List of adsorbate species to place (e.g. H, O, OH, H2O, CO)."
             type: list[str]
             mandatory: true
             example: ["H", "H2O"]
+        sites:
+            description: "High-symmetry adsorption site types to use."
+            type: list[str]
+            mandatory: false
+            default: ["ontop", "bridge", "hollow"]
+            choices: ["ontop", "bridge", "hollow"]
+        height:
+            description: "Height (Angstrom) above the surface at which to place adsorbates."
+            type: float
+            mandatory: false
+            default: 2.0
+        place_clusters:
+            description: "Also place generated clusters on surfaces (cluster-on-slab)."
+            type: bool
+            mandatory: false
+            default: false
     struct_filters:
         mandatory: false
         description: "Settings for filtering out incorrect structures."

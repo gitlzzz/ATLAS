@@ -110,6 +110,9 @@ class Structure:
         al_loop_step: int = 0,
         unique_id=None,
         init_md: bool = False,
+        adsorbate: bool = False,
+        adsorbate_type: str = None,
+        adsorbate_site: str = None,
     ):
         if unique_id:
             self.unique_id = unique_id
@@ -160,6 +163,10 @@ class Structure:
         self.targeted_modification = targeted_modification
         self.al_loop_step = al_loop_step
         self.init_md = init_md
+        # Adsorption metadata (molecule/cluster adsorbed on a surface)
+        self.adsorbate = adsorbate
+        self.adsorbate_type = adsorbate_type
+        self.adsorbate_site = adsorbate_site
 
     def to_bulk(self):
         """Create a Bulk instance by passing the current Structure attributes."""
@@ -429,6 +436,9 @@ class Structure:
                 'deformation': self.deformation,
                 'al_loop_step': self.al_loop_step,
                 'init_md': self.init_md,
+                'adsorbate': self.adsorbate,
+                'adsorbate_type': self.adsorbate_type,
+                'adsorbate_site': self.adsorbate_site,
             }
         )
         bool_columns = {
@@ -443,6 +453,7 @@ class Structure:
             'replacement': bool,
             'vacancy': bool,
             'init_md': bool,
+            'adsorbate': bool,
         }
         new_row = new_row.to_frame().T.astype(bool_columns)
 
