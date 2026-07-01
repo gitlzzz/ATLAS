@@ -1780,7 +1780,13 @@ active_learning:
     mace_train:
         name: "mace_train"
         name_pretty: "MLIP Training Settings"
-        description: "Settings for MACE model training."
+        description: "Settings for MLIP model training."
+        model_type:
+            description: "MLIP framework/backend to use. Selects the calculator, training CalcJob, and (where available) native descriptors via the ATLAS backend registry. Additional backends (NequIP, Allegro, DeepMD, EquiformerV2/V3, Orb, LASP) register under their own names."
+            type: str
+            mandatory: false
+            default: "mace"
+            choices: ["mace"]
         result_force_weight:
             description: "Weight of the force when considering model performance in weighted sum calculation."
             type: float
