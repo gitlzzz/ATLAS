@@ -1777,6 +1777,25 @@ active_learning:
                 type: str
                 mandatory: false
                 example: "module load singularity\nexport PATH=$PATH:."
+            images:
+                name: "images"
+                name_pretty: "Per-backend container images"
+                description: "Optional per-MLIP-backend container image overrides. Keys are `model_type` names (e.g. mace, nequip, deepmd); each maps to image_name/engine_command/prepend_text that override the global container settings for that backend's calculations. Because MLIP frameworks have mutually-incompatible dependency stacks (e3nn, numpy, torch), each backend should use its own image. Omit this section to use a single image for the whole run (previous behavior)."
+                dynamic_keys: true
+                schema_under_dynamic_keys:
+                    image_name:
+                        description: "Container image for this backend's calculations."
+                        type: str
+                        mandatory: false
+                        example: "/path/to/atlas_nequip.sif"
+                    engine_command:
+                        description: "Container engine command for this backend (defaults to the global one)."
+                        type: str
+                        mandatory: false
+                    prepend_text:
+                        description: "Prepend text for this backend's container jobs."
+                        type: str
+                        mandatory: false
     mace_train:
         name: "mace_train"
         name_pretty: "MLIP Training Settings"

@@ -10,6 +10,7 @@ is installed. See each module for the (currently unverified) framework API used.
 from atlas.active_learning.backends.allegro import AllegroBackend
 from atlas.active_learning.backends.ase_backend import ASECalculatorBackend
 from atlas.active_learning.backends.base import MLIPBackend
+from atlas.active_learning.backends.containers import resolve_container_settings
 from atlas.active_learning.backends.deepmd import DeepMDBackend
 from atlas.active_learning.backends.equiformer import EquiformerBackend
 from atlas.active_learning.backends.lasp import LASPBackend
@@ -43,4 +44,5 @@ __all__ = [
     'available_backends',
     'get_backend',
     'register_backend',
+    'resolve_container_settings',
 ]

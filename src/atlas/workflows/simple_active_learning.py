@@ -641,8 +641,20 @@ class SimpleActiveLearningWorkChain(WorkChain):
             ].get('options')
 
             if containerized:
-                image_name = container_dict.get('image_name', '')
-                engine_command = container_dict.get('engine_command', '')
+                # Resolve a per-backend container image when configured, else the
+                # global container settings (behavior-preserving for MACE).
+                from atlas.active_learning.backends import (
+                    resolve_container_settings,
+                )
+
+                model_type = self.inputs.mace_train.get_dict().get(
+                    'model_type', 'mace'
+                )
+                effective_container = resolve_container_settings(
+                    container_dict, model_type
+                )
+                image_name = effective_container.get('image_name', '')
+                engine_command = effective_container.get('engine_command', '')
                 num_threads = mace_train_calc_sched_options.get('resources', {}).get(
                     'num_cores_per_mpiproc', os.cpu_count()
                 )
@@ -654,7 +666,7 @@ class SimpleActiveLearningWorkChain(WorkChain):
                 prepend_text = (
                     mace_train_prepend
                     + '\n'
-                    + container_dict.get('prepend_text', '')
+                    + effective_container.get('prepend_text', '')
                     + f'\nexport OMP_NUM_THREADS={num_threads}'
                 )
                 computer = orm.load_computer(
