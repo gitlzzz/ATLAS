@@ -77,12 +77,27 @@ class TestFrameworkBackends:
             assert isinstance(ep, str) and ep
 
     def test_absent_frameworks_raise_informative_error(self):
-        # None of these frameworks are installed in the base env; building a
-        # calculator must raise a clear, actionable error (not a bare ImportError
-        # deep in the framework).
-        for name in ['nequip', 'allegro', 'deepmd', 'equiformer', 'orb']:
+        # For any framework whose package is NOT installed, building a calculator
+        # must raise a clear, actionable error naming the backend (not an opaque
+        # error deep in the framework). Backends whose package IS installed are
+        # skipped here (they'd try to actually load a model).
+        import importlib.util
+
+        backend_pkg = {
+            'nequip': 'nequip',
+            'allegro': 'nequip',
+            'deepmd': 'deepmd',
+            'equiformer': 'fairchem',
+            'orb': 'orb_models',
+        }
+        checked = 0
+        for name, pkg in backend_pkg.items():
+            if importlib.util.find_spec(pkg) is not None:
+                continue  # framework present in this env; covered by live tests
+            checked += 1
             with pytest.raises(ImportError, match=name):
                 get_backend(name).build_calculator('some_model')
+        assert checked >= 1  # at least one framework is absent in a base env
 
     def test_lasp_is_scaffold(self):
         with pytest.raises(NotImplementedError):
@@ -91,6 +106,29 @@ class TestFrameworkBackends:
     def test_orb_foundation_parsing(self):
         assert get_backend('orb').parse_foundation_id('orb-v2') == ('pretrained', 'orb-v2')
         assert get_backend('orb').parse_foundation_id('/ckpt.ckpt') is None
+
+
+class TestOrbLive:
+    """Live Orb backend check (skipped unless orb-models is installed).
+
+    Verified against orb-models v0.5.5: builds a real ORBCalculator from a
+    pretrained potential and runs a single-point energy/force evaluation.
+    """
+
+    def test_orb_single_point(self):
+        pytest.importorskip('orb_models')
+        import numpy as np
+        from ase.build import bulk
+
+        calc = get_backend('orb').build_calculator(
+            'orb-d3-xs-v2', device='cpu', compile=False
+        )
+        atoms = bulk('Cu', 'fcc', a=3.6, cubic=True)
+        atoms.calc = calc
+        energy = atoms.get_potential_energy()
+        forces = atoms.get_forces()
+        assert np.isfinite(energy)
+        assert forces.shape == (len(atoms), 3)
 
 
 class TestInterface:
