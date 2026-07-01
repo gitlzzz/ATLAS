@@ -2,7 +2,13 @@
 
 Uses DeePMD-kit's ASE calculator and the `dp train` CLI (JSON config). DeepMD
 models run natively in LAMMPS, so `get_lammps_model` returns the model path
-directly. UNVERIFIED against a live install.
+directly.
+
+API verified against deepmd-kit 3.1.3: ``deepmd.calculator.DP(model, ...)``
+matches the construction below. Note: deepmd-kit requires ``numpy>=2``, which is
+INCOMPATIBLE with ATLAS's ``numpy<2`` pin, so it must run in its own
+environment/container. A live single-point needs a frozen model (`dp freeze`),
+so only the API is verified here.
 """
 
 from __future__ import annotations

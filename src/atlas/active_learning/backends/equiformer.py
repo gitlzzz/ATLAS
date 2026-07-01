@@ -2,7 +2,12 @@
 
 Equiformer models are trained/served through `fairchem` (formerly OCP). The
 calculator API changed across fairchem versions (OCPCalculator -> FAIRChemCalculator),
-so both are attempted. UNVERIFIED against a live install.
+so both are attempted.
+
+UNVERIFIED: fairchem-core was not installed (it downgrades torch to 2.8, pulls
+e3nn 0.6 [breaks MACE], numpy 2 [breaks ATLAS] and click 8.4 [breaks aiida], plus
+a very large dependency tree). It must run in its own environment/container;
+confirm the calculator import there.
 """
 
 from __future__ import annotations
