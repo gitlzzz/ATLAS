@@ -62,6 +62,37 @@ class TestMaceFoundationParsing:
         assert get_backend('mace').parse_foundation_id(None) is None
 
 
+class TestFrameworkBackends:
+    """The framework backends register and fail gracefully when absent."""
+
+    ALL = ['mace', 'nequip', 'allegro', 'deepmd', 'equiformer', 'orb', 'lasp']
+
+    def test_all_registered(self):
+        for name in self.ALL:
+            assert name in available_backends()
+
+    def test_each_has_train_entry_point(self):
+        for name in self.ALL:
+            ep = get_backend(name).train_calcjob_entry_point()
+            assert isinstance(ep, str) and ep
+
+    def test_absent_frameworks_raise_informative_error(self):
+        # None of these frameworks are installed in the base env; building a
+        # calculator must raise a clear, actionable error (not a bare ImportError
+        # deep in the framework).
+        for name in ['nequip', 'allegro', 'deepmd', 'equiformer', 'orb']:
+            with pytest.raises(ImportError, match=name):
+                get_backend(name).build_calculator('some_model')
+
+    def test_lasp_is_scaffold(self):
+        with pytest.raises(NotImplementedError):
+            get_backend('lasp').build_calculator('model.pot')
+
+    def test_orb_foundation_parsing(self):
+        assert get_backend('orb').parse_foundation_id('orb-v2') == ('pretrained', 'orb-v2')
+        assert get_backend('orb').parse_foundation_id('/ckpt.ckpt') is None
+
+
 class TestInterface:
     def test_base_is_abstract(self):
         with pytest.raises(TypeError):

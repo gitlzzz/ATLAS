@@ -1786,7 +1786,7 @@ active_learning:
             type: str
             mandatory: false
             default: "mace"
-            choices: ["mace"]
+            choices: ["mace", "nequip", "allegro", "deepmd", "equiformer", "orb", "lasp"]
         result_force_weight:
             description: "Weight of the force when considering model performance in weighted sum calculation."
             type: float
