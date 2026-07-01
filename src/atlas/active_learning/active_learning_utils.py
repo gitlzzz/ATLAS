@@ -1065,10 +1065,15 @@ def run_mace_md_ase(
             else:
                 model_path = Path(prepend_path) / 'curr_model.model'
 
-            nn_calculator = MACECalculator(
-                model_paths=model_path,
+            # Build the calculator through the pluggable MLIP backend registry
+            # (defaults to MACE; equivalent to MACECalculator for model_type='mace').
+            from atlas.active_learning.backends import get_backend
+
+            backend = get_backend(md_params.get('model_type', 'mace'))
+            nn_calculator = backend.build_calculator(
+                model_path,
                 device=md_params.get('device', 'cpu'),
-                default_dtype=md_params.get('default_dtype', 'float64'),
+                dtype=md_params.get('default_dtype', 'float64'),
                 enable_cueq=enable_cueq,
             )
 
